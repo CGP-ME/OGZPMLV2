@@ -1369,10 +1369,15 @@ class SessionRouter extends EventEmitter {
       }
       snapshots.target = await this._fetchBrokerRestSnapshot(targetAdapter, targetBrokerId);
 
+      const paperExecution = this.ctx?.config?.executionMode === 'paper';
+      const simulatedOpenPositions = paperExecution ? this._activeTradeEntries() : [];
       const unsafeParts = [];
+      if (paperExecution && simulatedOpenPositions.length > 0) {
+        unsafeParts.push(`paper simulated positions=${simulatedOpenPositions.length}`);
+      }
       for (const [role, snapshot] of Object.entries(snapshots)) {
         if (!snapshot) continue;
-        if (snapshot.openPositions.length > 0) {
+        if (!paperExecution && snapshot.openPositions.length > 0) {
           unsafeParts.push(`${role} ${snapshot.brokerId} open positions=${snapshot.openPositions.length}`);
         }
         if (snapshot.openOrders.length > 0) {

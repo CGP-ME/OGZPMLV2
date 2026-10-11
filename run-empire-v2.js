@@ -1380,15 +1380,7 @@ class OGZPrimeV14Bot {
       enableBacktestMode,
       tradingMode
     };
-    const startupAccountScope = this.resolveBrokerAccountScope(this.config.brokerId);
-    if (
-      !this.isSessionRoutingActive()
-      || (startupAccountScope.accountId && startupAccountScope.accountIdSource !== 'default')
-    ) {
-      this.syncDashboardRuntimeScope(this.tradingPair, { timeframe: this.candleTimeframe });
-    } else {
-      console.warn('[SCOPE][BOOT] Dashboard runtime scope sync deferred until SessionRouter verifies broker account identity');
-    }
+    // SessionRouter publishes verified account and market scope after activation.
 
     console.log(`Trading Mode: ${tradingMode}`);
 
@@ -1748,8 +1740,7 @@ class OGZPrimeV14Bot {
     const hydrationLimit = this.config.dataFeed.bootRestHydrationLimit;
     for (const symbol of symbols) {
       const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
-        brokerId: broker.id,
-        assetClass: this.config.assetClass,
+        brokerId: broker.getBrokerName(),
       });
       const rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
       const candles = (Array.isArray(rawCandles) ? rawCandles : [])
@@ -1871,10 +1862,10 @@ class OGZPrimeV14Bot {
         if (!this.config.enableBacktestMode) {
           const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
             source: 'session_router_start',
-            brokerId: this.sessionRouter?.activeBroker?.id || null,
+            brokerId: this.kraken.getBrokerName(),
           });
           if (brokerIdentity) {
-            this.syncDashboardRuntimeScope(this.tradingPair, {
+            this.syncDashboardRuntimeScope(this._getBootHydrationSymbols()[0], {
               brokerId: brokerIdentity.brokerId,
               accountId: brokerIdentity.accountId,
               accountIdSource: brokerIdentity.accountIdSource,
@@ -1946,10 +1937,10 @@ class OGZPrimeV14Bot {
         }
         const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
           source: 'broker_connect',
-          brokerId: this.config.brokerId,
+          brokerId: this.kraken.getBrokerName(),
         });
         if (brokerIdentity) {
-          this.syncDashboardRuntimeScope(this.tradingPair, {
+          this.syncDashboardRuntimeScope(this._getBootHydrationSymbols()[0], {
             brokerId: brokerIdentity.brokerId,
             accountId: brokerIdentity.accountId,
             accountIdSource: brokerIdentity.accountIdSource,
@@ -2955,8 +2946,7 @@ class OGZPrimeV14Bot {
 
     let applied = 0;
     const scopeEnvelope = this._getRestRecoveryScopeEnvelope('liveness_rest_backfill', symbol, timeframe, {
-      brokerId: broker.id,
-      assetClass: this.config.assetClass,
+      brokerId: broker.getBrokerName(),
     });
     for (let index = 0; index < candles.length; index += 1) {
       const traceId = createTraceId('liveness_rest');

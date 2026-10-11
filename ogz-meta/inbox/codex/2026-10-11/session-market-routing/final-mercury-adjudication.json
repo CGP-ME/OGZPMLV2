@@ -1,0 +1,193 @@
+{
+  "candidate_tree": "6482ea3c53ea34c36f92da8dc419bb5f2de0ec3d",
+  "base": "162a60cc5251c08f5e40dd652792dc02610314b5",
+  "raw_mercury_verdict": "found_break",
+  "raw_blocking_flag": true,
+  "answer_source": "delivery-review-answer.txt",
+  "source_quality": "Final answer asserts exact citations but includes none; subsection numeric totals also undercount their listed allegations. All 20 listed mechanisms addressed here against exact source.",
+  "scoped_conclusion": "CLEAR: no supported introduced or imminent blocker from these allegations. Preserve raw found_break; this is combined adjudication, not clean Mercury.",
+  "known_holdings_condition": "Resolved by mode-qualified StateManager paper-flatness producer at core/SessionRouter.js:1372-1389, preserving real REST snapshots, REST-open-order rejection, and live-position rejection. Final-tree actual-source proofs pass. No production activation claimed.",
+  "claims": [
+    {
+      "claim": "getBalance error handling",
+      "disposition": "no demonstrated introduced break",
+      "evidence": [
+        "brokers/KrakenIBrokerAdapter.js:134-154",
+        "core/SessionRouter.js:1328-1348,1366-1370,1405-1412",
+        "kraken_adapter_simple.js:272-300"
+      ],
+      "reason": "Private request rejection propagates through awaited reconciliation. Missing identity is cleared, never fabricated; existing runtime-scope validation blocks absent identity. A local catch is not required to propagate failure."
+    },
+    {
+      "claim": "duplicate getAccountIdentity",
+      "disposition": "refuted",
+      "evidence": [
+        "brokers/KrakenIBrokerAdapter.js:146-155"
+      ],
+      "reason": "Exactly one getAccountIdentity method exists in the candidate class."
+    },
+    {
+      "claim": "subscribeToOrderBook signature mismatch",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "brokers/KrakenIBrokerAdapter.js:433-470",
+        "base brokers/KrakenIBrokerAdapter.js:412-449"
+      ],
+      "reason": "Unchanged source; no newly introduced producer or concrete imminent failure identified."
+    },
+    {
+      "claim": "unsubscribeAll incomplete",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "brokers/KrakenIBrokerAdapter.js:477-486",
+        "base brokers/KrakenIBrokerAdapter.js:456-465"
+      ],
+      "reason": "Existing listener behavior unchanged; no actionable new stale-order/candle route demonstrated. Existing callback-fence transition proof rejects stale OHLC."
+    },
+    {
+      "claim": "undefined checkIntervalMs",
+      "disposition": "refuted for actual runner producer",
+      "evidence": [
+        "core/SessionRouter.js:65",
+        "run-empire-v2.js:938-944",
+        "foundation/ConfigLoader.js:1871-1872"
+      ],
+      "reason": "Runner supplies configured checkIntervalMs, validated positive integer. Canonical profiles supply 60000."
+    },
+    {
+      "claim": "pauseTrading missing try-catch",
+      "disposition": "refuted for transition paths",
+      "evidence": [
+        "core/SessionRouter.js:1520-1533,1598-1603,1614-1628,1699-1704"
+      ],
+      "reason": "Both stock/crypto pause calls are inside the transition try/catch leading to failed-safe. Wind-down errors also propagate to scheduled operation handler; no new pause code added."
+    },
+    {
+      "claim": "fastCheckIntervalMs missing validation",
+      "disposition": "refuted for actual producer",
+      "evidence": [
+        "run-empire-v2.js:941-943",
+        "foundation/ConfigLoader.js:1653",
+        "core/SessionRouter.js:65"
+      ],
+      "reason": "ConfigLoader validates internals.sessionRouter.fastCheckIntervalMs as positive integer; runner passes it explicitly."
+    },
+    {
+      "claim": "mode.backtest access",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "foundation/ConfigLoader.js:900-904",
+        "base foundation/ConfigLoader.js:903-907"
+      ],
+      "reason": "Unchanged function; candidate does not remove mode producer or any backtest contract."
+    },
+    {
+      "claim": "strategies.soloFilter",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "foundation/ConfigLoader.js:1138-1143",
+        "base foundation/ConfigLoader.js:1141-1146"
+      ],
+      "reason": "Unchanged configured producer; no candidate-created missing strategies input established."
+    },
+    {
+      "claim": "nested field validation",
+      "disposition": "unsupported broad allegation",
+      "evidence": [
+        "foundation/ConfigLoader.js:1734-1877"
+      ],
+      "reason": "No field, invalid producer, or exact failure path supplied. Actual diff removes only unconsumed scheduled schedule-object checks; existing nested validation otherwise remains."
+    },
+    {
+      "claim": "isPlaceholderWebhookUrl silent error",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "foundation/ConfigLoader.js:1294-1322",
+        "base foundation/ConfigLoader.js:1297-1325"
+      ],
+      "reason": "Unchanged source; no newly introduced producer or concrete imminent failure identified."
+    },
+    {
+      "claim": "deepFreeze circular reference risk",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "foundation/ConfigLoader.js:2186-2194",
+        "base foundation/ConfigLoader.js:2192-2200"
+      ],
+      "reason": "No newly introduced cyclic producer; unchanged recursion is a hypothetical inherited lead."
+    },
+    {
+      "claim": "get null-value handling",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "foundation/ConfigLoader.js:2499-2507",
+        "base foundation/ConfigLoader.js:2505-2513"
+      ],
+      "reason": "Unchanged source; no newly introduced producer or concrete imminent failure identified."
+    },
+    {
+      "claim": "removed backtest validation",
+      "disposition": "refuted",
+      "evidence": [
+        "foundation/ConfigLoader.js:469-484,1772-1775,1861-1877",
+        "config/settings.json launchProfiles backtest-*"
+      ],
+      "reason": "Only unconsumed scheduled schedule-object validation was removed; static-session and backtest validations remain. All backtest profiles deep-compare unchanged."
+    },
+    {
+      "claim": "requestRuntimeShutdown promise never resolves",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "run-empire-v2.js:66-87",
+        "base run-empire-v2.js:66-87"
+      ],
+      "reason": "Unchanged source; no newly introduced producer or concrete imminent failure identified."
+    },
+    {
+      "claim": "default broker assignment",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "run-empire-v2.js:1105-1109",
+        "base run-empire-v2.js:1105-1109"
+      ],
+      "reason": "Construction-time adapter is replaced by verified activeBroker after awaited router.start at1854-1861; actual updated scope fixture verifies Kraken/BTC startup."
+    },
+    {
+      "claim": "emitTrace symbol validation",
+      "disposition": "unsupported/inherited lead",
+      "evidence": [
+        "run-empire-v2.js:975-1065,1769-1784"
+      ],
+      "reason": "No specific newly invalid symbol producer or trace identified. Candidate supplies active-session symbol at1868 and1943; changed startup scope is proven by runner-scope-proof.json."
+    },
+    {
+      "claim": "activeTimeframeSilenceLimitMs missing catch",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "run-empire-v2.js:2827-2844",
+        "base run-empire-v2.js:2836-2853"
+      ],
+      "reason": "Unchanged helper/error policy; candidate does not create a new invalid timing input."
+    },
+    {
+      "claim": "process.removeListener potential error",
+      "disposition": "inherited; no introduced break established",
+      "evidence": [
+        "run-empire-v2.js:3874-3875",
+        "base run-empire-v2.js:110-111"
+      ],
+      "reason": "Unchanged calls with registered function references; no candidate-created invalid listener identified."
+    },
+    {
+      "claim": "broker.getBrokerName assumption",
+      "disposition": "refuted for concrete route producers",
+      "evidence": [
+        "run-empire-v2.js:920-932,1860-1865,1938-1940",
+        "brokers/KrakenIBrokerAdapter.js:126-128",
+        "brokers/AlpacaAdapter.js:863-865"
+      ],
+      "reason": "Both adapters constructed by the runner implement getBrokerName. No third/incomplete adapter producer established."
+    }
+  ],
+  "limits": "Read-only source comparisons; no new tests, harness edits, production edits, broker calls or account actions. Paper behavior applies to canonical paper/production profiles, not a universal live-to-paper switch."
+}

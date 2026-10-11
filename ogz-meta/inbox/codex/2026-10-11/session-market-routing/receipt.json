@@ -1,0 +1,22 @@
+{
+  "candidate": "6482ea3c53ea34c36f92da8dc419bb5f2de0ec3d",
+  "base": "162a60cc5251c08f5e40dd652792dc02610314b5",
+  "mercuryRun": "2026-10-11T01-40-52-448Z-9d6d2a1d376d",
+  "mercuryRawVerdict": "found_break",
+  "mercuryHarnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "astraVerdict": "scoped_pass",
+  "combinedDisposition": "no supported introduced or imminent blocker",
+  "runtimeActivated": false,
+  "paperReconciliationChecks": [
+    "actual REST holdings retained",
+    "local simulated trades determine paper position flatness",
+    "broker open orders still block",
+    "live real holdings still block",
+    "no order calls"
+  ],
+  "limitations": [
+    "canonical profiles paper; no new manual-live mode controller",
+    "unrelated existing dirty working files preserved",
+    "runtime activation separately verified"
+  ]
+}

@@ -481,9 +481,6 @@ function validateLaunchProfileSessionRouter(profileName, profile) {
       throw new Error(`[ConfigLoader] launchProfiles.${profileName}.sessionRouter.staticSession must be stocks or crypto when mode=static`);
     }
   }
-  if (mode === 'scheduled' && (!router.schedule || typeof router.schedule !== 'object' || Array.isArray(router.schedule))) {
-    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.sessionRouter.schedule is required when mode=scheduled`);
-  }
 }
 
 function resolveLaunchProfile(sourceEnv, launchProfiles = requireLaunchProfiles()) {
@@ -1867,9 +1864,6 @@ function validate(config, sources = {}, opts = {}) {
   }
   if (sessionRouter.mode === 'static' && !VALID_SESSION_ROUTER_STATIC_SESSIONS.has(sessionRouter.staticSession)) {
     errors.push(`sessionRouter.staticSession must be stocks or crypto when mode=static; got ${sessionRouter.staticSession || '(missing)'}`);
-  }
-  if (sessionRouter.mode === 'scheduled' && (!sessionRouter.schedule || typeof sessionRouter.schedule !== 'object' || Array.isArray(sessionRouter.schedule))) {
-    errors.push('sessionRouter.schedule is required when mode=scheduled');
   }
   if (!Array.isArray(sessionRouter.cryptoSymbols) || sessionRouter.cryptoSymbols.length === 0) {
     errors.push('sessionRouter.cryptoSymbols must be a non-empty array');

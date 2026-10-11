@@ -24,6 +24,8 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     this.kraken = new KrakenAdapterSimple(options);
     this.connected = false;
     this.subscriptions = new Map();
+    this.accountId = null;
+    this.accountIdSource = null;
   }
 
   // =========================================================================
@@ -130,7 +132,26 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   // =========================================================================
 
   async getBalance() {
+    this.accountId = null;
+    this.accountIdSource = null;
+    const accountInfo = await this.kraken.makePrivateRequest('/0/private/GetApiKeyInfo');
+    const iban = accountInfo && accountInfo.result ? accountInfo.result.iban : null;
+    if (typeof iban === 'string' && iban.trim()) {
+      this.accountId = iban;
+      this.accountIdSource = 'broker:iban';
+    }
     return await this.kraken.getBalance();
+  }
+
+  getAccountIdentity() {
+    if (!this.accountId) {
+      return null;
+    }
+    return {
+      brokerId: 'kraken',
+      accountId: this.accountId,
+      accountIdSource: this.accountIdSource
+    };
   }
 
   async getPositions() {

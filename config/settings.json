@@ -174,8 +174,7 @@
       "mode": "paper",
       "confirmLive": false,
       "sessionRouter": {
-        "mode": "static",
-        "staticSession": "stocks",
+        "mode": "scheduled",
         "cryptoSymbols": [
           "BTC-USD"
         ],
@@ -305,8 +304,7 @@
       "mode": "paper",
       "confirmLive": false,
       "sessionRouter": {
-        "mode": "static",
-        "staticSession": "stocks",
+        "mode": "scheduled",
         "cryptoSymbols": [
           "BTC-USD"
         ],

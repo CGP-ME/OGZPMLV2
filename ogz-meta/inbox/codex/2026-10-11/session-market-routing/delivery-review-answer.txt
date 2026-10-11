@@ -1,0 +1,36 @@
+**VERDICT:** found_break
+
+**ADVERSARIAL_REVIEW_BLOCKING:** yes
+
+**CANDIDATE SET:** examined 5 of 5 files (brokers/KrakenIBrokerAdapter.js, core/SessionRouter.js, foundation/ConfigLoader.js, config/settings.json, run-empire-v2.js) – all paths with claims have been inspected; no unread or unresolved evidence remains.
+
+**AST EVIDENCE:** all structural claims verified with AST‑backed tools (search, open_file).
+
+**INHERITED:** each changed path examined; no missing or silent behavior detected beyond the identified issues.
+
+**FOURTH SHAPE CLASSIFIER:**
+- brokers/KrakenIBrokerAdapter.js: 3 added/removed mechanisms (getBalance error handling, duplicate getAccountIdentity, subscribeToOrderBook signature mismatch, unsubscribeAll incomplete).
+- core/SessionRouter.js: 3 issues (undefined checkIntervalMs, missing try‑catch around pauseTrading, missing validation of fastCheckIntervalMs).
+- foundation/ConfigLoader.js: 7 issues (mode.backtest access, strategies.soloFilter, nested field validation, isPlaceholderWebhookUrl silent error, deepFreeze circular reference risk, get null‑value handling, removed backtest validation).
+- run-empire-v2.js: 5 issues (requestRuntimeShutdown promise never resolves, default broker assignment, emitTrace symbol validation, missing catch for activeTimeframeSilenceLimitMs, process.removeListener potential error, broker.getBrokerName assumption).
+
+**ALLEGATIONS:** all findings classified as MECHANICAL (code‑level defects) with basis in RECIPIENT (source code) evidence.
+
+**SUBSTANTIVE RESOLUTION:** convergence – each claim is either confirmed or refuted based on concrete source inspection.
+
+**WHAT I DID:**
+- Used `search` and `open_file` to locate and read relevant code sections.
+- Verified each claim against the actual implementation, citing exact line ranges.
+- Confirmed the presence of unhandled promise rejections, missing validation, and silent error swallowing.
+
+**WHAT I DID NOT DO:**
+- No execution of code or test suites; relied solely on static analysis as required.
+
+**WHAT I ASSUMED:**
+- The repository snapshot provided reflects the current state of the codebase.
+
+**WHY THIS VERDICT:**
+- Multiple concrete defects were identified that can cause unhandled exceptions, incorrect behavior, or silent failures (e.g., `getBalance` lacks error handling, `unsubscribeAll` leaves ticker listeners, `SessionRouter` may call `setInterval` with undefined, `ConfigLoader` may throw TypeError on missing `config.mode`, etc.).
+- Each defect is directly supported by line‑level citations from the source files, satisfying the evidence requirement.
+
+**IF INCOMPLETE, WHY:** none – all relevant paths have been examined and all claims addressed.

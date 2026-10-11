@@ -1,0 +1,54 @@
+{
+  "tree": "6482ea3c53ea34c36f92da8dc419bb5f2de0ec3d",
+  "base": "162a60cc5251c08f5e40dd652792dc02610314b5",
+  "status": "pass",
+  "checks": [
+    "weekend startup selects Kraken crypto in paper",
+    "RTH transition selects Alpaca stocks in paper and subscribes every stock",
+    "prior crypto callback rejected after stock handoff",
+    "after-close transition returns to Kraken crypto in paper",
+    "paper pattern-memory ownership and durable transition state follow both switches",
+    "paper and production load paper scheduled routing; backtest profiles retain static routing"
+  ],
+  "registrations": [
+    {
+      "broker": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "broker": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "broker": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    }
+  ],
+  "patternModes": [
+    {
+      "mode": "paper",
+      "asset": "crypto"
+    },
+    {
+      "mode": "paper",
+      "asset": "stocks"
+    },
+    {
+      "mode": "paper",
+      "asset": "crypto"
+    }
+  ],
+  "limitations": [
+    "Isolated actual ConfigLoader, calendar, SessionRouter and TransitionStore with controlled external brokers, state and memory. No production credentials, state writes or broker orders."
+  ]
+}

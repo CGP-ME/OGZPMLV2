@@ -1,0 +1,13 @@
+{
+  "tree": "6482ea3c53ea34c36f92da8dc419bb5f2de0ec3d",
+  "status": "pass",
+  "checks": [
+    "actual runner startup router block publishes active Kraken/BTC scope despite configured Alpaca/TSLA account",
+    "actual REST hydration stamps crypto/Kraken/paper from active session",
+    "premature constructor startup scope publication removed; router callbacks retained",
+    "broker-connect identity uses actual adapter"
+  ],
+  "limitations": [
+    "AST-extracted real runner methods/block; external broker/candle processor controlled. Full runtime boot checked separately."
+  ]
+}

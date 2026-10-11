@@ -1,0 +1,91 @@
+{
+  "candidate": "6482ea3c53ea34c36f92da8dc419bb5f2de0ec3d",
+  "base": "162a60cc5251c08f5e40dd652792dc02610314b5",
+  "verdict": "scoped_pass",
+  "introduced_blockers": [],
+  "resolved_initial_finding": {
+    "original_candidate": "bf99df9f8fc53153a20066714673292e0b486db2",
+    "finding": "Premature constructor dashboard scope publication throws when scheduled mode lacks activeSession and a broker account identity exists",
+    "resolution": "Constructor publication removed. SessionRouter activation publishes verified scope; runner resynchronizes only after awaited start. Initial report retained.",
+    "evidence": [
+      "run-empire-v2.js:1383",
+      "run-empire-v2.js:1854-1875",
+      "core/SessionRouter.js:1720-1745",
+      "initial-astra-review.json"
+    ]
+  },
+  "checks": [
+    {
+      "claim": "Actual broker/symbol and session-derived asset class are preserved during startup and REST hydration",
+      "evidence": [
+        "run-empire-v2.js:1740-1745",
+        "run-empire-v2.js:1862-1874",
+        "run-empire-v2.js:1937-1950",
+        "run-empire-v2.js:2946-2952",
+        "runner-scope-proof.json"
+      ]
+    },
+    {
+      "claim": "Kraken identity is produced before balance reconciliation completes and is available to router scope construction",
+      "evidence": [
+        "brokers/KrakenIBrokerAdapter.js:134-154",
+        "kraken_adapter_simple.js:272-275",
+        "core/SessionRouter.js:1343-1355",
+        "core/SessionRouter.js:1720-1723"
+      ]
+    },
+    {
+      "claim": "Missing identity is not fabricated; transport rejection propagates and identity-less payload leaves existing scope validation to block activation",
+      "evidence": [
+        "brokers/KrakenIBrokerAdapter.js:134-154",
+        "core/SessionRouter.js:922-974",
+        "kraken_adapter_simple.js:277-300"
+      ]
+    },
+    {
+      "claim": "Both canonical runtime profiles are paper and scheduled; all other profiles unchanged",
+      "evidence": [
+        "config/settings.json:173-177",
+        "config/settings.json:303-307",
+        "behavior-proof.json"
+      ]
+    },
+    {
+      "claim": "Removed schedule object has no runtime reader; NYSE calendar is actual route producer",
+      "evidence": [
+        "core/SessionRouter.js:307-309",
+        "core/SessionRouter.js:366-377"
+      ]
+    },
+    {
+      "claim": "Known two-holding account condition no longer blocks flat local paper state; nonflat local paper state, real open orders, and live holdings remain blocking",
+      "evidence": [
+        "core/SessionRouter.js:1372-1389",
+        "paper-reconciliation-context/RECEIPT.md",
+        "behavior-proof.json"
+      ]
+    }
+  ],
+  "paper_scope_limitation": "The shipped paper and production profiles start and remain paper across switches. SessionRouter preserves executionMode; it does not universally force an arbitrary live profile back to paper. The stated immediate behavior is satisfied for these canonical profiles, not as a universal live-to-paper transition policy.",
+  "verification": "Re-read full final logical diff and exact added SessionRouter owner correction; verified source export against tree and unchanged prior four files. Reviewed actual-source paper reconciliation fixture and final-tree routing receipts. No production boot, broker orders or runtime activation by reviewer.",
+  "source_sha256": {
+    "run-empire-v2.js": "9479a3e16c72feac3fc944626ea7aa337dd6a0de79742bcae1939a2736981979",
+    "brokers/KrakenIBrokerAdapter.js": "ec6fd4ba1fe76d0ee5c434728e8594e5abc56ea0f562247674062e54f57a19ee",
+    "foundation/ConfigLoader.js": "eac231eb70cf7729e56d182a4c2d08e2b63b464618ec85f1731302a0e28a9b7e",
+    "config/settings.json": "325f45be79ed2b179ce432ded43d429ddaae3100dec24a53a98b5cb05cb094db",
+    "core/SessionRouter.js": "19f93be0848421d69eaa1448bcdfe683c7b15fe5c25ee37cc79f52fffe4cc37f",
+    "kraken_adapter_simple.js": "99dabaddff38d4a32db9672526f2046fcf4823abaee7dcf858a11ce80634c7a6"
+  },
+  "known_two_holdings_blocker": {
+    "status": "resolved in reviewed code and isolated actual-router proof; production activation unverified",
+    "cause": "Broker REST holdings were treated as paper execution exposure. Paper fills are local StateManager trades.",
+    "resolution": "Paper position-flatness now reads the same actual StateManager activeTrade entries used by source closure. Real holdings remain in fetched/recorded snapshots; real open orders still block. Live broker-position criterion is unchanged.",
+    "evidence": [
+      "core/SessionRouter.js:215-274",
+      "core/SessionRouter.js:1328-1389",
+      "core/OrderExecutor.js:3564-3595",
+      "paper-reconciliation-context/fixtures/paper-reconciliation-proof.cjs",
+      "behavior-proof.json"
+    ]
+  }
+}
