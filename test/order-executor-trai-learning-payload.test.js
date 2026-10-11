@@ -662,9 +662,9 @@ describe('OrderExecutor TRAI learning payload', () => {
     const module = Object.create(TRAIDecisionModule.prototype);
     module.config = {
       mode: 'passive',
-      enableVetoPower: false,
       trackDecisions: false,
       minConfidenceOverride: 0.4,
+      maxConfidenceOverride: require('../config/settings.json').trai.maxConf,
       maxRiskTolerance: 999,
       emergencyStopLoss: 0.05,
     };
@@ -719,9 +719,9 @@ describe('OrderExecutor TRAI learning payload', () => {
     const module = Object.create(TRAIDecisionModule.prototype);
     module.config = {
       mode: 'passive',
-      enableVetoPower: false,
       trackDecisions: false,
       minConfidenceOverride: 0.4,
+      maxConfidenceOverride: require('../config/settings.json').trai.maxConf,
       maxRiskTolerance: 999,
       emergencyStopLoss: 0.05,
     };
@@ -799,9 +799,9 @@ describe('OrderExecutor TRAI learning payload', () => {
     module.config = {
       mode: 'advisory',
       confidenceWeight: 0.3,
-      enableVetoPower: false,
       trackDecisions: false,
       minConfidenceOverride: 0.4,
+      maxConfidenceOverride: require('../config/settings.json').trai.maxConf,
       maxRiskTolerance: 999,
       emergencyStopLoss: 0.05,
     };

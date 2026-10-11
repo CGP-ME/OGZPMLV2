@@ -1,0 +1,6 @@
+Actual checks on 2026-10-11:
+- Exact reviewed TRAIDecisionModule processDecision + checkVetoConditions probe: PASS; vetoApplied=false, opinionOnly=true, passive finalConfidence=0.62.
+- Existing config-loader-live-guard canonical settings case: 1 passed, 46 unrelated cases skipped.
+- Existing order-executor-trai-learning-payload suite: 22 passed, 2 failed. Both failures are unchanged storeDecision test fixtures that construct a prototype without this.config, then access this.config.decisionHistoryLimit. Raw local logs: tests.txt and config-test.txt. Do not report the entire suite as passing.
+- Production search found no remaining vetoPower or enableVetoPower references in the runner/module/settings.
+- No runtime activation.

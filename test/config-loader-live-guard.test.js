@@ -157,7 +157,7 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.filters.atrMinPercent).toBe(canonicalSettingsValue('filters.atrMinPercent'));
     expect(loaded.config.trai.enabled).toBe(true);
     expect(loaded.config.trai.mode).toBe('passive');
-    expect(loaded.config.trai.vetoPower).toBe(false);
+    expect(loaded.config.trai).not.toHaveProperty('vetoPower');
     expect(loaded.sources['confidence.minStrategyConfidence']).toBe('config:settings.json:confidence');
     expect(loaded.sources['exitContracts.RSI.stopLossPercent']).toBe('config:settings.json:exitContracts');
     expect(loaded.sources['filters.atrEnabled']).toBe('config:settings.json:filters');

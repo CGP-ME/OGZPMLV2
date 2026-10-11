@@ -2574,7 +2574,6 @@
       "enabled": true,
       "mode": "passive",
       "weight": 0.2,
-      "vetoPower": false,
       "maxRisk": 0.03,
       "emergencyStopLoss": 0.05,
       "minConf": 0.08,

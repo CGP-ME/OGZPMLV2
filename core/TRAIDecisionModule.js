@@ -39,12 +39,8 @@ class TRAIDecisionModule extends EventEmitter {
   constructor(config = {}) {
     super();
     
-    // Configuration
-      this.config = {
-        ...config,
-        // TRAI risk assessment remains opinion-only until Trey re-authorizes veto power.
-        enableVetoPower: false,
-      };
+    // TRAI risk assessment is opinion-only; there is no configurable execution veto.
+    this.config = { ...config };
     
     // State management
     this.state = {

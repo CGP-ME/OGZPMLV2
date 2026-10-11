@@ -1,0 +1,25 @@
+{
+  "title": "Retire phantom TRAI veto declaration and forced override",
+  "base": "2552c9b78924d9df1e2654afe5af2ef9c7e53f65",
+  "candidate": "d3c316495557765a6c419ff3f6cbcf422fe8c9f1",
+  "files": [
+    "config/settings.json",
+    "run-empire-v2.js",
+    "core/TRAIDecisionModule.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 c19d1879 00817ecf M\tCHANGELOG.md\n:100644 100644 c6356e60 18453deb M\tconfig/settings.json\n:100644 100644 a70e7edd a4dba15d M\tcore/TRAIDecisionModule.js\n:100644 100644 744a81f3 ddfb7418 M\trun-empire-v2.js",
+  "runtimeActivation": false,
+  "supplementalNonProductionReview": {
+    "reviewer": "stop1_entry_state_fix (Terra)",
+    "receipt": "fixture-review.txt",
+    "files": {
+      "test/config-loader-live-guard.test.js": "84bca1aab1df7a511d38611d8b8998c0782ed825",
+      "test/order-executor-trai-learning-payload.test.js": "a74f697417b8c28259461bd9ca1e71a6e45b725a"
+    }
+  },
+  "finalReview": {
+    "answer": "delivery-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

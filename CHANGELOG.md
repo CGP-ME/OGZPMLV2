@@ -1,3 +1,11 @@
+## 2026-10-11 — Remove the phantom TRAI veto control
+
+- **Problem:** Dynamic `trai.vetoPower` was passed by the runner and immediately overwritten to false, while actual TRAI risk assessment is intentionally opinion-only. The setting advertised an authority it never had.
+- **Change:** Retire the inert settings declaration, runner argument and constructor override together. Existing opinion-only decision behavior and unconditional non-veto result stay explicit in their actual methods. No new policy switch, duplicate static knob or trading restriction.
+- **Verification:** Actual processDecision still reports vetoApplied=false and opinionOnly=true, preserving passive final confidence. Actual checkVetoConditions returns false and marks its result opinion-only. No remaining production reads of the retired declaration/argument. Existing fixtures retire the obsolete flag and supply canonical maxConf. The focused ConfigLoader case passes; the TRAI learning suite has 22 passes and two pre-existing storeDecision fixture failures from absent decisionHistoryLimit configuration (not changed here).
+- **Review / activation:** Clean Mercury review covers the exact three production files. A separate read-only review covers the two supplemental existing-fixture edits; they do not alter reviewed production bytes. Exact source receipt retained. No restart, order or exit-number change.
+- **Evidence:** `ogz-meta/inbox/codex/2026-10-11/stop1-execution/trai-veto/behavior.cjs`, `behavior.json`, `source-receipt.json`.
+
 ## 2026-10-11 — Honor TRAI's configured advisory confidence ceiling
 
 - **Problem:** Runner passed `trai.maxConf` into TRAI but the decision method ignored it, including after pattern multipliers.

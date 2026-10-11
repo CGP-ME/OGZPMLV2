@@ -807,7 +807,6 @@ class OGZPrimeV14Bot {
       this.trai = new TRAIDecisionModule({
         mode: resolvedConfig.config.trai.mode,  // Start conservative
         confidenceWeight: resolvedConfig.config.trai.weight,  // 20% influence
-        enableVetoPower: resolvedConfig.config.trai.vetoPower,  // Disabled by default
         maxRiskTolerance: resolvedConfig.config.trai.maxRisk,
         emergencyStopLoss: resolvedConfig.config.trai.emergencyStopLoss,
         minConfidenceOverride: resolvedConfig.config.trai.minConf,
