@@ -1,12 +1,11 @@
 'use strict';
 
-const FeeModel = require('../core/FeeModel');
 const { AdaptiveTimeframeSelector } = require('../core/AdaptiveTimeframeSelector');
 
-function mtfAdapter() {
+function mtfAdapter(atr) {
   return {
     getTimeframeIndicators: () => ({
-      atr: 2,
+      atr,
       price: 100,
       trend: 'bullish',
       trendStrength: 0.8,
@@ -15,42 +14,26 @@ function mtfAdapter() {
   };
 }
 
-describe('AdaptiveTimeframeSelector fee model', () => {
-  test('scores fee viability from the configured fee model', () => {
+describe('AdaptiveTimeframeSelector opportunity discovery', () => {
+  test('scores every allowed ready frame before trade sizing', () => {
     const selector = new AdaptiveTimeframeSelector({
-      mtfAdapter: mtfAdapter(),
-      feeModel: new FeeModel({
-        model: 'per_share_minimum',
-        perShare: 0.005,
-        minOrderFee: 0.75,
-      }),
-      feeContext: {
-        entryNotionalUsd: 100,
-        exitNotionalUsd: 100,
-        entryQuantity: 1,
-        exitQuantity: 1,
-      },
-      allowedTimeframes: ['15m'],
+      mtfAdapter: mtfAdapter(2),
+      allowedTimeframes: ['5m', '15m', '1h'],
       defaultTimeframe: '15m',
     });
 
     const result = selector.evaluate();
 
-    expect(result.details['15m'].reason).toContain('net 0.50%');
+    expect(Object.keys(result.scores)).toEqual(['5m', '15m', '1h']);
   });
 
-  test('fails loudly when per-share fee viability lacks trade quantity context', () => {
+  test('does not eliminate a ready frame using fees for an unsized trade', () => {
     const selector = new AdaptiveTimeframeSelector({
-      mtfAdapter: mtfAdapter(),
-      feeModel: new FeeModel({
-        model: 'per_share_minimum',
-        perShare: 0.005,
-        minOrderFee: 0.75,
-      }),
+      mtfAdapter: mtfAdapter(0.001),
       allowedTimeframes: ['15m'],
       defaultTimeframe: '15m',
     });
 
-    expect(() => selector.evaluate()).toThrow(/requires feeContext/);
+    expect(selector.evaluate().scores['15m']).toBeGreaterThan(0);
   });
 });

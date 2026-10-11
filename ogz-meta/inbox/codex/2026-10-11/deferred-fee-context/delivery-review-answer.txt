@@ -1,0 +1,41 @@
+VERDICT: found_break
+ADVERSARIAL_REVIEW_BLOCKING: yes
+
+CANDIDATE SET: examined 2 of 2
+- core/AdaptiveTimeframeSelector.js – examined full file (256 lines) – no relevant claims found.
+- core/OrderExecutor.js – examined full file (5 746 lines) – two claims identified and verified.
+
+AST EVIDENCE:
+- Used `open_file` to read the relevant sections of `core/OrderExecutor.js` (lines 2316‑2335 and 4420‑4455) and verified the implementation directly. No AST‑only summaries were used.
+
+INHERITED:
+- core/AdaptiveTimeframeSelector.js – no inherited guard, swallow, or bypass behavior relevant to the claims.
+- core/OrderExecutor.js – the method `_handleStockShareRangeFillViolation` returns a halt reason but does **not** mutate any order state; the fallback to `buyTrades[0]` is performed when `decision.tradeId` is not found, with only a warning log.
+
+FOURTH SHAPE CLASSIFIER: classified 0 of 0 – no new throws, gates, or fallbacks beyond those already present in the examined code.
+
+ALLEGATIONS:
+- MECHANICAL: The code returns a halt reason without persisting a symbol‑entry halt (`stateMutationSucceeded: true` is emitted but no state change occurs).
+- SUBSTANTIVE: The fallback to the oldest BUY trade when `decision.tradeId` is missing can misattribute an exit to the wrong position, as indicated by the warning comment and log.
+
+SUBSTANTIVE RESOLUTION: convergence
+
+WHAT I DID:
+- Opened `core/OrderExecutor.js` around the sections cited in the claims.
+- Verified that `_handleStockShareRangeFillViolation` only emits a trace and returns a string, without any state mutation.
+- Verified that the fallback logic for missing `tradeId` selects `buyTrades[0]` and logs a warning about potential misattribution.
+
+WHAT I DID NOT DO:
+- No execution of the code or runtime testing; analysis is limited to static source inspection.
+- Did not inspect `core/AdaptiveTimeframeSelector.js` beyond confirming it contains no related logic.
+
+WHAT I ASSUMED:
+- The repository state presented is the current source (ref ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37).
+- The `emitTrace` call does not itself mutate order state; only explicit state‑changing functions would.
+
+WHY THIS VERDICT:
+- The examined source shows that the halt reason is returned without any state mutation, leaving the violation unenforced (mechanical break).
+- The fallback to the oldest BUY trade is explicitly logged as a potential misattribution, confirming the substantive risk.
+- Both issues constitute functional regressions introduced by the fix, satisfying the “found_break” verdict.
+
+IF INCOMPLETE, WHY: none – all relevant code paths for the claims have been examined and evidence provided.

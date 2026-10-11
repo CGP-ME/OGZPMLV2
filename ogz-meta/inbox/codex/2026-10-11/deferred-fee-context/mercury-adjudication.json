@@ -1,0 +1,231 @@
+{
+  "candidate_tree": "ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37",
+  "base_commit": "604342778287175882c328858773825ada4988e0",
+  "raw_mercury_verdict": "found_break",
+  "scoped_disposition": "Neither cited claim is introduced by this candidate. No production blocker established by the review. Raw Mercury verdict retained separately from this adjudication.",
+  "allegations": [
+    {
+      "claim": "Share-range violation returns haltReason without persisting a halt",
+      "disposition": "Inherited unchanged. Helper explicitly logs that no symbol entry halt is persisted. It runs after successful stateManager.openPosition and success trace for both BUY and SELL_SHORT, so stateMutationSucceeded describes an already-completed entry state mutation, not a promised halt. This fee-only patch does not change the helper, callers or policy.",
+      "evidence": [
+        "core/OrderExecutor.js:2316",
+        "core/OrderExecutor.js:2321",
+        "core/OrderExecutor.js:3901",
+        "core/OrderExecutor.js:4022",
+        "core/OrderExecutor.js:4038",
+        "core/OrderExecutor.js:4169",
+        "core/OrderExecutor.js:4285",
+        "core/OrderExecutor.js:4301"
+      ],
+      "base_candidate_helper_bytes_identical": true,
+      "block_sha256": "cd490480494bddfd2455ec55c92cb715cc641ffafd50d22ba268f648d83c6a27"
+    },
+    {
+      "claim": "Missing tradeId falls back to oldest BUY, causing misattribution",
+      "disposition": "Fallback block and earlier exit selector are byte-identical to base. An explicit unmatched tradeId is refused by _findExitTrade; missing exitPlan returns before broker/execution routing. Omitted tradeId intentionally picks oldest same-symbol/direction in existing planner. The later fallback remains inherited; do not claim exhaustive asynchronous race safety from this static check. Fee change is entry-plan-only and does not alter exit targeting.",
+      "evidence": [
+        "core/OrderExecutor.js:2436",
+        "core/OrderExecutor.js:2442",
+        "core/OrderExecutor.js:2462",
+        "core/OrderExecutor.js:2464",
+        "core/OrderExecutor.js:2470",
+        "core/OrderExecutor.js:2802",
+        "core/OrderExecutor.js:3252",
+        "core/OrderExecutor.js:4431"
+      ],
+      "base_candidate_bytes_identical": true,
+      "selector_sha256": "ec76f0c09d64b268e228447df34538444eacd0a55e280e3919a69426a8839d16",
+      "fallback_block_sha256": "8a060165f064179c3da04f1b373efa5eef329a500540eefdab39c009fdd969cc"
+    }
+  ],
+  "proof_review": {
+    "runs": [
+      {
+        "path": "runs/ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37-percent-ZxxO6a",
+        "source": "ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37",
+        "status": "pass",
+        "result_sha256": "99d40f2f68304143fe8a3a82ee801363e3e2ad2ab44dd6877d102580046e6741",
+        "source_sha256": "8f6ab8fbd53d318eec8ad71df2f2bb05d9b4ee0c664bf8ef6c1dd97e08dfccfd",
+        "fees": [
+          {
+            "action": "BUY",
+            "quantity": 0.75,
+            "notional": 150,
+            "estimate": 0,
+            "expected": 0,
+            "actual": 0
+          },
+          {
+            "action": "SELL_SHORT",
+            "quantity": 2,
+            "notional": 100,
+            "estimate": 0,
+            "expected": 0,
+            "actual": 0
+          }
+        ]
+      },
+      {
+        "path": "runs/ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37-per_share_minimum-om46yq",
+        "source": "ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37",
+        "status": "pass",
+        "result_sha256": "545540fd3a019b548f40e88715dcab99833859424ec729ed813cdb69605299b5",
+        "source_sha256": "e12577044f878681b524a081bada563ef31bd3fb028530d21f7bca5ad4cd60c9",
+        "fees": [
+          {
+            "action": "BUY",
+            "quantity": 0.75,
+            "notional": 150,
+            "estimate": 0.75,
+            "expected": 0.75,
+            "actual": 0.75
+          },
+          {
+            "action": "SELL_SHORT",
+            "quantity": 2,
+            "notional": 100,
+            "estimate": 1,
+            "expected": 1,
+            "actual": 1
+          }
+        ]
+      },
+      {
+        "path": "runs/working-percent-U4sOsV",
+        "source": "working",
+        "status": "pass",
+        "result_sha256": "be15cdaa94287187e5c2821467bb2cdd13f528d665d0b1d65401c273c9d399e9",
+        "source_sha256": "fb01d31199a673b29cb778e8ba0aaa70aacfba2138b0c94fb0af6e311a497909",
+        "fees": [
+          {
+            "action": "BUY",
+            "quantity": 0.7496251874062969,
+            "notional": 150,
+            "estimate": 0,
+            "expected": 0,
+            "actual": 0
+          },
+          {
+            "action": "SELL_SHORT",
+            "quantity": 2,
+            "notional": 99.95,
+            "estimate": 0,
+            "expected": 0,
+            "actual": 0
+          }
+        ]
+      },
+      {
+        "path": "runs/working-per_share_minimum-66iWmt",
+        "source": "working",
+        "status": "pass",
+        "result_sha256": "05d380d7d259ea7462a2d5055ca256bcde664492519e96687f828e75c76e5807",
+        "source_sha256": "369b6d70b49e87c4e8a1a95ae1c4035b2154c0d08ed9beaba443de62509a5b44",
+        "fees": [
+          {
+            "action": "BUY",
+            "quantity": 0.7496251874062969,
+            "notional": 150,
+            "estimate": 0.75,
+            "expected": 0.75,
+            "actual": 0.75
+          },
+          {
+            "action": "SELL_SHORT",
+            "quantity": 2,
+            "notional": 99.95,
+            "estimate": 1,
+            "expected": 1,
+            "actual": 1
+          }
+        ]
+      },
+      {
+        "path": "runs/604342778287175882c328858773825ada4988e0-per_share_minimum-qpX9iA",
+        "source": "604342778287175882c328858773825ada4988e0",
+        "status": "baseline-reproduced",
+        "result_sha256": "2d75efd5f5ac15f340283b2fb56414005a26f9cdce73649e4054eb00ca6faa8d",
+        "source_sha256": "935e8f7002a1c4a7644e4238dcf5f0eee88edb27483d041bb2cb4c6e0eecf925",
+        "fees": []
+      }
+    ],
+    "verified": "Source manifests match copied executor, selector, fee model and state manager; non-working copies also match exact git source refs. Helper invokes real isolated executor; estimate is compared with existing FeeModel and actual persisted active trade entryFee. Candidate and working both exercise BUY and SELL_SHORT. Baseline reproduces absent feeContext error. Per-share scenario exercises 0.75 minimum and 1.00 per-share branch.",
+    "limitation": "Earlier percent runs covered zero fees only; corrected final_percent_qualification resolves that coverage limitation. Working-tree runs include unrelated changes and are supplementary to exact-candidate runs.",
+    "helper_evidence": [
+      "fixtures/deferred-fee-proof.cjs:132",
+      "fixtures/deferred-fee-proof.cjs:143",
+      "fixtures/deferred-fee-proof.cjs:156",
+      "fixtures/deferred-fee-proof.cjs:164",
+      "fixtures/worker.cjs:44",
+      "fixtures/worker.cjs:53"
+    ],
+    "fixture_sha256": {
+      "fixtures/run.cjs": "eaff495a0e4f9d386c7f6129ee6acfdab67d6d301e3096f9d9fe229975993ce4",
+      "fixtures/worker.cjs": "898db88a48ab6e2be7c02e1320c4f0cdc97778c742a96bacfc764c551008252e",
+      "fixtures/deferred-fee-proof.cjs": "617277f737a476f62b104e2f11af962991f27e1e686ded10903c4f806fb0d092"
+    },
+    "prior_fixture_sha256": {
+      "fixtures/run.cjs": "8d91616479d8c2b146f10e7ae97ddc6148a3520f43a83354377630f2eced684c",
+      "fixtures/worker.cjs": "2cfc6fac3ab8cc6e72b42e8139c1fc4cbe8a216ae6e9e051cc14278bf57a4bcf",
+      "fixtures/deferred-fee-proof.cjs": "617277f737a476f62b104e2f11af962991f27e1e686ded10903c4f806fb0d092"
+    },
+    "final_percent_qualification": {
+      "disposition": "Prior nonzero-percent coverage limitation resolved. Canonical fixture makerFee=.001/takerFee=.002 now supplied. Both exact candidate and working BUY/SELL_SHORT estimates are positive and equal plan.sizeUsd*.001, FeeModel result and actual StateManager entryFee. Production candidate unchanged.",
+      "runs": [
+        {
+          "path": "runs/ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37-percent-LZz9ij",
+          "source": "ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37",
+          "status": "pass",
+          "result_sha256": "77e89e6caafb6d0086121718ba423c60d58dc3b96a4285c4e0b814e85e414a48",
+          "source_sha256": "8f6ab8fbd53d318eec8ad71df2f2bb05d9b4ee0c664bf8ef6c1dd97e08dfccfd",
+          "fees": [
+            {
+              "action": "BUY",
+              "notional": 150,
+              "estimate": 0.15,
+              "expected": 0.15,
+              "actual": 0.15
+            },
+            {
+              "action": "SELL_SHORT",
+              "notional": 100,
+              "estimate": 0.1,
+              "expected": 0.1,
+              "actual": 0.1
+            }
+          ]
+        },
+        {
+          "path": "runs/working-percent-mKNrj8",
+          "source": "working",
+          "status": "pass",
+          "result_sha256": "70a4c29cf1701670ad5c400efc4fb46c1fdb850c4b7ad417ec6c64d6bb1c7d23",
+          "source_sha256": "fb01d31199a673b29cb778e8ba0aaa70aacfba2138b0c94fb0af6e311a497909",
+          "fees": [
+            {
+              "action": "BUY",
+              "notional": 150,
+              "estimate": 0.15,
+              "expected": 0.15,
+              "actual": 0.15
+            },
+            {
+              "action": "SELL_SHORT",
+              "notional": 99.95,
+              "estimate": 0.09995000000000001,
+              "expected": 0.09995000000000001,
+              "actual": 0.09995000000000001
+            }
+          ]
+        }
+      ],
+      "validation": "Independently checked result arithmetic and source hashes; reviewed explicit positive-fee assertions in worker. Earlier zero-fee receipts retained as historical evidence."
+    }
+  },
+  "unresolved_introduced_production_findings": [],
+  "limitations": [
+    "Static adjudication does not clear unrelated inherited trading risks.",
+    "No production edits or root executable config/state loads performed.",
+    "Entry-side fee estimate does not provide roundtrip profitability policy or timeframe scanning."
+  ]
+}

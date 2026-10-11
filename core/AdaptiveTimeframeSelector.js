@@ -1,46 +1,14 @@
 /**
- * AdaptiveTimeframeSelector.js — Dynamic Timeframe Selection
- * ============================================================
- * 
- * THE PROBLEM THIS SOLVES:
- *   Hardcoding "always trade 15m" means the bot sits blind when 15m is choppy
- *   but 5m or 1h has a clean setup. Markets change character — sometimes 5m
- *   scalps are printing, sometimes only 4h swings make sense.
- * 
- * WHAT IT DOES:
- *   Reads per-timeframe indicators from MultiTimeframeAdapter and scores each
- *   timeframe on "tradability" — trend clarity, volatility vs fees, signal
- *   strength, and noise level. The highest-scoring timeframe becomes the
- *   active trading timeframe for the next evaluation cycle.
- * 
- * HOW IT INTEGRATES:
- *   1. MTF adapter provides per-timeframe indicators (already exists)
- *   2. This module scores each timeframe and picks the best one
- *   3. StrategyOrchestrator uses the selected timeframe's data for entry decisions
- *   4. ExitContractManager adjusts SL/TP based on the timeframe's typical range
- * 
- * USAGE:
- *   const selector = new AdaptiveTimeframeSelector({ mtfAdapter, feeModel, feeContext });
- *   const best = selector.evaluate();
- *   // best = { timeframe: '15m', score: 0.82, reason: '...', exitParams: { ... } }
- * 
- * @module core/AdaptiveTimeframeSelector
+ * Rank configured timeframes using their market indicators before trade sizing.
+ * Fees are assessed by OrderExecutor once a proposed order has a real size.
+ * The runner owns timeframe dispatch; this ranking does not implement scanning.
  */
 
 'use strict';
 
-const FeeModel = require('./FeeModel');
-
 class AdaptiveTimeframeSelector {
   constructor(config = {}) {
     this.mtfAdapter = config.mtfAdapter || null;
-
-    this.explicitFeeModel = config.feeModel || null;
-    this.feeContext = config.feeContext || null;
-
-    // Minimum R:R after fees for a timeframe to be tradable
-    // If average move on a timeframe can't give at least 2:1 reward:risk after fees, skip it
-    this.minRewardToRisk = config.minRewardToRisk || 2.0;
 
     // Timeframe characteristics — expected ATR ranges and exit parameters
     // These are baseline estimates; actual ATR from indicators overrides them
@@ -143,11 +111,10 @@ class AdaptiveTimeframeSelector {
    * Score a single timeframe on tradability.
    * 
    * Factors:
-   *   1. Fee viability — can moves on this TF clear fees?
-   *   2. Trend clarity — is there a clear direction?
-   *   3. Signal strength — how strong are the indicators?
-   *   4. Noise level — is it choppy or clean?
-   *   5. Timeframe weight — preference for medium timeframes
+   *   1. Trend clarity — is there a clear direction?
+   *   2. Signal strength — how strong are the indicators?
+   *   3. Noise level — is it choppy or clean?
+   *   4. Timeframe weight — preference for medium timeframes
    */
   _scoreTimeframe(tf) {
     const profile = this.timeframeProfiles[tf];
@@ -159,24 +126,12 @@ class AdaptiveTimeframeSelector {
     let score = 0;
     const factors = [];
 
-    // ─── Factor 1: Fee viability (0 - 0.25) ───
-    // Can the typical move on this timeframe overcome fees and leave profit?
+    // ATR is reported as market context, not compared with an unsized fee.
     const atrPct = indicators.atr && indicators.price
       ? (indicators.atr / indicators.price) * 100
       : profile.typicalMovePct;
 
-    const roundTripFee = this.roundTripFeePercent();
-    const netMoveAfterFees = atrPct - roundTripFee;
-    if (netMoveAfterFees <= 0) {
-      // This timeframe can't even clear fees — disqualified
-      return { score: 0, reason: `${tf}: ATR ${atrPct.toFixed(2)}% < fees ${roundTripFee}%` };
-    }
-
-    const feeViability = Math.min(0.25, (netMoveAfterFees / atrPct) * 0.25);
-    score += feeViability;
-    factors.push(`fees: ${feeViability.toFixed(2)} (ATR ${atrPct.toFixed(2)}%, net ${netMoveAfterFees.toFixed(2)}%)`);
-
-    // ─── Factor 2: Trend clarity (0 - 0.30) ───
+    // ─── Factor 1: Trend clarity (0 - 0.30) ───
     // Clear trend = higher score. Choppy/neutral = lower.
     let trendScore = 0;
     if (indicators.trend === 'bullish' || indicators.trend === 'bearish') {
@@ -188,7 +143,7 @@ class AdaptiveTimeframeSelector {
     score += trendScore;
     factors.push(`trend: ${trendScore.toFixed(2)} (${indicators.trend || 'unknown'})`);
 
-    // ─── Factor 3: Signal strength (0 - 0.25) ───
+    // ─── Factor 2: Signal strength (0 - 0.25) ───
     // RSI at extremes, MACD crossover, strong EMA alignment = higher score
     let signalScore = 0;
 
@@ -217,7 +172,7 @@ class AdaptiveTimeframeSelector {
     score += signalScore;
     factors.push(`signal: ${signalScore.toFixed(2)}`);
 
-    // ─── Factor 4: Noise level (0 - 0.10) ───
+    // ─── Factor 3: Noise level (0 - 0.10) ───
     // Low noise (clean candles) = higher score
     // Approximate noise by checking Bollinger bandwidth
     let noiseScore = 0.05; // Default moderate
@@ -235,7 +190,7 @@ class AdaptiveTimeframeSelector {
     score += noiseScore;
     factors.push(`noise: ${noiseScore.toFixed(2)}`);
 
-    // ─── Factor 5: Timeframe preference weight (0 - 0.10) ───
+    // ─── Factor 4: Timeframe preference weight (0 - 0.10) ───
     // Slight preference for medium timeframes (15m, 30m)
     const prefScore = profile.weight * 0.10;
     score += prefScore;
@@ -251,23 +206,6 @@ class AdaptiveTimeframeSelector {
         atrPct,
       },
     };
-  }
-
-  roundTripFeePercent() {
-    const feeModel = this._feeModel();
-    if (feeModel.model === 'per_share_minimum' && !this.feeContext) {
-      throw new Error('[AdaptiveTimeframeSelector] fees.model=per_share_minimum requires feeContext with notional and quantity for fee viability scoring');
-    }
-    return feeModel.calculateRoundTripFeePercent(
-      this.feeContext || {
-        entryNotionalUsd: 1,
-        exitNotionalUsd: 1,
-      }
-    );
-  }
-
-  _feeModel() {
-    return this.explicitFeeModel || FeeModel.fromTradingConfig();
   }
 
   /**

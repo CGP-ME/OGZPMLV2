@@ -1,0 +1,21 @@
+{
+  "run_id": "2026-10-11T06-14-28-777Z-74f86c630359",
+  "head_sha": "604342778287175882c328858773825ada4988e0",
+  "verdict": "found_break",
+  "termination": "answer_given",
+  "iterations": 11,
+  "prompt_excerpt": "Review source tree: ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37; comparison baseline: b06a15ef5b1499996f520fe6c177a54c20ff0e63. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nMercury, break my fix.",
+  "input_provenance": null,
+  "candidate_tree": "ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37",
+  "base_commit": "604342778287175882c328858773825ada4988e0",
+  "base_tree": "b06a15ef5b1499996f520fe6c177a54c20ff0e63",
+  "harness_tree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "max_tokens": 7750,
+  "iteration_ceiling": null,
+  "answer_sha256": "bf7a1760a0a7f59b526aedbbf0440bc76541d8f67849bbe1b2f6d30f764398ec",
+  "raw_review_sha256": "e32abca6ea8796bdd44eba8a7ee9aff99199ce979b9eec392affe49b9117981d",
+  "adjudication": "mercury-adjudication.json",
+  "coverage": "Two production files in candidate; existing test excluded by review policy. Astra reviewed all three changed files. Raw found_break preserved; both allegations inherited unchanged.",
+  "published_answer_sha256": "5af419d107e618f7a19c5fb768f5f0be1692c56c261cee919f98c5a9a124abca",
+  "published_answer_format": "Trailing spaces removed only; original answer hash and full private raw review retained."
+}

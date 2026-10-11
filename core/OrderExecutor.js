@@ -3191,6 +3191,11 @@ class OrderExecutor {
       }
     }
     if (entryPlan) {
+      entryPlan.estimatedEntryFee = this._calculateOrderFee({
+        notionalUsd: entryPlan.sizeUsd,
+        orderQuantity: entryPlan.orderQuantity,
+        side: 'entry',
+      });
       emitTrace(this.ctx, 'ORDER_PLAN', {
         traceId,
         signalId,
@@ -3199,6 +3204,7 @@ class OrderExecutor {
         positionEffect,
         side: entryPlan.side,
         sizeUsd: entryPlan.sizeUsd,
+        estimatedEntryFee: entryPlan.estimatedEntryFee,
         orderQuantity: entryPlan.orderQuantity,
         quantityUnit: entryPlan.quantityUnit,
         stockShareRange: entryPlan.stockShareRange,

@@ -1,0 +1,57 @@
+{
+  "candidate_tree": "ddc2ba47fef5b57b0cbe4ea590b4aea1870baa37",
+  "base_commit": "604342778287175882c328858773825ada4988e0",
+  "verdict": "scoped_source_pass",
+  "unresolved_introduced_findings": [],
+  "scope": "Exact candidate source/diff only; unrelated working OrderExecutor/runner changes excluded. No production edits or executable root config/state loads.",
+  "source_sha256": {
+    "core/AdaptiveTimeframeSelector.js": "bf899c9e1ab9a29cbabc54f464589066bf2cb6db71cfdd2c4cbdbf51217dc2ef",
+    "core/OrderExecutor.js": "9885bfe88ff8b36da01a1d873d8ec041a6423ee2002029ca73ec257ecb25352c",
+    "test/adaptive-timeframe-fee-model.test.js": "6ed59bf3c4de01794fcf72af8b17bcd5158fba39c575d848bc4b09ddc7586596"
+  },
+  "findings": [
+    {
+      "topic": "Sizing producer",
+      "disposition": "The fee estimate consumes the actual capped/share-adjusted proposed plan, not selector ATR or a fabricated notional.",
+      "evidence": [
+        "core/OrderExecutor.js:2357",
+        "core/OrderExecutor.js:2382",
+        "core/OrderExecutor.js:2408",
+        "core/OrderExecutor.js:2427",
+        "core/OrderExecutor.js:3194"
+      ]
+    },
+    {
+      "topic": "Fee arithmetic and timing",
+      "disposition": "Uses existing helper and model; positive-quantity/concurrency checks precede the estimate. Only entry plans enter this block. Added value is reported in ORDER_PLAN before pre-order gate/order submission. No new profitability policy gate, default, fallback, or throw is added.",
+      "evidence": [
+        "core/OrderExecutor.js:2033",
+        "core/FeeModel.js:119",
+        "core/OrderExecutor.js:3142",
+        "core/OrderExecutor.js:3156",
+        "core/OrderExecutor.js:3178",
+        "core/OrderExecutor.js:3193",
+        "core/OrderExecutor.js:3214"
+      ]
+    },
+    {
+      "topic": "Selector behavior and removed API",
+      "disposition": "Fee viability contribution/veto and fee-context dependency removed. Other factor arithmetic remains unchanged. Exact-tree tracked JS search found no remaining caller of removed selector methods or minRewardToRisk option. Runner score consumer logs only; configured timeframe remains pinned.",
+      "evidence": [
+        "core/AdaptiveTimeframeSelector.js:129",
+        "core/AdaptiveTimeframeSelector.js:134",
+        "core/AdaptiveTimeframeSelector.js:146",
+        "core/AdaptiveTimeframeSelector.js:175",
+        "core/AdaptiveTimeframeSelector.js:193",
+        "run-empire-v2.js:774",
+        "run-empire-v2.js:1074"
+      ]
+    }
+  ],
+  "validation_performed": "Read exact git-tree diff and producer/consumer sources; exact-tree tracked JS reference searches. Behavioral proof and focused tests are being executed separately by parent and are not claimed by this source review.",
+  "limitations": [
+    "estimatedEntryFee is an entry-side estimate, not realized fee or roundtrip profitability assessment.",
+    "Runtime adaptive scanner item 27 remains unresolved and is not claimed fixed.",
+    "Mercury and isolated behavioral verification remain separate delivery requirements."
+  ]
+}

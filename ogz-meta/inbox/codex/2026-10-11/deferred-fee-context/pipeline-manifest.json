@@ -1,0 +1,236 @@
+{
+  "mission_id": "MISSION-1791698970553",
+  "created": "2026-10-11T06:09:30.553Z",
+  "state": "VERIFIED_AWAITING_COMMIT",
+  "issue": "Deferred 7: sized proposed-entry fee assessment; no scan-time fees",
+  "mode": "EXECUTE",
+  "commander": {
+    "timestamp": "2026-10-11T06:09:30.557Z",
+    "context": "Existing deferred queue item7; Trey authorized scan all frames and fees from proposed size. Item27 remains separate.",
+    "agent_selection": "Root author; Terra producer/consumer trace and proof; Astra adversarial only."
+  },
+  "branch": {
+    "timestamp": "2026-10-11T06:09:30.568Z",
+    "base": null,
+    "branch": "astra-era",
+    "blocked": false,
+    "reason": null,
+    "success": true,
+    "based_on": "astra-era"
+  },
+  "architect": {
+    "timestamp": "2026-10-11T06:09:30.575Z",
+    "system_map": [
+      "core/AdaptiveTimeframeSelector.js",
+      "core/OrderExecutor.js"
+    ],
+    "dependencies": [],
+    "plan": {
+      "spec_driven": true,
+      "fixId": "7",
+      "title": "Assess entry fees from the sized order instead of timeframe discovery",
+      "files": [
+        "core/AdaptiveTimeframeSelector.js",
+        "core/OrderExecutor.js"
+      ]
+    },
+    "spec_target_occurrences": 3,
+    "spec_target_verified": true,
+    "line_hint": [
+      {
+        "file": "core/AdaptiveTimeframeSelector.js",
+        "lineHint": "current exact source"
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "lineHint": "current exact source"
+      }
+    ],
+    "edit_count": 3,
+    "file_count": 2,
+    "edit_verifications": [
+      {
+        "file": "core/AdaptiveTimeframeSelector.js",
+        "fileIndex": 0,
+        "editIndex": 0,
+        "index": 0,
+        "occurrences": 1,
+        "firstLineOfTarget": "/**"
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "fileIndex": 1,
+        "editIndex": 0,
+        "index": 1,
+        "occurrences": 1,
+        "firstLineOfTarget": "    if (entryPlan) {"
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "fileIndex": 1,
+        "editIndex": 1,
+        "index": 2,
+        "occurrences": 1,
+        "firstLineOfTarget": "        side: entryPlan.side,"
+      }
+    ]
+  },
+  "entomologist": {
+    "timestamp": "2026-10-11T06:09:49.666Z",
+    "bugs_found": [
+      {
+        "id": "deferred7",
+        "location": "core/AdaptiveTimeframeSelector.js:168,256-265",
+        "root_cause": "Fee scoring occurs before proposed quantity/notional producer; runner supplies no feeContext.",
+        "producer": "OrderExecutor sized entry plan precedes fee estimate; zero quantity and concurrency rejection already occur first."
+      }
+    ],
+    "classifications": []
+  },
+  "exterminator": {
+    "timestamp": null,
+    "fixes_applied": [],
+    "patches": [],
+    "proposals": []
+  },
+  "fixer": {
+    "timestamp": "2026-10-11T06:09:49.696Z",
+    "changes_applied": [
+      {
+        "files": [
+          "core/AdaptiveTimeframeSelector.js",
+          "core/OrderExecutor.js"
+        ],
+        "fixId": "7",
+        "title": "Assess entry fees from the sized order instead of timeframe discovery",
+        "editCount": 3,
+        "totalSitesReplaced": 3,
+        "perEditResults": [
+          {
+            "file": "core/AdaptiveTimeframeSelector.js",
+            "fileIndex": 0,
+            "editIndex": 0,
+            "index": 0,
+            "occurrencesReplaced": 1
+          },
+          {
+            "file": "core/OrderExecutor.js",
+            "fileIndex": 1,
+            "editIndex": 0,
+            "index": 1,
+            "occurrencesReplaced": 1
+          },
+          {
+            "file": "core/OrderExecutor.js",
+            "fileIndex": 1,
+            "editIndex": 1,
+            "index": 2,
+            "occurrencesReplaced": 1
+          }
+        ],
+        "spec_driven": true
+      }
+    ],
+    "plan": {
+      "spec_driven": true,
+      "fixId": "7"
+    },
+    "proposal_path": "/opt/ogzprime/OGZPMLV2/ogz-meta/proposals/MISSION-1791698970553-WRITE-PROPOSAL.md"
+  },
+  "debugger": {
+    "timestamp": "2026-10-11T06:21:40.298Z",
+    "tests_run": [
+      "existing selector suite: 2/2",
+      "actual isolated candidate and working paper entries: percent and per_share_minimum",
+      "baseline missing feeContext reproduced"
+    ],
+    "results": [
+      "PASS; see behavior-receipt.json"
+    ]
+  },
+  "critic": {
+    "timestamp": "2026-10-11T06:21:40.298Z",
+    "weaknesses": [
+      "Initial zero percent fixture corrected to canonical rate keys and rerun. Mercury found_break retained; inherited allegations adjudicated."
+    ],
+    "force_rerun": false,
+    "review": "mercury-adjudication.json"
+  },
+  "validator": {
+    "timestamp": "2026-10-11T06:21:40.298Z",
+    "checks_passed": [
+      "Exact staged production/test candidate bound to Astra/Mercury",
+      "Behavior proof source hashes verified by Astra",
+      "No introduced blocker after combined adjudication"
+    ],
+    "checks_failed": []
+  },
+  "locator": {
+    "timestamp": null,
+    "corrections": [],
+    "unlocatable": []
+  },
+  "forensics": {
+    "timestamp": "2026-10-11T06:21:40.298Z",
+    "silent_bugs": [],
+    "regression_risks": [
+      "Concurrent scanner is separate item27",
+      "Inherited Mercury allegations not broadly cleared"
+    ],
+    "review": "astra-review.json"
+  },
+  "cicd": {
+    "timestamp": null,
+    "build_result": null,
+    "test_result": null
+  },
+  "committer": {
+    "timestamp": null,
+    "commit_hash": null,
+    "branch": null
+  },
+  "scribe": {
+    "timestamp": "2026-10-11T06:21:40.298Z",
+    "changelog_entry": "2026-10-11 — Assess fees after proposed entry sizing (deferred 7)",
+    "ledger_update": "config-migration-followups.md item7"
+  },
+  "janitor": {
+    "timestamp": null,
+    "files_cleaned": [],
+    "artifacts_removed": []
+  },
+  "warden": {
+    "timestamp": "2026-10-11T06:09:49.680Z",
+    "scope_violations": [],
+    "safety_blocks": [],
+    "final_approval": true
+  },
+  "artifacts": {
+    "files_created": [],
+    "files_modified": [
+      "core/AdaptiveTimeframeSelector.js",
+      "core/OrderExecutor.js"
+    ],
+    "backups": [],
+    "reports": [],
+    "proposals": []
+  },
+  "approval": {
+    "status": "APPROVED",
+    "approved_by": "Trey",
+    "approved_at": "2026-10-11T06:09:49.666Z",
+    "notes": "Existing session authorization: Yes—scan all frames; assess fees using the proposed trade size. Follow-up: keep going on our list hoss. No additional gate, throw, fallback or default."
+  },
+  "stop_conditions": {
+    "critic_failures": 0,
+    "verification_failed": false,
+    "cicd_failed": false,
+    "manifest_mismatch": false,
+    "warden_blocked": false
+  },
+  "spec_source": {
+    "path": "ogz-meta/inbox/codex/2026-10-11/deferred-fee-context/write-spec.md",
+    "fixId": "7"
+  },
+  "delivery_status": "VERIFIED_AWAITING_COMMIT"
+}
