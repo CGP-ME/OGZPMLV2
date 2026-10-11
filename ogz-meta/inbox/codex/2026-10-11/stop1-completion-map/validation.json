@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "canonicalEntries": 2549,
+  "mappedEntries": 2549,
+  "missing": [],
+  "extra": [],
+  "duplicates": [],
+  "issues": [],
+  "uiDescriptors": 724,
+  "changedSourceFiles": [],
+  "scope": "Completeness, required evidence columns, exact UI targets and unchanged source bytes. Semantic/source review is separate; this is not runtime acceptance."
+}

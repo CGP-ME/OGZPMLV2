@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "scope": "exit/pattern/PID completion map; source inspected on astra-era worktree 2026-10-11; no production mutation",
+  "source_identity": {"head": "d8cb9757", "worktree_note": "Relevant inherited dirty edits exist in config/settings.json, core/ExitContractManager.js, core/ProfitExitPlanner.js, and core/OrderExecutor.js. Findings cite the present worktree; they are not claims about HEAD."},
+  "rows": [
+    {
+      "audit_id": "STOP1-EXIT-TP-001",
+      "keys": ["exitContracts.EMASMACrossover.takeProfitPercent", "exitContracts.LiquiditySweep.takeProfitPercent", "exitContracts.BreakRetest.takeProfitPercent", "exitContracts.RSI.takeProfitPercent", "exitContracts.MADynamicSR.takeProfitPercent", "exitContracts.CandlePattern.takeProfitPercent", "exitContracts.MarketRegime.takeProfitPercent", "exitContracts.OGZTPO.takeProfitPercent", "exitContracts.OpeningRangeBreakout.takeProfitPercent", "exitContracts.SmartMoneySweep.takeProfitPercent", "exitContracts.DonchianBreakout.takeProfitPercent", "exitContracts.PropSafeEMAPullback.takeProfitPercent", "exitContracts.EMATrendRetest.takeProfitPercent", "exitContracts.RSI2MeanReversion.takeProfitPercent", "exitContracts.TimeSeriesMomentum.takeProfitPercent", "exitContracts.NoWickImbalance.takeProfitPercent", "exitContracts.default.takeProfitPercent"],
+      "owner": "config/settings.json exitContracts; ConfigLoader -> ExitContractManager.getDefaultContract -> StrategyOrchestrator contract -> OrderExecutor trade.exitContract",
+      "intended_purpose": "Per-strategy percent profit target (proven by TakeProfitChecker implementation, not merely its comment).",
+      "initializer": "Settings values at config/settings.json:1424-1856; selected contract is copied at ECM getDefaultContract:271-280 and frozen in OrderExecutor._buildEntryPlan:2343-2360.",
+      "actual_callers_readers": "TakeProfitChecker is constructed at ECM:259, but no source caller invokes takeProfitChecker.check. ECM checkExitConditions invokes ProfitExitPlanner at 401-424, not TakeProfitChecker. OrderExecutor also reads target only for stock-share sizing at 2176-2177 and reporting.",
+      "actual_behavior": "No generic full percent-target exit is emitted from these values. The value remains a frozen trade field and a sizing/report input. This corrects stale acceptance-audit wording that treated a constructed checker as an active exit reader.",
+      "override_default_fallback": "Exact strategy contract wins; getDefaultContract has a default fallback for absent/unrecognized strategy (ECM:270-280). Null values are intentional for DonchianBreakout and TimeSeriesMomentum.",
+      "repair_shape": "Choose and document one owner: either add a percent-target branch to the existing ProfitExitPlanner/ECM coordinator, or retire the advertised generic target after product decision. Do not call the legacy checker in parallel with planner intents; preserve null/off contracts.",
+      "files_if_implemented": ["core/ProfitExitPlanner.js", "core/ExitContractManager.js", "test/profit-exit-planner.test.js", "test/exit-contract-manager-ownership.test.js"],
+      "proof_required": "Pure coordinator probe for long and short: target below price/above price yields exactly one full intent; just below target holds; null target never emits; a tier/partial intent cannot duplicate target. Then a focused TradingLoop-to-OrderExecutor receipt proving one requested close against the matching trade ID.",
+      "confidence": "proven"
+    },
+    {
+      "audit_id": "STOP1-EXIT-TRAIL-002",
+      "keys": ["exitContracts.EMASMACrossover.trailingStopPercent", "exitContracts.LiquiditySweep.trailingStopPercent", "exitContracts.BreakRetest.trailingStopPercent", "exitContracts.RSI.trailingStopPercent", "exitContracts.MADynamicSR.trailingStopPercent", "exitContracts.CandlePattern.trailingStopPercent", "exitContracts.MarketRegime.trailingStopPercent", "exitContracts.OGZTPO.trailingStopPercent", "exitContracts.OpeningRangeBreakout.trailingStopPercent", "exitContracts.SmartMoneySweep.trailingStopPercent", "exitContracts.DonchianBreakout.trailingStopPercent", "exitContracts.PropSafeEMAPullback.trailingStopPercent", "exitContracts.EMATrendRetest.trailingStopPercent", "exitContracts.RSI2MeanReversion.trailingStopPercent", "exitContracts.TimeSeriesMomentum.trailingStopPercent", "exitContracts.NoWickImbalance.trailingStopPercent", "exitContracts.default.trailingStopPercent", "exitContracts.EMASMACrossover.trailingActivation", "exitContracts.LiquiditySweep.trailingActivation", "exitContracts.BreakRetest.trailingActivation", "exitContracts.RSI.trailingActivation", "exitContracts.MADynamicSR.trailingActivation", "exitContracts.CandlePattern.trailingActivation", "exitContracts.MarketRegime.trailingActivation", "exitContracts.OGZTPO.trailingActivation", "exitContracts.OpeningRangeBreakout.trailingActivation", "exitContracts.SmartMoneySweep.trailingActivation", "exitContracts.DonchianBreakout.trailingActivation", "exitContracts.PropSafeEMAPullback.trailingActivation", "exitContracts.EMATrendRetest.trailingActivation", "exitContracts.RSI2MeanReversion.trailingActivation", "exitContracts.TimeSeriesMomentum.trailingActivation", "exitContracts.NoWickImbalance.trailingActivation", "exitContracts.default.trailingActivation"],
+      "owner": "config/settings.json exitContracts",
+      "intended_purpose": "Legacy percent high-water trailing activation and distance, evidenced by core/exit/TrailingStopChecker.js:51-85.",
+      "initializer": "Same contract freeze route as TP; values at settings:1424-1856.",
+      "actual_callers_readers": "TrailingStopChecker has no construction or call in production source. DynamicTrailingStop also has no production construction (only test import). ECM instead updates a price stop from frozen exitLogic.trail at 739-846 and checks that stop at 398-399.",
+      "actual_behavior": "Percent trailing fields are carried but do not determine the active trailing stop. Active trail uses minActivationPercent, ATR/indicator volatility, fixed policy multipliers and clamps. Null fields do not disable that active route.",
+      "override_default_fallback": "Contract selection fallback as above; active trail has no fallback to percent fields.",
+      "repair_shape": "Product decision is required before code: preserve distinct contract-owned percent trailing by implementing it in the sole ECM coordinator, or remove its advertised configurability in a separately approved cleanup. Never run legacy checker and current managed-stop route concurrently.",
+      "files_if_implemented": ["core/ExitContractManager.js", "core/ProfitExitPlanner.js", "core/exit/TrailingStopChecker.js", "test/exit-contract-manager-ownership.test.js"],
+      "proof_required": "For long and short, prove below activation holds, peak then retrace past contract distance exits/updates as selected, and null disables only the selected percent feature. Also prove existing frozen exitLogic.trail behavior has no duplicate exit or weaker stop regression.",
+      "confidence": "proven"
+    },
+    {
+      "audit_id": "STOP1-EXIT-SCALE-003",
+      "keys": ["exitContracts.NoWickImbalance.scaleIn.addSizingLadder", "exitContracts.default.scaleIn.addSizingLadder"],
+      "owner": "config/settings.json exitContracts.*.scaleIn",
+      "intended_purpose": "Name implies per-add sizing ladder; no normative behavior found beyond cloning.",
+      "initializer": "Settings:1812-1819 and 1848-1855; ECM cloneScaleInPolicy clones it at 229-235 and resolves scaleIn at 240-247.",
+      "actual_callers_readers": "No production reader after clone. OrderExecutor scale-in gate reads enabled/maxAdds/addTriggerClass/requireProfitConfirmation/aggregateRiskCap at 1649-1703, never addSizingLadder.",
+      "actual_behavior": "An empty array is frozen/carried but has zero sizing effect.",
+      "override_default_fallback": "If strategy lacks scaleIn, ECM copies default.scaleIn; no ladder fallback semantics exist.",
+      "repair_shape": "Define ladder unit and indexing from confirmed add count, validate sum/risk interaction in the existing OrderExecutor scale-in sizing path, or retain as intentionally inactive only with an honest UI/config description. No invented default ladder.",
+      "files_if_implemented": ["core/OrderExecutor.js", "core/ExitContractManager.js", "test/campaign-integrity.test.js"],
+      "proof_required": "Two-add pure entry-plan sequence with non-empty ladder: each add consumes its correct element, cap remains binding, exhaustion blocks or follows declared behavior, and empty ladder follows the explicitly approved behavior.",
+      "confidence": "proven"
+    },
+    {
+      "audit_id": "STOP1-EXIT-BE-FEE-004",
+      "keys": ["exitLogic.beScaleOut.feeBufferPercent"],
+      "owner": "config/settings.json -> PolicyBuilder CONFIG_PATHS/normalizeBeScaleOut",
+      "intended_purpose": "Fee buffer for break-even scale-out is suggested by name; concrete intended arithmetic is unknown.",
+      "initializer": "settings:1860-1866; read/frozen by PolicyBuilder:16-23,280-287,582-604; planBeScaleOut reads trigger/fraction but not feeBufferPercent in ProfitExitPlanner.js:157-201.",
+      "actual_callers_readers": "Policy-only reader; no planner or ECM execution reader. Separate break-even stop uses exitLogic.trail.feeBufferPercent at ECM:868-894, not this key.",
+      "actual_behavior": "Changing this key cannot alter BE scale-out timing, size, or resulting stop.",
+      "override_default_fallback": "Frozen per-entry policy; no runtime fallback proven.",
+      "repair_shape": "First decide whether it gates trigger, adjusts profit threshold, or protects a subsequent stop; then implement once in ProfitExitPlanner with named units. Do not alias it silently to trail.feeBufferPercent.",
+      "files_if_implemented": ["core/ProfitExitPlanner.js", "core/PolicyBuilder.js", "test/profit-exit-planner.test.js"],
+      "proof_required": "Fee-buffer boundary test demonstrates a changed planned BE partial only under the approved semantic, while trail fee buffer and BE stop remain independently unchanged.",
+      "confidence": "proven-disconnected; intended arithmetic unknown"
+    },
+    {
+      "audit_id": "STOP1-EXIT-VOL-005",
+      "keys": ["exitLogic.volatilityAdjustment.enabled", "exitLogic.volatilityAdjustment.lowThresholdPercent", "exitLogic.volatilityAdjustment.highThresholdPercent", "exitLogic.volatilityAdjustment.lookbackPeriods"],
+      "owner": "config/settings.json -> PolicyBuilder.normalizeVolatilityAdjustment",
+      "intended_purpose": "Modify tier targets for low/high entry volatility; lookbackPeriods implies calculation window but runtime receives one entryVolatility scalar.",
+      "initializer": "settings:1900-1905; all read in PolicyBuilder:41-46,297-338 during OrderExecutor entry freeze at 2350-2360.",
+      "actual_callers_readers": "enabled/thresholds affect targetFactor in PolicyBuilder; hardcoded factors are 0.8 and 1.4 at 314-329. lookbackPeriods is validation-only at 302 and omitted from returned frozen policy. Profit tier targets consume factor via targetAdjustment:460-488.",
+      "actual_behavior": "With enabled=false (current), factor=1. With enabled=true low/high factors remain hardcoded; changing lookbackPeriods changes neither observed volatility nor target factor.",
+      "override_default_fallback": "No fallback: volatility must be positive or PolicyBuilder throws; this entry point receives entryVolatility from caller.",
+      "repair_shape": "Either remove/rename the misleading lookback setting only after product approval, or pass a bounded price-history/volatility provenance into the entry policy builder and compute it there. If configurable factors are wanted, add explicit named keys and validate/freeze them; do not reinterpret thresholds as factors.",
+      "files_if_implemented": ["core/PolicyBuilder.js", "core/OrderExecutor.js", "core/TradingLoop.js", "config/settings.json", "test/profit-exit-planner.test.js"],
+      "proof_required": "Entry-policy probes prove disabled=1, low/normal/high boundaries exactly, different approved lookback histories yield different factor only if that feature is implemented, and frozen trades retain entry-time factor after settings change.",
+      "confidence": "proven; lookback intended behavior hypothesis"
+    },
+    {
+      "audit_id": "STOP1-PATTERN-006",
+      "keys": ["featureCatalog.PATTERN_EXIT_MODEL.enabled", "featureCatalog.PATTERN_EXIT_MODEL.shadowMode", "featureCatalog.PATTERN_EXIT_MODEL.settings.*"],
+      "owner": "config/settings.json featureCatalog -> run-empire-v2 Engine -> OrderExecutor context -> PatternBasedExitModel",
+      "intended_purpose": "Pattern-driven exit recommendations/stop-target-trail adjustments, stated in model header and config description.",
+      "initializer": "settings:2457 onward; ConfigLoader validates setting shapes at 1682-1725; engine constructs model at run-empire-v2.js:736-742; OrderExecutor starts tracking at 4121-4137/4383-4399 and stops at 5091-5100/5634-5640.",
+      "actual_callers_readers": "evaluateExit has no production caller (repo grep exact). Therefore all settings only influence startTracking-derived internal state and logs, never a recommendation, adjustment, or exit. One singleton activePosition also means overlapping positions would overwrite tracking if activation were attempted.",
+      "actual_behavior": "Feature is enabled and shadowMode true, but it is tracking-only; no shadow decision exists to measure and no active decision reaches ECM/OrderExecutor.",
+      "override_default_fallback": "Enabled gates construction; shadowMode defaults true through `!== false` at engine:741. No config fallback is safe to infer for individual model settings.",
+      "repair_shape": "First add side-effect-free per-trade evaluation/shadow telemetry keyed by trade ID and call it from the ECM exit-monitor context. Only after parity evidence and explicit design should an active recommendation be arbitrated with ECM’s sole coordinator. Replace single activePosition before multi-position activation.",
+      "files_if_implemented": ["core/PatternBasedExitModel.js", "core/TradingLoop.js", "core/ExitContractManager.js", "core/OrderExecutor.js", "run-empire-v2.js", "test/"],
+      "proof_required": "Two concurrent symbol/trade fixture proves no state overwrite; shadow receipt proves each evaluation includes its exact trade ID, source inputs, and non-executing recommendation; active-phase proof (separate authorization) proves exactly one ECM-owned intent and no conflict with hard stop/partial planner.",
+      "confidence": "proven for no evaluateExit caller; wildcard requires expansion before config-completion signoff"
+    },
+    {
+      "audit_id": "STOP1-PID-007",
+      "keys": ["pid.enabled", "pid.updateInterval", "pid.warmupTrades", "pid.windowSize", "pid.positionKp", "pid.positionKi", "pid.positionKd", "pid.targetEquitySlope", "pid.positionOutputMin", "pid.positionOutputMax", "pid.positionIntegralMax", "pid.positionRateLimit", "pid.regimeKp", "pid.regimeKi", "pid.regimeKd", "pid.targetRegimePnl", "pid.regimeOutputMin", "pid.regimeOutputMax", "pid.regimeIntegralMax", "pid.regimeRateLimit", "pid.trailKp", "pid.trailKi", "pid.trailKd", "pid.targetMFERatio", "pid.trailOutputMin", "pid.trailOutputMax", "pid.trailIntegralMax", "pid.trailRateLimit"],
+      "owner": "config/settings.json -> PIDController singleton",
+      "intended_purpose": "Three adaptive loops: position multiplier, per-strategy regime boost, trailing multiplier (PIDController.js:2-20).",
+      "initializer": "settings:1382-1410; constructor reads all fields at PIDController:124-183. OrderExecutor invokes onTradeClose for long/short closes at 4917-4943 and 5548-5572.",
+      "actual_callers_readers": "Input/learning consumer exists: close path calls onTradeClose. No production consumer calls getPositionMultiplier, getRegimeBoostAdjustment, or getTrailMultiplier (exact repo grep); DynamicTrailingStop is also not constructed. Error catches around close updates currently log and continue.",
+      "actual_behavior": "PID accumulates in process and can log updates, but none of its outputs alters sizing, regime boosts, or trailing. It resets on process restart and is not persisted. Thus all PID parameter changes are execution-inert apart from controller logs/state.",
+      "override_default_fallback": "Constructor explicit config can override only enabled/updateInterval/warmupTrades/windowSize; loop gains always come from ConfigLoader. Getter returns 1.0 before warmup/when disabled, but no production output consumer exists.",
+      "repair_shape": "Do not wire all outputs blindly. Establish a frozen, trade-safe owner for each: sizing only at new-entry plan; regime only before strategy selection; trail only as an entry-frozen multiplier or explicitly documented live adjustment. Persist/replay semantics and invalid input handling must be designed before activation; remove optional catch only when its producer contract is repaired under Fourth Shape.",
+      "files_if_implemented": ["core/PIDController.js", "core/OrderExecutor.js", "core/StrategyOrchestrator.js", "core/ExitContractManager.js", "core/exit/DynamicTrailingStop.js", "test/"],
+      "proof_required": "Separate pure tests per loop plus integration receipts: after warmup/update, output changes exactly the declared future entry/strategy/trade target; it never mutates existing frozen contract unexpectedly; restart/persistence behavior is explicit; an invalid close payload is traced and cannot silently lose controller state.",
+      "confidence": "proven"
+    }
+  ],
+  "coverage_gaps": [
+    {"id": "STOP1-GAP-EXIT-ALL-001", "statement": "Rows use exact expanded keys for TP/trailing/PID, but PatternBasedExitModel settings remain a wildcard. Expand every settings leaf before whole-config signoff."},
+    {"id": "STOP1-GAP-EXIT-ALL-002", "statement": "The parent requested every leaf of broader topgroups (execution, feeProfiles, positionSizing, fees, authFailureGuard, startingBalance, internals exitContracts). They are outside this child’s original bounded inspection and are not certified by this file."}
+  ]
+}

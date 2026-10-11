@@ -1,0 +1,40 @@
+{
+  "presentationData": {
+    "file": "config/pattern-descriptions.json",
+    "category": "presentation_reference_data",
+    "entries": 16,
+    "allValuesAreText": true,
+    "initializer": "run-empire-v2.js:326",
+    "caller": "run-empire-v2.js:3310",
+    "consumer": "run-empire-v2.js:3471-3479",
+    "effect": "Supplies human-readable pattern descriptions in outgoing dashboard data. An explicit pattern.description takes precedence. No trading parameter owner is established by this lookup.",
+    "keys": [
+      "head_and_shoulders",
+      "inverse_head_and_shoulders",
+      "double_top",
+      "double_bottom",
+      "triple_top",
+      "triple_bottom",
+      "ascending_triangle",
+      "descending_triangle",
+      "symmetrical_triangle",
+      "bull_flag",
+      "bear_flag",
+      "cup_and_handle",
+      "golden_cross",
+      "death_cross",
+      "bullish_divergence",
+      "bearish_divergence"
+    ],
+    "treatment": "Accounted for separately from the two canonical configuration owners; no migration or deletion proposed."
+  },
+  "templates": [
+    "config/.env.example"
+  ],
+  "storageNotes": [
+    "config/snapshots/README.md",
+    "config/snapshots/.gitkeep",
+    "config/matrix-runs/.gitkeep"
+  ],
+  "boundary": "All2549 canonical settings/internals entries belong to main map. These other files are catalogued to make config directory boundary explicit."
+}

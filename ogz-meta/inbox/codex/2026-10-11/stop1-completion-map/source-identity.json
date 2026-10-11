@@ -1,0 +1,14 @@
+{
+  "head": "d8cb9757945172d35a54d2660d8d291464bdc3c3",
+  "branch": "astra-era",
+  "inheritedCensusHead": "cb566d93a46dca8673def2f76ea685f5be0b148e",
+  "sourceFilesCompared": 383,
+  "changedFromPriorAudit": [],
+  "sourceVerification": "SHA256 comparison allows reuse of prior cited source evidence; not runtime behavior proof.",
+  "runtimeChanged": false,
+  "partitionCounts": {
+    "strategy": 616,
+    "exits": 463,
+    "ownership": 1470
+  }
+}

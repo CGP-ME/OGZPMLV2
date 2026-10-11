@@ -1,0 +1,617 @@
+{
+  "head": "d8cb9757945172d35a54d2660d8d291464bdc3c3",
+  "canonicalEntries": 2549,
+  "mappedEntries": 2549,
+  "partitions": {
+    "strategy": 616,
+    "exits": 463,
+    "ownership": 1470
+  },
+  "missing": [],
+  "duplicates": [],
+  "uiDescriptors": 724,
+  "uiBoundCanonicalEntries": 840,
+  "groups": [
+    {
+      "owner": "config/internals.json",
+      "group": "backtest",
+      "entries": 6,
+      "uiBoundEntries": 0,
+      "file": "map/internals/backtest.jsonl",
+      "sha256Base64": "dgkSIJdNxOeELlcM+yz1b5m4NbmrhREenRyK1VNXGrw="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "broker",
+      "entries": 8,
+      "uiBoundEntries": 0,
+      "file": "map/internals/broker.jsonl",
+      "sha256Base64": "i11/yHOrh6FqEg3iQCHzT0BPqiaVY8SOKDwTJbnvNaQ="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "candleStore",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/internals/candleStore.jsonl",
+      "sha256Base64": "IoPXcoeBIOO+CHlBktf3BO2tTTICXH8qpU/TMF3IKL4="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "dashboard",
+      "entries": 43,
+      "uiBoundEntries": 0,
+      "file": "map/internals/dashboard.jsonl",
+      "sha256Base64": "+nRkAnb7PvQ0S9095P5F6vHWLHuZQOfeKdlFqHraL6Q="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "dataFeed",
+      "entries": 16,
+      "uiBoundEntries": 0,
+      "file": "map/internals/dataFeed.jsonl",
+      "sha256Base64": "QXNdFVH0fIy2GIHmDfQMtj8LYujs5iCnmtNYTA9wv9s="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "decisionRecords",
+      "entries": 4,
+      "uiBoundEntries": 0,
+      "file": "map/internals/decisionRecords.jsonl",
+      "sha256Base64": "6x3hhMB0xMmXPAEs7XJI0BGcqY2AYxr4vfDHSuxH1kk="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "deployment",
+      "entries": 16,
+      "uiBoundEntries": 0,
+      "file": "map/internals/deployment.jsonl",
+      "sha256Base64": "jLK8geAB5AAr6+SQ2V3BeT8fYPjXXCCyWM+fLuk8qVQ="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "exitContracts",
+      "entries": 7,
+      "uiBoundEntries": 0,
+      "file": "map/internals/exitContracts.jsonl",
+      "sha256Base64": "NaEzJnCbGPJ85flsrLg1s40DQ7NirvEw8LRBJsWkMVM="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "featureExtraction",
+      "entries": 6,
+      "uiBoundEntries": 0,
+      "file": "map/internals/featureExtraction.jsonl",
+      "sha256Base64": "NwsKGkjgxSpML0P2Hn2bna4xIf7z+uUuzqKKJesDAcg="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "indicators",
+      "entries": 32,
+      "uiBoundEntries": 0,
+      "file": "map/internals/indicators.jsonl",
+      "sha256Base64": "lEFaFOHr7VdWAxMDy8n8HXl14mQbmyEUrbnQxilde4k="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "instruments",
+      "entries": 13,
+      "uiBoundEntries": 0,
+      "file": "map/internals/instruments.jsonl",
+      "sha256Base64": "5ibJLMPTam4XtC2tBQgfwEBm2J4qvjnMWITMMhkACdg="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "journal",
+      "entries": 8,
+      "uiBoundEntries": 0,
+      "file": "map/internals/journal.jsonl",
+      "sha256Base64": "PcoBsPMSfyxFyFjedJ9aZVYDCCVAFiyX2knWA+PX2vI="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "marketCalendar",
+      "entries": 7,
+      "uiBoundEntries": 0,
+      "file": "map/internals/marketCalendar.jsonl",
+      "sha256Base64": "0y9Y5ZQDxLl61u1Y19tZPLNSdUsxGj+td7MfGNaebtY="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "monitoring",
+      "entries": 4,
+      "uiBoundEntries": 0,
+      "file": "map/internals/monitoring.jsonl",
+      "sha256Base64": "0ULmh4CnC8cQXjgQfyx1Wt9vluxviKgbp8/K6+x2Mrc="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "multiTimeframe",
+      "entries": 7,
+      "uiBoundEntries": 0,
+      "file": "map/internals/multiTimeframe.jsonl",
+      "sha256Base64": "NhnCwPPRfJAHyfG0eXo6EyDOlvkhieX2+3ANEXKadws="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "observability",
+      "entries": 6,
+      "uiBoundEntries": 0,
+      "file": "map/internals/observability.jsonl",
+      "sha256Base64": "DSxTDQS8it4vZjyz39d64yL0Om2xEZ6yV+2KVBMOQ5E="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "paths",
+      "entries": 5,
+      "uiBoundEntries": 0,
+      "file": "map/internals/paths.jsonl",
+      "sha256Base64": "qAoyFJzsrkUeVc5prDJShFhNRu7aLrT16hXC7WtPU2s="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "patternMemory",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/internals/patternMemory.jsonl",
+      "sha256Base64": "ZxfqOHvoozNmsKqphZRlVzxAr4UNmOvyian8UgJWf4A="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "patternRecognition",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/internals/patternRecognition.jsonl",
+      "sha256Base64": "jDGmKLOxsHeZzcv3aFRa+iSlxl7zRizThaedGdeRfs8="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "performanceAnalysis",
+      "entries": 3,
+      "uiBoundEntries": 0,
+      "file": "map/internals/performanceAnalysis.jsonl",
+      "sha256Base64": "N3wrRqjuJ2rmwETBVRitXva8sL+lceBTx1YLEf5edAg="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "pipelineSnapshot",
+      "entries": 3,
+      "uiBoundEntries": 0,
+      "file": "map/internals/pipelineSnapshot.jsonl",
+      "sha256Base64": "57bgS1mXjTS6j2BXu7GdCRrtNheKT/NKLQy0E16kAxM="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "queues",
+      "entries": 3,
+      "uiBoundEntries": 0,
+      "file": "map/internals/queues.jsonl",
+      "sha256Base64": "M5ridval3zoHGcCMwj9p/fyqbQlh0DydEPFhLnIM5GY="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "revision",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/internals/revision.jsonl",
+      "sha256Base64": "3Ztoh9vWKBXIfb6HiYChGje+kI91ZWomPzFye3GaqDA="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "schemaVersion",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/internals/schemaVersion.jsonl",
+      "sha256Base64": "dh/vdaXlu7Qycilats/HMKTi2vgHs+1gvqF3wbmDojw="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "services",
+      "entries": 30,
+      "uiBoundEntries": 0,
+      "file": "map/internals/services.jsonl",
+      "sha256Base64": "SH6TNpGnevj+uD0gX7wdw4F5kocMditOSWQ+HK2nApQ="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "sessionRouter",
+      "entries": 3,
+      "uiBoundEntries": 0,
+      "file": "map/internals/sessionRouter.jsonl",
+      "sha256Base64": "sgXPFxZ4Ob/C+XrwqhuD2arUaauBTFYpoeFbrMvm4LM="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "singleton",
+      "entries": 2,
+      "uiBoundEntries": 0,
+      "file": "map/internals/singleton.jsonl",
+      "sha256Base64": "48lCYYtO4gYdSifiJj4n2f8aqvjfEjJQ2JRJTDqpYYk="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "tooling",
+      "entries": 401,
+      "uiBoundEntries": 0,
+      "file": "map/internals/tooling.jsonl",
+      "sha256Base64": "hTyjmlhs10XmrQPHhVpwOOMemhvpH8lip7+PVF7/S2E="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "trai",
+      "entries": 5,
+      "uiBoundEntries": 0,
+      "file": "map/internals/trai.jsonl",
+      "sha256Base64": "4xo6/jmVUQ31v7hnV5FvOjHBLkfwePwuDp2lq+ungr8="
+    },
+    {
+      "owner": "config/internals.json",
+      "group": "webhookOrders",
+      "entries": 2,
+      "uiBoundEntries": 0,
+      "file": "map/internals/webhookOrders.jsonl",
+      "sha256Base64": "0ZRoyDYaMdMgrXE0AreNz0542zmln92HNFVX4Jkl7Q4="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "authFailureGuard",
+      "entries": 2,
+      "uiBoundEntries": 0,
+      "file": "map/settings/authFailureGuard.jsonl",
+      "sha256Base64": "rrhqMppQgJLkHx/It1OYwSZctNUNFXUn4t/fhfGD9zM="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "confidence",
+      "entries": 4,
+      "uiBoundEntries": 2,
+      "file": "map/settings/confidence.jsonl",
+      "sha256Base64": "cUiGDYfV5nK/JU9TzVbtAlpYNLzpqWVq/ZBZzP4WND0="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "entryLogic",
+      "entries": 7,
+      "uiBoundEntries": 7,
+      "file": "map/settings/entryLogic.jsonl",
+      "sha256Base64": "k7QO1YHb+ezwxhonehqn6vJ6CxUZXpKmHXEX0Uf/FpI="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "execution",
+      "entries": 10,
+      "uiBoundEntries": 0,
+      "file": "map/settings/execution.jsonl",
+      "sha256Base64": "ZRg5Ce2bkXEY95x7GGnPSWwx8vTmAvmIS8z/0gax3sE="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "exitContracts",
+      "entries": 334,
+      "uiBoundEntries": 113,
+      "file": "map/settings/exitContracts.jsonl",
+      "sha256Base64": "lqNuyZyyE30F0tPrM2+X6e3suNlmucY5wy0YtXpD9nY="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "exitLogic",
+      "entries": 36,
+      "uiBoundEntries": 32,
+      "file": "map/settings/exitLogic.jsonl",
+      "sha256Base64": "nZoXY7+VunogWtJ6nWDhethJG55hIyUDVfGNhlu3/sg="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "exits",
+      "entries": 7,
+      "uiBoundEntries": 7,
+      "file": "map/settings/exits.jsonl",
+      "sha256Base64": "CJme8nt61W/233KN2l9FRIJyCZq7Ryn0dDy9FLD6Rxs="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "featureCatalog",
+      "entries": 52,
+      "uiBoundEntries": 0,
+      "file": "map/settings/featureCatalog.jsonl",
+      "sha256Base64": "y035EJcB74e5W6GfDQzQMGV7vvxEsODX4autupxuTso="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "featureExtraction",
+      "entries": 6,
+      "uiBoundEntries": 6,
+      "file": "map/settings/featureExtraction.jsonl",
+      "sha256Base64": "oUxm1Ar2q/deog7SkbdbfjqGJomnq/olSloKOcHHu4c="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "features",
+      "entries": 2,
+      "uiBoundEntries": 2,
+      "file": "map/settings/features.jsonl",
+      "sha256Base64": "AYRNMGKCmGaxh1by3YAoovqHnMSNKP8KQ/daxAtaA4E="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "feeProfiles",
+      "entries": 22,
+      "uiBoundEntries": 0,
+      "file": "map/settings/feeProfiles.jsonl",
+      "sha256Base64": "SWZ8wk+iCiVBknWm9qHrMQDExGkNwJ+KafwrcuGaRt0="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "fees",
+      "entries": 8,
+      "uiBoundEntries": 6,
+      "file": "map/settings/fees.jsonl",
+      "sha256Base64": "d++G7S+li/owZDWxNq8sY9+mCldiGW3SlWDOCiZPACs="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "fibonacci",
+      "entries": 11,
+      "uiBoundEntries": 11,
+      "file": "map/settings/fibonacci.jsonl",
+      "sha256Base64": "pzXJ/8l5WrHhZplTlehegxl0+DZWlrp2iM7smMmqaRI="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "filters",
+      "entries": 2,
+      "uiBoundEntries": 2,
+      "file": "map/settings/filters.jsonl",
+      "sha256Base64": "p1J6/f5J1clLhw9etLUuR15f6ijPsZWDaE9JWxsVjK0="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "fundTarget",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/settings/fundTarget.jsonl",
+      "sha256Base64": "kKJX2XU3TKLoC/VkEc+F2wgoI8KNQQqnE/3WOvV4gzw="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "indicators",
+      "entries": 83,
+      "uiBoundEntries": 81,
+      "file": "map/settings/indicators.jsonl",
+      "sha256Base64": "jLQqDRBVzIRJZv/a9wN/OAYyQO6keO+R2OFAD0vqOR4="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-backtest-all",
+      "entries": 83,
+      "uiBoundEntries": 17,
+      "file": "map/settings/launchProfiles-backtest-all.jsonl",
+      "sha256Base64": "gY74flpWHRmVSA4URvb2iVjoQlA4mxo2gSdxgjZUimc="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-backtest-masr",
+      "entries": 83,
+      "uiBoundEntries": 17,
+      "file": "map/settings/launchProfiles-backtest-masr.jsonl",
+      "sha256Base64": "8jtHPWvi+J6vA0qUKIUOERkN+EPUJAU0NbGzq5jtDp4="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-backtest-rsi",
+      "entries": 83,
+      "uiBoundEntries": 17,
+      "file": "map/settings/launchProfiles-backtest-rsi.jsonl",
+      "sha256Base64": "EPyamNVejSTSQlFrLFyC3TYxoLOaZdPEa4k/bu9ja1o="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-backtest-trey-spec",
+      "entries": 83,
+      "uiBoundEntries": 17,
+      "file": "map/settings/launchProfiles-backtest-trey-spec.jsonl",
+      "sha256Base64": "96n0ZNRNBe681HxF3kJyBuWTxP8fbJy/GFoL+8UgleY="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-backtest-ttp-5k-max",
+      "entries": 83,
+      "uiBoundEntries": 17,
+      "file": "map/settings/launchProfiles-backtest-ttp-5k-max.jsonl",
+      "sha256Base64": "r/59LZoclZ3r7dc47DXm8+Gz2a7hjI1hJff9PaVHgFE="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-defaultProfile",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/settings/launchProfiles-defaultProfile.jsonl",
+      "sha256Base64": "KWvNoxvo8lkErAaUy0ID7ycK+bjiISZtBRM8+z7ZhN0="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-paper",
+      "entries": 82,
+      "uiBoundEntries": 17,
+      "file": "map/settings/launchProfiles-paper.jsonl",
+      "sha256Base64": "s1JssRj8KEfMBWGOVMF5l7mqQNSX2ErfzDau7JKA7Dg="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "launchProfiles-production",
+      "entries": 82,
+      "uiBoundEntries": 17,
+      "file": "map/settings/launchProfiles-production.jsonl",
+      "sha256Base64": "d1JUaKAVmEdWLbxkvI079edxDyDjZH7pVKlOSXH6LeY="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "misc",
+      "entries": 3,
+      "uiBoundEntries": 0,
+      "file": "map/settings/misc.jsonl",
+      "sha256Base64": "as80N5RwFOrOIzQP7iPrN6MCMJHLDbVnVRsICPKsx5M="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "orchestrator",
+      "entries": 40,
+      "uiBoundEntries": 30,
+      "file": "map/settings/orchestrator.jsonl",
+      "sha256Base64": "3J49nYph1CipWXIxvgoQT6QhswxjFZX2DWrxK4kiQhY="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "patternMemory",
+      "entries": 19,
+      "uiBoundEntries": 9,
+      "file": "map/settings/patternMemory.jsonl",
+      "sha256Base64": "aYlZc8e1PikLyBRNq1GZzDpAZNM6xh/736cHvsGDrYI="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "patternRecognition",
+      "entries": 13,
+      "uiBoundEntries": 13,
+      "file": "map/settings/patternRecognition.jsonl",
+      "sha256Base64": "daTMMKRR1TjhgDXIxwhrozIV1CZ81+/2MqUsSMh9hCQ="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "performanceAnalysis",
+      "entries": 8,
+      "uiBoundEntries": 8,
+      "file": "map/settings/performanceAnalysis.jsonl",
+      "sha256Base64": "wI/g9Y2wlZFj9dMajH0l31DzBi4h2ZNLpSTxRTHTiWk="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "pid",
+      "entries": 28,
+      "uiBoundEntries": 0,
+      "file": "map/settings/pid.jsonl",
+      "sha256Base64": "Xf+etkJfSnwfdW2KsFHrn9YmyOduoNq0DlCq9VlLjlU="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "positionSizing",
+      "entries": 8,
+      "uiBoundEntries": 7,
+      "file": "map/settings/positionSizing.jsonl",
+      "sha256Base64": "xwj8M1XqILIfJznQCjuhn09o3EJ8BZN19b9BECgCejE="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "proofPublication",
+      "entries": 9,
+      "uiBoundEntries": 0,
+      "file": "map/settings/proofPublication.jsonl",
+      "sha256Base64": "7+NHkYrHm2SFJ9JIhsX30neDmEeWf8dRSjkHLdsBFQo="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "regimeBoosts",
+      "entries": 22,
+      "uiBoundEntries": 22,
+      "file": "map/settings/regimeBoosts.jsonl",
+      "sha256Base64": "ZYicqpaUrvFPzmlc3j7wP2b9bDxxdzJS3ZnWDz6v3x0="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "regimeDetection",
+      "entries": 13,
+      "uiBoundEntries": 13,
+      "file": "map/settings/regimeDetection.jsonl",
+      "sha256Base64": "lbLjMRGJdJyktUhfq2F3kdVcmbNUZ6XfX43EXpkl8qE="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "revision",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/settings/revision.jsonl",
+      "sha256Base64": "qsmAuk+VY0fFMVx9bZhFv3tl0QPxlPyLzGwDSaormX4="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "schemaVersion",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/settings/schemaVersion.jsonl",
+      "sha256Base64": "8rSdLQsstB+VilLZnsv9r5UH3k6JpFxsJUEwlLyFNmc="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "services",
+      "entries": 37,
+      "uiBoundEntries": 0,
+      "file": "map/settings/services.jsonl",
+      "sha256Base64": "rK37uSiBaYyz1u3zc/sp/JpI3R6tsh1TMuNH7i57J38="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "startingBalance",
+      "entries": 1,
+      "uiBoundEntries": 0,
+      "file": "map/settings/startingBalance.jsonl",
+      "sha256Base64": "KMzWF5m5lE0wIlhzRWnZxY1VfcsSnMKC+eavG7vMh5w="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "strategies",
+      "entries": 308,
+      "uiBoundEntries": 303,
+      "file": "map/settings/strategies.jsonl",
+      "sha256Base64": "hzKgVT0pEpb+v8gdzxRPZLDWy+vNtPJjgBF2vA7a7Ko="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "strategyBehavior",
+      "entries": 12,
+      "uiBoundEntries": 12,
+      "file": "map/settings/strategyBehavior.jsonl",
+      "sha256Base64": "LPMXQ5GdjOzD3qxXG5efW19D4AXztgn8Ju1p3haPp1o="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "tierPolicy",
+      "entries": 27,
+      "uiBoundEntries": 0,
+      "file": "map/settings/tierPolicy.jsonl",
+      "sha256Base64": "F26VevEkprdDVwXTDqkl/ZnMr/SCXieqNebhan06U+M="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "timeframeConfig",
+      "entries": 28,
+      "uiBoundEntries": 0,
+      "file": "map/settings/timeframeConfig.jsonl",
+      "sha256Base64": "Zo5bdMOAihCbF2pfvpPEKAY4md/MZYbM9x3G7uZ6BWo="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "trai",
+      "entries": 23,
+      "uiBoundEntries": 14,
+      "file": "map/settings/trai.jsonl",
+      "sha256Base64": "6iHv2lfrwPvpSOkzH9QXXFopF9oTZAIh7GWYXGFUCZY="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "tuningProfiles",
+      "entries": 115,
+      "uiBoundEntries": 0,
+      "file": "map/settings/tuningProfiles.jsonl",
+      "sha256Base64": "4mG2Wao+EVLZSfqnrGR14aCEUryn+8ewcLTtDCyKzxg="
+    },
+    {
+      "owner": "config/settings.json",
+      "group": "volumeProfileBoosts",
+      "entries": 21,
+      "uiBoundEntries": 21,
+      "file": "map/settings/volumeProfileBoosts.jsonl",
+      "sha256Base64": "AGkvRTBgeYYmcfHJwESc5yTHH4/fgYOBy6/Jgaxj+U8="
+    }
+  ],
+  "meaning": "Map completeness only. Runtime acceptance and absence of all silent overrides are NOT certified by row presence or sourceStatus."
+}
