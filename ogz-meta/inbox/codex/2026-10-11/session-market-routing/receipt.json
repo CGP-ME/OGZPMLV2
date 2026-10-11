@@ -6,7 +6,7 @@
   "mercuryHarnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
   "astraVerdict": "scoped_pass",
   "combinedDisposition": "no supported introduced or imminent blocker",
-  "runtimeActivated": false,
+  "runtimeActivated": true,
   "paperReconciliationChecks": [
     "actual REST holdings retained",
     "local simulated trades determine paper position flatness",
@@ -18,5 +18,6 @@
     "canonical profiles paper; no new manual-live mode controller",
     "unrelated existing dirty working files preserved",
     "runtime activation separately verified"
-  ]
+  ],
+  "runtimeEvidence": "runtime-activation.json"
 }

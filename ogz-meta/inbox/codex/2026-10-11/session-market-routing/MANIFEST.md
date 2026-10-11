@@ -9,4 +9,4 @@ Kept to document the authorized Alpaca stocks / Kraken crypto scheduled paper ro
 - final-astra-review.json: adversarial source review; includes correction of the observed paper/real-account exposure mismatch.
 - kraken-readonly-snapshot.json: read-only counts, no account identifiers or balances.
 
-Production activation has not occurred for this candidate.
+Production activation is recorded in runtime-activation.json; it distinguishes the pushed repair from preserved unrelated dirty runtime source and records the remaining paused state.

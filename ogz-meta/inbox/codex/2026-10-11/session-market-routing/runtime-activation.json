@@ -1,0 +1,57 @@
+{
+  "observedAt": "2026-10-11T01:45:07.825836+00:00",
+  "sourceCommit": "b45f67c2ae5a15dfa6ded0a6b3debac12ca0e9ab",
+  "activatedWorkingTreeIncludesPreservedUnrelatedEdits": true,
+  "runtimeSourceReceiptSha256": "5c2e458fe19d1573381720970f9d4e24644226c39aed8c2ab65ab22af9072e5f",
+  "pid": 4078945,
+  "pm2Status": "online",
+  "restartCount": 2,
+  "profile": "paper",
+  "scheduledRouteLogged": true,
+  "paperModeLogged": true,
+  "cryptoActivationLogged": true,
+  "btcHydrationLogged": true,
+  "isTrading": false,
+  "pauseSource": null,
+  "pauseReason": null,
+  "activeTradeCount": 0,
+  "browser": {
+    "status": 200,
+    "errors": [],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "sockets": [
+      {
+        "url": "wss://ogzprime.com/ws",
+        "received": 271,
+        "types": {
+          "auth_success": 1,
+          "state_update": 2,
+          "funding_rate": 1,
+          "fear_greed": 1,
+          "liquidation_data": 2,
+          "market_internals": 36,
+          "smart_money": 2,
+          "cvd_update": 10,
+          "broker_status": 15,
+          "depth_update": 63,
+          "price": 22,
+          "ticker_price": 19,
+          "historical_candles": 2,
+          "news_event": 3,
+          "trace_event": 87,
+          "delta": 3,
+          "divergence": 1,
+          "pong": 1
+        },
+        "closed": false
+      }
+    ]
+  },
+  "limitations": [
+    "Market-open/close transitions verified in isolated real router, not by changing production clock",
+    "Existing unowned paused state preserved; no trading resume command",
+    "No live broker orders submitted",
+    "PM2 save completed"
+  ]
+}
