@@ -3345,9 +3345,6 @@ const EDITABLE_SETTINGS = deepFreeze({
   'strategies.SmartMoneySweep.atrLen': {
     type: "number", unit: "candles", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: ATR period", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
   },
-  'strategies.SmartMoneySweep.maxDailyLosses': {
-    type: "number", unit: "losses", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Daily losing-trade limit", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
-  },
   'strategies.SmartMoneySweep.vpLookbackBars': {
     type: "number", unit: "candles", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Volume-profile candle lookback (0 uses days)", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
   },

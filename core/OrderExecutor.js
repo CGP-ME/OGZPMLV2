@@ -4844,19 +4844,6 @@ class OrderExecutor {
               console.warn('[RISK] Skipped trade result update: missing finite P&L dollars');
             }
 
-            // 3.6 FIX 2026-03-29: Wire SMS daily loss tracking (was NEVER CALLED)
-            // Updates dailyLosses counter so 3-loss-per-day limit works
-            if (this.ctx.strategyOrchestrator && longResultStrategy && longResultPnlDollars !== null) {
-              this.ctx.strategyOrchestrator.recordTradeResult(
-                longResultStrategy,
-                longResultPnlDollars,
-                symbol,
-                buyTrade.timeframe
-              );
-            } else if (this.ctx.strategyOrchestrator) {
-              console.warn('[STRATEGY] Skipped trade result update: missing strategy or finite P&L dollars');
-            }
-
             // 3.7 FIX 2026-04-05: Wire PID Controller for adaptive parameter optimization
             // Updates position sizing, regime boosts, trailing stops based on performance
             try {
@@ -5474,18 +5461,6 @@ class OrderExecutor {
 	            });
           } else if (this.ctx.riskManager) {
             console.warn('[RISK] Skipped short trade result update: missing finite P&L dollars');
-          }
-
-          // FIX 2026-03-29: Wire SMS daily loss tracking for shorts
-          if (this.ctx.strategyOrchestrator && shortResultStrategy && shortResultPnlDollars !== null) {
-            this.ctx.strategyOrchestrator.recordTradeResult(
-              shortResultStrategy,
-              shortResultPnlDollars,
-              symbol,
-              shortTrade.timeframe
-            );
-          } else if (this.ctx.strategyOrchestrator) {
-            console.warn('[STRATEGY] Skipped short trade result update: missing strategy or finite P&L dollars');
           }
 
           // FIX 2026-04-05: Wire PID Controller for short exits

@@ -2151,7 +2151,6 @@
       "slBufferPct": 0.15,
       "maxLossPct": 0.3,
       "maxHoldBars": 60,
-      "maxDailyLosses": 3,
       "useSessionFilter": true,
       "validSessionStartHour": 9,
       "validSessionStartMinute": 45,

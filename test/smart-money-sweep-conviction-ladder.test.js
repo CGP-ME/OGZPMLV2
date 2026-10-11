@@ -28,7 +28,6 @@ function config(overrides = {}) {
     slBufferPct: 0.15,
     maxLossPct: 0.3,
     maxHoldBars: 60,
-    maxDailyLosses: 3,
     vpRthOnly: false,
     vpLookbackBars: 30,
     sweepMaxOffset: 3,

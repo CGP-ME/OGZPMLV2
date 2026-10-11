@@ -831,7 +831,6 @@ class StrategyOrchestrator {
     // These are pluggable: add/remove strategies by editing this array
     this.strategies = [];
     this.symbolStrategyModules = new Map();
-    this.symbolStrategyRiskStates = new Map();
 
     // Opening Range Breakout stateful strategy instance
     // MUST be initialized BEFORE _registerBuiltinStrategies() so closure captures it
@@ -972,17 +971,6 @@ class StrategyOrchestrator {
     const byTimeframe = bySymbol.get(canonicalSymbol);
     if (!byTimeframe.has(timeframe)) {
       const module = factory();
-      if (strategyName === 'SmartMoneySweep') {
-        if (!this.symbolStrategyRiskStates.has(strategyName)) {
-          this.symbolStrategyRiskStates.set(strategyName, new Map());
-        }
-        const dailyRiskBySymbol = this.symbolStrategyRiskStates.get(strategyName);
-        if (!dailyRiskBySymbol.has(canonicalSymbol)) {
-          dailyRiskBySymbol.set(canonicalSymbol, module.dailyRiskState);
-        } else {
-          module.dailyRiskState = dailyRiskBySymbol.get(canonicalSymbol);
-        }
-      }
       byTimeframe.set(timeframe, module);
     }
     return byTimeframe.get(timeframe);
@@ -3196,26 +3184,6 @@ class StrategyOrchestrator {
     this.registeredStrategies = this.registeredStrategies.filter(s => s.name !== name);
     this._applyPipelineToggles();
     console.log(`[StrategyOrchestrator] Removed strategy: ${name}`);
-  }
-
-  /**
-   * Forward trade result to strategy module for daily loss tracking
-   * FIX 2026-03-29: Wire up SMS dailyLosses counter
-   * @param {string} strategyName - The strategy that made the trade
-   * @param {number} pnl - The P&L of the closed trade (positive = win, negative = loss)
-   */
-  recordTradeResult(strategyName, pnl, symbol = null, timeframe) {
-    if (strategyName === 'SmartMoneySweep' && this.smartMoneySweepModule) {
-      const smsModule = this._getSymbolStrategyModule(
-        'SmartMoneySweep',
-        symbol,
-        timeframe,
-        this.smartMoneySweepModule,
-        () => new SmartMoneySweep(this.smartMoneySweepConfigProvider)
-      );
-      smsModule.recordTradeResult(pnl);
-      console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} symbol=${symbol || 'legacy'} dailyLosses=${smsModule.dailyRiskState.dailyLosses}`);
-    }
   }
 
   /**

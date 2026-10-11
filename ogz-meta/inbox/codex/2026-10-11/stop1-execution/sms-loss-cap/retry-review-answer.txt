@@ -1,0 +1,24 @@
+VERDICT: no_break_found  
+ADVERSARIAL_REVIEW_BLOCKING: no  
+
+CANDIDATE SET: examined 6 of 6; files examined: CHANGELOG.md, config/settings.json, core/OrderExecutor.js, core/StrategyOrchestrator.js, foundation/ConfigLoader.js, modules/SmartMoneySweep.js. All relevant sources were read; no additional unread paths remain.  
+
+AST EVIDENCE: used `search` and `git_diff` to confirm absence of `maxDailyLosses` in code and to locate removal note in CHANGELOG. No AST‑backed citations needed beyond these searches.  
+
+INHERITED: each file path examined; no evidence of retained references to the removed field.  
+
+FOURTH SHAPE CLASSIFIER: 0 of 0; no new throws, guards, or gates introduced by the removal.  
+
+ALLEGATIONS: MECHANICAL – removal of `maxDailyLosses` field from `SmartMoneySweep` module and related UI/logic; SUBSTANTIVE – verification that no remaining code references the field.  
+
+SUBSTANTIVE RESOLUTION: none  
+
+WHAT I DID: searched repository for `maxDailyLosses`, opened relevant files, inspected diffs, and confirmed removal and lack of lingering references.  
+
+WHAT I DID NOT DO: execute code or run tests; relied solely on static source evidence.  
+
+WHAT I ASSUMED: the repository snapshot reflects the current state after the change; no hidden dynamic imports affect the field.  
+
+WHY THIS VERDICT: the removal is documented in CHANGELOG, the field no longer appears in any source file, and no other module references it, indicating no break in functionality.  
+
+IF INCOMPLETE, WHY: none; evidence is complete for the question.

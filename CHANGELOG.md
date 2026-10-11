@@ -1,3 +1,12 @@
+## 2026-10-11 — Remove the retired SmartMoneySweep daily-loss restriction
+
+- **Problem / authorization:** Trey explicitly said the three-loss-per-day SMS restriction had been removed and must not remain. Current Stop 1 authorization is to complete repairs except break-even/exit numbers/trailing percentages. Removing this restriction is the requested behavior; retaining or recreating it would violate that instruction.
+- **Change:** Remove `strategies.SmartMoneySweep.maxDailyLosses`, its UI descriptor, SMS loss-counter/reset logic, Orchestrator forwarding/shared loss state, and both long/short executor callbacks. Preserve actual P&L recording, PID learning, session filtering, symbol/timeframe IVB isolation and all exit values.
+- **Actual verification:** Exact base/candidate SmartMoneySweep.update comparison: a known eligible sweep is suppressed at three losses before the change and emits the identical normal signal after it. Existing symbol/timeframe tests pass (3 cases). The older conviction-ladder suite has pre-existing fixture omissions (session fields and current backtest descriptor/auth requirements); it is not reported as passing. No remaining production references to retired SMS symbols. Syntax and scoped-diff checks accompany delivery.
+- **Review:** Initial Mercury review found no dangling callers but objected to the requested loss-cap removal itself. That assumption conflicts with the explicit operator instruction above; a fresh candidate review records the final result in the supporting receipt.
+- **Limits / activation:** Source correction only; no PM2 restart, resume, live order or persisted trading-state mutation. This entry does not claim completion of remaining Stop 1 findings.
+- **Evidence:** [Scoped diff](ogz-meta/inbox/codex/2026-10-11/stop1-execution/sms-loss-cap/scoped.diff), [behavior proof](ogz-meta/inbox/codex/2026-10-11/stop1-execution/sms-loss-cap/signal-proof.json), [review source identity](ogz-meta/inbox/codex/2026-10-11/stop1-execution/sms-loss-cap/source-receipt.json).
+
 ## 2026-10-11 — Map the entire dynamic and static configuration for Stop 1
 
 - **Problem / scope:** Trey required every entry in both configuration owners to be checked and mapped, including entries previously treated as active; revisiting only known defects was insufficient. This change delivers the full source map, not production repairs or a renewed Stop 1 acceptance claim.

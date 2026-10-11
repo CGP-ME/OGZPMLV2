@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "baselineEligible": {
+    "signal": {
+      "direction": "buy",
+      "confidence": 0.775,
+      "reason": "SMS BUY: 4/7 conditions, 90% progress | ",
+      "conditionsMet": 4,
+      "rawConfidence": 90,
+      "overrideLevels": {
+        "stopLoss": 99,
+        "takeProfit": 102
+      },
+      "signalData": {
+        "vah": 105,
+        "val": 95,
+        "poc": 100,
+        "ivbHigh": null,
+        "ivbLow": null,
+        "ivbDirection": 0,
+        "profileBias": 0,
+        "conditionsMet": 4,
+        "rawConfidence": 90
+      }
+    },
+    "hasLossCounter": true
+  },
+  "baselineBlocked": {
+    "signal": null,
+    "hasLossCounter": true
+  },
+  "candidate": {
+    "signal": {
+      "direction": "buy",
+      "confidence": 0.775,
+      "reason": "SMS BUY: 4/7 conditions, 90% progress | ",
+      "conditionsMet": 4,
+      "rawConfidence": 90,
+      "overrideLevels": {
+        "stopLoss": 99,
+        "takeProfit": 102
+      },
+      "signalData": {
+        "vah": 105,
+        "val": 95,
+        "poc": 100,
+        "ivbHigh": null,
+        "ivbLow": null,
+        "ivbDirection": 0,
+        "profileBias": 0,
+        "conditionsMet": 4,
+        "rawConfidence": 90
+      }
+    },
+    "hasLossCounter": false
+  },
+  "scope": "Actual SmartMoneySweep.update from exact Git trees; known sweep/indicator primitives from existing fixture, canonical config. No orders or live state."
+}

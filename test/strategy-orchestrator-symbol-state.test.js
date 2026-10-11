@@ -132,7 +132,7 @@ describe('StrategyOrchestrator symbol-scoped strategy state', () => {
     expect(created).toBe(2);
   });
 
-  test('shares SmartMoneySweep daily risk by symbol while retaining timeframe-local IVB state', () => {
+  test('retains symbol- and timeframe-local SmartMoneySweep IVB state', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const SmartMoneySweep = require('../modules/SmartMoneySweep');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
@@ -165,16 +165,9 @@ describe('StrategyOrchestrator symbol-scoped strategy state', () => {
     const sessionCandle = { t: Date.UTC(2026, 0, 5, 15, 0), o: 100, h: 101, l: 99, c: 100, v: 1000 };
     const secondFrameCandle = { ...sessionCandle, h: 202, l: 198, c: 200 };
     tslaSms._updateIVB(sessionCandle, 15);
-    orchestrator.recordTradeResult('SmartMoneySweep', -1.25, 'TSLA', '15m');
     tslaSms1h._updateIVB(secondFrameCandle, 60);
 
     expect(tslaSms1h).not.toBe(tslaSms);
-    expect(tslaSms.dailyRiskState).toBe(tslaSms1h.dailyRiskState);
-    expect(tslaSms.dailyRiskState).not.toBe(nvdaSms.dailyRiskState);
-    expect(tslaSms.dailyRiskState.dailyLosses).toBe(1);
-    expect(tslaSms1h.dailyRiskState.dailyLosses).toBe(1);
-    expect(nvdaSms.dailyRiskState.dailyLosses).toBe(0);
-    expect(orchestrator.smartMoneySweepModule.dailyRiskState.dailyLosses).toBe(0);
     expect(tslaSms.ivbHigh).toBe(101);
     expect(tslaSms1h.ivbHigh).toBe(202);
     expect(tslaSms.sessionDay).toBe('2026-01-05');

@@ -57,7 +57,6 @@ class SmartMoneySweep {
     this.sessionDay = '';
 
     this.cvd = 0;
-    this.dailyRiskState = { dailyLosses: 0, sessionDay: '' };
 
     this.lastLongSweepBar = -1;
     this.lastShortSweepBar = -1;
@@ -105,7 +104,6 @@ class SmartMoneySweep {
     this.slBufferPct = requireFiniteConfig(config, 'slBufferPct');
     this.maxLossPct = requireFiniteConfig(config, 'maxLossPct');
     this.maxHoldBars = requireFiniteConfig(config, 'maxHoldBars');
-    this.maxDailyLosses = requireFiniteConfig(config, 'maxDailyLosses');
 
     // ─── Session Filter ───
     this.useSessionFilter = config.useSessionFilter;
@@ -180,7 +178,6 @@ class SmartMoneySweep {
     const candleTime = this._getCandleDate(candle);
     const inCash = this._inCashSession(candleTime);
     const inValid = this.useSessionFilter ? this._inValidSession(candleTime) : true;
-    const canTrade = this.dailyRiskState.dailyLosses < this.maxDailyLosses;
 
     // ─── Step 3: Classify the current candle and configured sweep history ───
     if (priceHistory.length < 5) return null;
@@ -222,8 +219,8 @@ class SmartMoneySweep {
     }
 
     // ─── Step 5: Confidence Scoring ───
-    const sweepLongAny = sweepBarIdxL !== -1 && inCash && inValid && canTrade;
-    const sweepShortAny = sweepBarIdxS !== -1 && inCash && inValid && canTrade;
+    const sweepLongAny = sweepBarIdxL !== -1 && inCash && inValid;
+    const sweepShortAny = sweepBarIdxS !== -1 && inCash && inValid;
 
     let longResult = null;
     let shortResult = null;
@@ -321,22 +318,9 @@ class SmartMoneySweep {
   }
 
   /**
-   * Notify the module of a closed trade result (for daily loss tracking).
-   * Called by the trade management layer after a position closes.
-   * @param {number} pnl - Profit/loss of the closed trade
-   */
-  recordTradeResult(pnl) {
-    if (pnl < 0) {
-      this.dailyRiskState.dailyLosses++;
-    }
-  }
-
-  /**
    * Reset daily state. Call at session open detection.
    */
   resetDaily() {
-    this.dailyRiskState.dailyLosses = 0;
-    this.dailyRiskState.sessionDay = '';
     this.ivbHigh = null;
     this.ivbLow = null;
     this.ivbLocked = false;
@@ -508,10 +492,6 @@ class SmartMoneySweep {
     // This ensures daily reset happens per calendar day, not per weekday
     const currentDay = candleDate.toISOString().slice(0, 10);
 
-    if (currentDay !== this.dailyRiskState.sessionDay && inCash) {
-      this.dailyRiskState.sessionDay = currentDay;
-      this.dailyRiskState.dailyLosses = 0;
-    }
 
     // Detect this timeframe's new session; its IVB range remains local.
     const newSession = currentDay !== this.sessionDay && inCash;

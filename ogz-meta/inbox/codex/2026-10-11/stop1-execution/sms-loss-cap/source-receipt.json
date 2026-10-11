@@ -1,0 +1,19 @@
+{
+  "candidate": "5e7e21bc59813a96a22e851b6b221f4b4ab32e88",
+  "base": "865b203429caaf81ea55cc78b6bcf5d8e3cd7888",
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 dc5cb380 c6356e60 M\tconfig/settings.json\n:100644 100644 d3f9c6ed 1ed58617 M\tcore/OrderExecutor.js\n:100644 100644 dce5f813 ad7072fd M\tcore/StrategyOrchestrator.js\n:100644 100644 717dbe1c 2b69c4fd M\tfoundation/ConfigLoader.js\n:100644 100644 0977f38b 72a9cbca M\tmodules/SmartMoneySweep.js\n:100644 100644 aced7006 87834766 M\ttest/smart-money-sweep-conviction-ladder.test.js\n:100644 100644 0b3d1538 258396a9 M\ttest/strategy-orchestrator-symbol-state.test.js\n",
+  "harnessQualification": "Immutable previously qualified current-harness tree loaded by candidate-loader; unrelated dirty harness files not executed.",
+  "firstCandidate": "c893bd49ed609bed0dd607189c929c15bfa813b9",
+  "firstReview": "delivery-review-answer.txt",
+  "finalReview": {
+    "run": "2026-10-11T23-16-41-914Z-d114dd352601",
+    "verdict": "no_break_found",
+    "answer": "retry-review-answer.txt"
+  },
+  "testResults": {
+    "exactCandidateSignal": "PASS",
+    "symbolTimeframeIsolation": "3 passed",
+    "legacyConvictionSuite": "4 preexisting fixture failures; not represented as pass"
+  }
+}

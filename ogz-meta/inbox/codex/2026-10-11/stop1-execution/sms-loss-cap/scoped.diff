@@ -1,0 +1,242 @@
+diff --git a/config/settings.json b/config/settings.json
+index dc5cb380..c6356e60 100644
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -2151,7 +2151,6 @@
+       "slBufferPct": 0.15,
+       "maxLossPct": 0.3,
+       "maxHoldBars": 60,
+-      "maxDailyLosses": 3,
+       "useSessionFilter": true,
+       "validSessionStartHour": 9,
+       "validSessionStartMinute": 45,
+diff --git a/core/OrderExecutor.js b/core/OrderExecutor.js
+index d3f9c6ed..1ed58617 100644
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -4844,19 +4844,6 @@ class OrderExecutor {
+               console.warn('[RISK] Skipped trade result update: missing finite P&L dollars');
+             }
+ 
+-            // 3.6 FIX 2026-03-29: Wire SMS daily loss tracking (was NEVER CALLED)
+-            // Updates dailyLosses counter so 3-loss-per-day limit works
+-            if (this.ctx.strategyOrchestrator && longResultStrategy && longResultPnlDollars !== null) {
+-              this.ctx.strategyOrchestrator.recordTradeResult(
+-                longResultStrategy,
+-                longResultPnlDollars,
+-                symbol,
+-                buyTrade.timeframe
+-              );
+-            } else if (this.ctx.strategyOrchestrator) {
+-              console.warn('[STRATEGY] Skipped trade result update: missing strategy or finite P&L dollars');
+-            }
+-
+             // 3.7 FIX 2026-04-05: Wire PID Controller for adaptive parameter optimization
+             // Updates position sizing, regime boosts, trailing stops based on performance
+             try {
+@@ -5476,18 +5463,6 @@ class OrderExecutor {
+             console.warn('[RISK] Skipped short trade result update: missing finite P&L dollars');
+           }
+ 
+-          // FIX 2026-03-29: Wire SMS daily loss tracking for shorts
+-          if (this.ctx.strategyOrchestrator && shortResultStrategy && shortResultPnlDollars !== null) {
+-            this.ctx.strategyOrchestrator.recordTradeResult(
+-              shortResultStrategy,
+-              shortResultPnlDollars,
+-              symbol,
+-              shortTrade.timeframe
+-            );
+-          } else if (this.ctx.strategyOrchestrator) {
+-            console.warn('[STRATEGY] Skipped short trade result update: missing strategy or finite P&L dollars');
+-          }
+-
+           // FIX 2026-04-05: Wire PID Controller for short exits
+           try {
+             if (
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index dce5f813..ad7072fd 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -831,7 +831,6 @@ class StrategyOrchestrator {
+     // These are pluggable: add/remove strategies by editing this array
+     this.strategies = [];
+     this.symbolStrategyModules = new Map();
+-    this.symbolStrategyRiskStates = new Map();
+ 
+     // Opening Range Breakout stateful strategy instance
+     // MUST be initialized BEFORE _registerBuiltinStrategies() so closure captures it
+@@ -972,17 +971,6 @@ class StrategyOrchestrator {
+     const byTimeframe = bySymbol.get(canonicalSymbol);
+     if (!byTimeframe.has(timeframe)) {
+       const module = factory();
+-      if (strategyName === 'SmartMoneySweep') {
+-        if (!this.symbolStrategyRiskStates.has(strategyName)) {
+-          this.symbolStrategyRiskStates.set(strategyName, new Map());
+-        }
+-        const dailyRiskBySymbol = this.symbolStrategyRiskStates.get(strategyName);
+-        if (!dailyRiskBySymbol.has(canonicalSymbol)) {
+-          dailyRiskBySymbol.set(canonicalSymbol, module.dailyRiskState);
+-        } else {
+-          module.dailyRiskState = dailyRiskBySymbol.get(canonicalSymbol);
+-        }
+-      }
+       byTimeframe.set(timeframe, module);
+     }
+     return byTimeframe.get(timeframe);
+@@ -3198,26 +3186,6 @@ class StrategyOrchestrator {
+     console.log(`[StrategyOrchestrator] Removed strategy: ${name}`);
+   }
+ 
+-  /**
+-   * Forward trade result to strategy module for daily loss tracking
+-   * FIX 2026-03-29: Wire up SMS dailyLosses counter
+-   * @param {string} strategyName - The strategy that made the trade
+-   * @param {number} pnl - The P&L of the closed trade (positive = win, negative = loss)
+-   */
+-  recordTradeResult(strategyName, pnl, symbol = null, timeframe) {
+-    if (strategyName === 'SmartMoneySweep' && this.smartMoneySweepModule) {
+-      const smsModule = this._getSymbolStrategyModule(
+-        'SmartMoneySweep',
+-        symbol,
+-        timeframe,
+-        this.smartMoneySweepModule,
+-        () => new SmartMoneySweep(this.smartMoneySweepConfigProvider)
+-      );
+-      smsModule.recordTradeResult(pnl);
+-      console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} symbol=${symbol || 'legacy'} dailyLosses=${smsModule.dailyRiskState.dailyLosses}`);
+-    }
+-  }
+-
+   /**
+    * Get stats for monitoring
+    */
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index 717dbe1c..2b69c4fd 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -3345,9 +3345,6 @@ const EDITABLE_SETTINGS = deepFreeze({
+   'strategies.SmartMoneySweep.atrLen': {
+     type: "number", unit: "candles", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: ATR period", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+   },
+-  'strategies.SmartMoneySweep.maxDailyLosses': {
+-    type: "number", unit: "losses", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Daily losing-trade limit", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+-  },
+   'strategies.SmartMoneySweep.vpLookbackBars': {
+     type: "number", unit: "candles", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Volume-profile candle lookback (0 uses days)", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+   },
+diff --git a/modules/SmartMoneySweep.js b/modules/SmartMoneySweep.js
+index 0977f38b..72a9cbca 100644
+--- a/modules/SmartMoneySweep.js
++++ b/modules/SmartMoneySweep.js
+@@ -57,7 +57,6 @@ class SmartMoneySweep {
+     this.sessionDay = '';
+ 
+     this.cvd = 0;
+-    this.dailyRiskState = { dailyLosses: 0, sessionDay: '' };
+ 
+     this.lastLongSweepBar = -1;
+     this.lastShortSweepBar = -1;
+@@ -105,7 +104,6 @@ class SmartMoneySweep {
+     this.slBufferPct = requireFiniteConfig(config, 'slBufferPct');
+     this.maxLossPct = requireFiniteConfig(config, 'maxLossPct');
+     this.maxHoldBars = requireFiniteConfig(config, 'maxHoldBars');
+-    this.maxDailyLosses = requireFiniteConfig(config, 'maxDailyLosses');
+ 
+     // ─── Session Filter ───
+     this.useSessionFilter = config.useSessionFilter;
+@@ -180,7 +178,6 @@ class SmartMoneySweep {
+     const candleTime = this._getCandleDate(candle);
+     const inCash = this._inCashSession(candleTime);
+     const inValid = this.useSessionFilter ? this._inValidSession(candleTime) : true;
+-    const canTrade = this.dailyRiskState.dailyLosses < this.maxDailyLosses;
+ 
+     // ─── Step 3: Classify the current candle and configured sweep history ───
+     if (priceHistory.length < 5) return null;
+@@ -222,8 +219,8 @@ class SmartMoneySweep {
+     }
+ 
+     // ─── Step 5: Confidence Scoring ───
+-    const sweepLongAny = sweepBarIdxL !== -1 && inCash && inValid && canTrade;
+-    const sweepShortAny = sweepBarIdxS !== -1 && inCash && inValid && canTrade;
++    const sweepLongAny = sweepBarIdxL !== -1 && inCash && inValid;
++    const sweepShortAny = sweepBarIdxS !== -1 && inCash && inValid;
+ 
+     let longResult = null;
+     let shortResult = null;
+@@ -320,23 +317,10 @@ class SmartMoneySweep {
+     return this.tierFloor;
+   }
+ 
+-  /**
+-   * Notify the module of a closed trade result (for daily loss tracking).
+-   * Called by the trade management layer after a position closes.
+-   * @param {number} pnl - Profit/loss of the closed trade
+-   */
+-  recordTradeResult(pnl) {
+-    if (pnl < 0) {
+-      this.dailyRiskState.dailyLosses++;
+-    }
+-  }
+-
+   /**
+    * Reset daily state. Call at session open detection.
+    */
+   resetDaily() {
+-    this.dailyRiskState.dailyLosses = 0;
+-    this.dailyRiskState.sessionDay = '';
+     this.ivbHigh = null;
+     this.ivbLow = null;
+     this.ivbLocked = false;
+@@ -508,10 +492,6 @@ class SmartMoneySweep {
+     // This ensures daily reset happens per calendar day, not per weekday
+     const currentDay = candleDate.toISOString().slice(0, 10);
+ 
+-    if (currentDay !== this.dailyRiskState.sessionDay && inCash) {
+-      this.dailyRiskState.sessionDay = currentDay;
+-      this.dailyRiskState.dailyLosses = 0;
+-    }
+ 
+     // Detect this timeframe's new session; its IVB range remains local.
+     const newSession = currentDay !== this.sessionDay && inCash;
+diff --git a/test/smart-money-sweep-conviction-ladder.test.js b/test/smart-money-sweep-conviction-ladder.test.js
+index aced7006..87834766 100644
+--- a/test/smart-money-sweep-conviction-ladder.test.js
++++ b/test/smart-money-sweep-conviction-ladder.test.js
+@@ -28,7 +28,6 @@ function config(overrides = {}) {
+     slBufferPct: 0.15,
+     maxLossPct: 0.3,
+     maxHoldBars: 60,
+-    maxDailyLosses: 3,
+     vpRthOnly: false,
+     vpLookbackBars: 30,
+     sweepMaxOffset: 3,
+diff --git a/test/strategy-orchestrator-symbol-state.test.js b/test/strategy-orchestrator-symbol-state.test.js
+index 0b3d1538..258396a9 100644
+--- a/test/strategy-orchestrator-symbol-state.test.js
++++ b/test/strategy-orchestrator-symbol-state.test.js
+@@ -132,7 +132,7 @@ describe('StrategyOrchestrator symbol-scoped strategy state', () => {
+     expect(created).toBe(2);
+   });
+ 
+-  test('shares SmartMoneySweep daily risk by symbol while retaining timeframe-local IVB state', () => {
++  test('retains symbol- and timeframe-local SmartMoneySweep IVB state', () => {
+     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+     const SmartMoneySweep = require('../modules/SmartMoneySweep');
+     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
+@@ -165,16 +165,9 @@ describe('StrategyOrchestrator symbol-scoped strategy state', () => {
+     const sessionCandle = { t: Date.UTC(2026, 0, 5, 15, 0), o: 100, h: 101, l: 99, c: 100, v: 1000 };
+     const secondFrameCandle = { ...sessionCandle, h: 202, l: 198, c: 200 };
+     tslaSms._updateIVB(sessionCandle, 15);
+-    orchestrator.recordTradeResult('SmartMoneySweep', -1.25, 'TSLA', '15m');
+     tslaSms1h._updateIVB(secondFrameCandle, 60);
+ 
+     expect(tslaSms1h).not.toBe(tslaSms);
+-    expect(tslaSms.dailyRiskState).toBe(tslaSms1h.dailyRiskState);
+-    expect(tslaSms.dailyRiskState).not.toBe(nvdaSms.dailyRiskState);
+-    expect(tslaSms.dailyRiskState.dailyLosses).toBe(1);
+-    expect(tslaSms1h.dailyRiskState.dailyLosses).toBe(1);
+-    expect(nvdaSms.dailyRiskState.dailyLosses).toBe(0);
+-    expect(orchestrator.smartMoneySweepModule.dailyRiskState.dailyLosses).toBe(0);
+     expect(tslaSms.ivbHigh).toBe(101);
+     expect(tslaSms1h.ivbHigh).toBe(202);
+     expect(tslaSms.sessionDay).toBe('2026-01-05');
