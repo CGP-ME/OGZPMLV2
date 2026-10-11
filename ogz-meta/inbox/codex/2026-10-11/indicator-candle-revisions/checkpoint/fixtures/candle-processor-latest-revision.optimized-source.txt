@@ -1,0 +1,22 @@
+[Narrator] Enabled mode=USER seed=ogzprime…
+[StateManager] Balance update: 10000 -> 10000
+[StateManager] State saved to disk
+[StateManager] No persisted state; initialized configured starting balance $10000
+[IndicatorEngine] OGZ TPO module loaded successfully
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[MADynamicSR] initialized (Trader DNA CORRECTED)
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[MADynamicSR] initialized (Trader DNA CORRECTED)
+[ORB] Initialized: session=09:30 America/New_York, OR=15min, entry=top
+📐 MAExtensionFilter initialized
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[MADynamicSR] initialized (Trader DNA CORRECTED)
+[OGZTPO] OgzTpoIntegration initialized
+   Mode: standard
+   Dynamic SL: YES
+   Confluence: DISABLED
+   Vote Weight: 0.25
+[PIPELINE] Disabled 1 strategies: MarketRegime
+[PIPELINE] Active strategies: EMASMACrossover, MADynamicSR, LiquiditySweep, BreakRetest, RSI, CandlePattern, OGZTPO, OpeningRangeBreakout, SmartMoneySweep, NoWickImbalance, DonchianBreakout, PropSafeEMAPullback, EMATrendRetest, RSI2MeanReversion, TimeSeriesMomentum (15/16)
+[CandleProcessor] Initialized with gap recovery
+PASS actual CandleProcessor latest revision: 300 bars; canonical store250; root and two symbol/frame contexts; full-history indicator oracle.

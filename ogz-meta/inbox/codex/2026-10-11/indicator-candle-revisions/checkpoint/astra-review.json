@@ -1,0 +1,125 @@
+{
+  "reviewer": "Astra adversarial",
+  "candidate": "1b6ca9bf7ea84e5e98455ae395c583b5f7b7e797",
+  "base": "822ddf021bd53b50917a3779335974f12f2c13d5",
+  "file": "core/indicators/IndicatorEngine.js",
+  "sourceSha256": "c8977df1687037dff9b89ecc8f8877ad7ea259b66aabcc04dcedb0cd0de385e8",
+  "disposition": "PASS_scoped_actual_runtime_no_remaining_introduced_blocker_found",
+  "findings": [
+    {
+      "id": "ASTRA-CHECKPOINT-PERF-1",
+      "severity": "P1",
+      "status": "resolved for scoped delivery: optimized maximum-retention candidate cost measured; no operational outage or throughput claim",
+      "title": "Deep-cloning retained candle and chart-point history on every update introduces material synchronous hot-path cost",
+      "source": "core/indicators/IndicatorEngine.js:190-194 and1442-1452",
+      "measured": {
+        "baselineNewMs": 0.316917,
+        "candidateNewMs": 86.850354,
+        "candidateRevisionMs": 103.275772,
+        "checkpointBytes": 2096129
+      },
+      "receipt": "fixtures/latest-checkpoint-fullstream.7fed6ef.txt; fixtures/latest-checkpoint-fullstream.822ddf.txt",
+      "runtimeReachability": [
+        "kraken_adapter_simple.js:996-1027 subscribes multiple OHLC frames;1127-1160 forwards OHLC messages",
+        "core/CandleProcessor.js:493-517 performs indicator updates for same-current-candle revisions, including root mirror plus frame context on primary frame"
+      ],
+      "qualification": "A measured synchronous per-update regression, not proof of a particular live message rate or operational outage. Fullstream correctness passes; delivery remains blocked pending direct hot-path correction.",
+      "resolutionEvidence": [
+        "IndicatorEngine.js:1442-1465 copies candle array plus every series array/Map/band container while deep-cloning accumulator data",
+        "IndicatorEngine.js:1468-1473 uses same fresh-container copy on capture and restore, isolating stored checkpoint from every revision",
+        "Existing point immutability producer/consumer evidence remains as documented; no change to mutable update semantics outside checkpoint machinery"
+      ],
+      "optimizedMeasurements": {
+        "labelledNormalButActuallyRevisionMs": 6.332691,
+        "revisionMs": 4.094267,
+        "checkpointSerializedBytes": 1909962,
+        "qualification": "candidateStream(2101) already includes final index2101; subsequent timed candle2101 call is another same-latest revision. Baseline fixture used305 bars, not equivalent2000 retained history. No NEW-update or apples-to-apples overhead claim established by these labels."
+      },
+      "correctedTiming": {
+        "candidateNewMs": 4.514569,
+        "candidateRevisionMs": 3.564691,
+        "candidateRetainedCandles": 2000,
+        "baselineNewMs": 0.499822,
+        "baselineRetainedCandles": 305,
+        "receipts": [
+          "fixtures/latest-checkpoint-fullstream.optimized-source.corrected-timing.txt",
+          "fixtures/latest-checkpoint-fullstream.optimized-baseline.corrected-timing.txt"
+        ],
+        "qualification": "Corrected fixture uses nextIndex2102 for candidate NEW then same2102 for revision. Current fixture line32 still uses case301.candidate for baseline; do not describe baseline as equivalent2000 retention. Single observations establish concrete cost reduction from fullclone, not a live throughput benchmark."
+      }
+    }
+  ],
+  "sourceChecks": [
+    {
+      "topic": "Cumulative indicator state",
+      "evidence": "IndicatorEngine.js:190-194 captures before NEW and restores before same-latest revision; 1442-1452 clones all own mutable state except config/checkpoint. EMA/RSI/ADX/ATR/VWAP/OBV, oscillator state, candle history, pivots and chart series are included. Repeated revisions retain the same prelatest checkpoint rather than accumulating earlier provisional values."
+    },
+    {
+      "topic": "Cloneability and caller ownership",
+      "evidence": "Constructor fields35-141 are initialized plain data, arrays and Maps; update routines add no new top-level function-valued state. Production callers found in CandleProcessor and runner supply plain OHLCV data. Consumers use getSnapshot/getRawState/getRenderPacket; no concrete production consumer holding mutable internal references was found."
+    },
+    {
+      "topic": "Reset and lifecycle",
+      "evidence": "computeBatch255-259 calls _resetAll; reset1439 clears checkpoint, so the first replayed bar captures reset state. Latest revision runs unchanged incremental calculations after restore. Canonical engine2000 retention and prior accumulated state are preserved rather than rebuilt from CandleStore250."
+    },
+    {
+      "topic": "Scope",
+      "evidence": "git diff base..candidate changes only IndicatorEngine; rejected CandleProcessor rebuild is absent. CP UPDATE and NEW caller routing remain base-identical; latest timestamp equality scopes rollback to latest candle only."
+    }
+  ],
+  "behaviorEvidence": [
+    {
+      "receipt": "fixtures/candle-processor-latest-revision.7fed6ef.txt",
+      "result": "PASS actual CandleProcessor latest revision:300 bars, canonical store250, root and two symbol/frame contexts, full-history indicator oracle",
+      "qualification": "Read parent-run result and fixture; source engine matches exact candidate export. Generic .receipt.txt is an earlier failed run and not claimed PASS."
+    },
+    {
+      "receipt": "fixtures/latest-checkpoint-fullstream.7fed6ef.txt",
+      "result": "PASS fullstream oracle at301/2101 bars, repeated revisions, next NEW candle and revision after computeBatch; candidate max2000 rolls correctly.",
+      "qualification": "Performance figures in same receipt establish the delivery blocker."
+    },
+    {
+      "receipt": "fixtures/latest-checkpoint-fullstream.optimized-source.txt",
+      "result": "PASS corrected fullstream oracle:301 and2101 starting lengths, repeated latest revisions, subsequent new candle, revision after computeBatch; raw state, DTO indicators and render packet match baseline engine fed final candles only.",
+      "sourceQualification": "optimized-source IndicatorEngine bytes match exact1b6ca9bf tree, SHA256 c8977df1687037dff9b89ecc8f8877ad7ea259b66aabcc04dcedb0cd0de385e8"
+    },
+    {
+      "receipt": "fixtures/candle-processor-latest-revision.optimized-source.txt",
+      "result": "PASS actual CP300 root and two symbol/frame contexts, canonical CandleStore250, fullhistory oracle."
+    },
+    {
+      "receipt": "fixtures/latest-checkpoint-fullstream.optimized-source.corrected-timing.txt",
+      "result": "PASS301/2101 fullstream raw/render/DTO equivalence, repeated revisions, subsequent new candle and revision after batch reset, with correctly labelled candidate NEW/revision timings at2000 retained candles."
+    }
+  ],
+  "pending": [],
+  "mercury": {
+    "rawVerdict": "found_break",
+    "rawAnswer": "delivery-review-answer.txt",
+    "adjudication": "mercury-adjudication.json",
+    "qualification": "Final1b6 Mercury alleges unavailable structuredClone on older Node and refutes duplicate-method claim. Declared engines>=14 is a compatibility gap; observed Node22.22.1 executed proofs, Docker config uses18 and CI config20. No older runtime deployment observed. Do not report raw Mercury as clean or claim tests ran on Docker18/CI20."
+  },
+  "limitations": [
+    "No broad historical backfill correctness claim; this change addresses latest-candle revisions.",
+    "No deployment/live-order proof. No production edits or root config/state loads by this reviewer.",
+    "structuredClone copies retained histories and chart series; maximum-retention timing must be reported as measured rather than assumed negligible."
+  ],
+  "proposedCorrectionReview": {
+    "disposition": "implemented exactly in1b6ca9bf; no introduced correctness defect found",
+    "evidence": [
+      "IndicatorEngine.js:197-199 candle buffer appends/shifts without mutating existing candle objects",
+      "IndicatorEngine.js:1231-1236 series candle buffer appends/slices",
+      "IndicatorEngine.js:1240-1375 constructs new scalar point objects and marker objects; prior points are not edited",
+      "IndicatorEngine.js:1380-1412 arrays append/slice and Maps replace; bands reassign upper/mid/lower arrays, requiring copied band containers and copied arrays",
+      "CandleProcessor.js:1199-1226 packages returned render overlays and serializes them; no point mutation found"
+    ],
+    "requirements": "Copy candle array and every series container/array on capture AND restore; sharing unchanged existing point/candle values is supported by actual producer code. Continue deep-copying actual mutable accumulator state. Repeated-revision oracle must demonstrate that the stored checkpoint is not modified by restored work."
+  },
+  "finalSourceAssessment": "Final1b6 candidate and optimized export have matching engine SHA c8977df1687037dff9b89ecc8f8877ad7ea259b66aabcc04dcedb0cd0de385e8. Container snapshots stay isolated on capture/restore, full mutable accumulators survive rollback, and actual baseline fullstream oracle passes beyond2000 retention. Prior250-bar truncation and full-deep-copy cost blockers are addressed. No remaining introduced actual-runtime blocker established; declared legacy-Node support limitation and raw Mercury verdict remain visible.",
+  "remainingLimitations": [
+    "package.json engines>=14 admits older runtimes without global structuredClone; this declared compatibility mismatch remains explicitly unfixed under parent/operator direction to avoid hypothetical-host scope expansion.",
+    "Proofs ran on actual Node22.22.1. Docker18/CI20 are configured supporting surfaces, not separately executed by this reviewer.",
+    "Candidate timings are single maximum-retention measurements; no live message-rate, CPU-budget or throughput guarantee. Baseline measurement remains smaller retention and must be labelled accordingly.",
+    "Latest-candle revisions only; no broader historical correction behavior claimed."
+  ]
+}

@@ -1,0 +1,2 @@
+[IndicatorEngine] OGZ TPO module loaded successfully
+PASS latest-checkpoint-fullstream {"sourceRoot":"/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-10-11/indicator-candle-revisions/runs/822ddf","oracleRoot":"/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-10-11/indicator-candle-revisions/runs/822ddf","baselineMode":true,"maxCandles":2000,"cases":[{"length":301,"candidateCandles":305,"oracleCandles":302}],"rebuild":null,"normalUpdateMs":0.499822,"revisionUpdateMs":null,"checkpointBytes":null}

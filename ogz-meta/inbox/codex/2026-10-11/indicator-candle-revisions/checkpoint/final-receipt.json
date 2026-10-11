@@ -1,0 +1,58 @@
+{
+  "status": "PASS",
+  "finalCandidateTree": "1b6ca9bf7ea84e5e98455ae395c583b5f7b7e797",
+  "candidateBaseTree": "7fed6ef4c2aa7e1108240300e503d6e77a337160",
+  "deliveredBaseTree": "822ddf021bd53b50917a3779335974f12f2c13d5",
+  "treeComparison": {
+    "command": "git diff --name-status 7fed6ef4c2aa7e1108240300e503d6e77a337160 1b6ca9bf7ea84e5e98455ae395c583b5f7b7e797",
+    "onlyChangedPath": "core/indicators/IndicatorEngine.js"
+  },
+  "sourceIdentity": {
+    "isolatedOverlayRoot": "runs/optimized-source",
+    "overlayBaseTree": "7fed6ef4c2aa7e1108240300e503d6e77a337160",
+    "candidatePath": "private/candidate/core/indicators/IndicatorEngine.js",
+    "candidateAndFinalTreeIndicatorEngineSha256": "c8977df1687037dff9b89ecc8f8877ad7ea259b66aabcc04dcedb0cd0de385e8",
+    "proof": "git show finalTree:core/indicators/IndicatorEngine.js and runs/optimized-source/core/indicators/IndicatorEngine.js have that identical SHA256."
+  },
+  "exactCandidateChange": "Checkpoint copies candle/render containers (arrays and Map containers) while retaining immutable historical candle/render-point values; remaining mutable accumulators are structured-cloned. The same helper is used at capture and restore.",
+  "fullRetentionOracle": {
+    "fixture": "fixtures/latest-checkpoint-fullstream.cjs",
+    "receipt": "fixtures/latest-checkpoint-fullstream.optimized-source.corrected-timing.txt",
+    "oracleSource": "../runs/822ddf",
+    "status": "PASS",
+    "coverage": [
+      "301-bar repeated latest revisions then new bar",
+      "2101-bar maxCandles=2000 retention",
+      "raw state, indicator snapshot, and render packet equality to a fresh corrected full-stream oracle",
+      "computeBatch reset/rebuild then latest revision"
+    ],
+    "timingMs": {
+      "newCandleUpdate": 4.514569,
+      "latestRevisionUpdate": 3.564691
+    },
+    "serializedCheckpointBytes": 1910005
+  },
+  "actualCandleProcessor": {
+    "fixture": "fixtures/candle-processor-latest-revision.cjs",
+    "receipt": "fixtures/candle-processor-latest-revision.optimized-source.txt",
+    "status": "PASS",
+    "coverage": "300 bars with canonical CandleStore 250; primary 15m plus non-primary SPY 1m contexts agree with full-history indicator oracle."
+  },
+  "baselineCounterexample": {
+    "fixture": "fixtures/latest-checkpoint-fullstream.cjs",
+    "receipt": "fixtures/latest-checkpoint-fullstream.optimized-baseline.corrected-timing.txt",
+    "status": "PASS expected divergence",
+    "result": "At 301 bars, baseline same-t append retains 305 candles; corrected oracle has 302.",
+    "newCandleUpdateMs": 0.499822,
+    "timingQualification": "Baseline timing uses305 retained candles, not2000. It is not an equivalent-retention performance comparison."
+  },
+  "costCorrection": {
+    "previousFullCloneMeasurement": "The preserved full-clone receipt labeled its 86.850354ms measurement as normal, but the fixture then supplied the same timestamp and therefore measured a revision. It is retained as historical evidence only.",
+    "optimizedNewCandleUpdateMs": 4.514569,
+    "optimizedLatestRevisionUpdateMs": 3.564691,
+    "baselineNewCandleUpdateMs": 0.499822,
+    "limitation": "The standalone v8 serialized checkpoint includes shared historical values, so it is not incremental heap overhead. No speedup factor is claimed until an equivalent corrected full-clone NEW measurement is run. No performance threshold or broader engine refactor was introduced. Baseline timing uses305 retained candles; no equivalent-retention speedup comparison is asserted."
+  },
+  "scopeLimit": "Latest-candle revision only. Earlier historical backfill/revision remains outside this change.",
+  "productionEditsByThisWorker": false
+}

@@ -1,0 +1,19 @@
+{
+  "source": "Mercury source-pinned adversarial run",
+  "run_id": "2026-10-11T08-02-20-124Z-4e03a607a144",
+  "candidate_tree": "1b6ca9bf7ea84e5e98455ae395c583b5f7b7e797",
+  "baseline_commit": "822ddf021bd53b50917a3779335974f12f2c13d5",
+  "baseline_tree": "73acc5ccf1cb4cd38c8f620c3fb3a0b0224834da",
+  "harness_tree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "prompt": "Mercury, break my fix.",
+  "max_tokens": 7750,
+  "raw_answer_sha256": "2e967c1fbd5a138445068bb326611cddddeb4d33a9ab8dcaa38f67ee4dd8811e",
+  "raw_answer_path": "delivery-review-answer.txt",
+  "raw_final_decision": "found_break",
+  "ledger_verdict": "no_claim",
+  "termination": "answer_given",
+  "scope_limit": "Raw found_break retained. Duplicate-method allegation refuted by Mercury itself. structuredClone claim concerns declared Node>=14 support; observed Node22.22.1, Docker18, CI20 support it. Astra adjudicates actual-runtime behavior and preserves older-runtime compatibility as a limitation under user instruction against hypothetical expansion.",
+  "source_manifest": {
+    "core/indicators/IndicatorEngine.js": "c8977df1687037dff9b89ecc8f8877ad7ea259b66aabcc04dcedb0cd0de385e8"
+  }
+}
