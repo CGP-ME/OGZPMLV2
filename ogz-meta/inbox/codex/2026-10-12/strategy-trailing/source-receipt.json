@@ -1,0 +1,15 @@
+{
+  "title": "Honor strategy percent trail activation and distance",
+  "base": "098aa50a624093200f25c73f2163041b5891389c",
+  "candidate": "52cf8f1d754db968b54b320313a5e2c8c8a6a4d7",
+  "files": [
+    "core/ExitContractManager.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 80385bb1 5fa26d36 M\tCHANGELOG.md\n:100644 100644 c988eb68 2014a5d3 M\tcore/ExitContractManager.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "recheck-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

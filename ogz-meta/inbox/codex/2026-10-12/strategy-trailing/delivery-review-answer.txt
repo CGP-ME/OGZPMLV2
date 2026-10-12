@@ -1,0 +1,35 @@
+**VERDICT:** found_break
+
+**ADVERSARIAL_REVIEW_BLOCKING:** yes
+
+**CANDIDATE SET:** examined 2 of 2; candidates considered:
+- `core/ExitContractManager.js` (lines 749‑770) – examined.
+- `core/exit/StopLossChecker.js` (lines 49‑65) – examined.
+- `CHANGELOG.md` – referenced for claim context but not required for code‑level verification.
+
+**AST EVIDENCE:**
+- `core/ExitContractManager.js` – lines 749‑752 show `minActivation` derived via `finiteOrNull(contract.trailingActivation)` which can return `null` when `contract.trailingActivation` is undefined, and the subsequent guard `if (minActivation === null || pnlPercent < minActivation) { … }` treats this as insufficient profit【open_file†L749-L754】.
+- `core/ExitContractManager.js` – lines 768‑770 compute `trailDistance` using `contract.trailingStopPercent / 100` when `contract.trailType === 'percent'`; if `contract.trailingStopPercent` is undefined the expression yields `NaN` without a guard【open_file†L768-L770】.
+- `core/exit/StopLossChecker.js` – lines 53‑62 call `effectiveStop.toFixed(2)` without checking whether `effectiveStop` is `null`; `effectiveStop` originates from `beState.effectiveStopPercent` which may be `null` per comment on line 49, leading to a runtime TypeError【open_file†L49-L62】.
+
+**ALLEGATIONS:**
+- **MECHANICAL** – null `effectiveStop` causing `.toFixed` crash (StopLossChecker).
+- **MECHANICAL** – `minActivation` potentially `null` causing premature `insufficient_profit` rejection (ExitContractManager).
+- **MECHANICAL** – `trailDistance` potentially `NaN` due to undefined `contract.trailingStopPercent` (ExitContractManager).
+
+**SUBSTANTIVE RESOLUTION:** none (the bugs are concrete and reproducible).
+
+**WHAT I DID:**
+- Opened `core/ExitContractManager.js` (lines 700‑800) to locate `minActivation` and `trailDistance` logic.
+- Opened `core/exit/StopLossChecker.js` (lines 1‑87) to locate `effectiveStop` usage and the `.toFixed` call.
+- Verified the presence of the described null/undefined paths and lack of guarding logic.
+
+**WHAT I DID NOT DO:**
+- Modify any source files or run tests; only read‑only inspection was performed.
+- Examine unrelated files not referenced by the claims.
+
+**WHAT I ASSUMED:** None beyond the current repository state at ref `52cf8f1d754db968b54b320313a5e2c8c8a6a4d7`.
+
+**WHY THIS VERDICT:** The examined code contains explicit paths where `null` or `undefined` values propagate to arithmetic or method calls (`.toFixed`) without defensive checks, constituting runtime errors. The evidence from the source lines directly supports each claim of a break.
+
+**IF INCOMPLETE, WHY:** Not incomplete; all relevant code paths for the asserted bugs have been examined and proven.

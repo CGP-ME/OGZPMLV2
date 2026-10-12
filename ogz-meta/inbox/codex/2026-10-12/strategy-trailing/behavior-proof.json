@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "candidateRef": "52cf8f1d754db968b54b320313a5e2c8c8a6a4d7",
+  "cases": [
+    "percent trail uses own activation",
+    "percent distance independent of missing ATR",
+    "long and short exact watermark stops",
+    "stop never loosened",
+    "channel remains separate"
+  ],
+  "runtimeActivation": false
+}

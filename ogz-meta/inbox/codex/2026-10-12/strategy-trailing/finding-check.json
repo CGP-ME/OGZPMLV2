@@ -1,0 +1,10 @@
+{
+  "base": "098aa50a624093200f25c73f2163041b5891389c",
+  "candidate": "52cf8f1d754db968b54b320313a5e2c8c8a6a4d7",
+  "unchangedStopLossChecker": true,
+  "producerEvidence": [
+    "PolicyBuilder REQUIRED_CONTRACT_FIELDS and normalizeContract",
+    "config/settings.json exitContracts: fourteen numeric percent trail contracts plus NoWick with both null"
+  ],
+  "reviewStatus": "Requested source-grounded recheck; no protective guard or fallback added to satisfy hypothetical undefined inputs."
+}

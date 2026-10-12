@@ -1,3 +1,12 @@
+## 2026-10-12 — Honor each percentage-trail contract's activation and distance
+
+- Problem: the manager ignored strategy-generated trailingActivation/trailingStopPercent and instead used shared activation plus ATR distance, so the EMA strategies' intended 1.5R activation and 1R distance were not operative.
+- Change: percentage trails now activate at their contract threshold and use their contract percentage distance without requiring unrelated ATR input. ATR trails keep their existing ATR path; Donchian channel trailing keeps its separate owner. Existing optional adjustments and protective-only stop movement remain.
+- Verification and review: exact candidate behavior and Mercury review receipts are under `ogz-meta/inbox/codex/2026-10-12/strategy-trailing/`; the fixture checks activation, long/short watermark stops without ATR, no stop loosening, and separate channel ownership.
+- Review resolution: Mercury initially alleged absent contract fields and an unchanged StopLossChecker path. Producer inspection found paired numeric percent fields or deliberately paired null fields, and the unchanged stop check precedes this code. Independent Terra found no reachable regression; Mercury rechecked and returned `no_break_found`. No defensive guards or fallback values were added to answer those allegations.
+- Limitations: remaining optional adjustment settings still need the following per-strategy ownership migration; this is not Stop 1 completion or a profitability claim.
+- Runtime activation: none; no PM2 restart, environment changes or broker calls.
+
 ## 2026-10-12 — Connect strategy take-profit targets to the profit planner
 
 - Problem: strategy contracts supplied take-profit percentages but the exit manager constructed an unused checker; the profit planner could scale out or use shared tiers without ever honoring the strategy full-close target.

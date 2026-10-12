@@ -1,0 +1,45 @@
+VERDICT: no_break_found
+ADVERSARIAL_REVIEW_BLOCKING: no
+
+CANDIDATE SET: examined 5 of 5; candidates examined:
+- CHANGELOG.md (source) – contains change notes but no concrete implementation of PolicyBuilder, NoWickImbalance, or StopLossChecker.
+- core/ExitContractManager.js – examined for related guards; no undefined trailing fields found.
+- modules/NoWickImbalance.js – examined for early‑return logic and distance arithmetic.
+- core/PolicyBuilder.js – examined for required contract fields and validation helpers.
+- core/exit/StopLossChecker.js – examined for null handling and comment about skipping no‑stop contracts.
+
+UNREAD / UNRESOLVED: no source files remain unread; however, the repository does not contain any JSON contract configuration files that would demonstrate the “fourteen configured percent contracts” claim, so that claim cannot be verified.
+
+AST EVIDENCE:
+- NoWickImbalance early‑return before distance arithmetic: lines 136‑146 (null returns) and lines 527‑528 (null returns before structural exit calculation)【open_file†L136-L146】【open_file†L527-L528】.
+- NoWickImbalance distance arithmetic block (structural exit calculation) present at lines 530‑560【open_file†L530-L560】.
+- StopLossChecker comment about skipping no‑stop contracts at line 48‑49 and the guard that returns early when `contract.stopLossPercent` is null/0【open_file†L48-L51】.
+- StopLossChecker file unchanged from base (git_diff shows no changes)【git_diff†blank】.
+- PolicyBuilder required‑field list includes `trailingActivation` and `trailingStopPercent`; validation functions exist (e.g., `requirePositiveNumber`, `requirePercent`)【open_file†L6-L14】【open_file†L75-L80】.
+
+MISSING EVIDENCE:
+- No JSON files defining the fourteen percent contracts with numeric `activation` and `distance` fields are present in the repository; therefore the claim “fourteen configured percent contracts have numeric activation and distance” cannot be proven or disproven.
+
+SUBSTANTIVE RESOLUTION: none – all examined code aligns with the prior review’s assertions; no contradictory producer was found.
+
+WHAT I DID:
+- Opened and inspected the relevant source files (CHANGELOG.md, core/ExitContractManager.js, modules/NoWickImbalance.js, core/PolicyBuilder.js, core/exit/StopLossChecker.js).
+- Searched for early‑return patterns, distance calculations, and comments related to null handling.
+- Ran a git_diff on StopLossChecker to confirm byte‑identicality.
+- Verified that PolicyBuilder defines and validates required contract fields.
+
+WHAT I DID NOT DO:
+- Execute any code or run tests.
+- Assume the existence of configuration JSON files that are not present in the repository.
+
+WHAT I ASSUMED:
+- The repository snapshot provided is complete for the examined modules; missing JSON files imply the data is not part of the current code base.
+
+WHY THIS VERDICT:
+- No undefined trailing fields were found in ExitContractManager or related modules.
+- NoLossChecker’s comment about null correctly describes the guard that skips no‑stop contracts, and the file is byte‑identical to its base version.
+- NoWickImbalance deliberately returns `null` before performing distance arithmetic, as evidenced by early‑return statements preceding the structural exit calculation.
+- The inability to locate the claimed percent‑contract JSON entries prevents verification of that specific claim but does not constitute a break in the existing code.
+
+IF INCOMPLETE, WHY:
+- The claim regarding fourteen percent contracts cannot be verified because the relevant JSON configuration files are absent from the repository snapshot. This gap is noted but does not affect the overall conclusion that no break is present.

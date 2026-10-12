@@ -746,7 +746,9 @@ class ExitContractManager {
       return { updated: false, reason: 'trailing_disabled' };
     }
 
-    const minActivation = finiteOrNull(trailConfig.minActivationPercent);
+    const minActivation = finiteOrNull(contract.trailType === 'percent'
+      ? contract.trailingActivation
+      : trailConfig.minActivationPercent);
     if (minActivation === null || pnlPercent < minActivation) {
       return { updated: false, reason: 'insufficient_profit' };
     }
@@ -759,11 +761,13 @@ class ExitContractManager {
       ? null
       : finiteOrNull(contract.trailAtrMult);
     const atrMultiplier = contractAtrMultiplier ?? finiteOrNull(trailConfig.atrMultiplier);
-    if (atr === null || atrMultiplier === null || atrMultiplier <= 0) {
+    if (contract.trailType === 'atr' && (atr === null || atrMultiplier === null || atrMultiplier <= 0)) {
       return { updated: false, reason: 'missing_atr' };
     }
 
-    let trailDistance = (atr / currentPrice) * atrMultiplier;
+    let trailDistance = contract.trailType === 'percent'
+      ? contract.trailingStopPercent / 100
+      : (atr / currentPrice) * atrMultiplier;
 
     const direction = activeTradeDirection(trade);
     if (!direction) {
