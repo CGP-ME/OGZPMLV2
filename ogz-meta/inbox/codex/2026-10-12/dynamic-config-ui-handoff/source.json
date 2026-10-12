@@ -1,0 +1,9 @@
+{
+  "commit": "2cf37db622e947a8959025fa53cf6cb97fe34e40",
+  "canonicalPath": "config/settings.json",
+  "sha256": "edb00a9d41105e10af647ee0cb40ac793dfbc06fa8f5562ac5063de6b94bd54d",
+  "fieldCount": 1372,
+  "profile": "paper",
+  "purpose": "UI handoff snapshot; not another runtime configuration owner",
+  "runtimeActivation": false
+}

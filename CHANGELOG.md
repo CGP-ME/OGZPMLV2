@@ -1,3 +1,11 @@
+## 2026-10-12 — Refresh the dynamic configuration UI handoff
+
+Problem: the October 10 UI snapshot still advertised the retired shared exitLogic/exits paths after strategy-owned profit management landed.
+
+Changes: publish a new dated reference snapshot from committed source 2cf37db622e947a8959025fa53cf6cb97fe34e40, retaining the earlier packet as history. It contains the exact dynamic settings JSON and 1,372 editable descriptors, including the separate strategy-owned controls. The instructions explain canonical strategy paths, live owner/revision handling, and that this archive is not a runtime configuration owner.
+
+Verification: snapshot settings are byte-identical to the committed Git blob; SHA256 is recorded in source.json. All 17 existing contract blocks carry their own profitManagement. The exported fields contain no retired global paths or fixture credential values. Export uses a private copy of committed settings, the committed loader, the paper profile and dummy credentials. These checks do not certify every feature or the running bot. Non-production reference data only; no Mercury required. Packet: ogz-meta/inbox/codex/2026-10-12/dynamic-config-ui-handoff/README.txt. No runtime activation or PM2 changes.
+
 ## 2026-10-12 — Remove the independent 1R break-even override
 
 Problem: BreakEvenManager activated a separate break-even stop whenever peak profit reached the original risk, even when the selected strategy disabled automatic break-even. This silently overrode the first strategy-owned exit preset.
