@@ -123,6 +123,8 @@ const PATTERN_MEMORY_NUMERIC_FIELDS = Object.freeze({
   failureThreshold: { min: 0, max: 1 },
   maxAgeDays: { integer: true, min: 1 },
   decayHalflifeDays: { min: 0 },
+  recentResultCount: { integer: true, min: 1 },
+  unweightedResultWeight: { min: 0, max: 1 },
   maxPatterns: { integer: true, min: 1 },
   dtwThreshold: { min: 0, max: 1 },
   saveIntervalMs: { integer: true, min: 1 },
@@ -333,7 +335,7 @@ class UnifiedPatternMemory {
     p.avgPnL = totalTrades > 0 ? p.totalPnL / totalTrades : 0;
     p.lastOutcome = Date.now();
 
-    // Track outcome history (keep last 20)
+    // Retain the configured completed-outcome window for learned confidence.
     p.outcomes.push({
       timestamp: Date.now(),
       pnl: outcome.pnl,
@@ -350,8 +352,8 @@ class UnifiedPatternMemory {
       timeframe: scope.timeframe,
       isWin,
     });
-    if (p.outcomes.length > 20) {
-      p.outcomes = p.outcomes.slice(-20);
+    if (p.outcomes.length > this.config.recentResultCount) {
+      p.outcomes = p.outcomes.slice(-this.config.recentResultCount);
     }
 
     // Check promotion / quarantine
@@ -515,18 +517,24 @@ class UnifiedPatternMemory {
     const now = Date.now();
     let weightedWins = 0;
     let weightedTotal = 0;
+    let wins = 0;
+    const outcomes = pattern.outcomes.slice(-this.config.recentResultCount);
 
-    for (const outcome of pattern.outcomes) {
+    for (const outcome of outcomes) {
       const age = now - outcome.timestamp;
       const weight = Math.pow(0.5, age / halflifeMs);
       weightedTotal += weight;
       if (outcome.isWin) {
         weightedWins += weight;
+        wins++;
       }
     }
 
     if (weightedTotal === 0) return pattern.winRate;
-    return weightedWins / weightedTotal;
+    // Smooth the age-weighted score with the unweighted rate over the same window.
+    const unweightedWeight = this.config.unweightedResultWeight;
+    return (1 - unweightedWeight) * (weightedWins / weightedTotal)
+      + unweightedWeight * (wins / outcomes.length);
   }
 
   // ═══════════════════════════════════════════════════════════════

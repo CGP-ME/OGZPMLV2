@@ -1,0 +1,18 @@
+{
+  "title": "Conservative pattern-memory window and smoothing",
+  "base": "349d526722f56066ac10ebdec250289045dfb94f",
+  "candidate": "a269a5c224ad4e065c27e27f130f9c8ae662247b",
+  "files": [
+    "config/settings.json",
+    "foundation/ConfigLoader.js",
+    "core/UnifiedPatternMemory.js",
+    "core/EnhancedPatternRecognition.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 48dcb443 2e6e018b M\tCHANGELOG.md\n:100644 100644 18453deb 50ca6fb7 M\tconfig/settings.json\n:100644 100644 1eea40d5 fe43419d M\tcore/EnhancedPatternRecognition.js\n:100644 100644 0c4f95e2 766b25c1 M\tcore/UnifiedPatternMemory.js\n:100644 100644 578f42ed c9ce9c80 M\tfoundation/ConfigLoader.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "delivery-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

@@ -635,14 +635,14 @@ class EnhancedPatternChecker {
       // Fast confidence calculation
       let confidence = winRate;
 
-      // Quick recency bonus (only last 3 results)
+      // Use the canonical memory window and contribution for this optional shortcut.
       if (exactStats.results.length > 0) {
-        const recentResults = exactStats.results.slice(-this.options.fastPathRecentResultCount);
+        const recentResults = exactStats.results.slice(-this.memory.config.recentResultCount);
         const recentSuccesses = recentResults.filter(r => r.success).length;
         const recentWinRate = recentSuccesses / recentResults.length;
         confidence = (
-          winRate * this.options.fastPathHistoricalWeight
-          + recentWinRate * this.options.fastPathRecentWeight
+          winRate * (1 - this.memory.config.unweightedResultWeight)
+          + recentWinRate * this.memory.config.unweightedResultWeight
         );
       }
 

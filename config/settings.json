@@ -119,9 +119,6 @@
     "decayRate": 0.01,
     "minimumDecayMultiplier": 0.1,
     "fastPathMinTradeHistory": 2,
-    "fastPathRecentResultCount": 3,
-    "fastPathHistoricalWeight": 0.7,
-    "fastPathRecentWeight": 0.3,
     "fastPathNewPatternConfidence": 0.1
   },
   "featureExtraction": {
@@ -1285,6 +1282,8 @@
     "failureThreshold": 0.35,
     "maxAgeDays": 90,
     "decayHalflifeDays": 30,
+    "recentResultCount": 100,
+    "unweightedResultWeight": 0.1,
     "maxPatterns": 10000,
     "dtwThreshold": 0.62,
     "persistToDisk": true,

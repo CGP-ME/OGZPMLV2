@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "source": "a269a5c224ad4e065c27e27f130f9c8ae662247b",
+  "retainedOutcomes": 100,
+  "halfLifeDays": 30,
+  "unweightedContribution": 0.1,
+  "decayedScore": 0.7342767864496748,
+  "plainScore": 0.6,
+  "actualScore": 0.7208491078047072,
+  "dtwSimilarity": 0.9876543209876544,
+  "statusThresholdCrossing": {
+    "decayed": 0.6563199741772109,
+    "smoothed": 0.6406879767594899,
+    "status": "neutral"
+  },
+  "status": "promoted",
+  "checks": [
+    "canonical loader and UI fields",
+    "removed old field descriptors",
+    "120 actual writes retain100",
+    "exact evaluator",
+    "compatibility evaluator",
+    "non-unit DTW similarity scaling",
+    "status threshold crossing",
+    "scope isolation",
+    "unknown unchanged",
+    "weight0and1",
+    "smaller window on existing history",
+    "old20result bank"
+  ],
+  "productionWrites": 0,
+  "brokerRequests": 0,
+  "runtimeActivation": false
+}
