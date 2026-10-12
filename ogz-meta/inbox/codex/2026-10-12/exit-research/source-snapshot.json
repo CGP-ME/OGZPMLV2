@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-12",
+  "branch": "astra-era",
+  "head": "e690dcf3593523f6e7a6492ef86d6af3d71c8ab5",
+  "scope": "read-only research; inspected inherited working tree, not runtime verification",
+  "files": {
+    "config/settings.json": "b9585ad2f43a3687fa4a2969fb818a6bd893bfe1d92974c7c010739e438a9189",
+    "core/StrategyOrchestrator.js": "ba8fa24eeb01a088ed8d3691990621d2141fbb8cdf82274837dc486b00402727",
+    "core/ExitContractManager.js": "d648d37ad552dd638b5e90d2abc83738f8761ac963ac527053f1e798b0eab316",
+    "core/ProfitExitPlanner.js": "b4a7a5a5bc78522f88e84b4d7e9f391a0d3c41b75d62d9d9d4db1e77e2fb1994",
+    "core/PolicyBuilder.js": "066a6d2a8fd63fd4e0a06bf822300ed8441e0c2b56eaf068108da1fab1a0da18",
+    "core/OrderExecutor.js": "aa12a503770cef1341c4a807aa24613d42da017bd9a82c3ee86e33ab00dbbe90",
+    "core/TradingLoop.js": "6ae65452f401fa4250be1a8ccef4e7b701541a21c77051a14dd619206d8c4d8c",
+    "modules/DonchianBreakout.js": "2d8f748f81d3dc8b0e0a4d8ec30efa06fc26853e2f991ffb09e006ed4f3eabde",
+    "modules/TimeSeriesMomentum.js": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+    "modules/RSI2MeanReversion.js": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+    "modules/EMATrendRetest.js": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+    "modules/PropSafeEMAPullback.js": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+    "modules/OpeningRangeBreakout.js": "8a580556386991d72b5bf3b98c1f6086c64934f4252ff1ff8aea6120fa7672e3"
+  },
+  "dirty": " M config/settings.json\n M core/ExitContractManager.js\n M core/OrderExecutor.js\n M core/PolicyBuilder.js\n M core/ProfitExitPlanner.js\n M core/StrategyOrchestrator.js\n M core/TradingLoop.js\n M modules/DonchianBreakout.js\n M modules/EMATrendRetest.js\n M modules/PropSafeEMAPullback.js\n M modules/RSI2MeanReversion.js\n M modules/TimeSeriesMomentum.js\n",
+  "productionChanges": false,
+  "runtimeActivation": false
+}

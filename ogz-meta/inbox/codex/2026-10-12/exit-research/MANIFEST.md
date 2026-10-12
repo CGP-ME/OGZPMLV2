@@ -1,0 +1,3 @@
+# Exit research sources
+
+Date: 2026-10-12. Requested by Trey to research exit/stop/break-even/trailing numbers and strategy-dependent methods. Primary external sources are linked beside claims in research.md. Current working-tree code and its inherited dirty status are recorded by SHA-256 in source-snapshot.json; no runtime equivalence is claimed. Kept to support the exit decision and expose relevant owner/consumer distinctions. This is an inbox research document, not a promoted specification or authorization to change the exit rules. Private downloaded source material and local extraction tools are not included in delivery.

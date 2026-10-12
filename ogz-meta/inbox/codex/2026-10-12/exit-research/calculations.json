@@ -1,0 +1,16 @@
+{
+  "units": "hypothetical arithmetic only; not venue fees or a trading backtest",
+  "feeOnlyBreakEvenPercent": 0.4008016032064132,
+  "grossPartialThen3R": 2.625,
+  "grossPartialThenEntry": 0.375,
+  "winProbabilityPercentByCostPercent": {
+    "0": 33.33333333333333,
+    "0.1": 36.66666666666667,
+    "0.4": 46.666666666666664,
+    "0.8": 60.0
+  },
+  "fixedHalfPercentStopATRByDollarATR": {
+    ".2": 2.5,
+    "2": 0.25
+  }
+}

@@ -1,0 +1,7 @@
+2026-10-12 — documentation-only independent reviews
+
+exit_primary_numbers (gpt-5.6-terra): Verified cited numerical scopes, ORB sample/results, distinction between educational ATR examples and empirical optima, and all fee/R/expectancy arithmetic. No overclaim found. Candidate parameters are explicitly unvalidated.
+
+exit_strategy_map (gpt-5.6-terra): Found two draft errors: contract TP values were presented too much like functioning full-exit triggers, and supported regime adjustments were not distinguished from the normal entry call's hardcoded normal market condition. Both corrected. Final review confirms precise owner/consumer distinctions, global trail and partial handling, inert invalidation names, contract target use in entry-distance calculations, and working-tree/runtime caveats. No further corrections.
+
+No production change, profitability backtest, broker operation or runtime activation. Prose-only research does not require Mercury under the repository delivery rule. Source hashes and arithmetic are adjacent.
