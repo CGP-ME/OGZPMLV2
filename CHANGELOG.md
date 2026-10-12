@@ -1,3 +1,10 @@
+## 2026-10-12 — Supply canonical TRAI history configuration to existing fixtures
+
+- **Problem:** Two existing TRAI storage fixtures bypassed the constructor and omitted its configuration, so the real storeDecision method failed when reading decisionHistoryLimit. Production already supplies that value from config/internals.json through the runner.
+- **Change:** Supply the same canonical history limit in those two fixture setups. Existing assertions and production code are unchanged; no tests, gates, throws, defaults or fallback behavior were added.
+- **Verification:** Existing test/order-executor-trai-learning-payload.test.js suite now passes all 24 cases, including both previously failing storage cases. Command: ./node_modules/.bin/jest test/order-executor-trai-learning-payload.test.js --runInBand --cacheDirectory=ogz-meta/inbox/codex/2026-10-11/stop1-execution/trai-veto/jest-cache. Full local output: ogz-meta/inbox/codex/2026-10-12/stop1-trai-fixtures/tests.txt.
+- **Review / limits:** Independent Terra review confirmed both fixture producers match the runner's canonical input without weakening assertions. This is non-production fixture repair, not whole-config or live-runtime acceptance; Mercury is not a production prerequisite for this test-only change. No PM2, broker, account state or exit settings were changed.
+
 ## 2026-10-11 — Stop 1 repair delivery and remaining acceptance boundary
 
 - **Delivered in separate production commits:** removed the retired SMS loss cap and its callbacks; connected the stock downloader to canonical configuration; corrected fresh paper-account entry initialization while preserving saved pauses; connected learned PID position and matched-regime outputs; removed fabricated runtime/risk defaults from proof reporting; connected the TRAI advisory ceiling and its UI descriptor; retired the phantom TRAI veto declaration, runner argument and forced override. Their individual CHANGELOG entries/receipts link actual behavior checks and clean Mercury reviews. Astra independently adjudicated the TRAI/PID source chains. No PM2 restart, resume, broker order or public proof generation occurred.

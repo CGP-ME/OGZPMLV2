@@ -551,6 +551,7 @@ describe('OrderExecutor TRAI learning payload', () => {
 
   test('TRAI local pattern memory cannot cross-read between scoped venue keys', () => {
     const module = Object.create(TRAIDecisionModule.prototype);
+    module.config = { decisionHistoryLimit: require('../config/internals.json').trai.decisionHistoryLimit };
     module.decisionHistory = [];
     module.patternMemory = new Map();
     const signal = { patterns: [{ name: 'ema-cross' }] };
@@ -583,6 +584,7 @@ describe('OrderExecutor TRAI learning payload', () => {
 
   test('TRAI decision store skips null pattern keys', () => {
     const module = Object.create(TRAIDecisionModule.prototype);
+    module.config = { decisionHistoryLimit: require('../config/internals.json').trai.decisionHistoryLimit };
     module.decisionHistory = [];
     module.patternMemory = new Map();
 
