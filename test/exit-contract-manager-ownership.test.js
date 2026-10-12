@@ -13,6 +13,14 @@ describe('ExitContractManager exit ownership contract', () => {
     maxHoldTimeMinutes: 300,
     useStructuralExits: false,
     invalidationConditions: [],
+    profitManagement: {
+      beScaleOut: { enabled: false, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5, feeBufferPercent: 0.05 },
+      breakEvenStop: { enabled: false, triggerPercent: 0.2 },
+      tieredExit: { enabled: false, tier1ExitFraction: 0.3, tier2ExitFraction: 0.3, tier3ExitFraction: 0.2, enableMarketAdaptation: false, trendingTargetMultiplier: 1, rangingTargetMultiplier: 1, highConfidenceThreshold: 1, highConfidenceMultiplier: 1, lowConfidenceThreshold: 0, lowConfidenceMultiplier: 1, profitTiers: { tier1: 0.015, tier2: 0.02, tier3: 0.03, final: 0.05 } },
+      trail: { enabled: false, minActivation: 1.5, feeBufferPercent: 0 },
+      volatilityAdjustment: { enabled: false, lowThresholdPercent: 0.5, highThresholdPercent: 2, lookbackPeriods: 20 },
+      contractVolatilityAdjustment: { threshold: 5, stopMultiplier: 1, targetMultiplier: 1 },
+    },
     ...overrides,
   });
 
@@ -115,7 +123,7 @@ describe('ExitContractManager exit ownership contract', () => {
 
   test('all configured exit contracts carry the Lane 5 mode schema explicitly', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
-    const requiredKeys = ['stopType', 'trailType', 'tpMode', 'maxHoldMode', 'partialExit'];
+    const requiredKeys = ['stopType', 'trailType', 'tpMode', 'maxHoldMode', 'partialExit', 'profitManagement'];
     const missing = Object.entries(ConfigLoader.BASE_CONFIG.exitContracts)
       .flatMap(([strategyName, contract]) => (
         requiredKeys

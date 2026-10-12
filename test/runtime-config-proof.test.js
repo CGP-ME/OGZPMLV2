@@ -70,11 +70,83 @@ function snapshotFixture() {
           },
         },
       },
-      exits: {
-        stopLossPercent: 1.5,
-        takeProfitPercent: 2,
-        trailingStopPercent: 3.5,
-        exitSystem: 'maxprofit',
+      exitContracts: {
+        RSI: {
+          profitManagement: {
+            beScaleOut: {
+              enabled: false,
+              triggerR: 1,
+              fraction: 0.25,
+            },
+            breakEvenStop: {
+              enabled: true,
+              triggerR: 1.5,
+            },
+            tieredExit: {
+              enabled: true,
+              profitTiers: {
+                tier1: 0.007,
+                tier2: 0.01,
+                tier3: 0.015,
+                final: 0.025,
+              },
+            },
+            trail: {
+              enabled: false,
+              activationR: 1.25,
+              distanceR: 0.5,
+            },
+            volatilityAdjustment: {
+              enabled: false,
+              threshold: 1,
+              stopMultiplier: 1,
+              targetMultiplier: 1,
+            },
+            contractVolatilityAdjustment: {
+              threshold: 2,
+              stopMultiplier: 1.2,
+              targetMultiplier: 0.8,
+            },
+          },
+        },
+        TimeSeriesMomentum: {
+          profitManagement: {
+            beScaleOut: {
+              enabled: false,
+              triggerR: null,
+              fraction: null,
+            },
+            breakEvenStop: {
+              enabled: false,
+              triggerR: null,
+            },
+            tieredExit: {
+              enabled: false,
+              profitTiers: {
+                tier1: null,
+                tier2: null,
+                tier3: null,
+                final: null,
+              },
+            },
+            trail: {
+              enabled: true,
+              activationR: 1.5,
+              distanceR: 0.75,
+            },
+            volatilityAdjustment: {
+              enabled: true,
+              threshold: 1.5,
+              stopMultiplier: 1.1,
+              targetMultiplier: 0.9,
+            },
+            contractVolatilityAdjustment: {
+              threshold: 2.5,
+              stopMultiplier: 1.25,
+              targetMultiplier: 0.75,
+            },
+          },
+        },
       },
       fees: {
         model: 'per_share_minimum',
@@ -128,10 +200,46 @@ function snapshotFixture() {
       'evalRules.ttp.consistency.maxPositionProfitRatio': 'env:TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO',
       'evalRules.ttp.volumeCap.timeframe': 'env:TTP_VOLUME_CAP_TIMEFRAME',
       'evalRules.ttp.volumeCap.percent': 'env:TTP_VOLUME_CAP_PERCENT',
-      'exits.stopLossPercent': 'env:STOP_LOSS_PERCENT',
-      'exits.takeProfitPercent': 'env:TAKE_PROFIT_PERCENT',
-      'exits.trailingStopPercent': 'env:TRAILING_STOP_PERCENT',
-      'exits.exitSystem': 'env:EXIT_SYSTEM',
+      'exitContracts.RSI.profitManagement.beScaleOut.enabled': 'config:settings.json:exitContracts.RSI.profitManagement.beScaleOut.enabled',
+      'exitContracts.RSI.profitManagement.beScaleOut.triggerR': 'config:settings.json:exitContracts.RSI.profitManagement.beScaleOut.triggerR',
+      'exitContracts.RSI.profitManagement.beScaleOut.fraction': 'config:settings.json:exitContracts.RSI.profitManagement.beScaleOut.fraction',
+      'exitContracts.RSI.profitManagement.breakEvenStop.enabled': 'config:settings.json:exitContracts.RSI.profitManagement.breakEvenStop.enabled',
+      'exitContracts.RSI.profitManagement.breakEvenStop.triggerR': 'config:settings.json:exitContracts.RSI.profitManagement.breakEvenStop.triggerR',
+      'exitContracts.RSI.profitManagement.tieredExit.enabled': 'config:settings.json:exitContracts.RSI.profitManagement.tieredExit.enabled',
+      'exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1': 'config:settings.json:exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1',
+      'exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier2': 'config:settings.json:exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier2',
+      'exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier3': 'config:settings.json:exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier3',
+      'exitContracts.RSI.profitManagement.tieredExit.profitTiers.final': 'config:settings.json:exitContracts.RSI.profitManagement.tieredExit.profitTiers.final',
+      'exitContracts.RSI.profitManagement.trail.enabled': 'config:settings.json:exitContracts.RSI.profitManagement.trail.enabled',
+      'exitContracts.RSI.profitManagement.trail.activationR': 'config:settings.json:exitContracts.RSI.profitManagement.trail.activationR',
+      'exitContracts.RSI.profitManagement.trail.distanceR': 'config:settings.json:exitContracts.RSI.profitManagement.trail.distanceR',
+      'exitContracts.RSI.profitManagement.volatilityAdjustment.enabled': 'config:settings.json:exitContracts.RSI.profitManagement.volatilityAdjustment.enabled',
+      'exitContracts.RSI.profitManagement.volatilityAdjustment.threshold': 'config:settings.json:exitContracts.RSI.profitManagement.volatilityAdjustment.threshold',
+      'exitContracts.RSI.profitManagement.volatilityAdjustment.stopMultiplier': 'config:settings.json:exitContracts.RSI.profitManagement.volatilityAdjustment.stopMultiplier',
+      'exitContracts.RSI.profitManagement.volatilityAdjustment.targetMultiplier': 'config:settings.json:exitContracts.RSI.profitManagement.volatilityAdjustment.targetMultiplier',
+      'exitContracts.RSI.profitManagement.contractVolatilityAdjustment.threshold': 'config:settings.json:exitContracts.RSI.profitManagement.contractVolatilityAdjustment.threshold',
+      'exitContracts.RSI.profitManagement.contractVolatilityAdjustment.stopMultiplier': 'config:settings.json:exitContracts.RSI.profitManagement.contractVolatilityAdjustment.stopMultiplier',
+      'exitContracts.RSI.profitManagement.contractVolatilityAdjustment.targetMultiplier': 'config:settings.json:exitContracts.RSI.profitManagement.contractVolatilityAdjustment.targetMultiplier',
+      'exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.enabled': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.enabled',
+      'exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.triggerR': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.triggerR',
+      'exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.fraction': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.fraction',
+      'exitContracts.TimeSeriesMomentum.profitManagement.breakEvenStop.enabled': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.breakEvenStop.enabled',
+      'exitContracts.TimeSeriesMomentum.profitManagement.breakEvenStop.triggerR': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.breakEvenStop.triggerR',
+      'exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.enabled': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.enabled',
+      'exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier1': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier1',
+      'exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier2': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier2',
+      'exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier3': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier3',
+      'exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.final': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.final',
+      'exitContracts.TimeSeriesMomentum.profitManagement.trail.enabled': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.trail.enabled',
+      'exitContracts.TimeSeriesMomentum.profitManagement.trail.activationR': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.trail.activationR',
+      'exitContracts.TimeSeriesMomentum.profitManagement.trail.distanceR': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.trail.distanceR',
+      'exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.enabled': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.enabled',
+      'exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.threshold': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.threshold',
+      'exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.stopMultiplier': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.stopMultiplier',
+      'exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.targetMultiplier': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.volatilityAdjustment.targetMultiplier',
+      'exitContracts.TimeSeriesMomentum.profitManagement.contractVolatilityAdjustment.threshold': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.contractVolatilityAdjustment.threshold',
+      'exitContracts.TimeSeriesMomentum.profitManagement.contractVolatilityAdjustment.stopMultiplier': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.contractVolatilityAdjustment.stopMultiplier',
+      'exitContracts.TimeSeriesMomentum.profitManagement.contractVolatilityAdjustment.targetMultiplier': 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.contractVolatilityAdjustment.targetMultiplier',
       'fees.makerFee': 'env:FEE_MAKER',
       'fees.takerFee': 'env:FEE_TAKER',
       'fees.model': 'env:FEE_MODEL',
@@ -150,14 +258,6 @@ function tradingConfigFixture() {
     'positionSizing.basePositionSize': 0.01,
     'positionSizing.maxPositionSize': 0.05,
     'entryLogic.sizing.absoluteCapPercent': 0.15,
-    'exits.stopLossPercent': 0.5,
-    'exits.takeProfitPercent': 1,
-    'exits.trailingStopPercent': 0.8,
-    'exits.exitSystem': 'legacy',
-    'exits.profitTiers.tier1': 0.007,
-    'exits.profitTiers.tier2': 0.01,
-    'exits.profitTiers.tier3': 0.015,
-    'exits.profitTiers.final': 0.025,
     'fees.makerFee': 0,
     'fees.takerFee': 0,
     'fees.slippage': 0.0005,
@@ -202,7 +302,14 @@ describe('RuntimeConfigProof', () => {
     });
     expect(proof.tradingConfig.tuningProfile.activeProfile).toBeNull();
     expect(proof.tradingConfig.confidence.minTradeConfidence).toBe(0.5);
-    expect(proof.tradingConfig.exits.stopLossPercent).toBe(0.5);
+    expect(proof.tradingConfig.exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1).toEqual({
+      value: 0.007,
+      source: 'config:settings.json:exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1',
+    });
+    expect(proof.tradingConfig.exitContracts.TimeSeriesMomentum.profitManagement.trail.distanceR).toEqual({
+      value: 0.75,
+      source: 'config:settings.json:exitContracts.TimeSeriesMomentum.profitManagement.trail.distanceR',
+    });
     expect(proof.tradingConfig.fees.slippage).toBe(0.0005);
   });
 

@@ -2172,17 +2172,18 @@ class OrderExecutor {
   }
 
   _entryProfitDistanceDecimal(exitContract) {
+    const tieredExit = exitContract?.profitManagement?.tieredExit;
     const distances = [];
-    const finalTier = this._positiveConfigNumber('exits.profitTiers.final');
+    const finalTier = tieredExit?.enabled === true ? Number(tieredExit.profitTiers?.final) : null;
     if (finalTier !== null) {
       distances.push(finalTier);
     }
-    if (exitContract && exitContract.takeProfitPercent !== undefined) {
+    if (exitContract && exitContract.takeProfitPercent !== undefined && exitContract.takeProfitPercent !== null) {
       distances.push(this._percentDistanceDecimal(exitContract.takeProfitPercent, 'exitContract.takeProfitPercent'));
     }
     const positiveDistances = distances.filter(value => Number.isFinite(value) && value > 0);
     if (positiveDistances.length === 0) {
-      throw new Error('[ENTRY-SHARE-RANGE] no positive profit distance configured for consistency cap');
+      return null;
     }
     return Math.max(...positiveDistances);
   }
@@ -2250,9 +2251,11 @@ class OrderExecutor {
         throw new Error(`[ENTRY-SHARE-RANGE] consistencyCapBuffer must be > 0 and <= 1; got ${range.consistencyCapBuffer}`);
       }
       const profitDistance = this._entryProfitDistanceDecimal(exitContract);
-      const maxProfitDollars = profitTargetDollars * maxPositionProfitRatio * consistencyCapBuffer;
-      caps.push(Math.floor(maxProfitDollars / (price * profitDistance)));
-      reasons.push('ttp_consistency_profit_cap');
+      if (profitDistance !== null) {
+        const maxProfitDollars = profitTargetDollars * maxPositionProfitRatio * consistencyCapBuffer;
+        caps.push(Math.floor(maxProfitDollars / (price * profitDistance)));
+        reasons.push('ttp_consistency_profit_cap');
+      }
     }
 
     const dailyLossDollars = this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars');

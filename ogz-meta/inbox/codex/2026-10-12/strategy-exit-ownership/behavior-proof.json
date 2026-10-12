@@ -1,0 +1,48 @@
+{
+  "pass": true,
+  "candidateRef": "0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e",
+  "privateWriteCount": 1,
+  "profile": "paper",
+  "savedRsiChanges": {
+    "exitContracts.RSI.takeProfitPercent": 1.1,
+    "exitContracts.RSI.profitManagement.tieredExit.enabled": true,
+    "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1": 0.017
+  },
+  "preservedMarketRegime": {
+    "exitContracts.MarketRegime.takeProfitPercent": 1,
+    "exitContracts.MarketRegime.profitManagement.tieredExit.enabled": false,
+    "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier1": 0.007
+  },
+  "ownerCoverage": [
+    "EMASMACrossover",
+    "LiquiditySweep",
+    "BreakRetest",
+    "RSI",
+    "MADynamicSR",
+    "CandlePattern",
+    "MarketRegime",
+    "OGZTPO",
+    "OpeningRangeBreakout",
+    "SmartMoneySweep",
+    "DonchianBreakout",
+    "PropSafeEMAPullback",
+    "EMATrendRetest",
+    "RSI2MeanReversion",
+    "TimeSeriesMomentum",
+    "NoWickImbalance",
+    "default"
+  ],
+  "checks": [
+    "getSettingsView exposes independently editable RSI and MarketRegime exit fields",
+    "all 17 configured contracts including default resolve, create, and build their owned frozen policies",
+    "OrderExecutor derives consistency distance from the selected contract rather than a shared target",
+    "saveSettings writes only the fixture-private canonical settings copy",
+    "RSI edit leaves MarketRegime fields unchanged",
+    "reload resolves saved RSI contract while preserving MarketRegime contract",
+    "PolicyBuilder freezes distinct per-strategy profit-management trees",
+    "ProfitExitPlanner takes the saved RSI contract target"
+  ],
+  "productionWrites": 0,
+  "brokerRequests": 0,
+  "runtimeActivation": false
+}

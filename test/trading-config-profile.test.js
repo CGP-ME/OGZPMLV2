@@ -12,6 +12,13 @@ const {
   summarizeWorkerEnv,
 } = require('../tools/backtest-worker-env');
 
+const EXIT_CONTRACT_STRATEGIES = [
+  'EMASMACrossover', 'LiquiditySweep', 'BreakRetest', 'RSI', 'MADynamicSR',
+  'CandlePattern', 'MarketRegime', 'OGZTPO', 'OpeningRangeBreakout',
+  'SmartMoneySweep', 'DonchianBreakout', 'PropSafeEMAPullback', 'EMATrendRetest',
+  'RSI2MeanReversion', 'TimeSeriesMomentum', 'NoWickImbalance',
+];
+
 describe('ConfigLoader runtime profile contract', () => {
   afterEach(() => {
     ConfigLoader.clearOverrides();
@@ -244,9 +251,11 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(profileOverrides).toEqual(expect.objectContaining({
       'strategyBehavior.trendRegimeGate.enabled': true,
       'strategyBehavior.atrContracts.enabled': true,
-      'exitLogic.beScaleOut.scaleOutFraction': 0.25,
-      'exitLogic.tieredExit.enabled': false,
     }));
+    for (const strategy of EXIT_CONTRACT_STRATEGIES) {
+      expect(profileOverrides[`exitContracts.${strategy}.profitManagement.beScaleOut.scaleOutFraction`]).toBe(0.25);
+      expect(profileOverrides[`exitContracts.${strategy}.profitManagement.tieredExit.enabled`]).toBe(false);
+    }
     expect(profileOverrides['strategyBehavior.emaCrossover.entryEventsOnly']).toBeUndefined();
     expect(profileOverrides['strategyBehavior.emaCrossover.confirmBars']).toBeUndefined();
     expect(profileOverrides['strategyBehavior.emaCrossover.warmupBars']).toBeUndefined();
@@ -285,11 +294,14 @@ describe('ConfigLoader runtime profile contract', () => {
       expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.entryEventsOnly')).toBe(true);
       expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.warmupBars')).toBe(200);
       expect(FreshTradingConfig.get('strategyBehavior.atrContracts.enabled')).toBe(true);
-      expect(FreshTradingConfig.get('exitLogic.beScaleOut.scaleOutFraction')).toBe(0.25);
-      expect(FreshTradingConfig.get('exitLogic.tieredExit.enabled')).toBe(false);
+      for (const strategy of EXIT_CONTRACT_STRATEGIES) {
+        expect(FreshTradingConfig.get(`exitContracts.${strategy}.profitManagement.beScaleOut.scaleOutFraction`)).toBe(0.25);
+        expect(FreshTradingConfig.get(`exitContracts.${strategy}.profitManagement.tieredExit.enabled`)).toBe(false);
+        expect(loaded.sources[`exitContracts.${strategy}.profitManagement.tieredExit.enabled`])
+          .toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
+      }
       expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars'])
         .toBe('config:launchProfiles.backtest-all.strategyBehavior.emaCrossover.warmupBars');
-      expect(loaded.sources['exitLogic.tieredExit.enabled']).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
     } finally {
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) {
@@ -423,8 +435,10 @@ describe('ConfigLoader runtime profile contract', () => {
         'EXIT_SYSTEM',
       ],
     }));
-    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.007);
-    expect(ConfigLoader.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
+    for (const strategy of EXIT_CONTRACT_STRATEGIES) {
+      expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.tier1`)).toBe(0.007);
+      expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.tier1ExitFraction`)).toBe(0.30);
+    }
     expect(ConfigLoader.get('fees.slippage')).toBe(0.0005);
 	    expect(ConfigLoader.get('risk.guardMode')).toBe('off');
     expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
@@ -434,9 +448,11 @@ describe('ConfigLoader runtime profile contract', () => {
       'legacy-wide',
       async (status) => {
         expect(status.activeProfile).toBe('legacy-wide');
-        expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.020);
-        expect(ConfigLoader.get('exits.profitTiers.final')).toBe(0.100);
-        expect(ConfigLoader.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
+        for (const strategy of EXIT_CONTRACT_STRATEGIES) {
+          expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.tier1`)).toBe(0.020);
+          expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.final`)).toBe(0.100);
+          expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.tier1ExitFraction`)).toBe(0.30);
+        }
       },
       {
         phase: 'startup',
@@ -447,8 +463,10 @@ describe('ConfigLoader runtime profile contract', () => {
     );
 
     expect(ConfigLoader.getTuningProfileStatus().activeProfile).toBe('current-eval');
-    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.007);
-    expect(ConfigLoader.get('exits.profitTiers.final')).toBe(0.025);
+    for (const strategy of EXIT_CONTRACT_STRATEGIES) {
+      expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.tier1`)).toBe(0.007);
+      expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.final`)).toBe(0.025);
+    }
     expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
 
     const envAfter = {};
@@ -517,19 +535,19 @@ describe('ConfigLoader runtime profile contract', () => {
 
   test('profile apply refuses active override collisions unless profile replacement is explicit', () => {
     ConfigLoader.setOverrides({
-      'exits.profitTiers.tier1': 0.123,
+      'exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1': 0.123,
     });
 
     expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'startup',
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
-    })).toThrow(/would overwrite active config path\(s\): exits\.profitTiers\.tier1/);
+    })).toThrow(/would overwrite active config path\(s\): exitContracts\.RSI\.profitManagement\.tieredExit\.profitTiers\.tier1/);
   });
 
   test('explicit profile replacement still requires flat-state proof for active collisions', () => {
     ConfigLoader.setOverrides({
-      'exits.profitTiers.tier1': 0.123,
+      'exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1': 0.123,
     });
 
     expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
@@ -601,13 +619,18 @@ describe('ConfigLoader runtime profile contract', () => {
   });
 
   test('runWithTuningProfile restores paths that were missing before the temporary profile', async () => {
-    const beforeTier1 = ConfigLoader.get('exits.profitTiers.tier1');
+    const beforeTier1 = Object.fromEntries(EXIT_CONTRACT_STRATEGIES.map((strategy) => [
+      strategy,
+      ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.tier1`),
+    ]));
     const beforeStatus = ConfigLoader.getTuningProfileStatus();
 
     await ConfigLoader.runWithTuningProfile(
       'legacy-wide',
       async () => {
-        expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.020);
+        for (const strategy of EXIT_CONTRACT_STRATEGIES) {
+          expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.tier1`)).toBe(0.020);
+        }
         expect(ConfigLoader.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
       },
       {
@@ -617,7 +640,9 @@ describe('ConfigLoader runtime profile contract', () => {
       }
     );
 
-    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(beforeTier1);
+    for (const strategy of EXIT_CONTRACT_STRATEGIES) {
+      expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.profitTiers.tier1`)).toBe(beforeTier1[strategy]);
+    }
     expect(ConfigLoader.getTuningProfileStatus()).toEqual(beforeStatus);
   });
 

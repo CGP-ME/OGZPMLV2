@@ -670,7 +670,7 @@ const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
   /^confidence\.minTradeConfidence$/,
   /^positionSizing\.maxPositionSize$/,
   /^filters\.(atrEnabled|atrMinPercent)$/,
-  /^exits\.profitTiers\.(tier1|tier2|tier3)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.profitManagement\.(beScaleOut\.(enabled|triggerType|fixedPercentTrigger|scaleOutFraction|feeBufferPercent)|breakEvenStop\.(enabled|triggerPercent)|tieredExit\.(enabled|tier1ExitFraction|tier2ExitFraction|tier3ExitFraction|enableMarketAdaptation|trendingTargetMultiplier|rangingTargetMultiplier|highConfidenceThreshold|highConfidenceMultiplier|lowConfidenceThreshold|lowConfidenceMultiplier|profitTiers\.(tier1|tier2|tier3|final))|trail\.(enabled|minActivationPercent|atrMultiplier|trendWidenMultiplier|structureTightenMultiplier|structureDistanceThreshold|profitRatchetThreshold|profitRatchetRate|profitRatchetFloor|minTrailPercent|maxTrailPercent|feeBufferPercent|roundNumberProximity|roundNumberTighten)|volatilityAdjustment\.(enabled|lowThresholdPercent|highThresholdPercent|lookbackPeriods)|contractVolatilityAdjustment\.(threshold|stopMultiplier|targetMultiplier))$/,
   /^pipeline\.directionFilter$/,
   /^execution\.candleTimeframe$/,
   /^orchestrator\.mtfConfluenceService\.minReadyTimeframes$/,
@@ -1098,7 +1098,6 @@ function buildConfig() {
     sources['paths.dataDir'] = 'derived:backtest-state-isolation';
   }
 
-  const exits = setting('exits');
   const featureExtraction = { ...setting('featureExtraction'), ...internal('featureExtraction') };
   const exitContracts = setting('exitContracts');
   exitContracts.DonchianBreakout.stopType = internal('exitContracts.DonchianBreakout.stopType');
@@ -1199,11 +1198,9 @@ function buildConfig() {
     },
     positionSizing: setting('positionSizing'),
     entryLogic: setting('entryLogic'),
-    exitLogic: setting('exitLogic'),
     exitContracts,
     strategyBehavior,
     orchestrator,
-    exits,
     featureExtraction,
     fees: setting('fees'),
     risk: profileRisk,
@@ -1801,10 +1798,13 @@ function validate(config, sources = {}, opts = {}) {
   // minimum fees require order quantity/notional and are enforced by FeeModel at runtime.
   if (feeModel === 'percent') {
     const feeThreshold = config.fees.totalRoundTrip;
-    if (config.exits.profitTiers.tier1 < feeThreshold) {
-      warnings.push(`tier1 (${config.exits.profitTiers.tier1}) below round-trip fees (${feeThreshold}) — tier 1 exits are net losses`);
+    for (const [strategyName, contract] of Object.entries(config.exitContracts)) {
+      const tier1 = contract.profitManagement.tieredExit.profitTiers.tier1;
+      if (contract.profitManagement.tieredExit.enabled && tier1 < feeThreshold) {
+        warnings.push('exitContracts.' + strategyName + '.profitManagement.tieredExit.profitTiers.tier1 (' + tier1 + ') below round-trip fees (' + feeThreshold + ') — tier 1 exits are net losses');
+      }
     }
-  } else if (feeModel === 'per_share_minimum') {
+  }else if (feeModel === 'per_share_minimum') {
     warnings.push('tier fee threshold cannot be statically validated for FEE_MODEL=per_share_minimum; runtime fee checks require order quantity/notional');
   }
   if (feeModel !== 'percent' && feeModel !== 'per_share_minimum') {
@@ -2669,24 +2669,22 @@ const EDITABLE_SETTINGS = deepFreeze({
   'orchestrator.fibDistanceSweep': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'Liquidity sweep Fibonacci proximity', effect: 'next_orchestrator_restart' },
   'orchestrator.fibBoostNormal': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Normal Fibonacci confidence boost', effect: 'next_orchestrator_restart' },
   'orchestrator.fibBoostGolden': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Golden-zone Fibonacci confidence boost', effect: 'next_orchestrator_restart' },
-  'exitLogic.beScaleOut.enabled': { type: 'boolean', unit: 'boolean', label: 'Break-even scale-out enabled', effect: 'next_trade_policy_creation' },
-  'exitLogic.beScaleOut.triggerType': { type: 'string', values: ['one_to_one_r', 'fixed_percent'], unit: 'trigger mode', label: 'Break-even scale-out trigger mode', effect: 'next_trade_policy_creation' },
-  'exitLogic.beScaleOut.fixedPercentTrigger': { type: 'number', unit: 'percent', min: 0, max: 100, label: 'price percent trigger', effect: 'next_trade_policy_creation' },
-  'exitLogic.beScaleOut.scaleOutFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'scale-out fraction', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.tier1ExitFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Tier 1 exit fraction', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.tier2ExitFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Tier 2 exit fraction', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.tier3ExitFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Tier 3 exit fraction', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.enabled': { type: 'boolean', unit: 'boolean', label: 'Tiered exit enabled', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.enableMarketAdaptation': { type: 'boolean', unit: 'boolean', label: 'Tiered exit market adaptation', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.trendingTargetMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'Trending target multiplier', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.rangingTargetMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'Ranging target multiplier', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.highConfidenceThreshold': { type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE, label: 'High-confidence threshold', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.highConfidenceMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'High-confidence target multiplier', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.lowConfidenceThreshold': { type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE, label: 'Low-confidence threshold', effect: 'next_trade_policy_creation' },
-  'exitLogic.tieredExit.lowConfidenceMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'Low-confidence target multiplier', effect: 'next_trade_policy_creation' },
-  'exitLogic.volatilityAdjustment.enabled': { type: 'boolean', unit: 'boolean', label: 'Exit volatility adjustment enabled', effect: 'next_trade_policy_creation' },
-  'exitLogic.volatilityAdjustment.lowThresholdPercent': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'Low-volatility target threshold', effect: 'next_trade_policy_creation' },
-  'exitLogic.volatilityAdjustment.highThresholdPercent': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'High-volatility target threshold', effect: 'next_trade_policy_creation' },
+  ...Object.fromEntries(["EMASMACrossover", "LiquiditySweep", "BreakRetest", "RSI", "MADynamicSR", "CandlePattern", "MarketRegime", "OGZTPO", "OpeningRangeBreakout", "SmartMoneySweep", "DonchianBreakout", "PropSafeEMAPullback", "EMATrendRetest", "RSI2MeanReversion", "TimeSeriesMomentum", "NoWickImbalance"].flatMap(strategyName => [
+    ['beScaleOut.enabled', { type: 'boolean', unit: 'boolean', label: strategyName + ' break-even scale-out enabled', effect: 'next_trade_policy_creation' }],
+    ['beScaleOut.triggerType', { type: 'string', values: ['one_to_one_r', 'fixed_percent'], unit: 'trigger mode', label: strategyName + ' break-even scale-out trigger mode', effect: 'next_trade_policy_creation' }],
+    ['beScaleOut.fixedPercentTrigger', { type: 'number', unit: 'percent', min: 0, max: 100, label: strategyName + ' break-even scale-out fixed trigger', effect: 'next_trade_policy_creation' }],
+    ['beScaleOut.scaleOutFraction', { type: 'number', unit: 'fraction', min: 0, max: 1, label: strategyName + ' break-even scale-out fraction', effect: 'next_trade_policy_creation' }],
+    ['beScaleOut.feeBufferPercent', { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' break-even scale-out fee buffer', effect: 'next_trade_policy_creation' }],
+    ['tieredExit.enabled', { type: 'boolean', unit: 'boolean', label: strategyName + ' tiered exit enabled', effect: 'next_trade_policy_creation' }],
+    ...['tier1ExitFraction', 'tier2ExitFraction', 'tier3ExitFraction'].map(key => ['tieredExit.' + key, { type: 'number', unit: 'fraction', min: 0, max: 1, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+    ['tieredExit.enableMarketAdaptation', { type: 'boolean', unit: 'boolean', label: strategyName + ' tiered exit market adaptation', effect: 'next_trade_policy_creation' }],
+    ...['trendingTargetMultiplier', 'rangingTargetMultiplier'].map(key => ['tieredExit.' + key, { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+    ...['highConfidenceThreshold', 'lowConfidenceThreshold'].map(key => ['tieredExit.' + key, { type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+    ...['highConfidenceMultiplier', 'lowConfidenceMultiplier'].map(key => ['tieredExit.' + key, { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+    ['volatilityAdjustment.enabled', { type: 'boolean', unit: 'boolean', label: strategyName + ' exit volatility adjustment enabled', effect: 'next_trade_policy_creation' }],
+    ...['lowThresholdPercent', 'highThresholdPercent'].map(key => ['volatilityAdjustment.' + key, { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+    ['volatilityAdjustment.lookbackPeriods', { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: strategyName + ' exit volatility adjustment lookback', effect: 'next_trade_policy_creation' }],
+  ].map(([leaf, descriptor]) => ['exitContracts.' + strategyName + '.profitManagement.' + leaf, descriptor]))),
   'features.enableLearning': { type: 'boolean', unit: 'boolean', label: 'Enable pattern learning', effect: 'next_pattern_observation; TRAI_memory_requires_restart' },
   'patternMemory.minSamples': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Pattern memory minimum samples', effect: 'next_pattern_memory_initialization_restart_required' },
   'patternMemory.successThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern memory success threshold', effect: 'next_pattern_memory_initialization_restart_required' },
@@ -2786,17 +2784,13 @@ const EDITABLE_SETTINGS = deepFreeze({
   ].map(([key, label, domain]) => [`trai.${key}`, {
     type: 'number', ...domain, label, effect: 'next_bot_initialization_restart_required',
   }])),
-  'exits.volatilityThreshold': {
-    type: 'number', unit: 'ATR percent of price', min: 0, max: Number.MAX_VALUE,
-    label: 'Exit volatility adjustment threshold', effect: 'new_trade_exit_contract',
-  },
-  ...Object.fromEntries([
-    ['volatilitySlMultiplier', 'High-volatility stop-loss multiplier'],
-    ['volatilityTpMultiplier', 'High-volatility take-profit multiplier'],
-  ].map(([key, label]) => [`exits.${key}`, {
-    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
-    label, effect: 'new_trade_exit_contract',
-  }])),
+  ...Object.fromEntries(["EMASMACrossover", "LiquiditySweep", "BreakRetest", "RSI", "MADynamicSR", "CandlePattern", "MarketRegime", "OGZTPO", "OpeningRangeBreakout", "SmartMoneySweep", "DonchianBreakout", "PropSafeEMAPullback", "EMATrendRetest", "RSI2MeanReversion", "TimeSeriesMomentum", "NoWickImbalance"].flatMap(strategyName => [
+    ['threshold', { unit: 'ATR percent of price', min: 0, exclusiveMin: false, label: 'Exit volatility adjustment threshold' }],
+    ['stopMultiplier', { unit: 'multiplier', min: 0, exclusiveMin: true, label: 'High-volatility stop-loss multiplier' }],
+    ['targetMultiplier', { unit: 'multiplier', min: 0, exclusiveMin: true, label: 'High-volatility take-profit multiplier' }],
+  ].map(([key, domain]) => ['exitContracts.' + strategyName + '.profitManagement.contractVolatilityAdjustment.' + key, {
+    type: 'number', ...domain, max: Number.MAX_VALUE, label: strategyName + ' ' + domain.label, effect: 'new_trade_exit_contract',
+  }]))),
   ...Object.fromEntries([
     ['smaPeriods', 'SMA periods'], ['emaPeriods', 'EMA periods'],
   ].map(([key, label]) => [`indicators.engine.${key}`, {
@@ -2856,15 +2850,13 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'Ichimoku displacement', effect: 'next_engine_initialization_restart_required',
   },
-  ...Object.fromEntries([
-    ['tier1', 'First profit target'],
-    ['tier2', 'Second profit target'],
-    ['tier3', 'Third profit target'],
-    ['final', 'Final profit target'],
-  ].map(([key, label]) => [`exits.profitTiers.${key}`, {
+  ...Object.fromEntries(["EMASMACrossover", "LiquiditySweep", "BreakRetest", "RSI", "MADynamicSR", "CandlePattern", "MarketRegime", "OGZTPO", "OpeningRangeBreakout", "SmartMoneySweep", "DonchianBreakout", "PropSafeEMAPullback", "EMATrendRetest", "RSI2MeanReversion", "TimeSeriesMomentum", "NoWickImbalance"].flatMap(strategyName => [
+    ['tier1', 'First profit target'], ['tier2', 'Second profit target'],
+    ['tier3', 'Third profit target'], ['final', 'Final profit target'],
+  ].map(([key, label]) => ['exitContracts.' + strategyName + '.profitManagement.tieredExit.profitTiers.' + key, {
     type: 'number', unit: 'price fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
-    label, effect: 'new_trade_exit_policy_and_next_entry_consistency_budget',
-  }])),
+    label: strategyName + ' ' + label, effect: 'new_trade_exit_policy_and_next_entry_consistency_budget',
+  }]))),
   'entryLogic.sizing.absoluteCapPercent': {
     type: 'number', unit: 'account fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
     label: 'Absolute position-size cap', effect: 'next_entry_size_calculation',
@@ -3938,62 +3930,20 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'Momentum trailing ATR multiple', effect: 'new_TSM_trade_existing_dynamic_trailing_policy',
   },
-  'exitLogic.trail.enabled': {
-    type: 'boolean', unit: 'boolean', label: 'Managed ATR trailing for new trades',
-    effect: 'new_trades_only_except_contract_channel_trailing',
-  },
-  'exitLogic.trail.minActivationPercent': {
-    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
-    label: 'Managed trail activation profit', effect: 'new_trades_only',
-  },
-  'exitLogic.trail.atrMultiplier': {
-    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
-    label: 'Trail ATR multiple for contracts without their own multiple', effect: 'new_trades_without_contract_trailAtrMult',
-  },
-  'exitLogic.trail.trendWidenMultiplier': {
-    type: 'number', unit: 'multiple', min: 1, max: Number.MAX_VALUE,
-    label: 'Trend-supported trail widening', effect: 'new_trades_only',
-  },
-  'exitLogic.trail.structureTightenMultiplier': {
-    type: 'number', unit: 'fraction', min: 0, max: 1,
-    label: 'Nearby-structure trail tightening', effect: 'new_trades_only_with_structure_evidence',
-  },
-  'exitLogic.trail.structureDistanceThreshold': {
-    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
-    label: 'Structure distance for trail tightening (zero disables)', effect: 'new_trades_only_with_structure_evidence',
-  },
-  'exitLogic.trail.profitRatchetThreshold': {
-    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
-    label: 'Profit threshold for trail ratcheting', effect: 'new_trades_only',
-  },
-  'exitLogic.trail.profitRatchetRate': {
-    type: 'number', unit: 'fraction_per_profit_percentage_point', min: 0, max: Number.MAX_VALUE,
-    label: 'Trail ratchet rate (zero disables)', effect: 'new_trades_only',
-  },
-  'exitLogic.trail.profitRatchetFloor': {
-    type: 'number', unit: 'fraction', min: 0, max: 1,
-    label: 'Minimum trail ratchet factor', effect: 'new_trades_only',
-  },
-  'exitLogic.trail.minTrailPercent': {
-    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
-    label: 'Minimum managed trail distance', effect: 'new_trades_only',
-  },
-  'exitLogic.trail.maxTrailPercent': {
-    type: 'number', unit: 'percent', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
-    label: 'Maximum managed trail distance', effect: 'new_trades_only',
-  },
-  'exitLogic.trail.feeBufferPercent': {
-    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
-    label: 'Managed break-even stop buffer', effect: 'new_trades_only_not_legacy_1R_fee_model',
-  },
-  'exitLogic.breakEvenStop.enabled': {
-    type: 'boolean', unit: 'boolean', label: 'Managed profit-threshold break-even stop',
-    effect: 'new_trades_only_not_legacy_1R_break_even',
-  },
-  'exitLogic.breakEvenStop.triggerPercent': {
-    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
-    label: 'Managed break-even profit trigger', effect: 'new_trades_only',
-  },
+  ...Object.fromEntries(["EMASMACrossover", "LiquiditySweep", "BreakRetest", "RSI", "MADynamicSR", "CandlePattern", "MarketRegime", "OGZTPO", "OpeningRangeBreakout", "SmartMoneySweep", "DonchianBreakout", "PropSafeEMAPullback", "EMATrendRetest", "RSI2MeanReversion", "TimeSeriesMomentum", "NoWickImbalance"].flatMap(strategyName => [
+    ['trail.enabled', { type: 'boolean', unit: 'boolean', label: strategyName + ' managed ATR trailing enabled', effect: 'new_trades_only_except_contract_channel_trailing' }],
+    ['trail.minActivationPercent', { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' managed trail activation profit', effect: 'new_trades_only' }],
+    ['trail.atrMultiplier', { type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE, label: strategyName + ' trail ATR multiple', effect: 'new_trades_only' }],
+    ['trail.trendWidenMultiplier', { type: 'number', unit: 'multiple', min: 1, max: Number.MAX_VALUE, label: strategyName + ' trend trail widening', effect: 'new_trades_only' }],
+    ['trail.structureTightenMultiplier', { type: 'number', unit: 'fraction', min: 0, max: 1, label: strategyName + ' structure trail tightening', effect: 'new_trades_only_with_structure_evidence' }],
+    ...['structureDistanceThreshold', 'profitRatchetThreshold', 'minTrailPercent', 'feeBufferPercent', 'roundNumberProximity'].map(key => ['trail.' + key, { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' trail ' + key, effect: 'new_trades_only' }]),
+    ['trail.profitRatchetRate', { type: 'number', unit: 'fraction_per_profit_percentage_point', min: 0, max: Number.MAX_VALUE, label: strategyName + ' trail ratchet rate', effect: 'new_trades_only' }],
+    ['trail.profitRatchetFloor', { type: 'number', unit: 'fraction', min: 0, max: 1, label: strategyName + ' trail ratchet floor', effect: 'new_trades_only' }],
+    ['trail.maxTrailPercent', { type: 'number', unit: 'percent', min: Number.MIN_VALUE, max: Number.MAX_VALUE, label: strategyName + ' maximum trail distance', effect: 'new_trades_only' }],
+    ['trail.roundNumberTighten', { type: 'number', unit: 'fraction', min: 0, max: 1, label: strategyName + ' round-number trail tightening', effect: 'new_trades_only' }],
+    ['breakEvenStop.enabled', { type: 'boolean', unit: 'boolean', label: strategyName + ' managed break-even stop enabled', effect: 'new_trades_only_not_legacy_1R_break_even' }],
+    ['breakEvenStop.triggerPercent', { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' managed break-even trigger', effect: 'new_trades_only' }],
+  ].map(([leaf, descriptor]) => ['exitContracts.' + strategyName + '.profitManagement.' + leaf, descriptor]))),
   'strategies.RSI2MeanReversion.confidenceBase': {
     type: 'number', unit: 'fraction', min: 0, max: 1,
     label: 'RSI2 base confidence', effect: 'next_RSI2_entry_evaluation',
@@ -4276,10 +4226,12 @@ function saveSettings(request) {
     setObjectPath(nextSettings, canonicalPath, value);
     setObjectPath(nextConfig, key, value);
   }
-  if (entries.some(([key]) => /^exitLogic\.tieredExit\.tier[123]ExitFraction$/.test(key))) {
-    const tiers = nextConfig.exitLogic.tieredExit;
-    if (tiers.tier1ExitFraction + tiers.tier2ExitFraction + tiers.tier3ExitFraction > 1) {
-      return reject('tier_exit_fractions_must_not_exceed_one');
+  if (entries.some(([key]) => /^exitContracts\.[A-Za-z0-9_]+\.profitManagement\.tieredExit\.tier[123]ExitFraction$/.test(key))) {
+    for (const contract of Object.values(nextConfig.exitContracts)) {
+      const tiers = contract.profitManagement.tieredExit;
+      if (tiers.tier1ExitFraction + tiers.tier2ExitFraction + tiers.tier3ExitFraction > 1) {
+        return reject('tier_exit_fractions_must_not_exceed_one');
+      }
     }
   }
   if (entries.some(([key]) => key.startsWith('strategies.RSI.'))
@@ -4367,9 +4319,13 @@ function saveSettings(request) {
     return reject('invalid_entry_sizing_configuration', { issues: nextEntrySizing.issues });
   }
   nextSettings.revision += 1;
-  if (entries.some(([key]) => key.startsWith('exitLogic.trail.'))
-      && nextConfig.exitLogic.trail.minTrailPercent > nextConfig.exitLogic.trail.maxTrailPercent) {
-    return reject('trail_min_must_not_exceed_max');
+  if (entries.some(([key]) => /^exitContracts\.[A-Za-z0-9_]+\.profitManagement\.trail\./.test(key))) {
+    for (const contract of Object.values(nextConfig.exitContracts)) {
+      const trail = contract.profitManagement.trail;
+      if (trail.minTrailPercent > trail.maxTrailPercent) {
+        return reject('trail_min_must_not_exceed_max');
+      }
+    }
   }
   nextConfig.revision = nextSettings.revision;
   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
@@ -4619,7 +4575,7 @@ Object.defineProperty(exported, 'DEFAULT_TUNING_PROFILE', {
 
 const compatibilitySections = [
   'authFailureGuard', 'confidence', 'entryLogic', 'execution',
-  'exitContracts', 'exitLogic', 'exits', 'featureCatalog', 'features',
+  'exitContracts', 'featureCatalog', 'features',
   'featureExtraction', 'fees', 'fibonacci', 'filters', 'fundTarget', 'indicators',
   'misc', 'orchestrator', 'patternMemory', 'patternRecognition', 'performanceAnalysis',
   'pid', 'pipeline', 'positionSizing', 'proofPublication',

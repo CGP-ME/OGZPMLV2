@@ -14,42 +14,6 @@ const REQUIRED_CONTRACT_FIELDS = Object.freeze([
 ]);
 
 const CONFIG_PATHS = Object.freeze({
-  beScaleOut: Object.freeze({
-    enabled: 'exitLogic.beScaleOut.enabled',
-    triggerType: 'exitLogic.beScaleOut.triggerType',
-    fixedPercentTrigger: 'exitLogic.beScaleOut.fixedPercentTrigger',
-    scaleOutFraction: 'exitLogic.beScaleOut.scaleOutFraction',
-    feeBufferPercent: 'exitLogic.beScaleOut.feeBufferPercent',
-  }),
-  breakEvenStop: Object.freeze({
-    enabled: 'exitLogic.breakEvenStop.enabled',
-    triggerPercent: 'exitLogic.breakEvenStop.triggerPercent',
-  }),
-  tieredExit: Object.freeze({
-    enabled: 'exitLogic.tieredExit.enabled',
-    tier1ExitFraction: 'exitLogic.tieredExit.tier1ExitFraction',
-    tier2ExitFraction: 'exitLogic.tieredExit.tier2ExitFraction',
-    tier3ExitFraction: 'exitLogic.tieredExit.tier3ExitFraction',
-    enableMarketAdaptation: 'exitLogic.tieredExit.enableMarketAdaptation',
-    trendingTargetMultiplier: 'exitLogic.tieredExit.trendingTargetMultiplier',
-    rangingTargetMultiplier: 'exitLogic.tieredExit.rangingTargetMultiplier',
-    highConfidenceThreshold: 'exitLogic.tieredExit.highConfidenceThreshold',
-    highConfidenceMultiplier: 'exitLogic.tieredExit.highConfidenceMultiplier',
-    lowConfidenceThreshold: 'exitLogic.tieredExit.lowConfidenceThreshold',
-    lowConfidenceMultiplier: 'exitLogic.tieredExit.lowConfidenceMultiplier',
-  }),
-  volatilityAdjustment: Object.freeze({
-    enabled: 'exitLogic.volatilityAdjustment.enabled',
-    lowThresholdPercent: 'exitLogic.volatilityAdjustment.lowThresholdPercent',
-    highThresholdPercent: 'exitLogic.volatilityAdjustment.highThresholdPercent',
-    lookbackPeriods: 'exitLogic.volatilityAdjustment.lookbackPeriods',
-  }),
-  profitTargets: Object.freeze({
-    tier1: 'exits.profitTiers.tier1',
-    tier2: 'exits.profitTiers.tier2',
-    tier3: 'exits.profitTiers.tier3',
-    final: 'exits.profitTiers.final',
-  }),
   fees: Object.freeze({
     model: 'fees.model',
     makerFee: 'fees.makerFee',
@@ -276,27 +240,27 @@ function normalizeContract(strategyName, contract) {
 
 function normalizeBeScaleOut(raw) {
   return {
-    enabled: requireBoolean(raw.enabled, 'exitLogic.beScaleOut.enabled'),
-    triggerType: requireString(raw.triggerType, 'exitLogic.beScaleOut.triggerType'),
-    fixedPercentTrigger: requirePercent(raw.fixedPercentTrigger, 'exitLogic.beScaleOut.fixedPercentTrigger'),
-    scaleOutFraction: requireFraction(raw.scaleOutFraction, 'exitLogic.beScaleOut.scaleOutFraction'),
-    feeBufferPercent: requirePercent(raw.feeBufferPercent, 'exitLogic.beScaleOut.feeBufferPercent'),
+    enabled: requireBoolean(raw.enabled, 'exitContract.profitManagement.beScaleOut.enabled'),
+    triggerType: requireString(raw.triggerType, 'exitContract.profitManagement.beScaleOut.triggerType'),
+    fixedPercentTrigger: requirePercent(raw.fixedPercentTrigger, 'exitContract.profitManagement.beScaleOut.fixedPercentTrigger'),
+    scaleOutFraction: requireFraction(raw.scaleOutFraction, 'exitContract.profitManagement.beScaleOut.scaleOutFraction'),
+    feeBufferPercent: requirePercent(raw.feeBufferPercent, 'exitContract.profitManagement.beScaleOut.feeBufferPercent'),
   };
 }
 
 function normalizeBreakEvenStop(raw) {
   return {
-    enabled: requireBoolean(raw.enabled, 'exitLogic.breakEvenStop.enabled'),
-    triggerPercent: requireFiniteNumber(raw.triggerPercent, 'exitLogic.breakEvenStop.triggerPercent'),
+    enabled: requireBoolean(raw.enabled, 'exitContract.profitManagement.breakEvenStop.enabled'),
+    triggerPercent: requireFiniteNumber(raw.triggerPercent, 'exitContract.profitManagement.breakEvenStop.triggerPercent'),
   };
 }
 
 function normalizeVolatilityAdjustment(raw, volatility) {
   const runtimeVolatility = requirePositiveNumber(volatility, 'volatility');
-  const enabled = requireBoolean(raw.enabled, 'exitLogic.volatilityAdjustment.enabled');
-  const lowThreshold = requireFiniteNumber(raw.lowThresholdPercent, 'exitLogic.volatilityAdjustment.lowThresholdPercent') / 100;
-  const highThreshold = requireFiniteNumber(raw.highThresholdPercent, 'exitLogic.volatilityAdjustment.highThresholdPercent') / 100;
-  requirePositiveNumber(raw.lookbackPeriods, 'exitLogic.volatilityAdjustment.lookbackPeriods');
+  const enabled = requireBoolean(raw.enabled, 'exitContract.profitManagement.volatilityAdjustment.enabled');
+  const lowThreshold = requireFiniteNumber(raw.lowThresholdPercent, 'exitContract.profitManagement.volatilityAdjustment.lowThresholdPercent') / 100;
+  const highThreshold = requireFiniteNumber(raw.highThresholdPercent, 'exitContract.profitManagement.volatilityAdjustment.highThresholdPercent') / 100;
+  requirePositiveNumber(raw.lookbackPeriods, 'exitContract.profitManagement.volatilityAdjustment.lookbackPeriods');
 
   if (!enabled) {
     return {
@@ -458,16 +422,16 @@ function targetAdjustment(raw, volatilityAdjustment, confidence, marketCondition
   const runtimeConfidence = requirePositiveNumber(confidence, 'confidence');
   const condition = normalizeMarketCondition(marketCondition);
   let marketMultiplier = 1.0;
-  if (condition === 'trending' && requireBoolean(raw.enableMarketAdaptation, 'exitLogic.tieredExit.enableMarketAdaptation')) {
-    marketMultiplier = requireFiniteNumber(raw.trendingTargetMultiplier, 'exitLogic.tieredExit.trendingTargetMultiplier');
-  } else if (condition === 'ranging' && requireBoolean(raw.enableMarketAdaptation, 'exitLogic.tieredExit.enableMarketAdaptation')) {
-    marketMultiplier = requireFiniteNumber(raw.rangingTargetMultiplier, 'exitLogic.tieredExit.rangingTargetMultiplier');
+  if (condition === 'trending' && requireBoolean(raw.enableMarketAdaptation, 'exitContract.profitManagement.tieredExit.enableMarketAdaptation')) {
+    marketMultiplier = requireFiniteNumber(raw.trendingTargetMultiplier, 'exitContract.profitManagement.tieredExit.trendingTargetMultiplier');
+  } else if (condition === 'ranging' && requireBoolean(raw.enableMarketAdaptation, 'exitContract.profitManagement.tieredExit.enableMarketAdaptation')) {
+    marketMultiplier = requireFiniteNumber(raw.rangingTargetMultiplier, 'exitContract.profitManagement.tieredExit.rangingTargetMultiplier');
   }
 
-  const highConfThreshold = requireFiniteNumber(raw.highConfidenceThreshold, 'exitLogic.tieredExit.highConfidenceThreshold');
-  const highConfMult = requireFiniteNumber(raw.highConfidenceMultiplier, 'exitLogic.tieredExit.highConfidenceMultiplier');
-  const lowConfThreshold = requireFiniteNumber(raw.lowConfidenceThreshold, 'exitLogic.tieredExit.lowConfidenceThreshold');
-  const lowConfMult = requireFiniteNumber(raw.lowConfidenceMultiplier, 'exitLogic.tieredExit.lowConfidenceMultiplier');
+  const highConfThreshold = requireFiniteNumber(raw.highConfidenceThreshold, 'exitContract.profitManagement.tieredExit.highConfidenceThreshold');
+  const highConfMult = requireFiniteNumber(raw.highConfidenceMultiplier, 'exitContract.profitManagement.tieredExit.highConfidenceMultiplier');
+  const lowConfThreshold = requireFiniteNumber(raw.lowConfidenceThreshold, 'exitContract.profitManagement.tieredExit.lowConfidenceThreshold');
+  const lowConfMult = requireFiniteNumber(raw.lowConfidenceMultiplier, 'exitContract.profitManagement.tieredExit.lowConfidenceMultiplier');
   let confidenceMultiplier = 1.0;
   if (runtimeConfidence > highConfThreshold) {
     confidenceMultiplier = highConfMult;
@@ -496,48 +460,48 @@ function normalizeTieredExit(raw, targets, volatilityAdjustment, confidence, mar
     ['tier3', raw.tier3ExitFraction],
   ];
   const configuredFractionTotal = tierFractions.reduce((sum, [name, fraction]) => (
-    sum + requireFraction(fraction, `exitLogic.tieredExit.${name}ExitFraction`)
+    sum + requireFraction(fraction, `exitContract.profitManagement.tieredExit.${name}ExitFraction`)
   ), 0);
   if (configuredFractionTotal > 1) {
-    throw new Error('[PolicyBuilder] exitLogic.tieredExit fractions cannot exceed 1.0 total');
+    throw new Error('[PolicyBuilder] exitContract.profitManagement.tieredExit fractions cannot exceed 1.0 total');
   }
   const finalExitFraction = 1 - configuredFractionTotal;
   const adjustment = targetAdjustment(raw, volatilityAdjustment, confidence, marketCondition);
 
   return {
-    enabled: requireBoolean(raw.enabled, 'exitLogic.tieredExit.enabled'),
-    enableMarketAdaptation: requireBoolean(raw.enableMarketAdaptation, 'exitLogic.tieredExit.enableMarketAdaptation'),
-    trendingTargetMultiplier: requireFiniteNumber(raw.trendingTargetMultiplier, 'exitLogic.tieredExit.trendingTargetMultiplier'),
-    rangingTargetMultiplier: requireFiniteNumber(raw.rangingTargetMultiplier, 'exitLogic.tieredExit.rangingTargetMultiplier'),
-    highConfidenceThreshold: requireFiniteNumber(raw.highConfidenceThreshold, 'exitLogic.tieredExit.highConfidenceThreshold'),
-    highConfidenceMultiplier: requireFiniteNumber(raw.highConfidenceMultiplier, 'exitLogic.tieredExit.highConfidenceMultiplier'),
-    lowConfidenceThreshold: requireFiniteNumber(raw.lowConfidenceThreshold, 'exitLogic.tieredExit.lowConfidenceThreshold'),
-    lowConfidenceMultiplier: requireFiniteNumber(raw.lowConfidenceMultiplier, 'exitLogic.tieredExit.lowConfidenceMultiplier'),
+    enabled: requireBoolean(raw.enabled, 'exitContract.profitManagement.tieredExit.enabled'),
+    enableMarketAdaptation: requireBoolean(raw.enableMarketAdaptation, 'exitContract.profitManagement.tieredExit.enableMarketAdaptation'),
+    trendingTargetMultiplier: requireFiniteNumber(raw.trendingTargetMultiplier, 'exitContract.profitManagement.tieredExit.trendingTargetMultiplier'),
+    rangingTargetMultiplier: requireFiniteNumber(raw.rangingTargetMultiplier, 'exitContract.profitManagement.tieredExit.rangingTargetMultiplier'),
+    highConfidenceThreshold: requireFiniteNumber(raw.highConfidenceThreshold, 'exitContract.profitManagement.tieredExit.highConfidenceThreshold'),
+    highConfidenceMultiplier: requireFiniteNumber(raw.highConfidenceMultiplier, 'exitContract.profitManagement.tieredExit.highConfidenceMultiplier'),
+    lowConfidenceThreshold: requireFiniteNumber(raw.lowConfidenceThreshold, 'exitContract.profitManagement.tieredExit.lowConfidenceThreshold'),
+    lowConfidenceMultiplier: requireFiniteNumber(raw.lowConfidenceMultiplier, 'exitContract.profitManagement.tieredExit.lowConfidenceMultiplier'),
     allocationBasis: 'open_tier_weight',
     adjustment,
     tiers: [
       {
         name: 'tier1',
-        targetProfitMove: adjustedTarget(targets.tier1, adjustment, 'exits.profitTiers.tier1'),
-        baseTargetProfitMove: requireFiniteNumber(targets.tier1, 'exits.profitTiers.tier1'),
-        exitFraction: requireFraction(raw.tier1ExitFraction, 'exitLogic.tieredExit.tier1ExitFraction'),
+        targetProfitMove: adjustedTarget(targets.tier1, adjustment, 'exitContract.profitManagement.tieredExit.profitTiers.tier1'),
+        baseTargetProfitMove: requireFiniteNumber(targets.tier1, 'exitContract.profitManagement.tieredExit.profitTiers.tier1'),
+        exitFraction: requireFraction(raw.tier1ExitFraction, 'exitContract.profitManagement.tieredExit.tier1ExitFraction'),
       },
       {
         name: 'tier2',
-        targetProfitMove: adjustedTarget(targets.tier2, adjustment, 'exits.profitTiers.tier2'),
-        baseTargetProfitMove: requireFiniteNumber(targets.tier2, 'exits.profitTiers.tier2'),
-        exitFraction: requireFraction(raw.tier2ExitFraction, 'exitLogic.tieredExit.tier2ExitFraction'),
+        targetProfitMove: adjustedTarget(targets.tier2, adjustment, 'exitContract.profitManagement.tieredExit.profitTiers.tier2'),
+        baseTargetProfitMove: requireFiniteNumber(targets.tier2, 'exitContract.profitManagement.tieredExit.profitTiers.tier2'),
+        exitFraction: requireFraction(raw.tier2ExitFraction, 'exitContract.profitManagement.tieredExit.tier2ExitFraction'),
       },
       {
         name: 'tier3',
-        targetProfitMove: adjustedTarget(targets.tier3, adjustment, 'exits.profitTiers.tier3'),
-        baseTargetProfitMove: requireFiniteNumber(targets.tier3, 'exits.profitTiers.tier3'),
-        exitFraction: requireFraction(raw.tier3ExitFraction, 'exitLogic.tieredExit.tier3ExitFraction'),
+        targetProfitMove: adjustedTarget(targets.tier3, adjustment, 'exitContract.profitManagement.tieredExit.profitTiers.tier3'),
+        baseTargetProfitMove: requireFiniteNumber(targets.tier3, 'exitContract.profitManagement.tieredExit.profitTiers.tier3'),
+        exitFraction: requireFraction(raw.tier3ExitFraction, 'exitContract.profitManagement.tieredExit.tier3ExitFraction'),
       },
       {
         name: 'final',
-        targetProfitMove: adjustedTarget(targets.final, adjustment, 'exits.profitTiers.final'),
-        baseTargetProfitMove: requireFiniteNumber(targets.final, 'exits.profitTiers.final'),
+        targetProfitMove: adjustedTarget(targets.final, adjustment, 'exitContract.profitManagement.tieredExit.profitTiers.final'),
+        baseTargetProfitMove: requireFiniteNumber(targets.final, 'exitContract.profitManagement.tieredExit.profitTiers.final'),
         exitFraction: finalExitFraction,
       },
     ],
@@ -576,11 +540,12 @@ function buildForTrade(options = {}) {
     throw new Error('[PolicyBuilder] configReader.get must be a function');
   }
 
-  const rawBeScaleOut = readConfigGroup(configReader, CONFIG_PATHS.beScaleOut);
-  const rawBreakEvenStop = readConfigGroup(configReader, CONFIG_PATHS.breakEvenStop);
-  const rawTieredExit = readConfigGroup(configReader, CONFIG_PATHS.tieredExit);
-  const rawVolatilityAdjustment = readConfigGroup(configReader, CONFIG_PATHS.volatilityAdjustment);
-  const rawProfitTargets = readConfigGroup(configReader, CONFIG_PATHS.profitTargets);
+  const rawProfitManagement = exitContract.profitManagement;
+  const rawBeScaleOut = rawProfitManagement.beScaleOut;
+  const rawBreakEvenStop = rawProfitManagement.breakEvenStop;
+  const rawTieredExit = rawProfitManagement.tieredExit;
+  const rawVolatilityAdjustment = rawProfitManagement.volatilityAdjustment;
+  const rawProfitTargets = rawTieredExit.profitTiers;
   const rawFees = readConfigGroup(configReader, CONFIG_PATHS.fees);
   const volatilityAdjustment = normalizeVolatilityAdjustment(rawVolatilityAdjustment, volatility);
 
@@ -594,7 +559,7 @@ function buildForTrade(options = {}) {
     profitManagement: {
       beScaleOut: normalizeBeScaleOut(rawBeScaleOut),
       breakEvenStop: normalizeBreakEvenStop(rawBreakEvenStop),
-      trail: configReader.get('exitLogic.trail'),
+      trail: rawProfitManagement.trail,
       tieredExit: normalizeTieredExit(rawTieredExit, rawProfitTargets, volatilityAdjustment, confidence, marketCondition),
     },
     fees: normalizeFees(rawFees),

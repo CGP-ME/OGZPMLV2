@@ -497,11 +497,13 @@ function generateMatrix(strategies, grid, phase, candleTimeframe) {
                 ...buildBacktestOverrides(strat, sl, conf, paramCombo.overrides, globalCombo.overrides),
               };
 
-              // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
+              // A tier sweep explicitly enables the selected strategy's optional tiers.
               if (tiers) {
-                overrides['exits.profitTiers.tier1'] = tiers.t1;
-                overrides['exits.profitTiers.tier2'] = tiers.t2;
-                overrides['exits.profitTiers.tier3'] = tiers.t3;
+                const tierPath = `exitContracts.${strat}.profitManagement.tieredExit`;
+                overrides[`${tierPath}.enabled`] = true;
+                overrides[`${tierPath}.profitTiers.tier1`] = tiers.t1;
+                overrides[`${tierPath}.profitTiers.tier2`] = tiers.t2;
+                overrides[`${tierPath}.profitTiers.tier3`] = tiers.t3;
               }
 
               configs.push({

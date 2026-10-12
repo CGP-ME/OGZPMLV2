@@ -13,6 +13,7 @@ describe('ProfitExitPlanner', () => {
       strategyName: 'EMASMACrossover',
       stopLossPercent: -1,
       takeProfitPercent: 3,
+      tpMode: 'off',
       trailingStopPercent: 0.5,
       trailingActivation: 1,
       maxHoldTimeMinutes: 300,

@@ -157,7 +157,10 @@ describe('FeeModel', () => {
     expect(maxHold.check(trade, 31, 1.49).exitReason).toBe('max_hold_loser');
     expect(maxHold.check(trade, 31, 1.51).exitReason).toBe('max_hold_winner');
 
-    const trailing = new DynamicTrailingStop({ minActivation: 1.5 });
+    const trailing = new DynamicTrailingStop(
+      ConfigLoader.get('exitContracts.RSI.profitManagement.trail'),
+      { minActivation: 1.5 }
+    );
     const trailResult = trailing.check(trade, 1.4, { atr: 0.1, price: 100 });
     expect(trailResult.shouldExit).toBe(true);
     expect(trailResult.meta.trailStopLevel).toBeCloseTo(1.5);

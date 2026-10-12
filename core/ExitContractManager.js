@@ -108,8 +108,8 @@ function normalizeTimeframeValue(value) {
 }
 
 function cloneExitContract(contract) {
-  const { timeframes, ...runtimeContract } = contract || {};
-  return { ...runtimeContract };
+  const { timeframes, profitManagement, ...runtimeContract } = contract || {};
+  return { ...runtimeContract, profitManagement: structuredClone(profitManagement) };
 }
 
 function resolveTimeframeContract(contract, timeframe) {
@@ -152,6 +152,7 @@ const EXIT_CONTRACT_VALUE_FIELDS = [
   'donchianChannelLower',
   'tsmLookback',
   'tsmEntryTrailingReturn',
+  'profitManagement',
 ];
 
 function readRuntimeContractValue(path) {
@@ -1043,9 +1044,7 @@ class ExitContractManager {
     // FIX 2026-03-19: Extracted hardcoded values to ConfigLoader
     // EXIT-MED-02: ?? preserves intentional zero on these thresholds (e.g.,
     // a 0 volSlMult means "no vol-based SL widening"). || coerced 0 to default.
-    const volThreshold = ConfigLoader.get('exits.volatilityThreshold');
-    const volSlMult = ConfigLoader.get('exits.volatilitySlMultiplier');
-    const volTpMult = ConfigLoader.get('exits.volatilityTpMultiplier');
+    const { threshold: volThreshold, stopMultiplier: volSlMult, targetMultiplier: volTpMult } = contract.profitManagement.contractVolatilityAdjustment;
     if (context.volatility && context.volatility > volThreshold) {
       // High volatility - widen stops
       if (Number.isFinite(Number(contract.stopLossPercent))) {

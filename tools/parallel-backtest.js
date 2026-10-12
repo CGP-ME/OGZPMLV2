@@ -254,7 +254,7 @@ function generateGauntlet(paramType, values) {
 // TYPED OVERRIDE AUDIT
 // ═══════════════════════════════════════════════════════════════
 // HONORED: filters.atrEnabled, filters.atrMinPercent,
-//          positionSizing.maxPositionSize, exits.profitTiers.tier1/2/3.
+//          positionSizing.maxPositionSize, strategy-owned profit-management tiers.
 // HONORED STRATEGY-OWNED EXIT GEOMETRY: canonical nested strategies.* leaves
 //          exposed by --exit-geometry.
 // REJECTED: generic stop/target/trail controls outside strategy exitContracts

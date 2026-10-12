@@ -1,0 +1,40 @@
+{
+  "title": "Make profit management strategy-owned and apply initial exit candidates",
+  "base": "827743228b3c2a9cc936029132a63f1f1dc88451",
+  "candidate": "0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e",
+  "files": [
+    "config/settings.json",
+    "core/ExitContractManager.js",
+    "core/PolicyBuilder.js",
+    "core/OrderExecutor.js",
+    "foundation/ConfigLoader.js",
+    "config/internals.json",
+    "tools/parallel-backtest.js",
+    "tools/backtest-worker-env.js",
+    "tools/matrix-sweep.js",
+    "core/exit/DynamicTrailingStop.js",
+    "public/js/panels/configuration-settings.js",
+    "core/RuntimeConfigProof.js",
+    "test/runtime-config-proof.test.js",
+    "test/policy-builder.test.js",
+    "test/exit-contract-manager-ownership.test.js",
+    "test/fee-model.test.js",
+    "test/profit-exit-planner.test.js",
+    "test/trading-config-profile.test.js",
+    "test/config-loader-live-guard.test.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 d4d3bbb9 b8158efb M\tCHANGELOG.md\n:100644 100644 33dfd3f4 87bb1549 M\tconfig/internals.json\n:100644 100644 50ca6fb7 5cd7d434 M\tconfig/settings.json\n:100644 100644 2014a5d3 c1e218de M\tcore/ExitContractManager.js\n:100644 100644 f75c08c3 b301adcb M\tcore/OrderExecutor.js\n:100644 100644 d6de2df2 5c9a2a6f M\tcore/PolicyBuilder.js\n:100644 100644 97da4e2e 2177efef M\tcore/RuntimeConfigProof.js\n:100644 100644 cc08cc1b 97a1b85d M\tcore/exit/DynamicTrailingStop.js\n:100644 100644 296f5622 bf107394 M\tfoundation/ConfigLoader.js\n:100644 100644 fcd20a38 ac671c01 M\tpublic/js/panels/configuration-settings.js\n:100644 100644 84bca1aa a3843c5c M\ttest/config-loader-live-guard.test.js\n:100644 100644 094d6880 bdbcda32 M\ttest/exit-contract-manager-ownership.test.js\n:100644 100644 33035aae 509f6518 M\ttest/fee-model.test.js\n:100644 100644 3efd6a2d 5ed3f80b M\ttest/policy-builder.test.js\n:100644 100644 65f80a79 851beb8f M\ttest/profit-exit-planner.test.js\n:100644 100644 1344da19 a0035f06 M\ttest/runtime-config-proof.test.js\n:100644 100644 345f1537 1f29388c M\ttest/trading-config-profile.test.js\n:100644 100644 def0c918 7e20694c M\ttools/backtest-worker-env.js\n:100644 100644 b264d04c adf2373d M\ttools/matrix-sweep.js\n:100644 100644 83f51b36 0a304dfc M\ttools/parallel-backtest.js",
+  "runtimeActivation": false,
+  "reviewAnswerFormatting": {
+    "raw": "recheck-review-answer.txt",
+    "normalized": "review-answer.txt",
+    "operation": "Remove Markdown bold markers surrounding heading labels only; verdict text unchanged."
+  },
+  "reviewConfiguration": "review-capacity-receipt.json",
+  "documentationFinalizedAfterReview": true,
+  "finalReview": {
+    "answer": "review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

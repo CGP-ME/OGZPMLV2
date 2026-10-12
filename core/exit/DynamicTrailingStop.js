@@ -17,8 +17,8 @@
  * 4. NEVER activates below fees — minimum exit must clear 0.65% round trip
  * 5. RATCHETS — trail only tightens, never widens after tightening
  *
- * Configuration is owned by ConfigLoader and may be overridden explicitly by
- * the constructor for an isolated backtest instance.
+ * The caller supplies the selected strategy's trailing policy. Explicit
+ * constructor overrides are supported for isolated backtest instances.
  *
  * @module core/exit/DynamicTrailingStop
  * @author Claude (Opus) for Trey / OGZPrime
@@ -28,12 +28,10 @@
 'use strict';
 
 const FeeModel = require('../FeeModel');
-const ConfigLoader = require('../../foundation/ConfigLoader');
 
 class DynamicTrailingStop {
-  constructor(config = {}) {
+  constructor(trailConfig, config = {}) {
     const hasExplicitFeeBuffer = Object.prototype.hasOwnProperty.call(config, 'feeBuffer');
-    const trailConfig = ConfigLoader.get('exitLogic.trail');
     // Base configuration — explicit constructor values override the canonical exit policy.
     this.config = {
       // ATR-based trail distance: trail = ATR * multiplier

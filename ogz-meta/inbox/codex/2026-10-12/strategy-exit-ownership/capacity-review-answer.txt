@@ -1,0 +1,29 @@
+VERDICT: found_break
+
+ADVERSARIAL_REVIEW_BLOCKING: yes
+
+CANDIDATE SET: examined 7 of 7
+- claim‑ffbce6953abfdf7506932ab9 (missing top‑level “exits” config) – examined, not a runtime break (only a diagnostic test failure).
+- claim‑469d3f08c3b0ee517f9644c0 (absent fields in trailConfig may cause NaN) – examined, not a break (code guards against NaN).
+- claim‑d4f2795db0ec03f732ed3954 (cloneExitContract may throw if profitManagement undefined) – examined, confirmed break.
+- claim‑4377715190f00c756d22d4a4 (profitManagement field null‑dereference risk) – examined, confirmed break (same root cause).
+- claim‑84f062c9d98de4ea95cc9601 (null return of _entryProfitDistanceDecimal) – examined, safe (caller checks for null).
+- claim‑de22c7a22360276369700eae (missing CONFIG_PATHS entries for profit‑management) – examined, confirmed break (readConfigGroup will receive undefined).
+- claim‑d060b5984a79ac00705c272c (missing full source) – placeholder, not a functional claim.
+
+AST EVIDENCE:
+- `core/ExitContractManager.js` lines 110‑112 show `cloneExitContract` using `structuredClone(profitManagement)` which throws when `profitManagement` is `undefined`【open_file†L110-L112】.
+- `core/ExitContractManager.js` line 116 calls `cloneExitContract(contract)` without checking `profitManagement` existence, so a contract lacking this field triggers the exception【open_file†L116-L117】.
+- `core/PolicyBuilder.js` defines `CONFIG_PATHS` without any profit‑management entries【open_file†L16-L27】, while later code (not shown) expects paths like `profitManagement.xxx`. This omission leads to undefined arguments to `ConfigLoader.get`/`readConfigGroup` and a runtime error.
+- `core/OrderExecutor.js` checks `profitDistance !== null` before using it【open_file†L2253-L2255】, so the null return of `_entryProfitDistanceDecimal` is safely handled.
+- `tuning/pipeline-diagnostic.js` attempts to read `exits` config and fails the diagnostic if missing, but does not cause a runtime exception【open_file†L45-L46】【open_file†L129-L130】.
+
+WHAT I DID: examined each claim using `open_file` and `grep` to locate relevant code, verified existence and handling of the referenced symbols, and identified concrete runtime failures.
+
+WHAT I DID NOT DO: execute any code, modify source, or infer behavior beyond the inspected files.
+
+WHAT I ASSUMED: the repository state provided (ref 0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e) is the current working version.
+
+WHY THIS VERDICT: two independent code paths (cloneExitContract in ExitContractManager and missing CONFIG_PATHS entries in PolicyBuilder) will raise uncaught exceptions or undefined‑argument errors at runtime, constituting a break in the fix.
+
+IF INCOMPLETE, WHY: none – all candidate claims have been examined and the breaks are fully supported by source evidence.

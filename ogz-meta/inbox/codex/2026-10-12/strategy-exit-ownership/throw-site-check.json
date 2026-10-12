@@ -1,0 +1,57 @@
+{
+  "candidate": "0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e",
+  "base": "827743228b3c2a9cc936029132a63f1f1dc88451",
+  "rows": [
+    {
+      "file": "core/ExitContractManager.js",
+      "before": 3,
+      "after": 3
+    },
+    {
+      "file": "core/PolicyBuilder.js",
+      "before": 19,
+      "after": 19
+    },
+    {
+      "file": "core/OrderExecutor.js",
+      "before": 66,
+      "after": 65
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "before": 86,
+      "after": 86
+    },
+    {
+      "file": "tools/parallel-backtest.js",
+      "before": 4,
+      "after": 4
+    },
+    {
+      "file": "tools/backtest-worker-env.js",
+      "before": 18,
+      "after": 18
+    },
+    {
+      "file": "tools/matrix-sweep.js",
+      "before": 13,
+      "after": 13
+    },
+    {
+      "file": "core/exit/DynamicTrailingStop.js",
+      "before": 0,
+      "after": 0
+    },
+    {
+      "file": "public/js/panels/configuration-settings.js",
+      "before": 0,
+      "after": 0
+    },
+    {
+      "file": "core/RuntimeConfigProof.js",
+      "before": 3,
+      "after": 3
+    }
+  ],
+  "note": "AST throw-statement counts support the scoped review; they do not alone prove all behavior."
+}

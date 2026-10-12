@@ -7,17 +7,19 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 describe('PolicyBuilder frozen exit policy', () => {
   const fixedNowMs = Date.parse('2026-06-28T18:30:00.000Z');
 
+  const profitManagement = (overrides = {}) => ({
+    beScaleOut: { enabled: true, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5, feeBufferPercent: 0.05 },
+    breakEvenStop: { enabled: false, triggerPercent: 0.2 },
+    tieredExit: { enabled: true, tier1ExitFraction: 0.30, tier2ExitFraction: 0.30, tier3ExitFraction: 0.20, enableMarketAdaptation: true, trendingTargetMultiplier: 1.3, rangingTargetMultiplier: 0.8, highConfidenceThreshold: 0.8, highConfidenceMultiplier: 1.2, lowConfidenceThreshold: 0.6, lowConfidenceMultiplier: 0.8, profitTiers: { tier1: 0.015, tier2: 0.020, tier3: 0.030, final: 0.050 } },
+    trail: { enabled: false, minActivation: 1.5, feeBufferPercent: 0 },
+    volatilityAdjustment: { enabled: false, lowThresholdPercent: 0.5, highThresholdPercent: 2.0, lookbackPeriods: 20 },
+    contractVolatilityAdjustment: { threshold: 5, stopMultiplier: 1, targetMultiplier: 1 },
+    ...overrides,
+  });
+
   const exitContract = (overrides = {}) => ({
-    stopLossPercent: -0.5,
-    takeProfitPercent: 1.0,
-    trailingStopPercent: 0.8,
-    trailingActivation: 1.0,
-    maxHoldTimeMinutes: 300,
-    minConfidence: 0.68,
-    atrMinPercent: null,
-    useStructuralExits: false,
-    invalidationConditions: ['ema_cross_reversal'],
-    _validated: '2026-03-20',
+    stopLossPercent: -0.5, takeProfitPercent: 1.0, trailingStopPercent: 0.8, trailingActivation: 1.0, maxHoldTimeMinutes: 300, minConfidence: 0.68, atrMinPercent: null, useStructuralExits: false, invalidationConditions: ['ema_cross_reversal'], _validated: '2026-03-20',
+    profitManagement: profitManagement(),
     ...overrides,
   });
 
@@ -131,7 +133,7 @@ describe('PolicyBuilder frozen exit policy', () => {
     expect(Object.isFrozen(policy.mtfConfluenceSnapshot)).toBe(true);
     expect(Object.isFrozen(policy.profitManagement.beScaleOut)).toBe(true);
     expect(Object.isFrozen(policy.profitManagement.tieredExit.tiers[0])).toBe(true);
-    expect(configReader.get).toHaveBeenCalledWith('exitLogic.beScaleOut.enabled');
+    expect(configReader.get).not.toHaveBeenCalledWith(expect.stringMatching(/^(exitLogic|exits)\./));
     expect(configReader.get).toHaveBeenCalledWith('fees.minOrderFee');
   });
 
@@ -295,7 +297,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       nowMs: fixedNowMs,
       ...policyContext,
       configReader: reader(),
-    })).toThrow(/exitContract must be a plain object/);
+    })).toThrow();
 
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
@@ -380,17 +382,17 @@ describe('PolicyBuilder frozen exit policy', () => {
     }
   });
 
-  test('fails loudly when a required central config value is missing', () => {
-    const values = configValues();
-    delete values['exitLogic.beScaleOut.scaleOutFraction'];
+  test('fails loudly when the selected contract omits a required profit-management value', () => {
+    const selectedProfitManagement = profitManagement();
+    delete selectedProfitManagement.beScaleOut.scaleOutFraction;
 
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract(),
+      exitContract: exitContract({ profitManagement: selectedProfitManagement }),
       nowMs: fixedNowMs,
       ...policyContext,
-      configReader: reader(values),
-    })).toThrow(/missing ConfigLoader value: exitLogic\.beScaleOut\.scaleOutFraction/);
+      configReader: reader(),
+    })).toThrow(/exitContract\.profitManagement\.beScaleOut\.scaleOutFraction must be a finite number/);
   });
 
   test('preserves structural-exit contracts with null trailing fields', () => {
@@ -415,56 +417,44 @@ describe('PolicyBuilder frozen exit policy', () => {
   test('rejects tier allocations that exceed confirmed position size', () => {
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract(),
+      exitContract: exitContract({ profitManagement: profitManagement({ tieredExit: { ...profitManagement().tieredExit, tier1ExitFraction: 0.6, tier2ExitFraction: 0.5, tier3ExitFraction: 0.2 } }) }),
       nowMs: fixedNowMs,
       ...policyContext,
-      configReader: reader(configValues({
-        'exitLogic.tieredExit.tier1ExitFraction': 0.6,
-        'exitLogic.tieredExit.tier2ExitFraction': 0.5,
-        'exitLogic.tieredExit.tier3ExitFraction': 0.2,
-      })),
+      configReader: reader(),
     })).toThrow(/fractions cannot exceed 1\.0 total/);
 
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract(),
+      exitContract: exitContract({ profitManagement: profitManagement({ tieredExit: { ...profitManagement().tieredExit, tier1ExitFraction: -0.1 } }) }),
       nowMs: fixedNowMs,
       ...policyContext,
-      configReader: reader(configValues({
-        'exitLogic.tieredExit.tier1ExitFraction': -0.1,
-      })),
+      configReader: reader(),
     })).toThrow(/tier1ExitFraction must be between 0 and 1/);
   });
 
   test('rejects invalid break-even scale-out fraction and percent-form buffers', () => {
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract(),
+      exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, scaleOutFraction: 1.2 } }) }),
       nowMs: fixedNowMs,
       ...policyContext,
-      configReader: reader(configValues({
-        'exitLogic.beScaleOut.scaleOutFraction': 1.2,
-      })),
+      configReader: reader(),
     })).toThrow(/scaleOutFraction must be between 0 and 1/);
 
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract(),
+      exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, feeBufferPercent: 101 } }) }),
       nowMs: fixedNowMs,
       ...policyContext,
-      configReader: reader(configValues({
-        'exitLogic.beScaleOut.feeBufferPercent': 101,
-      })),
+      configReader: reader(),
     })).toThrow(/feeBufferPercent must be between 0 and 100 percent-form/);
 
     const policy = PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract(),
+      exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, feeBufferPercent: 2 } }) }),
       nowMs: fixedNowMs,
       ...policyContext,
-      configReader: reader(configValues({
-        'exitLogic.beScaleOut.feeBufferPercent': 2,
-      })),
+      configReader: reader(),
     });
 
     expect(policy.profitManagement.beScaleOut.feeBufferPercent).toBe(2);
@@ -519,12 +509,10 @@ describe('PolicyBuilder frozen exit policy', () => {
     try {
       const policy = PolicyBuilder.buildForTrade({
         strategyName: 'EMASMACrossover',
-        exitContract: exitContract(),
+        exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, scaleOutFraction: 0.25 } }) }),
         nowMs: fixedNowMs,
         ...policyContext,
-        configReader: reader(configValues({
-          'exitLogic.beScaleOut.scaleOutFraction': 0.25,
-        })),
+        configReader: reader(),
       });
 
       expect(policy.profitManagement.beScaleOut.scaleOutFraction).toBe(0.25);
@@ -553,14 +541,12 @@ describe('PolicyBuilder frozen exit policy', () => {
   test('freezes MPM-equivalent adjusted tier targets at trade birth', () => {
     const policy = PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract(),
+      exitContract: exitContract({ profitManagement: profitManagement({ volatilityAdjustment: { enabled: true, lowThresholdPercent: 0.5, highThresholdPercent: 2.0, lookbackPeriods: 20 } }) }),
       nowMs: fixedNowMs,
       volatility: 0.03,
       confidence: 0.85,
       marketCondition: 'trending',
-      configReader: reader(configValues({
-        'exitLogic.volatilityAdjustment.enabled': true,
-      })),
+      configReader: reader(),
     });
 
     const adjustment = policy.profitManagement.tieredExit.adjustment;

@@ -1100,23 +1100,128 @@
           "config/settings.json:tuningProfiles.definitions.current-eval",
           "foundation/ConfigLoader.js buildTuningProfileOverrides"
         ],
-      "overrides": {
+        "overrides": {
           "features.enableDynamicSizing": true,
           "positionSizing.basePositionSize": 0.01,
           "positionSizing.maxPositionSize": 0.05,
           "entryLogic.sizing.absoluteCapPercent": 0.15,
-          "exits.profitTiers.tier1": 0.007,
-          "exits.profitTiers.tier2": 0.01,
-          "exits.profitTiers.tier3": 0.015,
-          "exits.profitTiers.final": 0.025,
-          "exitLogic.tieredExit.tier1ExitFraction": 0.3,
-          "exitLogic.tieredExit.tier2ExitFraction": 0.3,
-          "exitLogic.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.RSI.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.RSI.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.RSI.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier3ExitFraction": 0.2,
           "filters.atrEnabled": true,
           "filters.atrMinPercent": 0.15,
-        "fees.slippage": 0.0005
-      }
-    },
+          "fees.slippage": 0.0005
+        }
+      },
     "backtest-masr": {
       "name": "backtest-masr",
       "launchProfile": "backtest-masr",
@@ -1159,13 +1264,118 @@
           "entryLogic.sizing.stockShareRange.maxNotionalUsd": 5000,
           "entryLogic.sizing.stockShareRange.consistencyCapBuffer": 0.98,
           "entryLogic.sizing.stockShareRange.dailyLossRiskFraction": 1,
-          "exits.profitTiers.tier1": 0.007,
-          "exits.profitTiers.tier2": 0.01,
-          "exits.profitTiers.tier3": 0.015,
-          "exits.profitTiers.final": 0.025,
-          "exitLogic.tieredExit.tier1ExitFraction": 0.3,
-          "exitLogic.tieredExit.tier2ExitFraction": 0.3,
-          "exitLogic.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier1": 0.007,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier2": 0.01,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier3": 0.015,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.final": 0.025,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.RSI.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.RSI.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.RSI.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier3ExitFraction": 0.2,
           "filters.atrEnabled": true,
           "filters.atrMinPercent": 0.4,
           "fees.model": "per_share_minimum",
@@ -1202,9 +1412,54 @@
           "strategyBehavior.atrContracts.stopMultiplier": 2,
           "strategyBehavior.atrContracts.trailMultiplier": 2,
           "strategyBehavior.atrContracts.trailingActivationR": 1,
-          "exitLogic.beScaleOut.enabled": true,
-          "exitLogic.beScaleOut.scaleOutFraction": 0.25,
-          "exitLogic.tieredExit.enabled": false,
+          "exitContracts.EMASMACrossover.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.LiquiditySweep.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.BreakRetest.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.RSI.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.MADynamicSR.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.CandlePattern.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.MarketRegime.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.OGZTPO.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.OpeningRangeBreakout.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.SmartMoneySweep.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.DonchianBreakout.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.PropSafeEMAPullback.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.EMATrendRetest.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.RSI2MeanReversion.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.NoWickImbalance.profitManagement.beScaleOut.enabled": true,
+          "exitContracts.EMASMACrossover.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.LiquiditySweep.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.BreakRetest.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.RSI.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.MADynamicSR.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.CandlePattern.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.MarketRegime.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.OGZTPO.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.OpeningRangeBreakout.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.SmartMoneySweep.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.DonchianBreakout.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.PropSafeEMAPullback.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.EMATrendRetest.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.RSI2MeanReversion.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.NoWickImbalance.profitManagement.beScaleOut.scaleOutFraction": 0.25,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.enabled": false,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.enabled": false,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.enabled": false,
+          "exitContracts.RSI.profitManagement.tieredExit.enabled": false,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.enabled": false,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.enabled": false,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.enabled": false,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.enabled": false,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.enabled": false,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.enabled": false,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.enabled": false,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.enabled": false,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.enabled": false,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.enabled": false,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.enabled": false,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.enabled": false,
           "filters.atrEnabled": true,
           "filters.atrMinPercent": 0.4,
           "fees.model": "per_share_minimum",
@@ -1226,13 +1481,118 @@
           "positionSizing.basePositionSize": 0.01,
           "positionSizing.maxPositionSize": 0.05,
           "entryLogic.sizing.absoluteCapPercent": 0.15,
-          "exits.profitTiers.tier1": 0.02,
-          "exits.profitTiers.tier2": 0.04,
-          "exits.profitTiers.tier3": 0.06,
-          "exits.profitTiers.final": 0.1,
-          "exitLogic.tieredExit.tier1ExitFraction": 0.3,
-          "exitLogic.tieredExit.tier2ExitFraction": 0.3,
-          "exitLogic.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier1": 0.02,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier2": 0.04,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.tier3": 0.06,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.RSI.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.profitTiers.final": 0.1,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.RSI.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier1ExitFraction": 0.3,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.RSI.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier2ExitFraction": 0.3,
+          "exitContracts.EMASMACrossover.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.LiquiditySweep.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.BreakRetest.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.RSI.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.MADynamicSR.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.CandlePattern.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.MarketRegime.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.OGZTPO.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.OpeningRangeBreakout.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.SmartMoneySweep.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.DonchianBreakout.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.PropSafeEMAPullback.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.EMATrendRetest.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.RSI2MeanReversion.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.TimeSeriesMomentum.profitManagement.tieredExit.tier3ExitFraction": 0.2,
+          "exitContracts.NoWickImbalance.profitManagement.tieredExit.tier3ExitFraction": 0.2,
           "fees.slippage": 0.0005
         }
       }
@@ -1407,19 +1767,67 @@
     "trailIntegralMax": 2,
     "trailRateLimit": 0.1
   },
-  "exits": {
-    "profitTiers": {
-      "tier1": 0.007,
-      "tier2": 0.01,
-      "tier3": 0.015,
-      "final": 0.025
-    },
-    "volatilityThreshold": 5,
-    "volatilitySlMultiplier": 1.15,
-    "volatilityTpMultiplier": 1.2
-  },
   "exitContracts": {
     "EMASMACrossover": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -0.5,
       "takeProfitPercent": 1,
       "trailingStopPercent": 0.8,
@@ -1444,6 +1852,65 @@
       "_validated": "2026-03-20"
     },
     "LiquiditySweep": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
       "trailingStopPercent": 0.5,
@@ -1468,6 +1935,65 @@
       "_validated": "2026-03-20"
     },
     "BreakRetest": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
       "trailingStopPercent": 0.6,
@@ -1494,6 +2020,65 @@
       "_validated": null
     },
     "RSI": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -0.8,
       "takeProfitPercent": 1,
       "trailingStopPercent": 0.6,
@@ -1516,6 +2101,65 @@
       "_validated": "2026-03-20"
     },
     "MADynamicSR": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -0.8,
       "takeProfitPercent": 1,
       "trailingStopPercent": 0.5,
@@ -1540,6 +2184,65 @@
       "_validated": "2026-03-20"
     },
     "CandlePattern": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -0.8,
       "takeProfitPercent": 1,
       "trailingStopPercent": 0.5,
@@ -1563,6 +2266,65 @@
       ]
     },
     "MarketRegime": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -0.8,
       "takeProfitPercent": 1,
       "trailingStopPercent": 0.6,
@@ -1586,6 +2348,65 @@
       ]
     },
     "OGZTPO": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
       "trailingStopPercent": 0.6,
@@ -1607,6 +2428,65 @@
       "invalidationConditions": []
     },
     "OpeningRangeBreakout": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
       "trailingStopPercent": 0.6,
@@ -1633,6 +2513,65 @@
       "targetRR": 2
     },
     "SmartMoneySweep": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -0.3,
       "takeProfitPercent": 1.5,
       "trailingStopPercent": 0.5,
@@ -1656,6 +2595,65 @@
       ]
     },
     "DonchianBreakout": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -2.5,
       "atrStopMult": 2.5,
       "takeProfitPercent": null,
@@ -1680,12 +2678,71 @@
       "_validated": null
     },
     "PropSafeEMAPullback": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -1.1,
       "takeProfitPercent": 3.3,
       "trailingStopPercent": 1.1,
       "trailingActivation": 1.65,
       "maxHoldTimeMinutes": 240,
-      "atrStopMult": 1.1,
+      "atrStopMult": 1.5,
       "targetRR": 3,
       "trailActivationR": 1.5,
       "trailDistanceR": 1,
@@ -1708,12 +2765,71 @@
       "_validated": null
     },
     "EMATrendRetest": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -1,
       "takeProfitPercent": 3,
       "trailingStopPercent": 1,
       "trailingActivation": 1.5,
       "maxHoldTimeMinutes": 240,
-      "atrStopMult": 1,
+      "atrStopMult": 1.5,
       "targetRR": 3,
       "trailActivationR": 1.5,
       "trailDistanceR": 1,
@@ -1736,6 +2852,65 @@
       "_validated": null
     },
     "RSI2MeanReversion": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -1,
       "takeProfitPercent": 1.5,
       "trailingStopPercent": 0.6,
@@ -1763,6 +2938,65 @@
       "_validated": null
     },
     "TimeSeriesMomentum": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -2,
       "stopType": "atr",
       "atrStopMult": 2,
@@ -1770,7 +3004,7 @@
       "tpAtrMultiple": null,
       "trailingStopPercent": null,
       "trailingActivation": null,
-      "trailAtrMult": 1,
+      "trailAtrMult": 2,
       "trailChannelBars": null,
       "maxHoldTimeMinutes": null,
       "useStructuralExits": false,
@@ -1788,6 +3022,65 @@
       "_validated": null
     },
     "NoWickImbalance": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -1.5,
       "takeProfitPercent": 1.5,
       "trailingStopPercent": null,
@@ -1822,6 +3115,65 @@
       "_validated": null
     },
     "default": {
+      "profitManagement": {
+        "beScaleOut": {
+          "enabled": false,
+          "triggerType": "one_to_one_r",
+          "fixedPercentTrigger": 0.5,
+          "scaleOutFraction": 0.5,
+          "feeBufferPercent": 0.05
+        },
+        "breakEvenStop": {
+          "enabled": false,
+          "triggerPercent": 0.2
+        },
+        "tieredExit": {
+          "enabled": false,
+          "tier1ExitFraction": 0.3,
+          "tier2ExitFraction": 0.3,
+          "tier3ExitFraction": 0.2,
+          "enableMarketAdaptation": true,
+          "trendingTargetMultiplier": 1.3,
+          "rangingTargetMultiplier": 0.8,
+          "highConfidenceThreshold": 0.8,
+          "highConfidenceMultiplier": 1.2,
+          "lowConfidenceThreshold": 0.6,
+          "lowConfidenceMultiplier": 0.8,
+          "profitTiers": {
+            "tier1": 0.007,
+            "tier2": 0.01,
+            "tier3": 0.015,
+            "final": 0.025
+          }
+        },
+        "trail": {
+          "enabled": true,
+          "minActivationPercent": 0.5,
+          "atrMultiplier": 2,
+          "trendWidenMultiplier": 1,
+          "structureTightenMultiplier": 1,
+          "structureDistanceThreshold": 1,
+          "profitRatchetThreshold": 3,
+          "profitRatchetRate": 0,
+          "profitRatchetFloor": 0.6,
+          "minTrailPercent": 0,
+          "maxTrailPercent": 100,
+          "feeBufferPercent": 0.65,
+          "roundNumberProximity": 0.5,
+          "roundNumberTighten": 0.7
+        },
+        "volatilityAdjustment": {
+          "enabled": false,
+          "lowThresholdPercent": 0.5,
+          "highThresholdPercent": 2,
+          "lookbackPeriods": 20
+        },
+        "contractVolatilityAdjustment": {
+          "threshold": 5,
+          "stopMultiplier": 1.15,
+          "targetMultiplier": 1.2
+        }
+      },
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
       "trailingStopPercent": 0.6,
@@ -1850,54 +3202,6 @@
         "addSizingLadder": []
       },
       "invalidationConditions": []
-    }
-  },
-  "exitLogic": {
-    "beScaleOut": {
-      "enabled": true,
-      "triggerType": "one_to_one_r",
-      "fixedPercentTrigger": 0.5,
-      "scaleOutFraction": 0.5,
-      "feeBufferPercent": 0.05
-    },
-    "breakEvenStop": {
-      "enabled": false,
-      "triggerPercent": 0.2
-    },
-    "tieredExit": {
-      "enabled": true,
-      "tier1ExitFraction": 0.3,
-      "tier2ExitFraction": 0.3,
-      "tier3ExitFraction": 0.2,
-      "enableMarketAdaptation": true,
-      "trendingTargetMultiplier": 1.3,
-      "rangingTargetMultiplier": 0.8,
-      "highConfidenceThreshold": 0.8,
-      "highConfidenceMultiplier": 1.2,
-      "lowConfidenceThreshold": 0.6,
-      "lowConfidenceMultiplier": 0.8
-    },
-    "trail": {
-      "enabled": true,
-      "minActivationPercent": 0.5,
-      "atrMultiplier": 2,
-      "trendWidenMultiplier": 1.5,
-      "structureTightenMultiplier": 0.5,
-      "structureDistanceThreshold": 1,
-      "profitRatchetThreshold": 3,
-      "profitRatchetRate": 0.1,
-      "profitRatchetFloor": 0.6,
-      "minTrailPercent": 0.3,
-      "maxTrailPercent": 3,
-      "feeBufferPercent": 0.65,
-      "roundNumberProximity": 0.5,
-      "roundNumberTighten": 0.7
-    },
-    "volatilityAdjustment": {
-      "enabled": false,
-      "lowThresholdPercent": 0.5,
-      "highThresholdPercent": 2,
-      "lookbackPeriods": 20
     }
   },
   "strategyBehavior": {

@@ -1,0 +1,13 @@
+{
+  "initialCandidate": "0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e",
+  "initialRun": "2026-10-12T19-39-52-766Z-70c8f973d7a1",
+  "initialVerdict": "review_incomplete",
+  "initialFailure": "explicit_continuation_indispensable_envelope_exceeds_limit",
+  "requiredRequestBytes": 141838,
+  "previousRequestCapBytes": 98304,
+  "newRequestCapBytes": 196608,
+  "maxOutputTokens": 7750,
+  "iterationLimit": null,
+  "reviewScope": "same full immutable candidate and baseline; original Mercury, break my fix. prompt",
+  "configChange": "private review invocation config only; existing supported request-size setting. No harness implementation, source selection, review rules, validation or production file changed."
+}

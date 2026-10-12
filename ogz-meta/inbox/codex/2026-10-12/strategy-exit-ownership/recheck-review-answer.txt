@@ -1,0 +1,54 @@
+**VERDICT:** no_break_found
+
+**ADVERSARIAL_REVIEW_BLOCKING:** no
+
+**CANDIDATE SET:** examined 7 of 7 relevant files
+- `core/PolicyBuilder.js` – fully examined (lines 1‑574)
+- `foundation/ConfigLoader.js` – examined around descriptor‑override regex (lines 650‑720)
+- `tools/backtest-worker-env.js` – examined (line 206)
+- `tools/matrix-sweep.js` – examined (lines 497‑505)
+- `core/ExitContractManager.js` – examined (lines 111‑112, 742‑861, 1047)
+- `core/StateManager.js` – examined (line 231)
+- `CHANGELOG.md` – examined (relevant fragments)
+
+**AST EVIDENCE:**
+- `core/PolicyBuilder.js` shows a direct read of `exitContract.profitManagement` (line 543) and a single `readConfigGroup` call that uses `CONFIG_PATHS.fees` (line 549).【open_file†L540-L566】
+- `grep` finds **only** three occurrences of `CONFIG_PATHS` in the repository, all within `core/PolicyBuilder.js` (definition, read, export).【grep†L1-L3】
+- `search` for `profitManagement` confirms that all accesses are direct property reads (e.g., `policy?.profitManagement?.tieredExit?.tiers` in `core/StateManager.js`).【search†L1-L1】
+- `foundation/ConfigLoader.js` contains a large regex for override validation that mentions `profitManagement` fields but **does not** reference `CONFIG_PATHS`.【open_file†L666-L673】
+
+**INHERITED:**
+- `core/PolicyBuilder.js` – present, contains the sole `CONFIG_PATHS` reference (lines 16, 549, 571) and direct profit‑management reads (line 543).
+- `foundation/ConfigLoader.js` – present, contains validation regex for profit‑management but no `CONFIG_PATHS` usage.
+- `tools/backtest-worker-env.js` – present, maps `exitContracts` to a new object exposing `profitManagement` (line 206) – no `CONFIG_PATHS`.
+- All other files examined contain no `CONFIG_PATHS` references.
+
+**FOURTH SHAPE CLASSIFIER:** 0 of 0 new throws/gates added in this review.
+
+**ALLEGATIONS:**
+- **MECHANICAL** – the presence/absence of `CONFIG_PATHS` strings is proven by literal `grep` results.
+- **MECHANICAL** – the direct property access `exitContract.profitManagement` is proven by source lines in `PolicyBuilder`.
+
+**SUBSTANTIVE RESOLUTION:** none – the evidence shows no remaining old `CONFIG_PATHS` calls contradicting the claim, and profit‑management is indeed read directly from the contract.
+
+---
+
+**WHAT I DID:**
+- Ran `grep` for `CONFIG_PATHS` across the repo.
+- Opened `core/PolicyBuilder.js` to locate the `readConfigGroup` call and the direct `profitManagement` read.
+- Opened `foundation/ConfigLoader.js` to verify that the only mention of profit‑management is within a validation regex, not a config read.
+- Searched for `profitManagement` usages elsewhere to confirm they are direct property accesses.
+- Enumerated all candidate files and recorded coverage.
+
+**WHAT I DID NOT DO:**
+- Execute any runtime code or tests.
+- Modify any source files.
+
+**WHAT I ASSUMED:**
+- The repository snapshot at ref `0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e` is the authoritative current state.
+
+**WHY THIS VERDICT:**
+All concrete evidence (file line citations) shows that the only `CONFIG_PATHS` usage is the single `readConfigGroup` call for `fees` in `PolicyBuilder`. No other file reads from legacy `CONFIG_PATHS` paths, and profit‑management is accessed directly from `exitContract`. Therefore, there is no remaining old `CONFIG_PATHS` call that contradicts the candidate’s claim.
+
+**IF INCOMPLETE, WHY:**
+Not applicable – the investigation covered every file that could contain `CONFIG_PATHS` or `profitManagement` references, and the evidence is exhaustive for the current repository state.

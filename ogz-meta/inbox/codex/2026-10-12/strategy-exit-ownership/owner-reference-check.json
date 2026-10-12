@@ -1,0 +1,26 @@
+{
+  "candidate": "0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e",
+  "files": [
+    "config/settings.json",
+    "core/ExitContractManager.js",
+    "core/PolicyBuilder.js",
+    "core/OrderExecutor.js",
+    "foundation/ConfigLoader.js",
+    "config/internals.json",
+    "tools/parallel-backtest.js",
+    "tools/backtest-worker-env.js",
+    "tools/matrix-sweep.js",
+    "core/exit/DynamicTrailingStop.js",
+    "public/js/panels/configuration-settings.js",
+    "core/RuntimeConfigProof.js",
+    "test/runtime-config-proof.test.js",
+    "test/policy-builder.test.js",
+    "test/exit-contract-manager-ownership.test.js",
+    "test/fee-model.test.js",
+    "test/profit-exit-planner.test.js",
+    "test/trading-config-profile.test.js",
+    "test/config-loader-live-guard.test.js"
+  ],
+  "retiredOwnerReferencesInChangedProductionFiles": [],
+  "broaderCheck": "rg of candidate core, foundation, tools, public/js and config returned no old exitLogic / exits.profitTiers / exits.volatility / config.exits references. This is scoped source evidence, not whole-repo runtime acceptance."
+}

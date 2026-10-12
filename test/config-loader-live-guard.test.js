@@ -107,10 +107,6 @@ describe('ConfigLoader live trading safety guard', () => {
     const settings = require('../config/settings.json');
     const canonicalPath = {
       'confidence.maxConfidence': 'strategies.RSI.maxConfidence',
-      'exits.stopLossPercent': 'exitContracts.RSI.stopLossPercent',
-      'exits.takeProfitPercent': 'exitContracts.RSI.takeProfitPercent',
-      'exits.trailingStopPercent': 'exitContracts.RSI.trailingStopPercent',
-      'exits.trailingActivation': 'exitContracts.RSI.trailingActivation',
       'pipeline.enableBreakRetest': 'launchProfiles.paper.pipeline.enableBreakRetest',
       'pipeline.enableMarketRegime': 'launchProfiles.paper.pipeline.enableMarketRegime',
       'pipeline.enableOpeningRangeBreakout': 'launchProfiles.paper.pipeline.enableOpeningRangeBreakout',
@@ -137,9 +133,9 @@ describe('ConfigLoader live trading safety guard', () => {
 
     expect(loaded.config.confidence.minStrategyConfidence).toBe(canonicalSettingsValue('confidence.minStrategyConfidence'));
     expect(loaded.config.strategies.RSI.maxConfidence).toBe(canonicalSettingsValue('confidence.maxConfidence'));
-    expect(loaded.config.exitContracts.RSI.stopLossPercent).toBe(canonicalSettingsValue('exits.stopLossPercent'));
-    expect(loaded.config.exitContracts.RSI.takeProfitPercent).toBe(canonicalSettingsValue('exits.takeProfitPercent'));
-    expect(loaded.config.exitContracts.RSI.trailingStopPercent).toBe(canonicalSettingsValue('exits.trailingStopPercent'));
+    expect(loaded.config.exitContracts.RSI.stopLossPercent).toBe(canonicalSettingsValue('exitContracts.RSI.stopLossPercent'));
+    expect(loaded.config.exitContracts.RSI.takeProfitPercent).toBe(canonicalSettingsValue('exitContracts.RSI.takeProfitPercent'));
+    expect(loaded.config.exitContracts.RSI.trailingStopPercent).toBe(canonicalSettingsValue('exitContracts.RSI.trailingStopPercent'));
     expect(loaded.config.pipeline.enableBreakRetest).toBe(canonicalSettingsValue('pipeline.enableBreakRetest'));
     expect(loaded.config.pipeline.enableMarketRegime).toBe(canonicalSettingsValue('pipeline.enableMarketRegime'));
     expect(loaded.config.pipeline.enableOpeningRangeBreakout).toBe(canonicalSettingsValue('pipeline.enableOpeningRangeBreakout'));
@@ -152,7 +148,7 @@ describe('ConfigLoader live trading safety guard', () => {
     ];
     expect(Object.keys(loaded.config.strategies).filter((key) => switchAliases.includes(key))).toEqual([]);
     expect(loaded.config.strategies.OGZTPO).not.toHaveProperty('enabled');
-    expect(loaded.config.exitContracts.RSI.trailingActivation).toBe(canonicalSettingsValue('exits.trailingActivation'));
+    expect(loaded.config.exitContracts.RSI.trailingActivation).toBe(canonicalSettingsValue('exitContracts.RSI.trailingActivation'));
     expect(loaded.config.filters.atrEnabled).toBe(canonicalSettingsValue('filters.atrEnabled'));
     expect(loaded.config.filters.atrMinPercent).toBe(canonicalSettingsValue('filters.atrMinPercent'));
     expect(loaded.config.trai.enabled).toBe(true);
@@ -183,13 +179,17 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.strategyBehavior.emaCrossover.entryEventsOnly).toBe(false);
     expect(loaded.config.strategyBehavior.emaCrossover.warmupBars).toBe(10);
     expect(loaded.config.strategyBehavior.atrContracts.enabled).toBe(true);
-    expect(loaded.config.exitLogic.beScaleOut.scaleOutFraction).toBe(0.25);
-    expect(loaded.config.exitLogic.tieredExit.enabled).toBe(false);
+    for (const strategy of Object.keys(loaded.config.exitContracts).filter((name) => name !== 'default')) {
+      expect(loaded.config.exitContracts[strategy].profitManagement.beScaleOut.scaleOutFraction).toBe(0.25);
+      expect(loaded.config.exitContracts[strategy].profitManagement.tieredExit.enabled).toBe(false);
+    }
     expect(loaded.config.evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff).toBe(30);
     expect(loaded.sources['confidence.minTradeConfidence']).toBe('config:launchProfiles.paper.confidence.minTradeConfidence');
     expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars'])
       .toBe('config:launchProfiles.paper.strategyBehavior.emaCrossover.warmupBars');
-    expect(loaded.sources['exitLogic.tieredExit.enabled']).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
+    for (const strategy of Object.keys(loaded.config.exitContracts).filter((name) => name !== 'default')) {
+      expect(loaded.sources[`exitContracts.${strategy}.profitManagement.tieredExit.enabled`]).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
+    }
     expect(loaded.sources['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toBe('config:launchProfiles.paper.venueGuards.ttp.marketTime.entryBufferMinutesBeforeCutoff');
   });
 
@@ -257,13 +257,15 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => ConfigLoader.setOverrides({
       confidence: { minTradeConfidence: 0.77 },
       fees: { perShare: 0.123 },
-      exits: { profitTiers: { tier1: 0.099 } },
+      exitContracts: { RSI: { profitManagement: { tieredExit: { profitTiers: { tier1: 0.099 } } } } },
     })).toThrow(/attempted to override ConfigLoader-owned path\(s\) after config load/);
 
     expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
     expect(ConfigLoader.get('fees.perShare')).toBe(loaded.config.fees.perShare);
-    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(loaded.config.exits.profitTiers.tier1);
-    expect(ConfigLoader.getSection('exits').profitTiers.tier1).toBe(loaded.config.exits.profitTiers.tier1);
+    expect(ConfigLoader.get('exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1'))
+      .toBe(loaded.config.exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1);
+    expect(ConfigLoader.getSection('exitContracts').RSI.profitManagement.tieredExit.profitTiers.tier1)
+      .toBe(loaded.config.exitContracts.RSI.profitManagement.tieredExit.profitTiers.tier1);
   });
 
   test('ConfigLoader tuning profiles cannot replace ConfigLoader-owned paths after config load', () => {
@@ -329,8 +331,6 @@ describe('ConfigLoader live trading safety guard', () => {
     const loaded = loadConfig();
     const ConfigLoader = require('../foundation/ConfigLoader');
 
-    expect(ConfigLoader.get('exits.maxHoldMinutes')).toBe(loaded.config.exits.maxHoldMinutes);
-    expect(ConfigLoader.getSection('exits').maxHoldMinutes).toBe(loaded.config.exits.maxHoldMinutes);
     expect(ConfigLoader.get('trail.atrMultiplier')).toBe(loaded.config.trail.atrMultiplier);
     expect(ConfigLoader.get('trail.minActivation')).toBe(loaded.config.trail.minActivation);
     expect(ConfigLoader.getSection('trail')).toEqual(loaded.config.trail);

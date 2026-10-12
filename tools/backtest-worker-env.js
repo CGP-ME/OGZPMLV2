@@ -203,7 +203,7 @@ function summarizeWorkerEnv(env) {
       atrMinPercent: config.filters.atrMinPercent,
       minCandlesEMA: config.orchestrator.minCandlesEMA,
       atrContractsEnabled: config.strategyBehavior.atrContracts.enabled,
-      profitTiers: { ...config.exits.profitTiers },
+      exitContracts: Object.fromEntries(Object.entries(config.exitContracts).map(([strategy, contract]) => [strategy, { profitManagement: contract.profitManagement }])),
       fees: { ...config.fees },
     },
     requestedOverrides,

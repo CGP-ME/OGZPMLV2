@@ -1,0 +1,47 @@
+{
+  "candidate": "0166ba9345fe8f1bc89cfb58bf0bdb9dfa661d2e",
+  "structuredCloneUndefined": {
+    "command": "node -e \"assert.equal(structuredClone(undefined), undefined)\"",
+    "result": "PASS, returns undefined without exception on Node v22.22.1"
+  },
+  "policyConfigGroupReads": [
+    {
+      "line": 136,
+      "source": "function readConfigGroup(configReader, paths) {"
+    },
+    {
+      "line": 543,
+      "source": "const rawProfitManagement = exitContract.profitManagement;"
+    },
+    {
+      "line": 544,
+      "source": "const rawBeScaleOut = rawProfitManagement.beScaleOut;"
+    },
+    {
+      "line": 545,
+      "source": "const rawBreakEvenStop = rawProfitManagement.breakEvenStop;"
+    },
+    {
+      "line": 546,
+      "source": "const rawTieredExit = rawProfitManagement.tieredExit;"
+    },
+    {
+      "line": 547,
+      "source": "const rawVolatilityAdjustment = rawProfitManagement.volatilityAdjustment;"
+    },
+    {
+      "line": 548,
+      "source": "const rawProfitTargets = rawTieredExit.profitTiers;"
+    },
+    {
+      "line": 549,
+      "source": "const rawFees = readConfigGroup(configReader, CONFIG_PATHS.fees);"
+    },
+    {
+      "line": 562,
+      "source": "trail: rawProfitManagement.trail,"
+    }
+  ],
+  "producerProof": "behavior-proof.json verifies all 17 configured owners through ECM and PolicyBuilder; no missing profitManagement field",
+  "reviewFindings": "Mercury capacity review alleges structuredClone(undefined) throws and removed CONFIG_PATHS still read. The actual runtime and exact candidate contradict both claims. Preserving answer and requesting source-grounded adjudication, not adding speculative guards."
+}

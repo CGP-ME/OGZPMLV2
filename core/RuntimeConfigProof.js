@@ -48,6 +48,25 @@ function tradingConfigValue(ConfigLoader, path) {
   return value === undefined ? null : value;
 }
 
+function withSourceTree(snapshot, path, value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return withSource(snapshot, path);
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+    key,
+    withSourceTree(snapshot, `${path}.${key}`, child),
+  ]));
+}
+
+function exitContractProfitManagementProof(snapshot) {
+  return Object.fromEntries(Object.entries(snapshot.config.exitContracts).map(([strategy, contract]) => [
+    strategy,
+    {
+      profitManagement: withSourceTree(snapshot, `exitContracts.${strategy}.profitManagement`, contract.profitManagement),
+    },
+  ]));
+}
+
 function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
   if (!snapshot || !snapshot.config) {
     throw new Error('[RuntimeConfigProof] ConfigLoader snapshot is required');
@@ -152,12 +171,7 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
         maxPositionSize: tradingConfigValue(ConfigLoader, 'positionSizing.maxPositionSize'),
         absoluteCapPercent: tradingConfigValue(ConfigLoader, 'entryLogic.sizing.absoluteCapPercent'),
       },
-      exits: {
-        tier1Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier1'),
-        tier2Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier2'),
-        tier3Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier3'),
-        finalTarget: tradingConfigValue(ConfigLoader, 'exits.profitTiers.final'),
-      },
+      exitContracts: exitContractProfitManagementProof(snapshot),
       fees: {
         model: tradingConfigValue(ConfigLoader, 'fees.model'),
         makerFee: tradingConfigValue(ConfigLoader, 'fees.makerFee'),

@@ -43,7 +43,7 @@
         ['Risk', 'Position, sizing, and account-risk controls.', /^(risk|positionSizing|entryLogic|fundTarget|tierPolicy)\./i],
         ['Strategy', 'Strategy parameters returned by the selected owner.', /^(strategies|strategyBehavior|orchestrator|regimeBoosts|volumeProfileBoosts)\./i],
         ['Filters', 'Signal and market-condition filter controls.', /^(filters?|indicators|regimeDetection|fibonacci)\./i],
-        ['Exits', 'Exit-contract controls apply when the selected owner evaluates a new trade.', /^(exitContracts|exitLogic|exits?)\./i],
+        ['Exits', 'Exit-contract controls apply when the selected owner evaluates a new trade.', /^exitContracts\./i],
         ['Learning', 'Pattern, feature, and learning controls reported by the selected owner.', /^(pattern|patternMemory|patternRecognition|learning|performanceAnalysis|feature|featureExtraction|features)\./i],
         ['TrAI', 'TrAI controls returned by the selected owner.', /^trai\./i],
         ['Fees', 'Fee and backtest cost controls returned by the selected owner.', /^(fees?|backtest)\./i],
