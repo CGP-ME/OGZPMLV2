@@ -1,3 +1,15 @@
+## 2026-10-12 — ATR-period repair verified; source delivery held for review disagreement
+
+Problem: TimeSeriesMomentum used its configured ATR period to generate the entry stop but omitted it from the exit contract. Later ATR trailing used the shared indicator instead of the strategy-selected period.
+
+Uncommitted candidate: emit the existing configured period with the entry signal, carry it through ECM, freeze it in PolicyBuilder, and calculate the ATR trail from that period and the trade-timeframe candle history. Donchian channel trailing remains under its channel owner. The inherited draft's new missing-period refusal and extra validation call are not introduced.
+
+Verification: immutable candidate 82547d7f75ba25f20d19a2c5a9e31ec1c0093043 passes the actual TSM signal, ECM contract, frozen PolicyBuilder policy, and trailing calculation fixture. Private canonical save/reload changes period 3 to 5 for the next entry while the original entry stays at 3. Its implied trailing ATR matches calculateATR(history, 3), not the supplied conflicting shared indicator. Donchian channel behavior stays separate. No broker or runtime writes occurred.
+
+Review: Mercury rejected missing duplicate consumer validation in three sequential runs, including after the validated producer chain was supplied. Latest raw decision remains found_break (2026-10-12T23-00-08-368Z-a2cdfa0a8e35); the harness records JSON responses as no_claim. Independent Astra adversarial review found no concrete invalid new-entry producer: TSM validates and freezes the period, the ordinary orchestrator hint path preserves it, and the alternate NoWickImbalance fanout path is not a TSM producer. Astra also identified the real old-policy limitation below. This evidence is not represented as a clean Mercury result. Under ogz-meta/AGENTS.md:252, the source remains uncommitted pending Trey's ruling on the review disagreement. No review-rule or harness change was made. This commit records evidence only; it does not deliver the production candidate.
+
+Limitations: this establishes ownership for new entries. Older persisted policies have no recoverable ATR-period provenance; no historical backfill is performed. IndicatorCalculator's default period 14 predates this change, but the candidate would newly invoke it when an old frozen ATR policy lacks the field. That is a real legacy activation limitation, not a claim that old trades preserve entry semantics. Activation with old positions requires separate reconciliation. Runtime activation is not performed or authorized here. No production state, broker, environment or PM2 mutation.
+
 ## 2026-10-12 — Refresh the dynamic configuration UI handoff
 
 Problem: the October 10 UI snapshot still advertised the retired shared exitLogic/exits paths after strategy-owned profit management landed.

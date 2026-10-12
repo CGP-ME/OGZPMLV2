@@ -1,0 +1,13 @@
+{
+  "record_type": "final_decision",
+  "decision": "found_break",
+  "summary": "Supported defects are present in core/ExitContractManager.js and core/PolicyBuilder.js; a claim in modules/TimeSeriesMomentum.js is refuted; other claims lack sufficient evidence and remain unresolved.",
+  "answer": "VERDICT: found_break\nADVERSARIAL_REVIEW_BLOCKING: yes\nCANDIDATE SET: examined 3 of 3\n- core/ExitContractManager.js\n- core/PolicyBuilder.js\n- modules/TimeSeriesMomentum.js\nAST EVIDENCE:\n- core/ExitContractManager.js:267-268\n- core/ExitContractManager.js:977-978\n- core/ExitContractManager.js:756-759\n- core/PolicyBuilder.js:199-200\n- modules/TimeSeriesMomentum.js:58-58\nINHERITED:\n- core/ExitContractManager.js: || 0 – absent, swallowed catch – absent, bypass env – absent, silent default – absent\n- core/PolicyBuilder.js: || 0 – absent, swallowed catch – absent, bypass env – absent, silent default – absent\n- modules/TimeSeriesMomentum.js: || 0 – absent, swallowed catch – absent, bypass env – absent, silent default – absent\nFOURTH SHAPE CLASSIFIER: classified 0 of 0\nALLEGATIONS:\n- claim-2253dea0ec352e520ebdefb7 – MECHANICAL, RECEIPT\n- claim-c88a7822f1f39eec6464bd7a – MECHANICAL, RECEIPT\n- claim-6090ca180370e2ee37c97857 – MECHANICAL, RECEIPT\n- claim-6ffbb7bcb549636bb45453f6 – MECHANICAL, RECEIPT (unresolved)\n- claim-71e10ffbe3af0482ae383028 – MECHANICAL, RECEIPT\n- claim-52272506b9e2bc9675a0c488 – MECHANICAL, RECEIPT (unresolved)\n- claim-0005 – MECHANICAL, RECEIPT (refuted)\n- claim-0006 – MECHANICAL, TESTIMONY (unresolved)\n- claim-0007 – MECHANICAL, TESTIMONY (unresolved)\nSUBSTANTIVE RESOLUTION: none\nWHAT I DID: mechanically examined evidence.\nWHAT I DID NOT DO: none.\nWHAT I ASSUMED: none.\nWHY THIS VERDICT: Multiple supported defects were identified (un‑guarded ConfigLoader access, missing validation of atrPeriod, etc.) and one claim was refuted; the presence of any supported defect triggers a found_break verdict.\nIF INCOMPLETE, WHY: none",
+  "citations": [
+    "core/ExitContractManager.js:267-268",
+    "core/ExitContractManager.js:977-978",
+    "core/ExitContractManager.js:756-759",
+    "core/PolicyBuilder.js:199-200",
+    "modules/TimeSeriesMomentum.js:58-58"
+  ]
+}

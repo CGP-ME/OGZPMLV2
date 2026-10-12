@@ -1,0 +1,15 @@
+{
+  "record_type": "final_decision",
+  "decision": "found_break",
+  "summary": "Defects found: unvalidated entryAtrPeriod in ExitContractManager and missing validation of atrPeriod in PolicyBuilder. TimeSeriesMomentum correctly validates atrPeriod.",
+  "answer": "VERDICT: found_break\nADVERSARIAL_REVIEW_BLOCKING: yes\nCANDIDATE SET: examined 3 of 3; inventory: core/ExitContractManager.js, core/PolicyBuilder.js, modules/TimeSeriesMomentum.js\nAST EVIDENCE:\n- core/ExitContractManager.js:735-841 (source excerpt)\n- core/PolicyBuilder.js:69-75 (source excerpt)\n- core/PolicyBuilder.js:161-240 (source excerpt)\n- modules/TimeSeriesMomentum.js:1-176 (source excerpt)\nINHERITED:\n- core/ExitContractManager.js: || 0 – absent; swallowed catch – absent; bypass env – absent; silent default – absent\n- core/PolicyBuilder.js: || 0 – absent; swallowed catch – absent; bypass env – absent; silent default – absent\n- modules/TimeSeriesMomentum.js: || 0 – absent; swallowed catch – absent; bypass env – absent; silent default – absent\nFOURTH SHAPE CLASSIFIER:\n- core/ExitContractManager.js: added use of entryAtrPeriod without validation (producer: trade.frozenExitPolicy?.contract?.atrPeriod) – missing guard (evidence: core/ExitContractManager.js:756-756)\n- core/PolicyBuilder.js: added atrPeriod field to contract without validation (producer: contract.atrPeriod) – missing guard (evidence: core/PolicyBuilder.js:199-199)\n- modules/TimeSeriesMomentum.js: validates atrPeriod as positive integer and freezes configuration – proper guard present (evidence: modules/TimeSeriesMomentum.js:31-35, 56)\nALLEGATIONS:\n- claim-67933c610ec57497dd5a4e3a: supported – entryAtrPeriod read without validation (core/ExitContractManager.js:756-756)\n- claim-75f058d714247ba6e90f9f25: supported – calculateATR called with possibly undefined entryAtrPeriod (core/ExitContractManager.js:758-758)\n- claim-522b99979d1d8bb665f93316: supported – atrPeriod added to contract without validation (core/PolicyBuilder.js:199-199)\nSUBSTANTIVE RESOLUTION: none\nWHAT I DID: mechanically examined the supplied source excerpts and mapper claims.\nWHAT I DID NOT DO: fabricate evidence or assume missing code behavior.\nWHAT I ASSUMED: none\nWHY THIS VERDICT: The source lines show that entryAtrPeriod is read unchecked and passed to IndicatorCalculator.calculateATR, which expects a positive integer, and PolicyBuilder adds atrPeriod without validation. Both constitute real defects, contrary to the assertion that no new unvalidated period producer exists.\nIF INCOMPLETE, WHY: none",
+  "citations": [
+    "core/ExitContractManager.js:756-756",
+    "core/ExitContractManager.js:758-758",
+    "core/PolicyBuilder.js:199-199",
+    "core/ExitContractManager.js:735-841",
+    "core/PolicyBuilder.js:69-75",
+    "core/PolicyBuilder.js:161-240",
+    "modules/TimeSeriesMomentum.js:1-176"
+  ]
+}

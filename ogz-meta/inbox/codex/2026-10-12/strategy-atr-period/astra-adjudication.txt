@@ -1,0 +1,8 @@
+Astra independent adversarial adjudication (collaboration agent /root/atr_adversarial)
+Candidate: 82547d7f75ba25f20d19a2c5a9e31ec1c0093043
+Base: 2cf37db622e947a8959025fa53cf6cb97fe34e40
+Verdict: no concrete defect found in the new-entry producer chain; duplicated consumer validation is unwarranted.
+
+TSM validates/coerces/freezes atrPeriod (modules/TimeSeriesMomentum.js:27-35,56,88), emits it at148. StrategyOrchestrator preserves the hint at738-742, merges it at2996-2998 and passes it to ECM at3051-3054. ECM transports it at1022-1040; PolicyBuilder freezes it at199,553-558. TradingLoop supplies active trade timeframe history at1039-1053,1494-1496. Config enumeration establishes TSM is the sole ATR-trailing family. The fanout alternate contract path is reachable from NoWickImbalance, not TSM; buildAtrContractOverrides produces percent distances without ATR trail type or period replacement.
+
+Legacy limitation: old frozen policies lack this new field, so undefined reaches the existing calculateATR default period14. Although the calculator default predates the change, the candidate newly invokes it for old ATR policies. It does not preserve those old positions' entry-configured semantics. Corrected new-entry source delivery is technically defensible; activation with old positions needs explicit reconciliation. No new guard/throw/fallback is supported for the valid new-entry chain. Astra did not independently rerun the behavior fixture and does not convert Mercury's blocking result into a clean Mercury receipt.

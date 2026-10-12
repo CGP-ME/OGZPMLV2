@@ -1,0 +1,15 @@
+{
+  "title": "Carry the momentum strategy ATR period into its trailing stop",
+  "base": "2cf37db622e947a8959025fa53cf6cb97fe34e40",
+  "candidate": "82547d7f75ba25f20d19a2c5a9e31ec1c0093043",
+  "files": [
+    "core/ExitContractManager.js",
+    "core/PolicyBuilder.js",
+    "modules/TimeSeriesMomentum.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 7e650b97 36730ce0 M\tcore/ExitContractManager.js\n:100644 100644 5c9a2a6f f892ef94 M\tcore/PolicyBuilder.js\n:100644 100644 45c2cd6a a251cf1b M\tmodules/TimeSeriesMomentum.js",
+  "runtimeActivation": false,
+  "documentationSeparate": true,
+  "documentationNote": "Production-only candidate; final prose changelog and review receipts are added after review under the prose-only Mercury exemption. All production changes are included without source restrictions."
+}

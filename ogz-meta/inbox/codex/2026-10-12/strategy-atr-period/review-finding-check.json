@@ -1,0 +1,15 @@
+{
+  "candidate": "82547d7f75ba25f20d19a2c5a9e31ec1c0093043",
+  "priorRun": "2026-10-12T22-55-08-777Z-9483c1c8983e",
+  "allegations": [
+    "unguarded unchanged ConfigLoader map reads",
+    "missing duplicated period validation in PolicyBuilder"
+  ],
+  "evidence": [
+    "TimeSeriesMomentum.readEntryConfig validates positive integer and normalizes atrPeriod before emitting it",
+    "Exact candidate actual signal plus canonical private save/reload and calculated trailing ATR proof passes",
+    "Both cited ConfigLoader reads are unchanged from baseline"
+  ],
+  "legacyPolicyLimitation": "Old persisted policies lack recorded ATR period; existing calculateATR default remains; new-entry fix only; no activation",
+  "productionChangesAfterReview": false
+}

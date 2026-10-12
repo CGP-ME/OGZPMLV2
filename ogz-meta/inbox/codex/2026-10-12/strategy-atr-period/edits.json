@@ -1,0 +1,27 @@
+[
+  {
+    "file": "core/ExitContractManager.js",
+    "target": "  'stopType',\n  'atrStopMult',\n  'trailType',\n",
+    "replacement": "  'stopType',\n  'atrStopMult',\n  'atrPeriod',\n  'trailType',\n"
+  },
+  {
+    "file": "core/ExitContractManager.js",
+    "target": "    const indicators = context.indicators || {};\n    const atr = positiveFiniteOrNull(indicators.atr)\n      || positiveFiniteOrNull(indicators.volatility)\n      || positiveFiniteOrNull(context.volatility);\n",
+    "replacement": "    const indicators = context.indicators || {};\n    const entryAtrPeriod = trade.frozenExitPolicy?.contract?.atrPeriod;\n    const atr = contract.trailType === 'atr'\n      ? positiveFiniteOrNull(IndicatorCalculator.calculateATR(context.priceHistory, entryAtrPeriod))\n      : (positiveFiniteOrNull(indicators.atr)\n        || positiveFiniteOrNull(indicators.volatility)\n        || positiveFiniteOrNull(context.volatility));\n"
+  },
+  {
+    "file": "core/ExitContractManager.js",
+    "target": "      'stopType',\n      'atrStopMult',\n      'trailType',\n",
+    "replacement": "      'stopType',\n      'atrStopMult',\n      'atrPeriod',\n      'trailType',\n"
+  },
+  {
+    "file": "core/PolicyBuilder.js",
+    "target": "    atrStopMult: hasOwn(contract, 'atrStopMult') && contract.atrStopMult !== null\n      ? requirePositiveNumber(contract.atrStopMult, 'exitContract.atrStopMult')\n      : null,\n    takeProfitPercent:",
+    "replacement": "    atrStopMult: hasOwn(contract, 'atrStopMult') && contract.atrStopMult !== null\n      ? requirePositiveNumber(contract.atrStopMult, 'exitContract.atrStopMult')\n      : null,\n    ...(hasOwn(contract, 'atrPeriod') ? { atrPeriod: contract.atrPeriod } : {}),\n    takeProfitPercent:"
+  },
+  {
+    "file": "modules/TimeSeriesMomentum.js",
+    "target": "        stopType: this.cfg.exit.stopType,\n        atrStopMult: this.cfg.exit.atrStopMult,\n        takeProfitPercent: null,\n",
+    "replacement": "        stopType: this.cfg.exit.stopType,\n        atrStopMult: this.cfg.exit.atrStopMult,\n        atrPeriod: this.cfg.atrPeriod,\n        takeProfitPercent: null,\n"
+  }
+]

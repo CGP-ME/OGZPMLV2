@@ -1,0 +1,10 @@
+{
+  "record_type": "final_decision",
+  "decision": "found_break",
+  "summary": "Supported defects found: missing validation for atrPeriod in ExitContractManager and PolicyBuilder, leading to potential runtime errors. No new guard added.",
+  "answer": "INHERITED:\n- core/ExitContractManager.js: || 0: absent, swallowed catch: absent, bypass env: absent, silent default: absent\n- core/PolicyBuilder.js: || 0: absent, swallowed catch: absent, bypass env: absent, silent default: absent\n- modules/TimeSeriesMomentum.js: || 0: absent, swallowed catch: absent, bypass env: absent, silent default: absent\n\nFOURTH SHAPE CLASSIFIER:\n- No added throw, guard, gate or fallback detected (0 of 0)\n\nALLEGATIONS:\n- claim-9fdcec76cf70304cec7d8181: SUBSTANTIVE, RECEIPT\n- claim-4859e7cca7f7c98ef3cd9748: SUBSTANTIVE, RECEIPT\n- claim-db7175cb9b4f161eb7ff2310: SUBSTANTIVE, RECEIPT\n\nSUBSTANTIVE RESOLUTION: convergence\n\nWHAT I DID: mechanically examined the provided source excerpts and claim records.\nWHAT I DID NOT DO: infer any additional validation not present in the source.\nWHAT I ASSUMED: none.\nWHY THIS VERDICT: The source in ExitContractManager uses entryAtrPeriod without validation (core/ExitContractManager.js:756-759) and PolicyBuilder spreads atrPeriod without validation (core/PolicyBuilder.js:199-200), creating a concrete defect that can cause runtime errors. No guard or fallback is added in the diff. Therefore a break is found.\nIF INCOMPLETE, WHY: not incomplete.",
+  "citations": [
+    "core/ExitContractManager.js:756-759",
+    "core/PolicyBuilder.js:199-200"
+  ]
+}

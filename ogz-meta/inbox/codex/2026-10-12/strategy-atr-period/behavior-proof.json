@@ -1,0 +1,19 @@
+{
+  "pass": true,
+  "candidateRef": "82547d7f75ba25f20d19a2c5a9e31ec1c0093043",
+  "privateWriteCount": 1,
+  "initialEntryAtrPeriod": 3,
+  "nextEntryAtrPeriod": 5,
+  "expectedAtr3": 9.333333333333334,
+  "impliedTrailingAtr": 9.333333333333334,
+  "checks": [
+    "actual TSM signal emits atrPeriod 3 in exitContractHint",
+    "ECM and PolicyBuilder preserve atrPeriod 3 into the frozen entry policy",
+    "ATR trailing uses entry-period candles and ignores misleading runtime ATR values",
+    "channel trailing remains separately owned",
+    "private later setting changes affect only the next TSM signal and policy"
+  ],
+  "productionWrites": 0,
+  "brokerRequests": 0,
+  "runtimeActivation": false
+}
