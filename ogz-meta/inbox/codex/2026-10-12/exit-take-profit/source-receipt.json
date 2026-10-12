@@ -1,0 +1,18 @@
+{
+  "title": "Connect strategy take-profit targets to the single profit planner",
+  "base": "757c2542ce8fed73674952c194f1d93e081083ee",
+  "candidate": "af55228aeb78b4bd009ac064d0f0ba2f9af875b4",
+  "files": [
+    "core/ExitContractManager.js",
+    "core/ProfitExitPlanner.js",
+    "core/exit/TakeProfitChecker.js",
+    "foundation/ConfigLoader.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 8423af36 ab1f2d36 M\tCHANGELOG.md\n:100644 100644 e920ca63 c988eb68 M\tcore/ExitContractManager.js\n:100644 100644 5cd756a3 b1db6c97 M\tcore/ProfitExitPlanner.js\n:100644 100644 2e1f65ff 1255b128 M\tcore/exit/TakeProfitChecker.js\n:100644 100644 c9ce9c80 296f5622 M\tfoundation/ConfigLoader.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "recheck-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

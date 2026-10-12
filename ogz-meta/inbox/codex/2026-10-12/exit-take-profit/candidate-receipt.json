@@ -1,0 +1,23 @@
+{
+  "source": "candidate behavior-proof run",
+  "date": "2026-10-12",
+  "candidateRef": "af55228aeb78b4bd009ac064d0f0ba2f9af875b4",
+  "baseRef": "757c2542",
+  "command": "node ogz-meta/inbox/codex/2026-10-12/exit-take-profit/behavior-proof.cjs --candidate-ref=af55228aeb78b4bd009ac064d0f0ba2f9af875b4",
+  "exitCode": 0,
+  "sourceIdentity": "The fixture compiles every repository JavaScript/JSON dependency from the candidate Git tree and supplies candidate settings.json and internals.json to candidate ConfigLoader. Built-ins and node_modules are host runtime dependencies only. The earlier mixed supporting-module run is superseded by this exact-tree run.",
+  "stateIsolation": "The fixture replaces StateManager.prototype.load only while constructing its disposable instance and replaces that instance's save method before opening its fixture trade. It neither reads nor writes configured persistent trading state.",
+  "result": {
+    "pass": true,
+    "cases": [
+      "long_below_at_above_target",
+      "short_below_at_above_target",
+      "target_precedes_global_scaleout_and_tier",
+      "tp_mode_off_stale_numeric",
+      "null_target_no_zero_percent_coercion",
+      "atr_multiple_null_target_no_zero_percent_coercion",
+      "ecm_surfaces_planner_intent",
+      "partial_then_target_full_fill_and_pending_block"
+    ]
+  }
+}

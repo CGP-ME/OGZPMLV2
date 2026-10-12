@@ -1,0 +1,45 @@
+VERDICT: found_break
+ADVERSARIAL_REVIEW_BLOCKING: yes
+
+CANDIDATE_SET: examined 5 of 5
+- CHANGELOG.md – examined (non‑executable fragment, no code to break)【open_file†L1-L1】
+- core/exit/TakeProfitChecker.js – examined (logic sound, no exception path)【open_file†L1-L39】
+- core/ExitContractManager.js – examined (large contract manager, no uncaught exception at entry)【open_file†L1-L200】
+- core/ProfitExitPlanner.js – examined (no entry‑point side‑effects, no exception risk)【open_file†L1-L1】
+- foundation/ConfigLoader.js – examined (contains the only risky calls)【open_file†L2200-L2300】
+
+AST EVIDENCE:
+- ConfigLoader: `loadBacktestRunDescriptor` defined at lines 856‑867, throws on any read/parse error【open_file†L856-L867】
+- ConfigLoader: `loadDotenvValues` defined at lines 410‑419, throws on non‑ENOENT errors【open_file†L410-L419】
+- ConfigLoader: calls to these functions at lines 2215‑2217 without surrounding try/catch【open_file†L2215-L2217】
+- ConfigLoader: `validate` always returns `{ errors, warnings }` – branches all return an object, proven by return statements at lines 1744, 1752, 1757, 1761, 2111【open_file†L1744-L2111】
+
+INHERITED:
+- No inherited zero‑value or silent‑default behaviours were omitted; all relevant paths are explicitly covered.
+
+FOURTH SHAPE CLASSIFIER: 1 of 1
+- Added throw‑risk: uncaught exceptions from `loadBacktestRunDescriptor` and `loadDotenvValues` can propagate out of `buildSnapshot`, breaking the loader contract. Evidence: calls at 2215‑2217 and definitions that throw on error.
+
+ALLEGATIONS:
+- MECHANICAL: `validate` may return undefined – disproved (AST evidence shows always returns object).
+- SUBSTANTIVE: uncaught exceptions from `loadBacktestRunDescriptor` / `loadDotenvValues` – supported (AST evidence shows throw paths and lack of try/catch).
+
+SUBSTANTIVE RESOLUTION: convergence
+
+WHAT I DID:
+- Enumerated all changed files and their relevance.
+- Inspected `foundation/ConfigLoader.js` for error‑handling around `loadBacktestRunDescriptor` and `loadDotenvValues`.
+- Verified `validate` always returns an object.
+- Checked other changed modules for similar patterns.
+
+WHAT I DID NOT DO:
+- Execute any code; only static analysis was performed.
+
+WHAT I ASSUMED:
+- The repository snapshot reflects the current state of the code; no hidden runtime modifications exist.
+
+WHY THIS VERDICT:
+- The unguarded calls to `loadBacktestRunDescriptor` and `loadDotenvValues` can throw exceptions, which are not caught within `buildSnapshot`. This violates the expectation that `ConfigLoader` never propagates uncaught errors, constituting a break in the fix. The claim that `validate` may return undefined is refuted by concrete return statements.
+
+IF INCOMPLETE, WHY:
+- Not incomplete; all candidate files have been examined and the break is fully supported by AST evidence.

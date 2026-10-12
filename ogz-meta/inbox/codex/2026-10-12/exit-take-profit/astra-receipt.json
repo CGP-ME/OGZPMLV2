@@ -1,0 +1,15 @@
+{
+  "requestedModel": "gpt-6-astra",
+  "mode": "read-only adversarial CLI",
+  "base": "757c2542ce8fed73674952c194f1d93e081083ee",
+  "candidate": "af55228aeb78b4bd009ac064d0f0ba2f9af875b4",
+  "verdict": "no_break_found",
+  "panelAttempt": "Failed before review: input exceeded provider 1048576-character limit. No harness changes made. Direct review read candidate from Git instead.",
+  "usage": {
+    "input_tokens": 669583,
+    "cached_input_tokens": 569600,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 3869,
+    "reasoning_output_tokens": 1027
+  }
+}

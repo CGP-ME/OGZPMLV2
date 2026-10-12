@@ -1,3 +1,12 @@
+## 2026-10-12 — Connect strategy take-profit targets to the profit planner
+
+- Problem: strategy contracts supplied take-profit percentages but the exit manager constructed an unused checker; the profit planner could scale out or use shared tiers without ever honoring the strategy full-close target.
+- Change: the single profit planner now evaluates the frozen strategy target before partial/tier profits. Existing stop, invalidation and timeout precedence remains intact. Disabled or null targets do not close trades. The unused manager checker instance is removed and five settings labels now describe the effective take-profit behavior.
+- Verification: isolated candidate behavior receipt covers both sides, target boundaries, target-off/null contracts, remaining quantity after partial fills and pending-exit ownership. Review results and source tree identity are recorded in `ogz-meta/inbox/codex/2026-10-12/exit-take-profit/`.
+- Review: Mercury initially alleged added loader exception paths; byte comparison established the only loader edits were five labels. Mercury rechecked the exact candidate and returned `no_break_found`; independent Astra adversarial review also returned `no_break_found`. The first Astra panel request exceeded the provider input limit; a read-only exact-Git-tree review completed without changing the harness.
+- Limitation: this connects existing percentage targets; it does not invent an ATR target or implement unspecified invalidation labels. Per-strategy ownership of remaining profit-management controls is a separate following change. No profitability claim.
+- Runtime activation: source change only; no PM2 restart, environment change, broker order or running-position modification.
+
 ## 2026-10-12 — Research strategy-specific exits and candidate numbers
 
 - **Request:** Trey asked for institutional/academic research on exit, stop, break-even and trailing numbers, including whether different strategy families should use different exit shapes. This is research and documentation; the existing hold on changing those settings remains.

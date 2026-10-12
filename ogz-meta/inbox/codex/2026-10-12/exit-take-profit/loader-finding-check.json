@@ -1,0 +1,8 @@
+{
+  "base": "757c2542ce8fed73674952c194f1d93e081083ee",
+  "candidate": "af55228aeb78b4bd009ac064d0f0ba2f9af875b4",
+  "finding": "Claimed added uncaught loader exception paths",
+  "proof": "Entire candidate ConfigLoader equals base ConfigLoader after exactly five UI label replacements. No loader execution statement changed.",
+  "onlyFiveLabelsChanged": true,
+  "assessment": "Existing loader behavior is not introduced by the strategy take-profit change; no error handling changes made to satisfy an unrelated review claim."
+}

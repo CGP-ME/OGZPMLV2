@@ -26,7 +26,6 @@ const { emitTrace } = require('./TraceSpine');
 
 // Phase 10: Delegate to individual exit checkers
 const StopLossChecker = require('./exit/StopLossChecker');
-const TakeProfitChecker = require('./exit/TakeProfitChecker');
 const MaxHoldChecker = require('./exit/MaxHoldChecker');
 // Phase 11: Break-even state machine (single source of truth)
 const BreakEvenManager = require('./exit/BreakEvenManager');
@@ -255,7 +254,6 @@ class ExitContractManager {
   constructor() {
     // Phase 10: Delegate to individual checkers
     this.stopLossChecker = new StopLossChecker();
-    this.takeProfitChecker = new TakeProfitChecker();
     this.maxHoldChecker = new MaxHoldChecker();
     // Phase 11: Break-even state machine (for external access/dashboard)
     this.breakEvenManager = new BreakEvenManager();

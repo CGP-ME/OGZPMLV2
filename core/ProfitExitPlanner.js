@@ -1,5 +1,8 @@
 'use strict';
 
+const TakeProfitChecker = require('./exit/TakeProfitChecker');
+const takeProfitChecker = new TakeProfitChecker();
+
 function assertPlainObject(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`[ProfitExitPlanner] ${label} must be a plain object`);
@@ -149,6 +152,28 @@ function remainingFractionForQuantity(snapshot, targetQuantity, filledQuantity =
   return cappedQuantity / snapshot.remainingOrderQuantity;
 }
 
+function planContractTakeProfit(snapshot, profitPercent) {
+  const policy = snapshot.frozenExitPolicy;
+  const result = takeProfitChecker.check({
+    entryStrategy: policy.strategyName,
+    exitContract: policy.contract,
+  }, profitPercent * 100);
+  if (!result.shouldExit) return null;
+
+  return intent(snapshot, {
+    action: 'exit_full',
+    reason: 'take_profit',
+    exitRole: 'profit',
+    stateKey: null,
+    exitFraction: 1,
+    evidence: {
+      profitPercent,
+      targetProfitPercent: policy.contract.takeProfitPercent,
+      policyHash: policy.policyHash,
+    },
+  });
+}
+
 function planBeScaleOut(snapshot, profitPercent) {
   const policy = snapshot.frozenExitPolicy;
   const contractPartial = policy.contract.partialExit;
@@ -296,7 +321,8 @@ function plan(snapshot, market = {}) {
   const currentPrice = market.currentPrice ?? snapshot.currentPrice;
   const profitPercent = profitPercentFor(snapshot, currentPrice);
 
-  return planBeScaleOut(snapshot, profitPercent)
+  return planContractTakeProfit(snapshot, profitPercent)
+    || planBeScaleOut(snapshot, profitPercent)
     || planTier(snapshot, profitPercent)
     || none('no_profit_exit', {
       profitPercent,

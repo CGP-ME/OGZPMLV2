@@ -1,0 +1,16 @@
+VERDICT: no_break_found
+
+Reviewed exact tree `af55228aeb78b4bd009ac064d0f0ba2f9af875b4` against `757c2542ce8fed73674952c194f1d93e081083ee`. No newly introduced reachable break established.
+
+All citations below refer to the candidate:
+
+- `core/ProfitExitPlanner.js:155–174,311–326`: checks the frozen strategy target, converts fractional return to percentage points, and requests the full remaining position. Pending exits retain precedence.
+- `core/exit/TakeProfitChecker.js:21–25`: explicitly excludes off/null targets.
+- `core/ExitContractManager.js:366–418`: preserves stop, timeout, invalidation and managed-stop precedence, then forwards the profit intent.
+- `core/TradingLoop.js:1153–1187,1532–1541` and `core/OrderExecutor.js:2493–2515,3304–3312`: carry the exit fraction through remaining-quantity sizing and reservation. `core/StateManager.js:3118–3149` accepts its null state key.
+
+**Pre-existing limitation:** complete strategy ownership remains unresolved. `core/ProfitExitPlanner.js:179–181,255–258` still selects shared scaleout/tier controls; `core/PolicyBuilder.js:579–598` supplies them. These paths existed in the base. This candidate connects percentage targets but does not complete that broader requirement. The diff adds no defaults, fallbacks, throws or trading gates.
+
+Examined all five changed files, plus relevant portions of StrategyOrchestrator, PolicyBuilder, TradingLoop, OrderExecutor, StateManager, settings/internals and planner tests.
+
+Limits: static review only; no tests or trading executed, no edits, no other reviewers. The reported host fixture passes remain host testimony, not my verification.
