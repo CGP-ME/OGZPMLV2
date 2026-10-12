@@ -1,0 +1,12 @@
+{
+  "candidate": "74421535da7e870c95c8a354308563b17e003f21",
+  "priorRun": "2026-10-12T22-49-21-228Z-b152c666a1bf",
+  "finding": "Unqualified property access may throw if true flag lacks frozen policy",
+  "producerEvidence": [
+    "core/ExitContractManager.js:_updateBreakevenStopState validates the same frozen policy and fee buffer before setting true",
+    "core/StateManager.js:addTrade initializes breakevenActive=false, freezing the supplied policy",
+    "Repository production search: only ECM assigns true"
+  ],
+  "fixture": "fixtures/candidate-proof.cjs: actual ECM producer long and short, observed by stop/trail checkers",
+  "noProductionChangesAfterReview": true
+}

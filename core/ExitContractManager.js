@@ -28,7 +28,6 @@ const { emitTrace } = require('./TraceSpine');
 const StopLossChecker = require('./exit/StopLossChecker');
 const MaxHoldChecker = require('./exit/MaxHoldChecker');
 // Phase 11: Break-even state machine (single source of truth)
-const BreakEvenManager = require('./exit/BreakEvenManager');
 
 function firstNonEmptyString(...values) {
   for (const value of values) {
@@ -256,8 +255,6 @@ class ExitContractManager {
     // Phase 10: Delegate to individual checkers
     this.stopLossChecker = new StopLossChecker();
     this.maxHoldChecker = new MaxHoldChecker();
-    // Phase 11: Break-even state machine (for external access/dashboard)
-    this.breakEvenManager = new BreakEvenManager();
   }
 
   /**

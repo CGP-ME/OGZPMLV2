@@ -1,0 +1,23 @@
+{
+  "title": "Make break-even checkers observe strategy-owned stop state",
+  "base": "17ca1378346432fca67d34888a1fff66ff2e44e2",
+  "candidate": "74421535da7e870c95c8a354308563b17e003f21",
+  "files": [
+    "core/exit/BreakEvenManager.js",
+    "core/ExitContractManager.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 c1e218de 7e650b97 M\tcore/ExitContractManager.js\n:100644 100644 4f5315bb d22602f3 M\tcore/exit/BreakEvenManager.js",
+  "runtimeActivation": false,
+  "documentationSeparate": true,
+  "documentationNote": "Production-only candidate; final prose changelog and review receipts are added after review under the prose-only Mercury exemption. All production changes are included without source restrictions.",
+  "verificationCandidate": "6c0d0b5e4275fdcd291f8eecfe199a353731aa71",
+  "fixtureUpdates": [
+    "test/exit-reason-producers.test.js",
+    "test/fee-model.test.js"
+  ],
+  "finalReview": {
+    "answer": "review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

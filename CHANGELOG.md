@@ -1,3 +1,13 @@
+## 2026-10-12 — Remove the independent 1R break-even override
+
+Problem: BreakEvenManager activated a separate break-even stop whenever peak profit reached the original risk, even when the selected strategy disabled automatic break-even. This silently overrode the first strategy-owned exit preset.
+
+Changes: the checker observes the managed break-even state created by ExitContractManager from the trade's frozen strategy policy. The effective stop matches the configured fee-buffer profit floor for both trade directions. The isTriggered helper reports the same state; the verified-unused manager import and instance are removed from ECM.
+
+Verification: exact-candidate fixture passes: a disabled policy retains its original fixed stop after a peak beyond 1R; enabled long and short trades activate only at the configured trigger and use the positive gross-PnL fee-buffer floor; a later trailing ratchet is not reported as the break-even floor. Existing exit-reason suite passes all 15 cases. Together with fee-model: 21 pass, one pre-existing failure from the removed ConfigLoader.setOverrides test API; this failure was already recorded before this change. Existing fixtures were updated to the managed state, with no new test suite. Review: Mercury initially alleged an absent frozen policy could throw. Production source search and actual producer execution establish that the sole true-state writer validates that policy and buffer before setting the flag. Source-grounded recheck returned raw JSON decision no_break_found, run 2026-10-12T22-51-11-784Z-45d8a675c509. Its ledger formatted that JSON as no_claim; both raw response and explicitly normalized decision are preserved. The reviewer left import-relationship claims unresolved; direct repository reference search and the fixture execute both actual checker consumers and establish that the removed ECM instance has no caller. No defaults, throws, entry gates, or defensive fallbacks added. Production files remain byte-identical to the reviewed candidate; fixture-only changes and this prose were added afterward. Evidence: ogz-meta/inbox/codex/2026-10-12/breakeven-observer/.
+
+Limitations: this repairs the break-even override, not the remaining config audit or ATR-period propagation. Existing strategy choices and unrelated dirty work are preserved. No PM2 restart, runtime activation, broker write, or environment change performed.
+
 ## 2026-10-12 — Strategy-owned profit management and initial exit candidates
 
 Problem: strategy entry contracts owned stop and target geometry, but shared `exitLogic` / `exits` controls still supplied scaling, tier targets, break-even, trail refinements, and volatility adjustments. Those global values could override the intended strategy behavior.

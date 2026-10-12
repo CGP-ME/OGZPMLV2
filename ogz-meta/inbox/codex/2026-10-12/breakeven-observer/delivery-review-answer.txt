@@ -1,0 +1,12 @@
+{
+  "record_type": "final_decision",
+  "decision": "found_break",
+  "summary": "Supported mechanical defect in BreakEvenManager.evaluate() can cause a TypeError; other claims lack consumer evidence, overall break confirmed.",
+  "answer": "INHERITED:\n- core/exit/BreakEvenManager.js: || 0 absent; swallowed catch absent; bypass env absent; silent default absent.\n- core/ExitContractManager.js: || 0 absent; swallowed catch absent; bypass env absent; silent default absent.\n\nFOURTH SHAPE CLASSIFIER:\n- No added throws, guards, gates, or fallbacks detected in the diff.\n\nALLEGATIONS:\n- claim-30e4778a342ddcda7c857738: supported (MECHANICAL) – unguarded access to trade.frozenExitPolicy.profitManagement.trail.feeBufferPercent may throw TypeError. Evidence: core/exit/BreakEvenManager.js:30-31.\n- claim-6205331981ab2fa25c32a61a: unresolved – removal of profit‑based break‑even trigger cannot be verified without original diff context. Evidence: core/exit/BreakEvenManager.js:38-55.\n- claim-a54388e80c1acee9e6981a03: unresolved – removal of BreakEvenManager import and this.breakEvenManager property may affect external consumers, but no consumer evidence provided. Evidence: core/ExitContractManager.js:28-30, core/ExitContractManager.js:256-258.\n\nSUBSTANTIVE RESOLUTION: convergence\n\nWHAT I DID: examined all provided source files and claim evidence.\nWHAT I DID NOT DO: assume external consumer code not present in evidence.\nWHAT I ASSUMED: source excerpts are complete for the examined files.\nWHY THIS VERDICT: a supported mechanical defect (un‑guarded property access) can cause a runtime exception, satisfying the break condition. Other claims lack sufficient consumer evidence to be classified as defects.\nIF INCOMPLETE, WHY: none; all supplied evidence has been examined.",
+  "citations": [
+    "core/exit/BreakEvenManager.js:30-31",
+    "core/exit/BreakEvenManager.js:38-55",
+    "core/ExitContractManager.js:28-30",
+    "core/ExitContractManager.js:256-258"
+  ]
+}

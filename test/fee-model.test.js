@@ -126,7 +126,7 @@ describe('FeeModel', () => {
     expect(recorder.balance).toBeCloseTo(4999.5);
   });
 
-  test('converts per-share minimum fees into trade-specific percent buffers for exits', () => {
+  test('uses the entry-frozen strategy fee buffer for managed break-even while preserving per-share fee exit checks', () => {
     ConfigLoader.setOverrides({
       'fees.model': 'per_share_minimum',
       'fees.perShare': 0.005,
@@ -141,6 +141,12 @@ describe('FeeModel', () => {
       entryOrderQuantity: 1,
       remainingOrderQuantity: 1,
       maxProfitPercent: 1.6,
+      breakevenActive: true,
+      frozenExitPolicy: {
+        profitManagement: {
+          trail: { feeBufferPercent: 1.5 },
+        },
+      },
       exitContract: {
         stopLossPercent: -1,
         maxHoldTimeMinutes: 30,
@@ -150,7 +156,7 @@ describe('FeeModel', () => {
     const breakEven = new BreakEvenManager();
     expect(breakEven.evaluate(trade)).toEqual(expect.objectContaining({
       isBreakEven: true,
-      effectiveStopPercent: -1.5,
+      effectiveStopPercent: 1.5,
     }));
 
     const maxHold = new MaxHoldChecker({ maxHoldTimeMinutes: 999 });

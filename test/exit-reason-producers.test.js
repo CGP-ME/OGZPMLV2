@@ -22,7 +22,7 @@ function trade() {
       contract: { ...contract },
       profitManagement: {
         beScaleOut: { enabled: false }, tieredExit: { enabled: false },
-        trail: { enabled: false }, breakEvenStop: { enabled: false },
+        trail: { enabled: false, feeBufferPercent: 0.25 }, breakEvenStop: { enabled: false },
       },
     },
     pendingExitIntent: null,
@@ -32,7 +32,10 @@ function trade() {
 
 const cases = [
   ['strategy stop', 'stop_loss', 97, () => {}],
-  ['break-even stop', 'break_even', 99, t => { t.maxProfitPercent = 3; }],
+  ['break-even stop', 'break_even', 100.2, t => {
+    t.frozenExitPolicy.profitManagement.breakEvenStop = { enabled: true, triggerPercent: 0.5 };
+    t.breakevenActive = true; t.currentStop = 100.25;
+  }],
   ['maximum hold winner', 'max_hold_winner', 101, t => {
     Object.assign(t.exitContract, { maxHoldMode: 'minutes', maxHoldTimeMinutes: 1 });
   }],
@@ -49,8 +52,9 @@ const cases = [
   ['managed trailing stop', 'trailing_stop', 100, t => {
     t.currentStop = 101; t.trailingActive = true;
   }],
-  ['managed break-even stop', 'break_even', 100, t => {
-    t.currentStop = 101; t.breakevenActive = true;
+  ['managed break-even stop', 'break_even', 100.2, t => {
+    t.frozenExitPolicy.profitManagement.breakEvenStop = { enabled: true, triggerPercent: 0.5 };
+    t.currentStop = 100.25; t.breakevenActive = true;
   }],
   ['scale-out', 'be_scaleout', 103, t => {
     t.frozenExitPolicy.profitManagement.beScaleOut = {

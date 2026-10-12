@@ -1,0 +1,37 @@
+VERDICT: no_break_found
+
+Mechanical rendering of the raw JSON decision in recheck-review-answer.txt. The harness ledger classified JSON format as no_claim; the raw reviewer decision is preserved unchanged.
+
+INHERITED:
+- core/exit/BreakEvenManager.js: || 0: absent; swallowed catch: absent; bypass env: absent; silent default: absent.
+- core/ExitContractManager.js: || 0: absent; swallowed catch: absent; bypass env: absent; silent default: absent.
+
+FOURTH SHAPE CLASSIFIER:
+- Classified 0 of 0 added throws/guards/fallbacks.
+
+CLAIM ADJUDICATIONS:
+- claim-842fd00d719aa4b2e0a988a3 (BreakEvenManager.js is required by core/exit/StopLossChecker.js and core/exit/TrailingStopChecker.js): unresolved – the provided source excerpt (lines 1‑10) does not contain any require statements or usage evidence.
+- claim-46517fb36c3af7c15c799471 (ExitContractManager.js is required by core/OrderExecutor.js, core/StrategyOrchestrator.js, core/TradingLoop.js, and run-empire-v2.js): unresolved – the provided source excerpt (lines 1‑12) does not show any import or usage evidence.
+- Substantive finding: The profit‑based break‑even activation logic (maxProfit >= risk) is absent from BreakEvenManager.evaluate, potentially preventing break‑even activation based on profit. Supported by source lines 38‑45.
+- Substantive finding: No production code sets trade.breakevenActive = true without first validating the frozen breakEvenStop policy and feeBufferPercent. The only producer is ExitContractManager._updateBreakevenStopState, which performs these checks before setting the flag. Supported by source lines 839‑885.
+
+ALLEGATIONS:
+- Mech: BreakEvenManager required status – unresolved (recept).).
+- Mech: ExitContractManager required status – unresolved (recept).
+- Substantive: Removal of profit‑based activation – supported (testimony).
+- Substantive: No illegal breakevenActive assignment – supported (receipt).
+
+SUBSTANTIVE RESOLUTION:
+- Convergence on the absence of a defect regarding breakevenActive assignment.
+- Unresolved for module‑require claims due to missing evidence.
+
+WHAT I DID:
+- Mechanically examined the provided source files and the leaf manifest claims.
+WHAT I DID NOT DO:
+- Invent any evidence beyond the supplied line ranges.
+WHAT I ASSUMED:
+- The source excerpts are complete for the relevant functions.
+WHY THIS VERDICT:
+- The only code that sets breakevenActive=true validates the frozen policy, so the alleged defect is refuted. No other production path sets the flag without those checks.
+IF INCOMPLETE, WHY:
+- The require‑relationship claims lack supporting source lines, so they remain unresolved.

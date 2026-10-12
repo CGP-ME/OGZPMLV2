@@ -1,18 +1,9 @@
 /**
- * BreakEvenManager.js - Break-Even Stop State Machine
- * ====================================================
- * Single source of truth for break-even state.
- * When trade profits exceed initial risk (1:1 move), stop moves to entry.
+ * Break-even state observer.
  *
- * STATE MACHINE:
- *   INITIAL_STOP → (maxProfit >= risk) → BREAK_EVEN → (trailing takes over)
- *
- * USED BY:
- *   - StopLossChecker: queries getEffectiveStop() instead of computing BE inline
- *   - TrailingStopChecker: queries isBreakEven() to adjust trail baseline
- *   - ExitContractManager: calls evaluate() each tick
- *
- * @module core/exit/BreakEvenManager
+ * The managed exit owner creates the stop at entry-policy trigger time and
+ * records trade.breakevenActive. This class only exposes that committed state
+ * to legacy stop and trailing checker consumers.
  */
 
 'use strict';
@@ -35,19 +26,16 @@ class BreakEvenManager {
     const contract = trade.exitContract || {};
     const stopLossPercent = contract.stopLossPercent;
 
-    // No contract or no SL defined — can't compute BE
-    if (stopLossPercent === undefined || stopLossPercent === null) {
+    if (trade.breakevenActive === true) {
+      const feeBufferPercent = trade.frozenExitPolicy.profitManagement.trail.feeBufferPercent;
       return {
-        isBreakEven: false,
-        effectiveStopPercent: null,
-        reason: 'no_contract'
+        isBreakEven: true,
+        effectiveStopPercent: feeBufferPercent,
+        reason: 'managed_break_even_active'
       };
     }
 
-    // Explicit zero means "no stop" — same semantics as null/undefined.
-    // Without this, riskAmount=0 makes (maxProfit >= 0) true on the first tick,
-    // dragging every "no-stop" trade into break-even-stop instantly.
-    if (stopLossPercent === 0) {
+    if (stopLossPercent === undefined || stopLossPercent === null || stopLossPercent === 0) {
       return {
         isBreakEven: false,
         effectiveStopPercent: null,
@@ -55,22 +43,10 @@ class BreakEvenManager {
       };
     }
 
-    const riskAmount = Math.abs(stopLossPercent);
-    const maxProfit = trade.maxProfitPercent || 0;
-
-    // Break-even triggers when maxProfit >= initial risk (1:1 payoff)
-    if (maxProfit >= riskAmount) {
-      return {
-        isBreakEven: true,
-        effectiveStopPercent: -this.getFeeBufferPercent(trade),
-        reason: `BE active: peak ${maxProfit.toFixed(2)}% >= risk ${riskAmount.toFixed(2)}%`
-      };
-    }
-
     return {
       isBreakEven: false,
       effectiveStopPercent: stopLossPercent,
-      reason: `Needs ${(riskAmount - maxProfit).toFixed(2)}% more to trigger BE`
+      reason: 'managed_break_even_inactive'
     };
   }
 
@@ -80,9 +56,7 @@ class BreakEvenManager {
    * @returns {boolean}
    */
   isTriggered(trade) {
-    const contract = trade.exitContract || {};
-    const riskAmount = Math.abs(contract.stopLossPercent ?? 1.0);
-    return (trade.maxProfitPercent || 0) >= riskAmount;
+    return this.evaluate(trade).isBreakEven;
   }
 
   /**

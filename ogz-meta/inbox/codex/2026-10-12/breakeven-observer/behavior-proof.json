@@ -1,0 +1,18 @@
+{
+  "productionCandidate": "74421535da7e870c95c8a354308563b17e003f21",
+  "verificationCandidate": "6c0d0b5e4275fdcd291f8eecfe199a353731aa71",
+  "focusedBehavior": {
+    "pass": true,
+    "disabledBeyond1RRetainsFixedStop": true,
+    "enabledLongAndShortUseConfiguredTriggerAndPositiveFeeBuffer": true,
+    "laterTrailingRatchetNotRelabeled": true
+  },
+  "existingTests": {
+    "passed": 21,
+    "failed": 1,
+    "failure": "test/fee-model.test.js still calls removed ConfigLoader.setOverrides; same pre-existing failure documented by ownership migration",
+    "exitReasonSuite": "passes all 15 cases",
+    "fixtureOnlyAdjustments": "Existing assertions now represent managed BE state, no new suite"
+  },
+  "runtimeActivation": false
+}
