@@ -1,3 +1,9 @@
+## 2026-10-13 — Record remaining-work dispositions and confirmed delivery
+
+Trey waived Mercury for item 1, directed its four fixes to be pushed, deferred item 2, authorized item 3 ledger reconciliation with recorded/displayed feed-through evidence, requested item 4 definitions afterward, and reserved item 5 for a joint walkthrough. Recorded these decisions in `ogz-meta/inbox/codex/2026-10-13/completion-candidate/STATUS.md`.
+
+Verified separate remote deliveries: PID disconnection38552ef6, volatility lookback008e884b, retained replayc5de35e3, destination hydration713b5f31. Item2's dormant feature findings came from the October11 multi-agent audit and belong to the later pattern/ML work, not new Stop1/2 activation work. Reviewed the status document against these commits and Trey's instruction. No runtime activation, new control, or production code change in this documentation update.
+
 ## 2026-10-13 — Hydrate destination symbols and frames before session resume
 
 Problem: startup REST hydration selected only the first market symbol; scheduled switches did not hydrate the destination before resuming evaluation.
