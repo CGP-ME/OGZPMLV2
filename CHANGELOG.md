@@ -1,3 +1,15 @@
+## 2026-10-13 — Deliver entry-owned ATR period under Trey's Astra adjudication approval
+
+Problem: the momentum strategy's trailing ATR consumed the shared indicator instead of the period selected at entry.
+
+Changes: emit the configured ATR period with the TSM signal, carry it through ECM, freeze it in the entry policy, and compute ATR trailing from that period and the trade-timeframe candles. Only the three production files from reviewed candidate 82547d7f75ba25f20d19a2c5a9e31ec1c0093043 are delivered; unrelated working-tree changes are excluded.
+
+Verification: staged production bytes equal the previously exercised immutable candidate. Its passing actual-signal and canonical private save/reload proof shows the initial period 3 controls the trailing ATR despite contradictory shared indicators; changing the setting to 5 affects the next entry and preserves the prior policy. Channel trailing remains separate. Evidence and reviewer findings are preserved under ogz-meta/inbox/codex/2026-10-12/strategy-atr-period/.
+
+Review ruling: Mercury remains found_break over missing duplicate consumer validation. Independent Astra traced the already-validated new-entry producer and found no concrete invalid producer on that path. Trey explicitly authorized delivery on Astra's adjudication on October 13: "okay that is fine to push it through on astras go". This is a one-change operator exception, not a clean Mercury result or a change to review rules.
+
+Limitations: old saved policies did not record their ATR period and would reach the calculator's existing default of 14 through this new call. No historical backfill or legacy-position reconciliation is claimed. Runtime activation remains pending; no PM2 restart, broker/state write, or environment change performed. Stop 1 and Stop 2 are not declared complete by this change.
+
 ## 2026-10-12 — ATR-period repair verified; source delivery held for review disagreement
 
 Problem: TimeSeriesMomentum used its configured ATR period to generate the entry stop but omitted it from the exit contract. Later ATR trailing used the shared indicator instead of the strategy-selected period.

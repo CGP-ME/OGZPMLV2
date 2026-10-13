@@ -134,6 +134,7 @@ const EXIT_CONTRACT_VALUE_FIELDS = [
   'maxHoldTimeMinutes',
   'stopType',
   'atrStopMult',
+  'atrPeriod',
   'trailType',
   'trailAtrMult',
   'trailChannelBars',
@@ -752,9 +753,12 @@ class ExitContractManager {
     }
 
     const indicators = context.indicators || {};
-    const atr = positiveFiniteOrNull(indicators.atr)
-      || positiveFiniteOrNull(indicators.volatility)
-      || positiveFiniteOrNull(context.volatility);
+    const entryAtrPeriod = trade.frozenExitPolicy?.contract?.atrPeriod;
+    const atr = contract.trailType === 'atr'
+      ? positiveFiniteOrNull(IndicatorCalculator.calculateATR(context.priceHistory, entryAtrPeriod))
+      : (positiveFiniteOrNull(indicators.atr)
+        || positiveFiniteOrNull(indicators.volatility)
+        || positiveFiniteOrNull(context.volatility));
     const contractAtrMultiplier = contract.trailAtrMult === null || contract.trailAtrMult === undefined
       ? null
       : finiteOrNull(contract.trailAtrMult);
@@ -1018,6 +1022,7 @@ class ExitContractManager {
     for (const field of [
       'stopType',
       'atrStopMult',
+      'atrPeriod',
       'trailType',
       'trailAtrMult',
       'trailChannelBars',

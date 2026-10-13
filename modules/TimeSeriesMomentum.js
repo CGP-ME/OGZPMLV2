@@ -145,6 +145,7 @@ class TimeSeriesMomentum {
         stopLossPercent: -Math.abs(stopPct),
         stopType: this.cfg.exit.stopType,
         atrStopMult: this.cfg.exit.atrStopMult,
+        atrPeriod: this.cfg.atrPeriod,
         takeProfitPercent: null,
         tpMode: this.cfg.exit.tpMode,
         trailingStopPercent: null,

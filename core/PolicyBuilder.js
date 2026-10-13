@@ -196,6 +196,7 @@ function normalizeContract(strategyName, contract) {
     atrStopMult: hasOwn(contract, 'atrStopMult') && contract.atrStopMult !== null
       ? requirePositiveNumber(contract.atrStopMult, 'exitContract.atrStopMult')
       : null,
+    ...(hasOwn(contract, 'atrPeriod') ? { atrPeriod: contract.atrPeriod } : {}),
     takeProfitPercent: tpMode === 'off' || tpMode === 'atrMultiple'
       ? null
       : requirePositiveNumber(contract.takeProfitPercent, 'exitContract.takeProfitPercent'),
