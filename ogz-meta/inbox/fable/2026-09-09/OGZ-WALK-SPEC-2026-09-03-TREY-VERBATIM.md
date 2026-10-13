@@ -229,6 +229,27 @@
 8. Books vs broker, and the crypto/stocks switch
 9. Pattern bank / ML
 10. TrAI + trace
+11. Backtesting and frontend
+
+### Stop 11 addition — Trey, 2026-10-13
+
+Trey requested this newest stop after reporting the website routing problem.
+Stops 1–10 retain their order; Part A and the original authorship record remain
+historical and unchanged.
+
+- Backtesting: review Command Center's CSV/data input, run submission and results
+  together with the actual backtest execution path. Verify the same trading
+  modules serve backtests and production, with the intended candle-source
+  difference, and that displayed results match the run's records.
+- Frontend: restore the main website at `ogzprime.com`; keep the dashboard at
+  `/unified-dashboard-v2.html` and authenticated settings at `/control-panel.html`.
+  Preserve `/command-center` as the CSV/backtesting surface.
+- Account for the existing pages and navigation, including older/reference pages,
+  before deciding which are current. The earlier HTTP 200 checks establish page
+  delivery only, not functioning controls. No page deletion is authorized here.
+
+Status: queued. Adding this stop does not certify Stops 1 or 2, implement routing
+changes, or authorize runtime activation.
 
 ## B8. Session defaults recorded (all configurable, per Trey)
 
