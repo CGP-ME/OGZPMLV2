@@ -1,0 +1,19 @@
+{
+  "base": "23b199486aa7d5a77da3ddc340417a0bad4f9696",
+  "candidate": "37053c0e2143ac00be01a5c18956d721e6590207",
+  "mercuryReviewedPredecessor": "ebba78242a081c4e0d4700cb14865ee4d806dd05",
+  "finalDelta": "Remove unreachable silent checkpoint return; every caller has initialized checkpoint.",
+  "mercuryRun": "2026-10-13T06-51-32-179Z-d6b4d8cd94fc",
+  "mercuryAnswerDecision": "found_break",
+  "mercuryLedgerVerdict": "no_claim",
+  "ledgerLimitation": "Ledger classification disagrees with final JSON decision; use answer as blocking, not a clean pass.",
+  "astra": "No introduced break within retained history; reset allegation refuted by _resetAll; disk persistence unchanged.",
+  "behavior": "Immutable candidate proof passes retained corrections/insertion/store chronology/rollover, canonical 301 candles; no real broker.",
+  "limits": [
+    "Older-than-checkpoint input retains prior append behavior; no arbitrary-history recovery claim."
+  ],
+  "runtimeActivation": false,
+  "delivery": "Trey explicitly waived Mercury for item1; delivery on Astra adjudication; no runtime activation",
+  "deliveryBase": "008e884b192810252501b6e8f488c33734bec1d0",
+  "deliveryCandidate": "6dfaa1094942aa494014981ec22213fdc6fa945f"
+}

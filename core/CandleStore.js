@@ -55,19 +55,15 @@ class CandleStore {
 
     const candles = symbolStore.get(timeframe);
 
-    // Check if this is an update to the last candle (same timestamp)
-    const lastCandle = candles[candles.length - 1];
     const candleTime = _t(candle);
-    const lastTime = lastCandle ? _t(lastCandle) : null;
-
-    if (lastTime && candleTime === lastTime) {
-      // Update existing candle (same timestamp)
-      candles[candles.length - 1] = candle;
+    let index = candles.length;
+    while (index > 0 && _t(candles[index - 1]) > candleTime) {
+      index -= 1;
+    }
+    if (index > 0 && _t(candles[index - 1]) === candleTime) {
+      candles[index - 1] = candle;
     } else {
-      // New candle
-      candles.push(candle);
-
-      // Enforce max candles limit
+      candles.splice(index, 0, candle);
       if (candles.length > this.config.maxCandles) {
         candles.shift();
       }

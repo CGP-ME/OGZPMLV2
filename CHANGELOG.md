@@ -1,3 +1,15 @@
+## 2026-10-13 — Correct retained historical candle chronology
+
+Problem: an older revised candle was appended in CandleStore and IndicatorEngine, making it the newest input and changing cumulative indicators out of order. Returning to a retained market during REST hydration exposes this.
+
+Change: CandleStore replaces matching timestamps and inserts missing bars in order. IndicatorEngine preserves two bounded candle chunks and their pre-chunk accumulator snapshots, then replays recoverable corrections through the existing calculations. Latest-candle updates keep their existing rollback behavior. Reset clears checkpoint/journal fields. No new throw, default, fallback, or trading gate; an unnecessary draft silent return was removed after producer inspection.
+
+Verification: immutable final candidate 37053c0e2143ac00be01a5c18956d721e6590207. Baseline mismatch reproduced. Current/prior-chunk corrections, missing insertion, rollover, matching store/engine histories, and 301-candle correction under canonical retention passed against clean chronological runs. Astra additionally checked reset/revision behavior. No broker or persistent trading-state writes.
+
+Review: Mercury reviewed predecessor ebba78242a081c4e0d4700cb14865ee4d806dd05; its final JSON says found_break although its ledger says no_claim. Treated as blocking. Astra refuted the reset allegation using _resetAll and identified disk-slot persistence as unchanged. Final delta removes only an unreachable silent return. Trey explicitly waived Mercury for item 1 and authorized push on 2026-10-13; delivery uses Astra adjudication.
+
+Limit: candles older than the preserved checkpoint retain existing behavior and are not claimed recoverable. Evidence: ogz-meta/inbox/codex/2026-10-13/historical-candle-replay/. Runtime: not restarted or activated.
+
 ## 2026-10-13 — Connect strategy exit volatility to its configured return lookback
 
 Problem: `profitManagement.volatilityAdjustment.lookbackPeriods` was editable but unused at entry. PolicyBuilder received an ATR-based diagnostic value instead of the return standard deviation expected by its percentage thresholds.

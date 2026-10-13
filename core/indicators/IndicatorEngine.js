@@ -139,6 +139,11 @@ class IndicatorEngine {
     // A revision with that candle's timestamp restores this state, then applies
     // the revised candle through the existing incremental calculation path.
     this._latestCandleCheckpoint = null;
+
+    this._previousCandleChunk = [];
+    this._previousCandleCheckpoint = null;
+    this._currentCandleChunk = [];
+    this._currentCandleCheckpoint = null;
   }
 
   _blankState() {
@@ -187,20 +192,106 @@ class IndicatorEngine {
   updateCandle(c) {
     this._validateCandle(c);
 
+    const candleTime = _t(c);
     const latest = this._lastCandle();
-    if (latest && _t(latest) === _t(c)) {
+    const currentLatest = this._currentCandleChunk[this._currentCandleChunk.length - 1];
+
+    if (latest && currentLatest && _t(latest) === candleTime && _t(currentLatest) === candleTime) {
       this._restoreLatestCandleCheckpoint();
-    } else {
+      this._currentCandleChunk[this._currentCandleChunk.length - 1] = c;
       this._latestCandleCheckpoint = this._captureLatestCandleCheckpoint();
+      this._applyCandle(c);
+      return this.getSnapshot();
     }
 
-    // append / roll
+    const retained = [...this._previousCandleChunk, ...this._currentCandleChunk];
+    const retainedIndex = retained.findIndex(candidate => _t(candidate) === candleTime);
+    if (retainedIndex !== -1) {
+      retained[retainedIndex] = c;
+      this._replayRetainedCandles(retained);
+      return this.getSnapshot();
+    }
+
+    if (latest && candleTime < _t(latest) && this._canReplayMissingRetainedCandle(candleTime)) {
+      retained.push(c);
+      retained.sort((left, right) => _t(left) - _t(right));
+      this._replayRetainedCandles(retained);
+      return this.getSnapshot();
+    }
+
+    this._appendForwardCandle(c);
+    return this.getSnapshot();
+  }
+
+  _appendForwardCandle(c) {
+    if (this._currentCandleChunk.length >= this.config.maxCandles) {
+      this._previousCandleChunk = this._currentCandleChunk;
+      this._previousCandleCheckpoint = this._currentCandleCheckpoint;
+      this._currentCandleChunk = [];
+      this._currentCandleCheckpoint = this._captureLatestCandleCheckpoint();
+    }
+
+    if (!this._currentCandleCheckpoint) {
+      this._currentCandleCheckpoint = this._captureLatestCandleCheckpoint();
+    }
+
+    this._latestCandleCheckpoint = this._captureLatestCandleCheckpoint();
+    this._applyCandle(c);
+    this._currentCandleChunk.push(c);
+  }
+
+  _canReplayMissingRetainedCandle(candleTime) {
+    const checkpoint = this._previousCandleChunk.length > 0
+      ? this._previousCandleCheckpoint
+      : this._currentCandleCheckpoint;
+    const prefixLatest = checkpoint?.candles?.[checkpoint.candles.length - 1];
+    const prefixLatestTime = prefixLatest ? _t(prefixLatest) : null;
+    return prefixLatestTime == null || candleTime > prefixLatestTime;
+  }
+
+  _replayRetainedCandles(retained) {
+    const checkpoint = this._previousCandleChunk.length > 0
+      ? this._previousCandleCheckpoint
+      : this._currentCandleCheckpoint;
+
+    const overflow = Math.max(0, retained.length - (this.config.maxCandles * 2));
+    const displaced = retained.slice(0, overflow);
+    const replayable = retained.slice(overflow);
+
+    this._restoreEngineCheckpoint(checkpoint);
+    for (const candle of displaced) {
+      this._latestCandleCheckpoint = this._captureLatestCandleCheckpoint();
+      this._applyCandle(candle);
+    }
+    const retainedPrefix = this._captureLatestCandleCheckpoint();
+
+    const previousLength = Math.max(0, replayable.length - this.config.maxCandles);
+    const previous = replayable.slice(0, previousLength);
+    const current = replayable.slice(previousLength);
+
+    for (const candle of previous) {
+      this._latestCandleCheckpoint = this._captureLatestCandleCheckpoint();
+      this._applyCandle(candle);
+    }
+    const currentPrefix = this._captureLatestCandleCheckpoint();
+
+    for (const candle of current) {
+      this._latestCandleCheckpoint = this._captureLatestCandleCheckpoint();
+      this._applyCandle(candle);
+    }
+
+    this._previousCandleChunk = previous;
+    this._previousCandleCheckpoint = previous.length > 0 ? retainedPrefix : null;
+    this._currentCandleChunk = current;
+    this._currentCandleCheckpoint = currentPrefix;
+  }
+
+  _applyCandle(c) {
     this.candles.push(c);
     if (this.candles.length > this.config.maxCandles) this.candles.shift();
 
     this.state.lastCandle = c;
 
-    // core calculations
     this._updateSMA();
     this._updateEMA();
     this._updateBollinger();
@@ -220,13 +311,11 @@ class IndicatorEngine {
     this._updateMACD();
     this._updateIchimoku();
 
-    // pivots + derived structures (fib, SR, trendlines)
     this._updatePivots();
     this._updateFib();
     this._updateSupportResistance();
     this._updateTrendlines();
 
-    // update state snapshot
     this.state.sma = this._copyObj(this.state.sma);
     this.state.ema = this._copyObj(this.state.ema);
     this.state.bb = this.state.bb ? { ...this.state.bb } : null;
@@ -246,10 +335,7 @@ class IndicatorEngine {
     };
     this.state.updatedAt = Date.now();
 
-    // build render series incrementally (optional but useful)
     this._updateSeries(c);
-
-    return this.getSnapshot();
   }
 
   computeBatch(candles) {
@@ -1437,12 +1523,25 @@ class IndicatorEngine {
     this.trends = { up: null, down: null };
     this.series = this._blankSeries();
     this._latestCandleCheckpoint = null;
+    this._previousCandleChunk = [];
+    this._previousCandleCheckpoint = null;
+    this._currentCandleChunk = [];
+    this._currentCandleCheckpoint = null;
   }
 
   _copyLatestCandleCheckpoint(source) {
     const mutableState = {};
     for (const key of Reflect.ownKeys(source)) {
-      if (key === 'config' || key === '_latestCandleCheckpoint' || key === 'candles' || key === 'series') continue;
+      if (
+        key === 'config' ||
+        key === '_latestCandleCheckpoint' ||
+        key === '_previousCandleChunk' ||
+        key === '_previousCandleCheckpoint' ||
+        key === '_currentCandleChunk' ||
+        key === '_currentCandleCheckpoint' ||
+        key === 'candles' ||
+        key === 'series'
+      ) continue;
       mutableState[key] = source[key];
     }
 
@@ -1469,8 +1568,12 @@ class IndicatorEngine {
     return this._copyLatestCandleCheckpoint(this);
   }
 
+  _restoreEngineCheckpoint(checkpoint) {
+    Object.assign(this, this._copyLatestCandleCheckpoint(checkpoint));
+  }
+
   _restoreLatestCandleCheckpoint() {
-    Object.assign(this, this._copyLatestCandleCheckpoint(this._latestCandleCheckpoint));
+    this._restoreEngineCheckpoint(this._latestCandleCheckpoint);
   }
 
   _validateCandle(candle) {
