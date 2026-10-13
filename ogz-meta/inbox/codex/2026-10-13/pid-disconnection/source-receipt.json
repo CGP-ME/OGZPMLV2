@@ -1,0 +1,44 @@
+{
+  "base": "23b199486aa7d5a77da3ddc340417a0bad4f9696",
+  "candidate": "cb07ffc10eb2691644c0ea1d8a08b33e89f6b6c1",
+  "files": [
+    "core/OrderExecutor.js",
+    "core/StrategyOrchestrator.js"
+  ],
+  "preserved": [
+    "core/PIDController.js",
+    "config/settings.json pid configuration"
+  ],
+  "withdrawn": "Prior uncommitted PID trailing hookup; not delivered",
+  "runtimeActivation": false,
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "mercury": {
+    "run": "2026-10-13T07-15-15-379Z-75044830e513",
+    "verdict": "found_break"
+  },
+  "behavior": {
+    "pass": true,
+    "candidate": "cb07ffc10eb2691644c0ea1d8a08b33e89f6b6c1",
+    "checks": [
+      "baseline PID changes sizing and regime rank",
+      "disconnected sizing preserves confidence multiplier",
+      "configured regime boost preserved without PID adjustment",
+      "ATR contract unchanged",
+      "no long/short PID feedback or runtime module consumers",
+      "controller and PID settings preserved byte-for-byte/value-for-value"
+    ],
+    "runtimeFilesScanned": 154,
+    "limits": [
+      "actual sizing/ranking/entry excerpts; full order and close paths not executed"
+    ],
+    "brokerCalls": 0,
+    "runtimeActivation": false
+  },
+  "astra": {
+    "verdict": "No introduced regression found",
+    "receipt": "astra-adjudication.md",
+    "behaviorRerun": "pass",
+    "productionWrites": false
+  },
+  "delivery": "Trey explicitly waived Mercury and authorized commit/push for item1 on2026-10-13; source delivery only"
+}

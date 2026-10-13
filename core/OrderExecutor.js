@@ -19,7 +19,6 @@ const { getBrokerInfo } = require('../brokers/BrokerRegistry');
 // Phase 4 REWRITE: FeatureFlagManager removed - AGGRESSIVE_LEARNING_MODE deleted
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
-const { getPIDController } = require('./PIDController');  // FIX 2026-04-05: Adaptive parameter optimization
 const { createTraceId, emitTrace } = require('./TraceSpine');
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
@@ -3080,9 +3079,6 @@ class OrderExecutor {
       basePositionPercent = basePositionPercent * confidenceMultiplier;
     }
 
-    const pidPositionMultiplier = isEntryAction ? getPIDController().getPositionMultiplier() : 1.0;
-    basePositionPercent *= pidPositionMultiplier;
-
     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
     const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
     if (isEntryAction && basePositionPercent > maxPositionPercent) {
@@ -4832,8 +4828,6 @@ class OrderExecutor {
             // Updates RiskManager's own-fill realized P&L ledger for Trey drawdown-law reporting.
             const longResultPnlDollars = this._firstFiniteNumber(completeTradeResult.pnlDollars);
             const longResultPnlPercent = this._firstFiniteNumber(completeTradeResult.pnl);
-            const longResultHoldDuration = this._firstFiniteNumber(completeTradeResult.holdDuration);
-            const longResultExitReason = this._firstNonEmptyString(completeTradeResult.exitReason);
             const longResultStrategy = this._firstNonEmptyString(buyTrade.entryStrategy, buyTrade.strategy);
 
             if (this.ctx.riskManager && longResultPnlDollars !== null) {
@@ -4848,34 +4842,6 @@ class OrderExecutor {
 	              });
             } else if (this.ctx.riskManager) {
               console.warn('[RISK] Skipped trade result update: missing finite P&L dollars');
-            }
-
-            // 3.7 FIX 2026-04-05: Wire PID Controller for adaptive parameter optimization
-            // Updates position sizing, regime boosts, trailing stops based on performance
-            try {
-              if (
-                longResultStrategy &&
-                longResultPnlDollars !== null &&
-                longResultPnlPercent !== null &&
-                longResultExitReason &&
-                longResultHoldDuration !== null
-              ) {
-                const pidController = getPIDController();
-                pidController.onTradeClose({
-                  strategyName: longResultStrategy,
-                  netPnlDollars: longResultPnlDollars,
-                  netPnlPercent: longResultPnlPercent,
-                  exitReason: longResultExitReason,
-                  maxProfitPercent: this._firstFiniteNumber(buyTrade.maxProfitPercent),
-                  maxFavorableExcursion: this._firstFiniteNumber(buyTrade.maxFavorableExcursion),
-                  holdDuration: longResultHoldDuration,
-                });
-              } else {
-                console.warn('[PID] Skipped onTradeClose: missing strategy, P&L, exit reason, or hold duration');
-              }
-            } catch (err) {
-              // PID is optional - don't break trade flow if it fails
-              console.warn(`[PID] onTradeClose failed: ${err.message}`);
             }
 
             const traiLearningIndicators = this._buildTraiLearningIndicators(buyTrade);
@@ -5122,9 +5088,6 @@ class OrderExecutor {
             exitReason: this._firstNonEmptyString(decision.exitReason)
           };
           const shortResultPnlDollars = this._firstFiniteNumber(completeTradeResult.pnlDollars);
-          const shortResultPnlPercent = this._firstFiniteNumber(completeTradeResult.pnl);
-          const shortResultHoldDuration = this._firstFiniteNumber(completeTradeResult.holdDuration);
-          const shortResultExitReason = this._firstNonEmptyString(completeTradeResult.exitReason);
           const shortResultStrategy = this._firstNonEmptyString(shortTrade.entryStrategy, shortTrade.strategy);
 
           // Record trade
@@ -5467,32 +5430,6 @@ class OrderExecutor {
 	            });
           } else if (this.ctx.riskManager) {
             console.warn('[RISK] Skipped short trade result update: missing finite P&L dollars');
-          }
-
-          // FIX 2026-04-05: Wire PID Controller for short exits
-          try {
-            if (
-              shortResultStrategy &&
-              shortResultPnlDollars !== null &&
-              shortResultPnlPercent !== null &&
-              shortResultExitReason &&
-              shortResultHoldDuration !== null
-            ) {
-              const pidController = getPIDController();
-              pidController.onTradeClose({
-                strategyName: shortResultStrategy,
-                netPnlDollars: shortResultPnlDollars,
-                netPnlPercent: shortResultPnlPercent,
-                exitReason: shortResultExitReason,
-                maxProfitPercent: this._firstFiniteNumber(shortTrade.maxProfitPercent),
-                maxFavorableExcursion: this._firstFiniteNumber(shortTrade.maxFavorableExcursion),
-                holdDuration: shortResultHoldDuration,
-              });
-            } else {
-              console.warn('[PID] Skipped short onTradeClose: missing strategy, P&L, exit reason, or hold duration');
-            }
-          } catch (err) {
-            console.warn(`[PID] onTradeClose (short) failed: ${err.message}`);
           }
 
           // TRAI learning — mirror SELL path for short trade outcomes

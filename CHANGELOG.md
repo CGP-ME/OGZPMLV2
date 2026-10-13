@@ -1,3 +1,15 @@
+## 2026-10-13 — Disconnect PID feedback and trading adjustments; preserve controller
+
+**Operator ruling:** Trey explicitly instructed: disconnect PID altogether, preserve it, and log the disconnection. Reconnection is deferred until the broader learning/measurement design is deliberately approved. This supersedes the uncommitted PID trailing hookup and its pending delivery request.
+
+**Problem and change:** PID was connected to entry position sizing, strategy regime ranking, and long/short closed-trade feedback. Remove those imports/calls, the PID-only locals and PID-only error wrappers. Withdraw the new local trailing hookup as well. Preserve `core/PIDController.js`, its exports/implementation, and the `pid` configuration. Configured confidence sizing, strategy regime boosts, strategy-owned exit contracts, RiskManager reporting, and TRAI learning keep their existing paths. No new gate, throw, default, fallback, or replacement multiplier.
+
+**Verification:** Immutable candidate `cb07ffc10eb2691644c0ea1d8a08b33e89f6b6c1` against `23b19948`. Executed actual sizing/ranking/entry producer excerpts with a deliberately non-neutral PID stub: baseline consumes it, candidate does not. Configured confidence sizing and regime boost remain effective; ATR exit contract remains unchanged. Scanned 154 runtime source files for PID imports/constructors/getters; none remain outside the preserved controller. Controller source and PID settings match baseline. Both edited files pass syntax checks and scoped diff checks. Full broker order/close execution was not performed.
+
+**Review and delivery:** Mercury run `2026-10-13T07-15-15-379Z-75044830e513` reports `found_break`, citing unchanged code and the explicitly requested PID removal. Astra adjudication found no introduced regression, missed runtime PID consumers, or orphaned references; it reran the immutable proof successfully. Mercury's missing-PID-usage allegations describe the requested disconnection; its remaining findings concern unchanged code. Trey explicitly waived Mercury for item 1 and authorized push on 2026-10-13; delivery proceeds on Astra's adjudication with Mercury's disagreement retained. Evidence: `ogz-meta/inbox/codex/2026-10-13/pid-disconnection/`.
+
+**Runtime:** No PM2 restart/environment change or broker operation. An already running process has not been proven to pick up this source change. PID configuration is deliberately preserved but disconnected; changing it cannot reconnect removed consumers.
+
 ## 2026-10-13 — Append Backtesting and Frontend; review readiness for Stop 3
 
 Request/change: Trey asked to append the newest walk stop and review Stops 1 and 2 before moving to 3. Added Stop 11, Backtesting and Frontend, to Part B of the existing walk document: Command Center CSV/backtest input through results, shared execution behavior, the main website/dashboard/control-panel routes, and existing-page navigation. Stops 1–10, verbatim Part A and historical authorship remain unchanged. The frontend work is queued, not implemented.
