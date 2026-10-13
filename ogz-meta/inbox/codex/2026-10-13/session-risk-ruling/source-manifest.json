@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-13",
+  "source": "Trey explicit full session-risk response removal",
+  "base": "329ac1cf3f0a613b191319bec18b433e4e8f5e4b",
+  "candidate": "1f4c3240231540be97f9798df2291b75a6e170d1",
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "productionBlobs": {
+    "config/settings.json": "593d4e48f6c61a2aad0040299fda393a0254c973",
+    "core/RiskManagerConfig.js": "a19d93b363d3cf49223a948ca9f2f02015f68d60",
+    "core/RuntimeConfigProof.js": "f0c3e3e1308314509ab3b71f3930d532da98408c",
+    "foundation/ConfigLoader.js": "0b0df2cec3b48162cbc8066497bc048e876d2418"
+  }
+}

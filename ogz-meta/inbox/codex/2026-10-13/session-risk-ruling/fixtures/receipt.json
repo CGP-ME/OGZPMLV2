@@ -1,0 +1,74 @@
+{
+  "tree": "1f4c3240231540be97f9798df2291b75a6e170d1",
+  "result": "pass",
+  "profiles": [
+    {
+      "profile": "production",
+      "constructed": true,
+      "riskKeys": [
+        "guardMode",
+        "venueRailBuffer",
+        "reconciliationReporter"
+      ]
+    },
+    {
+      "profile": "paper",
+      "constructed": true,
+      "riskKeys": [
+        "guardMode",
+        "venueRailBuffer",
+        "reconciliationReporter"
+      ]
+    },
+    {
+      "profile": "backtest-all",
+      "constructed": true,
+      "riskKeys": [
+        "guardMode",
+        "venueRailBuffer",
+        "reconciliationReporter"
+      ]
+    },
+    {
+      "profile": "backtest-masr",
+      "constructed": true,
+      "riskKeys": [
+        "guardMode",
+        "venueRailBuffer",
+        "reconciliationReporter"
+      ]
+    },
+    {
+      "profile": "backtest-rsi",
+      "constructed": true,
+      "riskKeys": [
+        "guardMode",
+        "venueRailBuffer",
+        "reconciliationReporter"
+      ]
+    },
+    {
+      "profile": "backtest-ttp-5k-max",
+      "constructed": true,
+      "riskKeys": [
+        "guardMode",
+        "venueRailBuffer",
+        "reconciliationReporter"
+      ]
+    },
+    {
+      "profile": "backtest-trey-spec",
+      "constructed": true,
+      "riskKeys": [
+        "guardMode",
+        "venueRailBuffer",
+        "reconciliationReporter"
+      ]
+    }
+  ],
+  "paperSnapshotBuilt": true,
+  "proofBuilt": true,
+  "removedFieldInSources": false,
+  "removedFieldInProof": false,
+  "noBrokerOrPm2Calls": true
+}

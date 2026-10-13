@@ -132,11 +132,6 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
           alertDeltaDollars: withSource(snapshot, 'risk.reconciliationReporter.alertDeltaDollars'),
           alertDeltaPercent: withSource(snapshot, 'risk.reconciliationReporter.alertDeltaPercent'),
         },
-        sessionRiskResponse: {
-          enabled: withSource(snapshot, 'risk.sessionRiskResponse.enabled'),
-          triggerPercent: withSource(snapshot, 'risk.sessionRiskResponse.triggerPercent'),
-          action: withSource(snapshot, 'risk.sessionRiskResponse.action'),
-        },
       },
       evalRules: {
         enabled: withSource(snapshot, 'evalRules.enabled'),

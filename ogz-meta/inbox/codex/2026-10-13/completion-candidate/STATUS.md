@@ -21,9 +21,9 @@ These were findings from the October 11 multi-agent config audit, not new unmapp
 
 Trey authorized implementation and isolated feed-through tests, including recorded receipts or dashboard display. Compare only semantically matching account/execution data; simulated paper bankroll is not broker money. No automatic balance override or new trading restriction.
 
-## 4. Session-risk declarations — ruling pending
+## 4. Session-risk declarations — removed by Trey ruling
 
-After item3, provide definitions for Trey's ruling. Do not activate session-loss actions while that ruling is pending.
+Trey rejected all five actions, including alert, and directed a clean removal. Removed the block from all seven profiles, its source requirements, config builder, unused helper/enum and runtime proof. Seven-profile construction and paper snapshot/proof pass. Mercury AST/blast-radius review returned no_break_found. Evidence: ../session-risk-ruling/REVIEW.md. No runtime activation.
 
 ## 5. Controlled paper walkthrough — with Trey
 

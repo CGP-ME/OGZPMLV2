@@ -46,11 +46,6 @@ function snapshotFixture() {
           alertDeltaDollars: 1,
           alertDeltaPercent: 0.1,
         },
-        sessionRiskResponse: {
-          enabled: false,
-          triggerPercent: null,
-          action: 'alert',
-        },
       },
       evalRules: {
         enabled: true,
@@ -189,9 +184,6 @@ function snapshotFixture() {
       'risk.reconciliationReporter.enabled': 'config:launchProfiles.production.risk.reconciliationReporter.enabled',
       'risk.reconciliationReporter.alertDeltaDollars': 'config:launchProfiles.production.risk.reconciliationReporter.alertDeltaDollars',
       'risk.reconciliationReporter.alertDeltaPercent': 'config:launchProfiles.production.risk.reconciliationReporter.alertDeltaPercent',
-      'risk.sessionRiskResponse.enabled': 'config:launchProfiles.production.risk.sessionRiskResponse.enabled',
-      'risk.sessionRiskResponse.triggerPercent': 'config:launchProfiles.production.risk.sessionRiskResponse.triggerPercent',
-      'risk.sessionRiskResponse.action': 'config:launchProfiles.production.risk.sessionRiskResponse.action',
       'evalRules.enabled': 'env:EVAL_RULES_ENABLED',
       'evalRules.ttp.enabled': 'env:TTP_RULES_ENABLED',
       'evalRules.ttp.accountLimits.dailyLossDollars': 'env:TTP_DAILY_LOSS_LIMIT_DOLLARS',

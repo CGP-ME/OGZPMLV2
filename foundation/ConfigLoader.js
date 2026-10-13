@@ -67,10 +67,6 @@ const REQUIRED_RISK_SOURCE_PATHS = Object.freeze([
   'risk.reconciliationReporter.enabled',
   'risk.reconciliationReporter.alertDeltaDollars',
   'risk.reconciliationReporter.alertDeltaPercent',
-  'risk.sessionRiskResponse.enabled',
-  'risk.sessionRiskResponse.triggerPercent',
-  'risk.sessionRiskResponse.action',
-  'risk.sessionRiskResponse.actionParams',
 ]);
 
 function requiredConfiguredNumber(configPath) {
@@ -424,8 +420,6 @@ const VALID_DIRECTION_FILTERS = Object.freeze(new Set(['both', 'long_only', 'sho
 const VALID_SESSION_ROUTER_MODES = Object.freeze(new Set(['static', 'scheduled']));
 const VALID_SESSION_ROUTER_STATIC_SESSIONS = Object.freeze(new Set(['stocks', 'crypto']));
 const VALID_RISK_GUARD_MODES = Object.freeze(new Set(['off', 'venueRailBuffer']));
-const VALID_SESSION_RISK_ACTIONS = Object.freeze(new Set(['halt', 'pause', 'reduce', 'tighten', 'alert']));
-
 function requireLaunchProfiles() {
   const launchProfiles = settingsConfigFile.launchProfiles;
   if (!launchProfiles || typeof launchProfiles !== 'object' || Array.isArray(launchProfiles)) {

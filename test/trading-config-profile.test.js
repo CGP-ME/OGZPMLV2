@@ -160,7 +160,7 @@ describe('ConfigLoader runtime profile contract', () => {
 	    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
 	    expect(snapshot.config.risk.guardMode).toBe('off');
 	    expect(snapshot.config.risk.venueRailBuffer.enabled).toBe(false);
-	    expect(snapshot.config.risk.sessionRiskResponse.enabled).toBe(false);
+	    expect(snapshot.config.risk.sessionRiskResponse).toBeUndefined();
   });
 
   test('TTP 5k MAX tuning profile exports prop-eval economics to stock backtest workers', () => {

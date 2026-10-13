@@ -15,10 +15,6 @@ const explicitRiskSources = Object.freeze({
   'risk.reconciliationReporter.enabled': 'config:launchProfiles.production.risk.reconciliationReporter.enabled',
   'risk.reconciliationReporter.alertDeltaDollars': 'config:launchProfiles.production.risk.reconciliationReporter.alertDeltaDollars',
   'risk.reconciliationReporter.alertDeltaPercent': 'config:launchProfiles.production.risk.reconciliationReporter.alertDeltaPercent',
-  'risk.sessionRiskResponse.enabled': 'config:launchProfiles.production.risk.sessionRiskResponse.enabled',
-  'risk.sessionRiskResponse.triggerPercent': 'config:launchProfiles.production.risk.sessionRiskResponse.triggerPercent',
-  'risk.sessionRiskResponse.action': 'config:launchProfiles.production.risk.sessionRiskResponse.action',
-  'risk.sessionRiskResponse.actionParams': 'config:launchProfiles.production.risk.sessionRiskResponse.actionParams',
 });
 
 function activeRiskConfig(overrides = {}) {
@@ -37,17 +33,9 @@ function activeRiskConfig(overrides = {}) {
       alertDeltaPercent: 0.1,
       ...(overrides.reconciliationReporter || {}),
     },
-    sessionRiskResponse: {
-      enabled: false,
-      triggerPercent: null,
-      action: 'alert',
-      actionParams: {},
-      ...(overrides.sessionRiskResponse || {}),
-    },
     ...Object.fromEntries(Object.entries(overrides).filter(([key]) => ![
       'venueRailBuffer',
       'reconciliationReporter',
-      'sessionRiskResponse',
     ].includes(key))),
   };
 }
@@ -64,12 +52,7 @@ describe('RiskManager guard rebuild wiring', () => {
       releaseOnSessionReset: true,
     });
     expect(config.reconciliationReporter.enabled).toBe(true);
-    expect(config.sessionRiskResponse).toEqual({
-      enabled: false,
-      triggerPercent: null,
-      action: 'alert',
-      actionParams: {},
-    });
+    expect(config.sessionRiskResponse).toBeUndefined();
     expect(Object.isFrozen(config)).toBe(true);
   });
 

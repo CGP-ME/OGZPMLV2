@@ -1,3 +1,13 @@
+## 2026-10-13 — Remove the unused session-risk response controls
+
+Problem: all seven launch profiles declared halt, pause, reduce, tighten and alert behavior through sessionRiskResponse, but no runtime consumer implemented it. Trey rejected every action and directed complete removal with Mercury blast radius, without phantom callers.
+
+Change: remove the complete block from all seven profiles, its required source paths, config assembly, runtime-proof output, both action declarations and the now-unused actionParams object validator. Existing test fixtures/assertions now expect the field to be absent. Production diff removes 77 lines and adds no runtime behavior. Existing operational halts, venue rails, reconciliation reporting, sizing/ML and strategy-owned exits remain under their existing owners.
+
+Verification: Mercury/Serena blast radius identified the existing module callers; the removed property had no runtime reader before deletion. Pinned candidate 1f4c3240231540be97f9798df2291b75a6e170d1 builds branded risk config and RiskManager for all seven profiles, plus the actual paper ConfigLoader snapshot and RuntimeConfigProof. Canonical JSON and all changed JS syntax pass. Post-removal production search finds no field/enum references. Focused checks do not claim a broad-suite pass or full bot startup.
+
+Review: Mercury run 2026-10-13T20-52-24-613Z-5a77b2196645 returned no_break_found and blocking=no after source/AST searches and blast-radius analysis. JSON direct-import counts were not treated as proof of no data readers; the real ConfigLoader reader is exercised. Evidence: ogz-meta/inbox/codex/2026-10-13/session-risk-ruling/ (source-manifest, blast-before, REVIEW, fixture/receipt). No new gates, throws, defaults or fallback behavior. No PM2 restart, env change or runtime activation. Item 4 is resolved; item 3 reconciliation remains separately staged awaiting its previously requested review exception.
+
 ## 2026-10-13 — Record remaining-work dispositions and confirmed delivery
 
 Trey waived Mercury for item 1, directed its four fixes to be pushed, deferred item 2, authorized item 3 ledger reconciliation with recorded/displayed feed-through evidence, requested item 4 definitions afterward, and reserved item 5 for a joint walkthrough. Recorded these decisions in `ogz-meta/inbox/codex/2026-10-13/completion-candidate/STATUS.md`.

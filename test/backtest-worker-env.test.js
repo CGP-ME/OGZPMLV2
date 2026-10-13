@@ -557,7 +557,7 @@ describe('backtest worker env contract', () => {
     expect(snapshot.config.confidence.minTradeConfidence).toBe(0.5);
     expect(snapshot.config.risk.guardMode).toBe('off');
     expect(snapshot.config.risk.venueRailBuffer.enabled).toBe(false);
-    expect(snapshot.config.risk.sessionRiskResponse.enabled).toBe(false);
+    expect(snapshot.config.risk.sessionRiskResponse).toBeUndefined();
     expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
     expect(snapshot.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
     expect(snapshot.config.evalRules.ttp.consistency.profitTargetDollars).toBe(300);

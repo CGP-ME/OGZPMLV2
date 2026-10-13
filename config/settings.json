@@ -194,12 +194,6 @@
           "enabled": true,
           "alertDeltaDollars": 1,
           "alertDeltaPercent": 0.1
-        },
-        "sessionRiskResponse": {
-          "enabled": false,
-          "triggerPercent": null,
-          "action": "alert",
-          "actionParams": {}
         }
       },
       "venueGuards": {
@@ -324,12 +318,6 @@
           "enabled": false,
           "alertDeltaDollars": null,
           "alertDeltaPercent": null
-        },
-        "sessionRiskResponse": {
-          "enabled": false,
-          "triggerPercent": null,
-          "action": "alert",
-          "actionParams": {}
         }
       },
       "venueGuards": {
@@ -455,12 +443,6 @@
           "enabled": false,
           "alertDeltaDollars": null,
           "alertDeltaPercent": null
-        },
-        "sessionRiskResponse": {
-          "enabled": false,
-          "triggerPercent": null,
-          "action": "alert",
-          "actionParams": {}
         }
       },
       "venueGuards": {
@@ -586,12 +568,6 @@
           "enabled": false,
           "alertDeltaDollars": null,
           "alertDeltaPercent": null
-        },
-        "sessionRiskResponse": {
-          "enabled": false,
-          "triggerPercent": null,
-          "action": "alert",
-          "actionParams": {}
         }
       },
       "venueGuards": {
@@ -719,12 +695,6 @@
           "enabled": false,
           "alertDeltaDollars": null,
           "alertDeltaPercent": null
-        },
-        "sessionRiskResponse": {
-          "enabled": false,
-          "triggerPercent": null,
-          "action": "alert",
-          "actionParams": {}
         }
       },
       "venueGuards": {
@@ -852,12 +822,6 @@
           "enabled": false,
           "alertDeltaDollars": null,
           "alertDeltaPercent": null
-        },
-        "sessionRiskResponse": {
-          "enabled": false,
-          "triggerPercent": null,
-          "action": "alert",
-          "actionParams": {}
         }
       },
       "venueGuards": {
@@ -983,12 +947,6 @@
           "enabled": false,
           "alertDeltaDollars": null,
           "alertDeltaPercent": null
-        },
-        "sessionRiskResponse": {
-          "enabled": false,
-          "triggerPercent": null,
-          "action": "alert",
-          "actionParams": {}
         }
       },
       "venueGuards": {

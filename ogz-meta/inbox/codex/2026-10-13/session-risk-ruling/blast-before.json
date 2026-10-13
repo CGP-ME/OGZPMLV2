@@ -1,0 +1,43 @@
+{
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "source": "live working files before full block removal",
+  "results": [
+    {
+      "source": "serena_blast_radius",
+      "file": "core/RiskManagerConfig.js",
+      "callerCount": 2,
+      "riskLevel": "low",
+      "truncated": false,
+      "latencyMs": 113,
+      "text": "## Blast Radius — core/RiskManagerConfig.js\n\n**Risk level:** low\n**Caller count:** 2\n\n**Summary:** core/RiskManagerConfig.js is required by 2 file(s): core/RiskManager.js, run-empire-v2.js.\n\n**Callers (file:line):**\n- core/RiskManager.js:5  `require` -> `./RiskManagerConfig`\n- run-empire-v2.js:418  `require` -> `./core/RiskManagerConfig`"
+    },
+    {
+      "source": "serena_blast_radius",
+      "file": "core/RuntimeConfigProof.js",
+      "callerCount": 1,
+      "riskLevel": "low",
+      "truncated": false,
+      "latencyMs": 83,
+      "text": "## Blast Radius — core/RuntimeConfigProof.js\n\n**Risk level:** low\n**Caller count:** 1\n\n**Summary:** core/RuntimeConfigProof.js is required by 1 file(s): run-empire-v2.js.\n\n**Callers (file:line):**\n- run-empire-v2.js:411  `require` -> `./core/RuntimeConfigProof`"
+    },
+    {
+      "source": "serena_blast_radius",
+      "file": "foundation/ConfigLoader.js",
+      "callerCount": 61,
+      "riskLevel": "high",
+      "truncated": false,
+      "latencyMs": 91,
+      "text": "## Blast Radius — foundation/ConfigLoader.js\n\n**Risk level:** high\n**Caller count:** 61\n\n**Summary:** foundation/ConfigLoader.js is required by 61 file(s) including TierFeatureFlags.js, core/AuthFailureGuard.js, core/BacktestRecorder.js.\n\n**Callers (file:line):**\n- TierFeatureFlags.js:14  `require` -> `./foundation/ConfigLoader`\n- core/AuthFailureGuard.js:39  `require` -> `../foundation/ConfigLoader`\n- core/BacktestRecorder.js:17  `require` -> `../foundation/ConfigLoader`\n- core/BacktestRunner.js:15  `require` -> `../foundation/ConfigLoader`\n- core/CandleProcessor.js:19  `require` -> `../foundation/ConfigLoader`\n- core/DashboardDepthCoalescer.js:3  `require` -> `../foundation/ConfigLoader`\n- core/DataFileInstrument.js:4  `require` -> `../foundation/ConfigLoader`\n- core/DecisionAutopsyLogger.js:7  `require` -> `../foundation/ConfigLoader`\n- core/DecisionLedgerLogger.js:8  `require` -> `../foundation/ConfigLoader`\n- core/DynamicPositionSizer.js:45  `require` -> `../foundation/ConfigLoader`\n- core/EnhancedPatternRecognition.js:37  `require` -> `../foundation/ConfigLoader`\n- core/ExitContractManager.js:20  `require` -> `../foundation/ConfigLoader`\n- core/FeatureExtractor.js:17  `require` -> `../foundation/ConfigLoader`\n- core/FeatureFlagManager.js:53  `require` -> `../foundation/ConfigLoader`\n- core/FeeModel.js:3  `require` -> `../foundation/ConfigLoader`\n- core/KrakenAdapterV2.js:50  `require` -> `../foundation/ConfigLoader`\n- core/MarketRegimeDetector.js:30  `require` -> `../foundation/ConfigLoader`\n- core/ModuleInitializer.js:13  `require` -> `../foundation/ConfigLoader`\n- core/OgzTpoIntegration.js:29  `require` -> `../foundation/ConfigLoader`\n- core/OptimizedIndicators.js:33  `require` -> `../foundation/ConfigLoader`\n- core/OrderExecutor.js:16  `require` -> `../foundation/ConfigLoader`\n- core/OutputPaths.js:5  `require` -> `../foundation/ConfigLoader`\n- core/PIDController.js:29  `require` -> `../foundation/ConfigLoader`\n- core/PatternMemoryBank.js:57  `require` -> `../foundation/ConfigLoader`\n- core/PolicyBuilder.js:3  `require` -> `../foundation/ConfigLoader`\n- core/PositionSizer.js:17  `require` -> `../foundation/ConfigLoader`\n- core/SingletonLock.js:10  `require` -> `../foundation/ConfigLoader`\n- core/StateManager.js:77  `require` -> `../foundation/ConfigLoader`\n- core/StateManager.js:78  `require` -> `../foundation/ConfigLoader`\n- core/StrategyOrchestrator.js:39  `require` -> `../foundation/ConfigLoader`\n- core/TRAIDecisionModule.js:26  `require` -> `../foundation/ConfigLoader`\n- core/TradeJournalBridge.js:30  `require` -> `../foundation/ConfigLoader`\n- core/TradeNarrator.js:56  `require` -> `../foundation/ConfigLoader`\n- core/TradingLoop.js:28  `require` -> `../foundation/ConfigLoader`\n- core/UnifiedPatternMemory.js:65  `require` -> `../foundation/ConfigLoader`\n- core/WebSocketManager.js:18  `require` -> `../foundation/ConfigLoader`\n- core/tradeLogger.js:56  `require` -> `../foundation/ConfigLoader`\n- core/trai_llm_config.js:3  `require` -> `../foundation/ConfigLoader`\n- ecosystem.config.js:3  `require` -> `./foundation/ConfigLoader`\n- foundation/MarketCalendar.js:39  `require` -> `./ConfigLoader`\n- instrument.js:38  `require` -> `./foundation/ConfigLoader`\n- ogz-meta/audit-features.js:16  `require` -> `../foundation/ConfigLoader`\n- ogz-meta/claudito-logger.js:17  `require` -> `../foundation/ConfigLoader`\n- ogzprime-ssl-server.js:79  `require` -> `./foundation/ConfigLoader`\n- public/stripe-checkout.js:50  `require` -> `../foundation/ConfigLoader`\n- run-empire-v2.js:119  `require` -> `./foundation/ConfigLoader`\n- scripts/fetch-stock-data.js:11  `require` -> `../foundation/ConfigLoader`\n- scripts/supervisor-daemon.js:69  `require` -> `../foundation/ConfigLoader`\n- scripts/telemetry-report.js:10  `require` -> `../foundation/ConfigLoader`\n- tools/backtest-worker-env.js:5  `require` -> `../foundation/ConfigLoader`\n- tools/config-audit.js:15  `require` -> `../foundation/ConfigLoader`\n- tools/data-parity-check.js:8  `require` -> `../foundation/ConfigLoader`\n- tools/fee-profiles.js:3  `require` -> `../foundation/ConfigLoader`\n- tools/grid-search-confidence.js:15  `require` -> `../foundation/ConfigLoader`\n- tools/harvest-pattern-pack.js:44  `require` -> `../foundation/ConfigLoader`\n- tools/matrix-sweep.js:58  `require` -> `../foundation/ConfigLoader`\n- tools/parallel-backtest.js:30  `require` -> `../foundation/ConfigLoader`\n- tools/tuning-profiles.js:3  `require` -> `../foundation/ConfigLoader`\n- tools/weekend-campaign-gauntlet.js:7  `require` -> `../foundation/ConfigLoader`\n- utils/discordNotifier.js:49  `require` -> `../foundation/ConfigLoader`\n- utils/telegramNotifier.js:45  `require` -> `../foundation/ConfigLoader`"
+    },
+    {
+      "source": "serena_property_refs",
+      "property": "sessionRiskResponse",
+      "total": 0,
+      "filesScanned": 213,
+      "truncated": false,
+      "latencyMs": 12266,
+      "references": [],
+      "text": "## Symbol References — sessionRiskResponse\n\n**Parser:** tree-sitter-javascript\n**Scope:** core/**/*.js, foundation/**/*.js, run-empire-v2.js, modules/**/*.js, public/**/*.js\n**Total references:** 0\n**Files scanned:** 213\n\n**References (file:line op receiver):**\n- (none)"
+    }
+  ]
+}

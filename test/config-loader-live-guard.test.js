@@ -353,7 +353,7 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.mode.backtest).toBe(true);
     expect(loaded.config.risk.guardMode).toBe('off');
     expect(loaded.config.risk.venueRailBuffer.enabled).toBe(false);
-    expect(loaded.config.risk.sessionRiskResponse.enabled).toBe(false);
+    expect(loaded.config.risk.sessionRiskResponse).toBeUndefined();
     expect(loaded.sources['risk.guardMode']).toBe('config:launchProfiles.backtest-all.risk.guardMode');
     expect(loaded.sources['risk.venueRailBuffer.enabled']).toBe('config:launchProfiles.backtest-all.risk.venueRailBuffer.enabled');
   });
