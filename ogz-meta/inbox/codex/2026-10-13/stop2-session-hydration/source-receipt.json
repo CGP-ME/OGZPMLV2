@@ -1,0 +1,17 @@
+{
+  "base": "37053c0e2143ac00be01a5c18956d721e6590207",
+  "candidate": "e4206b406bde35d10ed98bf0553eea61d58cb480",
+  "files": [
+    "core/SessionRouter.js",
+    "run-empire-v2.js"
+  ],
+  "dependsOn": "historical-candle-replay correction",
+  "mercuryRun": "2026-10-13T06-55-28-420Z-75453eec134d",
+  "mercuryVerdict": "found_break",
+  "behavior": "Actual immutable SessionRouter transitions and runner hydration/symbol methods, two directions x two symbols x two frames before attach/resume. In-memory adapters/state and candle-processing seam.",
+  "runtimeActivation": false,
+  "delivery": "Trey waived Mercury for item1; delivery on Astra adjudication; no runtime activation",
+  "astra": "No introduced failure; actual runner context, target scope, and hydration-before-attach/resume ordering checked. See astra-adjudication.md.",
+  "deliveryBase": "c5de35e3bbed093c3b29531c89459607eac9e8ba",
+  "deliveryCandidate": "47cd9ddd63b83eccea9ab299663ba556e6130590"
+}

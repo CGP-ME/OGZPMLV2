@@ -1585,8 +1585,9 @@ class SessionRouter extends EventEmitter {
       this.activeBroker = this.alpacaAdapter;
       this.lastTransitionAt = Date.now();
 
-      this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
       const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('stocks', runtimeScope);
+      await this.ctx.hydrateActiveTimeframeFromRest();
+      this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
       const transitionEvent = this._transitionEvent('crypto', 'stocks', now, committedRuntimeScope);
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession,
@@ -1688,8 +1689,9 @@ class SessionRouter extends EventEmitter {
       this.activeBroker = this.krakenAdapter;
       this.lastTransitionAt = Date.now();
 
-      this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
       const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('crypto', runtimeScope);
+      await this.ctx.hydrateActiveTimeframeFromRest();
+      this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
       const transitionEvent = this._transitionEvent('stocks', 'crypto', now, committedRuntimeScope);
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession,

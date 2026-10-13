@@ -1633,12 +1633,10 @@ class OGZPrimeV14Bot {
 
   _getBootHydrationSymbols() {
     if (this.sessionRouter?.activeSession === 'crypto') {
-      const symbol = normalizeRuntimeSymbol(this.sessionRouter.cryptoSymbols?.[0]);
-      return symbol ? [symbol] : [];
+      return this.sessionRouter.cryptoSymbols.map(normalizeRuntimeSymbol).filter(Boolean);
     }
     if (this.sessionRouter?.activeSession === 'stocks') {
-      const stocks = (this.sessionRouter.stockSymbols || []).map(normalizeRuntimeSymbol).filter(Boolean);
-      return stocks.length > 0 ? [stocks[0]] : [];
+      return this.sessionRouter.stockSymbols.map(normalizeRuntimeSymbol).filter(Boolean);
     }
     throw new Error(`[BOOT][REST-HYDRATE] SessionRouter active session missing (${this.sessionRouter?.activeSession})`);
   }

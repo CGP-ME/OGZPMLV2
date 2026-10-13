@@ -1,3 +1,15 @@
+## 2026-10-13 — Hydrate destination symbols and frames before session resume
+
+Problem: startup REST hydration selected only the first market symbol; scheduled switches did not hydrate the destination before resuming evaluation.
+
+Change: use every normalized configured symbol for the active market. After the target broker/session and scope are installed, SessionRouter awaits the existing runner hydrator before attaching the target OHLC callback and releasing its existing pause. Both transition directions follow that order. Depends on the retained historical candle repair. No new throw, fallback, default, or trading gate.
+
+Verification: immutable candidate e4206b406bde35d10ed98bf0553eea61d58cb480 based on replay prerequisite37053c0e2143ac00be01a5c18956d721e6590207. Actual router transitions and extracted actual runner hydration/symbol methods pass both directions, each with two symbols and two frames, before feed attachment/resume. Adapters/state/CandleProcessor boundary are fixture seams; broker REST and actual production runtime were not exercised. Syntax passes.
+
+Review: Mercury run2026-10-13T06-55-28-420Z-75453eec134d reports found_break, largely citing unchanged paths and describing full-symbol hydration as a guard. Astra found no introduced failure after checking actual context, scope, and transition ordering; the immutable fixture passed. Trey explicitly waived Mercury for item 1 and authorized push on 2026-10-13. Replay prerequisite commit: c5de35e3bbed093c3b29531c89459607eac9e8ba. No runtime activation.
+
+Limits: existing empty-REST warning/continue behavior remains; no claim that empty responses hydrate history. Historical replay recovery boundary remains explicit in its prerequisite. Evidence: ogz-meta/inbox/codex/2026-10-13/stop2-session-hydration/. No PM2 restart/environment change.
+
 ## 2026-10-13 — Correct retained historical candle chronology
 
 Problem: an older revised candle was appended in CandleStore and IndicatorEngine, making it the newest input and changing cumulative indicators out of order. Returning to a retained market during REST hydration exposes this.
