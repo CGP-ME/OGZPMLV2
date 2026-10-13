@@ -1,0 +1,25 @@
+{
+  "base": "23b199486aa7d5a77da3ddc340417a0bad4f9696",
+  "candidate": "0e5964375b6b80b7c34b070212b733bcefdd67bb",
+  "files": [
+    "core/OrderExecutor.js",
+    "core/PolicyBuilder.js",
+    "foundation/ConfigLoader.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "behavior": {
+    "pass": true,
+    "baselineMismatchReproduced": true,
+    "entryProducerExcerptOnly": true,
+    "brokerRequests": 0,
+    "runtimeActivation": false
+  },
+  "mercury": {
+    "run": "2026-10-13T06-42-29-083Z-6d9d4f3be924",
+    "verdict": "found_break",
+    "answer": "volatility-review-answer.txt"
+  },
+  "delivery": "Trey waived Mercury for item1; atomic source delivery on Astra adjudication, no activation",
+  "deliveryBase": "38552ef645190f1738a936899fbfe4d7ff87dd05",
+  "deliveryCandidate": "4072ebcd02e598f9dd58265d64dfdbafc046658f"
+}

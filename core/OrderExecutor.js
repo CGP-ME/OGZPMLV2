@@ -24,6 +24,7 @@ const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 const PolicyBuilder = require('./PolicyBuilder');
+const { IndicatorCalculator } = require('./IndicatorCalculator');
 const { positionEffectFromAction } = require('./PositionEffect');
 
 const stateManager = getStateManager();
@@ -2344,11 +2345,15 @@ class OrderExecutor {
     const sizingMultiplier = orchResult.sizingMultiplier;
     const exitContract = orchResult.exitContract;
     assertExplicitExitOwnership(exitContract, 'OrderExecutor._buildEntryPlan');
+    const priceHistory = this.ctx.runner.getSymbolTimeframeContext(symbol, timeframe).priceHistory;
+    const policyVolatility = IndicatorCalculator.calculateVolatility(
+      priceHistory, exitContract.profitManagement.volatilityAdjustment.lookbackPeriods + 1
+    );
     const frozenExitPolicy = PolicyBuilder.buildForTrade({
       strategyName: entryStrategy,
       exitContract,
       nowMs: Date.now(),
-      volatility: entryVolatility,
+      volatility: policyVolatility,
       confidence: tradeConfidence,
       marketCondition: 'normal',
       entryDirection: decision.action === 'BUY' ? 'long' : 'short',

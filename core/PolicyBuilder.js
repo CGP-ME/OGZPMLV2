@@ -257,7 +257,7 @@ function normalizeBreakEvenStop(raw) {
 }
 
 function normalizeVolatilityAdjustment(raw, volatility) {
-  const runtimeVolatility = requirePositiveNumber(volatility, 'volatility');
+  const runtimeVolatility = requireFiniteNumber(volatility, 'volatility');
   const enabled = requireBoolean(raw.enabled, 'exitContract.profitManagement.volatilityAdjustment.enabled');
   const lowThreshold = requireFiniteNumber(raw.lowThresholdPercent, 'exitContract.profitManagement.volatilityAdjustment.lowThresholdPercent') / 100;
   const highThreshold = requireFiniteNumber(raw.highThresholdPercent, 'exitContract.profitManagement.volatilityAdjustment.highThresholdPercent') / 100;

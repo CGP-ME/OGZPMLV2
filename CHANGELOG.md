@@ -1,3 +1,15 @@
+## 2026-10-13 — Connect strategy exit volatility to its configured return lookback
+
+Problem: `profitManagement.volatilityAdjustment.lookbackPeriods` was editable but unused at entry. PolicyBuilder received an ATR-based diagnostic value instead of the return standard deviation expected by its percentage thresholds.
+
+Change: OrderExecutor calculates volatility from the selected symbol/timeframe history using the owning strategy's configured number of returns. One return requires two closes. PolicyBuilder accepts genuine zero variance; the UI descriptor identifies the setting's unit as returns. The result is frozen into each new trade's strategy-owned policy. Existing trades and strategy exit numbers are unchanged. No new gates, throws, defaults, or fallbacks.
+
+Verification: Immutable candidate `0e5964375b6b80b7c34b070212b733bcefdd67bb` versus base `23b19948`. Baseline reproduces ignored lookback. Private config save/reload from three to five returns changes the real entry policy's factor from 0.8 to 1.4, preserves the previous policy, and accepts one-return/flat-price zero variance. The actual entry producer excerpt was executed; broker execution and the rest of sizing were not. Syntax checks passed.
+
+Review: Mercury run `2026-10-13T06-42-29-083Z-6d9d4f3be924` reports found_break. Astra adjudication found no reachable introduced regression: actual caller supplies the selected-frame owner, the strategy supplies profitManagement, and zero population standard deviation is valid. Other cited paths are unchanged. Mercury's verdict remains recorded as disagreement, not clean. Trey explicitly waived Mercury for item 1 and authorized push on 2026-10-13. Rebased onto the PID disconnection; existing strategy exits remain owners.
+
+Evidence: `ogz-meta/inbox/codex/2026-10-13/stop1-exit-consumers/` (source receipt, behavior proof, review answer, and Astra adjudication). Runtime: no PM2 restart, environment change, broker order, or activation performed.
+
 ## 2026-10-13 — Disconnect PID feedback and trading adjustments; preserve controller
 
 **Operator ruling:** Trey explicitly instructed: disconnect PID altogether, preserve it, and log the disconnection. Reconnection is deferred until the broader learning/measurement design is deliberately approved. This supersedes the uncommitted PID trailing hookup and its pending delivery request.
