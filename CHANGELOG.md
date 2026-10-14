@@ -1,3 +1,11 @@
+## 2026-10-14 — Authorized paper restart exposes restored-position startup hold
+
+Trey explicitly directed startup. Restarted only ogz-prime-v2 through the existing ecosystem definition with PROFILE=paper and --update-env. Previous PID4078945 exited cleanly; new PID2803661 reports paper execution and broker mode, scheduled routing, and successful dashboard WebSocket authentication. Dashboard HTML returned HTTP200. Other PM2 services were not restarted.
+
+Result: process online, trading NOT operational. StateManager restored one paper BTC-USD long. SessionRouter initial crypto activation invoked the zero-position reconciliation check and refused activation with `paper simulated positions=1`; state records trading paused and the original trade remains present. The zero-position condition currently covers initial activation as well as transfers. No trade, balance or ledger was manually cleared; pre-start state copy and bounded startup logs are retained privately. No production code was changed to bypass this failure.
+
+The actual transition journal contains SESSION_BROKER_RECONCILE_FAILED and SESSION_FAILED_SAFE. Its embedded reconciliation receipt is non_comparable / execution_is_not_live_broker_trading, confirming the new report reached durable output during this real startup. This restart used the working files, including staged item3 and other pre-existing uncommitted edits; it is not a clean-release or full-walk acceptance claim. Source hashes and log offsets are retained privately. Startup failure remains unresolved; both market transitions and full dashboard data correctness are not accepted. Evidence: ogz-meta/inbox/codex/2026-10-14/paper-startup/startup-receipt.json. This is a runtime evidence-only record; Mercury is not required for prose/receipts.
+
 ## 2026-10-13 — Remove the unused session-risk response controls
 
 Problem: all seven launch profiles declared halt, pause, reduce, tighten and alert behavior through sessionRiskResponse, but no runtime consumer implemented it. Trey rejected every action and directed complete removal with Mercury blast radius, without phantom callers.

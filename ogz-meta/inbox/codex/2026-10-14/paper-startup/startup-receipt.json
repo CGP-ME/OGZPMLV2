@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-10-14T11:09:34.675415+00:00",
+  "authorization": "Trey: lets start it up",
+  "sourceHead": "ae7c66e0a2071d060c5afe91b12f28003fe29220",
+  "sourceIncludesUncommittedWork": true,
+  "previousPid": 4078945,
+  "pid": 2803661,
+  "pm2Status": "online",
+  "restartCount": 3,
+  "profile": "paper",
+  "resolvedExecutionMode": "paper",
+  "dashboardAuthenticated": true,
+  "dashboardHttpStatus": 200,
+  "tradingOperational": false,
+  "blocker": "SessionRouter broker REST reconciliation blocked activation: paper simulated positions=1",
+  "persistedActiveTradeCount": 1,
+  "persistedIsTrading": false,
+  "positionClearedByOperator": false,
+  "productionCodeEdited": false,
+  "latestStartupEvents": [
+    {
+      "event": "SESSION_BROKER_RECONCILE_FAILED",
+      "transitionId": "startup-to-crypto-2026-10-14T11:08:23.552Z",
+      "from": "startup",
+      "to": "crypto",
+      "reason": "SessionRouter broker REST reconciliation blocked activation: paper simulated positions=1",
+      "ledgerReports": {
+        "target": {
+          "status": "non_comparable",
+          "reason": "execution_is_not_live_broker_trading",
+          "comparison": "flat_account_change_since_observation",
+          "authority": "report_only"
+        }
+      }
+    },
+    {
+      "event": "SESSION_FAILED_SAFE",
+      "transitionId": "startup-to-crypto-2026-10-14T11:08:24.219Z",
+      "from": "startup",
+      "to": "crypto",
+      "reason": "SessionRouter broker REST reconciliation blocked activation: paper simulated positions=1",
+      "ledgerReports": {}
+    }
+  ]
+}
