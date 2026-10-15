@@ -299,7 +299,6 @@ console.log(`   TEST_MODE: ${resolvedConfig.config.mode.testMode}`);
 if (resolvedConfig.config.mode.backtest) {
 	  console.log('[CONFIG VERIFY] Backtest mode - key toggle values:');
 	  console.log(`   ATR_FILTER_ENABLED: ${resolvedConfig.config.filters.atrEnabled}`);
-	  console.log(`   RISK_GUARD_MODE: ${resolvedConfig.config.risk.guardMode}`);
 	  console.log(`   MIN_TRADE_CONFIDENCE: ${resolvedConfig.config.confidence.minTradeConfidence}`);
 	}
 
@@ -413,7 +412,6 @@ const TtpCutoffEnforcer = require('./core/TtpCutoffEnforcer');
 
 // CHANGE 2025-12-11: MessageQueue - Prevent WebSocket race conditions
 const MessageQueue = require('./core/MessageQueue');
-const { buildRiskManagerConfig } = require('./core/RiskManagerConfig');
 
 // CHANGE 2025-12-23: Empire V2 IndicatorEngine - Single source of truth for indicators
 const IndicatorEngine = require('./core/indicators/IndicatorEngine');
@@ -711,10 +709,7 @@ class OGZPrimeV14Bot {
     const FibonacciDetector = require('./core/FibonacciDetector');
     this.fibonacciDetector = new FibonacciDetector(resolvedConfig.config.fibonacci);
 
-    this.riskManager = new RiskManager(buildRiskManagerConfig(
-      resolvedConfig.config.risk,
-      resolvedConfig.sources
-    ));
+    this.riskManager = new RiskManager(resolvedConfig.config.risk.reconciliationReporter);
 
     // Phase 3 REWRITE: EntryDecider deleted - decision logic inlined to TradingLoop
     // Gate checks and exit logic now in TradingLoop + ExitContractManager
@@ -1796,7 +1791,6 @@ class OGZPrimeV14Bot {
     console.log(`  PATTERN_SAVE_IN_BACKTEST=${resolvedConfig.config.internals.patternMemory.saveInBacktest}`);
     console.log(`  FEE_MAKER=${resolvedConfig.config.fees.makerFee}`);
     console.log(`  FEE_TAKER=${resolvedConfig.config.fees.takerFee}`);
-	    console.log(`  RISK_GUARD_MODE=${ConfigLoader.get('risk.guardMode')}`);
     console.log(`  ENABLE_TRAI=${resolvedConfig.config.trai.enabled}`);
     console.log(`  ENABLE_RSI=${runtimePipeline.enableRSI}`);
     console.log(`  ENABLE_EMA=${runtimePipeline.enableEMACrossover}`);

@@ -128,7 +128,7 @@ describe('eval live posture gate', () => {
     expect(report.status).toBe('PASS');
     expect(report.errors).toEqual([]);
     expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'config:launchProfiles.production.mode' });
-    expect(report.checked.config['risk.guardMode']).toEqual({ value: 'venueRailBuffer', source: 'config:launchProfiles.production.risk.guardMode' });
+    expect(report.checked.config['risk.guardMode']).toBeUndefined();
     expect(report.checked.webhook).toEqual({
       present: true,
       protocol: 'https:',

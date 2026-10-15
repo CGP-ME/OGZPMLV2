@@ -152,7 +152,7 @@ describe('config boundary detector', () => {
   test('detects ConfigLoader mutation aliases and destructured mutators', () => {
     const findings = scanSource(`
       const CL = ConfigLoader;
-      CL.applyOverrideMap({ risk: { guardMode: 'off' } });
+      CL.applyOverrideMap({ risk: { reconciliationReporter: { enabled: false } } });
       const TradingConfig = require('../foundation/ConfigLoader');
       TradingConfig.setOverrides({ confidence: { minTradeConfidence: 0.1 } });
       const { clearOverrides } = ConfigLoader;

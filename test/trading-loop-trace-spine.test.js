@@ -758,18 +758,7 @@ describe('TradingLoop trace spine', () => {
   test('emits a scoped gate_event before approved trade execution', async () => {
     const ctx = baseEntryContext({
       executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'ORDER_GATE_PASS_1' }),
-      riskManager: {
-        isTradingAllowed: jest.fn(() => ({
-          allowed: true,
-          riskGates: [{ gate: 'daily_loss_limit', threshold: 500, value: 0, passed: true }],
-        })),
-        assessTradeRisk: jest.fn(() => ({
-          approved: true,
-          riskLevel: 'LOW',
-          recommendation: 'standard',
-          riskGates: [{ gate: 'max_drawdown', threshold: 1000, value: 0, passed: true }],
-        })),
-      },
+
     });
     const loop = new TradingLoop(ctx);
     const gateNarratorSpy = jest.spyOn(getNarrator(), 'gateDecision').mockImplementation(() => {});
@@ -798,8 +787,6 @@ describe('TradingLoop trace spine', () => {
       'direction_filter',
       'opposite_position_block',
       'max_positions',
-      'daily_loss_limit',
-      'max_drawdown',
     ]));
     expect(gateNarratorSpy).toHaveBeenCalledWith(expect.objectContaining({
       type: 'gate_event',
@@ -1156,76 +1143,7 @@ describe('TradingLoop trace spine', () => {
     }
   });
 
-  test('emits a scoped risk_block gate_event without executing when RiskManager blocks', async () => {
-    const ctx = baseEntryContext({
-      executeTrade: jest.fn(),
-      riskManager: {
-        isTradingAllowed: jest.fn(() => ({
-          allowed: false,
-          reason: 'Daily loss limit',
-          riskGates: [{ gate: 'daily_loss_limit', threshold: 500, value: 750, passed: false, rejectReason: 'Daily loss limit' }],
-        })),
-        assessTradeRisk: jest.fn(),
-      },
-    });
-    ctx.config.evalTraceEnabled = true;
-    const loop = new TradingLoop(ctx);
-    stubGatherData(loop);
 
-    await loop._analyze('TSLA', 'trace_gate_block_1');
-
-    expect(ctx.executeTrade).not.toHaveBeenCalled();
-    expect(ctx.riskManager.assessTradeRisk).not.toHaveBeenCalled();
-    const frames = sentFrames(ctx);
-    const gateEvent = frames.find(frame => frame.type === 'gate_event');
-    expect(gateEvent).toEqual(expect.objectContaining({
-      traceId: 'trace_gate_block_1',
-      signalId: 'trace_gate_block_1:signal',
-      symbol: 'TSLA',
-      brokerId: 'alpaca',
-      accountId: 'paper-main',
-      assetClass: 'stocks',
-      executionMode: 'paper',
-      timeframe: '15m',
-      action: 'HOLD',
-      kind: 'risk_block',
-      passed: false,
-      reason: 'Daily loss limit',
-    }));
-    expect(gateEvent.riskGates).toEqual([
-      { gate: 'daily_loss_limit', threshold: 500, value: 750, passed: false, rejectReason: 'Daily loss limit' },
-    ]);
-    const skipEvent = frames.find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
-    expect(skipEvent).toEqual(expect.objectContaining({
-      traceId: 'trace_gate_block_1',
-      symbol: 'TSLA',
-      brokerId: 'alpaca',
-      accountId: 'paper-main',
-      assetClass: 'stocks',
-      executionMode: 'paper',
-      timeframe: '15m',
-    }));
-    expect(skipEvent.fields).toEqual(expect.objectContaining({
-      reason: 'Daily loss limit',
-      finalDirection: 'buy',
-      confidencePct: 80,
-      minConfidencePct: 50,
-    }));
-    expect(frames.find(frame => frame.type === 'bot_thinking')).toEqual(expect.objectContaining({
-      message: 'Blocked: Daily loss limit',
-      asset: 'TSLA',
-      data: expect.objectContaining({
-        indicators: {
-          rsi: 55,
-          atr: 1,
-          macd: null,
-          macdSignal: null,
-          macdHistogram: null,
-          volume: 1000,
-        }
-      })
-    }));
-  });
 
   test('allows same-direction entries to reach contract-owned execution checks', async () => {
     mockStateManager.getTradesBySymbol.mockReturnValue([{

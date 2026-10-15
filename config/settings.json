@@ -183,13 +183,6 @@
         "minTradeConfidence": 0.5
       },
       "risk": {
-        "guardMode": "venueRailBuffer",
-        "venueRailBuffer": {
-          "enabled": true,
-          "railDrawdownPercent": 3,
-          "triggerPercent": 0.25,
-          "releaseOnSessionReset": true
-        },
         "reconciliationReporter": {
           "enabled": true,
           "alertDeltaDollars": 1,
@@ -307,13 +300,6 @@
         "minTradeConfidence": 0.5
       },
       "risk": {
-        "guardMode": "off",
-        "venueRailBuffer": {
-          "enabled": false,
-          "railDrawdownPercent": null,
-          "triggerPercent": null,
-          "releaseOnSessionReset": true
-        },
         "reconciliationReporter": {
           "enabled": false,
           "alertDeltaDollars": null,
@@ -432,13 +418,6 @@
         "minTradeConfidence": 0.5
       },
       "risk": {
-        "guardMode": "off",
-        "venueRailBuffer": {
-          "enabled": false,
-          "railDrawdownPercent": null,
-          "triggerPercent": null,
-          "releaseOnSessionReset": true
-        },
         "reconciliationReporter": {
           "enabled": false,
           "alertDeltaDollars": null,
@@ -557,13 +536,6 @@
         "minTradeConfidence": 0.5
       },
       "risk": {
-        "guardMode": "off",
-        "venueRailBuffer": {
-          "enabled": false,
-          "railDrawdownPercent": null,
-          "triggerPercent": null,
-          "releaseOnSessionReset": true
-        },
         "reconciliationReporter": {
           "enabled": false,
           "alertDeltaDollars": null,
@@ -684,13 +656,6 @@
         "minTradeConfidence": 0.5
       },
       "risk": {
-        "guardMode": "off",
-        "venueRailBuffer": {
-          "enabled": false,
-          "railDrawdownPercent": null,
-          "triggerPercent": null,
-          "releaseOnSessionReset": true
-        },
         "reconciliationReporter": {
           "enabled": false,
           "alertDeltaDollars": null,
@@ -811,13 +776,6 @@
         "minTradeConfidence": 0.5
       },
       "risk": {
-        "guardMode": "off",
-        "venueRailBuffer": {
-          "enabled": false,
-          "railDrawdownPercent": null,
-          "triggerPercent": null,
-          "releaseOnSessionReset": true
-        },
         "reconciliationReporter": {
           "enabled": false,
           "alertDeltaDollars": null,
@@ -936,13 +894,6 @@
         "minTradeConfidence": 0.5
       },
       "risk": {
-        "guardMode": "off",
-        "venueRailBuffer": {
-          "enabled": false,
-          "railDrawdownPercent": null,
-          "triggerPercent": null,
-          "releaseOnSessionReset": true
-        },
         "reconciliationReporter": {
           "enabled": false,
           "alertDeltaDollars": null,

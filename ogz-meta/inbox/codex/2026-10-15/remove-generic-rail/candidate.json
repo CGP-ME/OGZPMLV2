@@ -1,0 +1,28 @@
+{
+  "base": "b75734e77139336db7c8b6f93f76d43a3285df4c",
+  "candidate": "3e6ef49e1d8b45bd0b783d98cc082af4fa4352d0",
+  "files": [
+    "config/settings.json",
+    "core/RiskManager.js",
+    "core/RiskManagerConfig.js",
+    "core/RuntimeConfigProof.js",
+    "core/TradingLoop.js",
+    "foundation/ConfigLoader.js",
+    "ogz-meta/archive/2026-10-15/retired-generic-rail/README.md",
+    "ogz-meta/archive/2026-10-15/retired-generic-rail/RiskManagerConfig.js",
+    "ogz-meta/gates/eval-live-posture-gate.js",
+    "run-empire-v2.js",
+    "scripts/generate-live-proof.js",
+    "test/backtest-worker-env.test.js",
+    "test/config-audit-no-env-mutation.test.js",
+    "test/config-boundary-detector.test.js",
+    "test/config-loader-live-guard.test.js",
+    "test/eval-live-posture-gate.test.js",
+    "test/matrix-sweep-surface.test.js",
+    "test/risk-manager-config.test.js",
+    "test/runtime-config-proof.test.js",
+    "test/trading-config-profile.test.js",
+    "test/trading-loop-trace-spine.test.js"
+  ],
+  "priorReviewCandidate": "67f31886552d863d395549ebb2a1329c4b8b3fb4"
+}

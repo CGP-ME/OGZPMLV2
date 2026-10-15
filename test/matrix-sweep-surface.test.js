@@ -303,7 +303,7 @@ describe('matrix-sweep runnable surface', () => {
       ...GRID.conf,
       confidence: [0.4],
       globalParams: {
-        'risk.guardMode': ['off'],
+        'risk.reconciliationReporter.enabled': [false],
       },
     };
 

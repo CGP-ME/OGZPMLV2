@@ -71,9 +71,9 @@ describe('config-audit env boundary', () => {
         value: 'paper',
         source: 'audit-fixture:ALPACA_MODE',
       });
-      expect(resolved['risk.guardMode']).toMatchObject({
-        value: 'off',
-        source: 'config:launchProfiles.backtest-all.risk.guardMode',
+      expect(resolved['risk.reconciliationReporter.enabled']).toMatchObject({
+        value: false,
+        source: 'config:launchProfiles.backtest-all.risk.reconciliationReporter.enabled',
       });
       expect(resolved['mode.liveTading']).toBeUndefined();
       expect(resolved['mode.liveTrading']).toMatchObject({
@@ -177,8 +177,8 @@ describe('config-audit env boundary', () => {
         value: 'live',
         source: 'dotenv:ALPACA_MODE',
       });
-	      expect(context.configSnapshot.config.risk.guardMode).toBe('off');
-	      expect(context.configSnapshot.sources['risk.guardMode']).toBe('config:launchProfiles.paper.risk.guardMode');
+	      expect(context.configSnapshot.config.risk.guardMode).toBeUndefined();
+	      expect(context.configSnapshot.sources['risk.guardMode']).toBeUndefined();
 	      expect(process.env.ALPACA_MODE).toBeUndefined();
 	      expect(process.env.MAX_DRAWDOWN).toBeUndefined();
     } finally {
@@ -213,10 +213,10 @@ describe('config-audit env boundary', () => {
       value: 'live',
       source: 'env:ALPACA_MODE',
     });
-    expect(resolved['risk.guardMode']).toMatchObject({
-      value: 'off',
-      source: 'config:launchProfiles.backtest-all.risk.guardMode',
-    });
+    expect(resolved['risk.reconciliationReporter.enabled']).toMatchObject({
+        value: false,
+        source: 'config:launchProfiles.backtest-all.risk.reconciliationReporter.enabled',
+      });
   });
 
   test('keeps every audited env key mapped to ConfigLoader and labels loader fallbacks', () => {

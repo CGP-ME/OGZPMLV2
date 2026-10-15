@@ -120,13 +120,6 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
         atrMinPercent: withSource(snapshot, 'filters.atrMinPercent'),
       },
       risk: {
-        guardMode: withSource(snapshot, 'risk.guardMode'),
-        venueRailBuffer: {
-          enabled: withSource(snapshot, 'risk.venueRailBuffer.enabled'),
-          railDrawdownPercent: withSource(snapshot, 'risk.venueRailBuffer.railDrawdownPercent'),
-          triggerPercent: withSource(snapshot, 'risk.venueRailBuffer.triggerPercent'),
-          releaseOnSessionReset: withSource(snapshot, 'risk.venueRailBuffer.releaseOnSessionReset'),
-        },
         reconciliationReporter: {
           enabled: withSource(snapshot, 'risk.reconciliationReporter.enabled'),
           alertDeltaDollars: withSource(snapshot, 'risk.reconciliationReporter.alertDeltaDollars'),

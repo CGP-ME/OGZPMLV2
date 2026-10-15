@@ -228,7 +228,7 @@ function configuredProofMetadata(settings) {
   const profileName = settings?.launchProfiles?.defaultProfile;
   const profile = profileName ? settings.launchProfiles?.[profileName] : null;
   if (!profile || typeof profile !== 'object') return { status: 'UNAVAILABLE', reason: 'Configured default launch profile is unavailable' };
-  return { status: 'CONFIGURED_METADATA', profileName, executionMode: profile.mode ?? null, riskGuardMode: profile.risk?.guardMode ?? null };
+  return { status: 'CONFIGURED_METADATA', profileName, executionMode: profile.mode ?? null };
 }
 
 function readConfiguredProofMetadata() {
@@ -244,7 +244,6 @@ function checkRiskManagement(configured) {
   result.highlights.push('Runtime mode and risk state: unavailable (no process-bound runtime receipt)');
   if (configured.status === 'CONFIGURED_METADATA') {
     result.highlights.push(`Configured default profile: ${configured.profileName} (${configured.executionMode ?? 'unavailable'}; not runtime attestation)`);
-    result.highlights.push(`Configured risk guard: ${configured.riskGuardMode ?? 'unavailable'} (not runtime attestation)`);
   } else result.highlights.push(configured.reason);
   result.highlights.push('Active entry stop: unavailable; stops are strategy-specific exit contracts');
   return result;

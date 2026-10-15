@@ -1615,29 +1615,7 @@ class TradingLoop {
           confidencePct: orchResult.confidence,
           minConfidencePct: minConfidence * 100
         });
-        // ─── RISK CHECK ───
-        decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence, confidence, {
-          symbol,
-          venue: analysisScope.brokerId || analysisScope.assetClass || null,
-          executionVenue: analysisScope.brokerId || null,
-          sessionVenue: analysisScope.assetClass || null,
-          sessionId: analysisScope.executionMode || null,
-        });
-        if (decision && decision.action === 'HOLD' && Array.isArray(decision.riskGates) && decision.riskGates.length > 0) {
-          decision.traceId = decision.traceId || traceId;
-          decision.signalId = decision.signalId || `${traceId}:signal`;
-          this._broadcastGateEvent({
-            traceId: decision.traceId,
-            signalId: decision.signalId,
-            symbol,
-            action: decision.action,
-            kind: 'risk_block',
-            decision,
-            riskGates: decision.riskGates,
-            reason: decision.blockReason || 'risk gate blocked entry',
-            timeframe: analysisTimeframe,
-          });
-        }
+        decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence, confidence);
         // CC-A Change 2: stamp indicator state at entry on the decision so
         // BacktestRecorder Change 1 (record.atrAtEntry / regimeAtEntry /
         // rsiAtEntry) gets real values instead of null. Read-only — no new
@@ -1930,7 +1908,7 @@ class TradingLoop {
    * Risk check + build decision — SAME LOGIC for buy and sell.
    * The ONLY difference is the action string and direction label.
    */
-  _checkRiskAndBuildDecision(direction, orchResult, minConfidence, confidence, riskContext = {}) {
+  _checkRiskAndBuildDecision(direction, orchResult, minConfidence, confidence) {
     // Map direction to action/label
     const actionMap = {
       buy:  { action: 'BUY',        direction: 'long'  },
@@ -1939,67 +1917,22 @@ class TradingLoop {
     const mapped = actionMap[direction];
     if (!mapped) return { action: 'HOLD', confidence: 0 };
 
-    if (this.ctx.riskManager) {
-      // L5 observability: collect riskGates arrays from both RiskManager calls.
-      // Each call returns its own array of {gate, threshold, value, passed, rejectReason}.
-      // Concatenated and surfaced to caller so StateManager can attach to the trade ledger.
-      const riskCheck = this.ctx.riskManager.isTradingAllowed(riskContext);
-      const riskGates = [...(riskCheck.riskGates || [])];
-      this._diag('RISK_ALLOWED', {
-        direction,
-        allowed: riskCheck.allowed,
-        reason: riskCheck.reason || 'none',
-        gates: riskGates.length
-      });
-      if (!riskCheck.allowed) {
-        console.log(`[RISK] BLOCK: ${riskCheck.reason} - ${mapped.direction} rejected`);
-        return { action: 'HOLD', confidence: 0, blockReason: riskCheck.reason, riskGates };
-      }
-
-      const riskAssessment = this.ctx.riskManager.assessTradeRisk({
-        confidence,
-        direction,
-        strategyName: orchResult.winnerStrategy || orchResult.strategy || 'unknown_strategy',
-        symbol: riskContext.symbol || null,
-      }, riskContext);
-      riskGates.push(...(riskAssessment.riskGates || []));
-      this._diag('RISK_ASSESSMENT', {
-        direction,
-        approved: riskAssessment.approved,
-        reason: riskAssessment.reason || 'none',
-        riskLevel: riskAssessment.riskLevel || 'unknown',
-        gates: riskGates.length
-      });
-
-      if (!riskAssessment.approved) {
-        console.log(`[RISK] BLOCK: ${riskAssessment.reason} - ${mapped.direction} rejected`);
-        return { action: 'HOLD', confidence: 0, blockReason: riskAssessment.reason, riskGates };
-      }
-
-      console.log(`[DECISION] ${mapped.action}: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
-      if (riskAssessment.riskLevel !== 'LOW') {
-        console.log(`[RISK] Level: ${riskAssessment.riskLevel} - ${riskAssessment.recommendation}`);
-      }
-
-      return {
-        action: mapped.action,
-        direction: mapped.direction,
-        positionEffect: positionEffectFromAction(mapped.action),
-        confidence: orchResult.confidence,
-        riskLevel: riskAssessment.riskLevel,
-        riskRecommendation: riskAssessment.recommendation,
-        riskGates,
-      };
+    if (!Number.isFinite(confidence)) {
+      const producer = orchResult.winnerStrategy || orchResult.strategy || 'unknown_strategy';
+      const reason = `[ENTRY] Non-finite confidence from ${producer}: ${confidence}`;
+      this._diag('ENTRY_BLOCK', { direction, reason, producer });
+      console.error(reason);
+      return { action: 'HOLD', confidence: 0, blockReason: reason };
     }
 
-    // Fallback if no riskManager
     console.log(`[DECISION] ${mapped.action}: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
     return {
       action: mapped.action,
       direction: mapped.direction,
       positionEffect: positionEffectFromAction(mapped.action),
-      confidence: orchResult.confidence
+      confidence: orchResult.confidence,
     };
+
   }
 
   // ═══════════════════════════════════════════════════════════════

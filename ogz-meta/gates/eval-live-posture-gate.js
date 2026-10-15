@@ -30,8 +30,6 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'mode.confirmLiveTrading': true,
   'execution.broker': 'alpaca',
   'execution.assetClass': 'stocks',
-  'risk.guardMode': 'venueRailBuffer',
-  'risk.venueRailBuffer.enabled': true,
   'webhookOrders.enabled': true,
   'webhookOrders.dryRun': false,
   'confidence.minTradeConfidence': EVAL_MIN_TRADE_CONFIDENCE,

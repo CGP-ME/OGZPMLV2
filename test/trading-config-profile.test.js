@@ -158,8 +158,8 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(workerEnv.FEE_MODEL).toBe('per_share_minimum');
 
 	    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
-	    expect(snapshot.config.risk.guardMode).toBe('off');
-	    expect(snapshot.config.risk.venueRailBuffer.enabled).toBe(false);
+	    expect(snapshot.config.risk.guardMode).toBeUndefined();
+	    expect(snapshot.config.risk.venueRailBuffer).toBeUndefined();
 	    expect(snapshot.config.risk.sessionRiskResponse).toBeUndefined();
   });
 
@@ -207,8 +207,8 @@ describe('ConfigLoader runtime profile contract', () => {
 
 	    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
 	    expect(snapshot.config.confidence.minTradeConfidence).toBe(0.5);
-	    expect(snapshot.config.risk.guardMode).toBe('off');
-	    expect(snapshot.config.risk.venueRailBuffer.enabled).toBe(false);
+	    expect(snapshot.config.risk.guardMode).toBeUndefined();
+	    expect(snapshot.config.risk.venueRailBuffer).toBeUndefined();
 	    expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
     expect(snapshot.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
     expect(snapshot.config.evalRules.ttp.consistency.profitTargetDollars).toBe(300);
@@ -440,7 +440,7 @@ describe('ConfigLoader runtime profile contract', () => {
       expect(ConfigLoader.get(`exitContracts.${strategy}.profitManagement.tieredExit.tier1ExitFraction`)).toBe(0.30);
     }
     expect(ConfigLoader.get('fees.slippage')).toBe(0.0005);
-	    expect(ConfigLoader.get('risk.guardMode')).toBe('off');
+	    expect(ConfigLoader.get('risk.guardMode')).toBeUndefined();
     expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
     expect(ConfigLoader.get('filters.atrMinPercent')).toBe(0.15);
 

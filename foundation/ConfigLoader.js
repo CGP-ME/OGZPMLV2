@@ -59,11 +59,6 @@ function loadCanonicalFiles() {
 }
 
 const REQUIRED_RISK_SOURCE_PATHS = Object.freeze([
-  'risk.guardMode',
-  'risk.venueRailBuffer.enabled',
-  'risk.venueRailBuffer.railDrawdownPercent',
-  'risk.venueRailBuffer.triggerPercent',
-  'risk.venueRailBuffer.releaseOnSessionReset',
   'risk.reconciliationReporter.enabled',
   'risk.reconciliationReporter.alertDeltaDollars',
   'risk.reconciliationReporter.alertDeltaPercent',
@@ -419,7 +414,6 @@ const VALID_LAUNCH_MODES = Object.freeze(new Set(['live', 'paper', 'backtest']))
 const VALID_DIRECTION_FILTERS = Object.freeze(new Set(['both', 'long_only', 'short_only']));
 const VALID_SESSION_ROUTER_MODES = Object.freeze(new Set(['static', 'scheduled']));
 const VALID_SESSION_ROUTER_STATIC_SESSIONS = Object.freeze(new Set(['stocks', 'crypto']));
-const VALID_RISK_GUARD_MODES = Object.freeze(new Set(['off', 'venueRailBuffer']));
 function requireLaunchProfiles() {
   const launchProfiles = settingsConfigFile.launchProfiles;
   if (!launchProfiles || typeof launchProfiles !== 'object' || Array.isArray(launchProfiles)) {
@@ -1837,17 +1831,6 @@ function validate(config, sources = {}, opts = {}) {
   }
   if (config.mode.liveTrading && config.mode.confirmLiveTrading !== true) {
     errors.push('LIVE_TRADING=true cannot run unless CONFIRM_LIVE_TRADING=true');
-  }
-  if (!VALID_RISK_GUARD_MODES.has(config.risk.guardMode)) {
-    errors.push(`risk.guardMode must be off or venueRailBuffer; got ${config.risk.guardMode || '(missing)'}`);
-  }
-  if (config.risk.venueRailBuffer?.enabled) {
-    if (!Number.isFinite(config.risk.venueRailBuffer.railDrawdownPercent)) {
-      errors.push('risk.venueRailBuffer.railDrawdownPercent is required when venue rail buffer is enabled');
-    }
-    if (!Number.isFinite(config.risk.venueRailBuffer.triggerPercent)) {
-      errors.push('risk.venueRailBuffer.triggerPercent is required when venue rail buffer is enabled');
-    }
   }
   if (config.mode.liveTrading && config.webhookOrders.enabled && config.webhookOrders.dryRun) {
     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and WEBHOOK_DRY_RUN=true');

@@ -555,8 +555,8 @@ describe('backtest worker env contract', () => {
 
     const snapshot = ConfigLoader.snapshot(env, { silent: true, loadDotenv: false });
     expect(snapshot.config.confidence.minTradeConfidence).toBe(0.5);
-    expect(snapshot.config.risk.guardMode).toBe('off');
-    expect(snapshot.config.risk.venueRailBuffer.enabled).toBe(false);
+    expect(snapshot.config.risk.guardMode).toBeUndefined();
+    expect(snapshot.config.risk.venueRailBuffer).toBeUndefined();
     expect(snapshot.config.risk.sessionRiskResponse).toBeUndefined();
     expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
     expect(snapshot.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
