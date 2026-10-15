@@ -1,0 +1,9 @@
+{
+  "base": "f0eff88ffa0d56f69162f9cc01701ddfa2a91b28",
+  "candidate": "459a6d5e31dd5d393fc78ba98281fccf6e7d83df",
+  "files": [
+    "core/AuthFailureGuard.js",
+    "core/OrderExecutor.js",
+    "run-empire-v2.js"
+  ]
+}

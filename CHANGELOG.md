@@ -1,3 +1,11 @@
+## 2026-10-15 — Auth-failure counter no longer has trading authority
+
+- Ruling: broker authentication failures must remain loud without adding a sticky bot-side entry veto or triggering autonomous flattening. Real broker operations still reject authentication errors.
+- Change: remove AuthFailureGuard quarantine-file IO, getEntryBlock, runtime flatten wiring and the OrderExecutor entry veto. Keep the in-memory failure window, error logs and threshold trace alarm with tradingAction: none. Existing quarantine files are preserved, not deleted. Alpaca/Kraken adapters are unchanged.
+- Verification: pinned candidate 459a6d5e native fixture passed repeated failure logging, threshold trace delivery, absence of quarantine-file changes and removed runtime/executor consumers. Adapter hashes match the pre-change files. This used no broker request, real state import, service restart or trading command. Old tests asserting retired quarantine APIs are stale and are not claimed as passing acceptance.
+- Review: Mercury returned found_break. Its quarantine/veto objections describe the explicitly requested removals; its other five cited snippets are unchanged from the review base. Astra independently compared those snippets, inspected adapter error propagation and ran the pinned fixture, returning GO. Exact review evidence and limits: ogz-meta/inbox/codex/2026-10-15/auth-no-trading-authority/REVIEW-ASTRA.md. No clean Mercury verdict or whole-pipeline acceptance is claimed.
+- Activation: committed source only; PM2 reload/resume remains held. Broker-order reconciliation and other separately recorded stop paths are not silently removed by this change.
+
 ## 2026-10-15 — Journal persistence errors no longer control trading
 
 - Ruling: journal write failure must fail loudly and must not pause or resume trading. The old bridge paused after three failed writes and resumed after a later successful write.
