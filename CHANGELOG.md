@@ -1,3 +1,10 @@
+## 2026-10-14 — Recorded pattern-learning isolation and recovery ruling
+
+- Trey clarified that backtests start without an inherited learning bank but must learn during each run and support explicit symbol-pack export for premium distribution. Crypto and stocks learning/state must stay separate through manual and SessionRouter broker shifts, with snapshots/backups or equivalent recoverability against contamination.
+- Recorded the requirement and scope in ogz-meta/inbox/codex/2026-10-15/pattern-learning-ruling/REQUIREMENTS.md. Compared the document against the operator message; no backup retention, restore policy, or product behavior was invented.
+- The immediate-exit correction in 773020ed is diagnostic-only; the longstanding live immediate-exit issue is not proven fixed. Temporary fixture isolation is not acceptance of production learning, export, transition, or recovery behavior.
+- Documentation only. No code, live bank, service, or backtest behavior changed; the current env reader work and reload hold remain in effect.
+
 ## 2026-10-14 — Legacy Phase 7 diagnostic reads strategy-owned exit configuration
 
 - Problem: two diagnostic sections parsed retired .env trading settings, invented global 15-minute reachability/fee/exit advice, and used an undefined regex match hidden by a catch.
