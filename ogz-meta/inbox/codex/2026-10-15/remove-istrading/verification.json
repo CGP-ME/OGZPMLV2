@@ -1,0 +1,17 @@
+{
+  "pass": true,
+  "checks": [
+    "fresh paper has no secondary enable",
+    "fresh live has no secondary enable",
+    "fresh backtest has no secondary enable",
+    "legacy boolean and malformed enable values removed without pausing",
+    "deliberate manual and transfer pauses persist and resume without enable flag",
+    "legacy synthetic enable-error pause removed",
+    "actual executor pause branch permits unpaused paper/live and blocks explicit pause"
+  ],
+  "source": "8c917c88b7171d1c15f855904c94ed5ab5ab0181",
+  "limits": [
+    "Isolated actual StateManager and extracted actual executor branch; no broker, PM2, live ledger or backtest run",
+    "Other execution checks and independent risk policies are not bypassed by this change"
+  ]
+}

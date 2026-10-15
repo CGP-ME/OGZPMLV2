@@ -3964,8 +3964,8 @@
                         document.getElementById('tradesExecuted').textContent = data.state.tradeCount;
                     }
                     // Update pause/resume UI based on state
-                    if (data.state.pauseReason !== undefined || data.state.isTrading !== undefined) {
-                        const isPaused = !data.state.isTrading || data.state.pauseReason;
+                    if (data.state.pauseReason !== undefined) {
+                        const isPaused = typeof data.state.pauseReason === 'string' && data.state.pauseReason.trim().length > 0;
                         updatePauseResumeUI(isPaused, data.state.pauseReason);
                     }
                 }

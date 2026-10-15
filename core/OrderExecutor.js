@@ -2885,8 +2885,8 @@ class OrderExecutor {
       if (executionMode === 'backtest' && this.ctx.backtestMode !== true) {
         throw new Error(`[ENTRY-MODE] ${decision.action} for ${symbol} resolved executionMode=backtest while runtime backtestMode is false - refusing to bypass paused-state entry gate`);
       }
-      if (executionMode !== 'backtest' && stateManager.get('isTrading') === false) {
-        const pauseReason = stateManager.get('pauseReason') || stateManager.get('lastError') || 'StateManager.isTrading=false';
+      if (executionMode !== 'backtest' && stateManager.isPaused()) {
+        const pauseReason = stateManager.get('pauseReason');
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: trading paused (${pauseReason})`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'trading_paused', detail: pauseReason });
         return blockedReturn('trading_paused', { detail: pauseReason });

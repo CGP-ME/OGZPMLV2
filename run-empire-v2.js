@@ -1950,8 +1950,8 @@ class OGZPrimeV14Bot {
         this.startTradingCycle();
 
         const startupEntryBlocks = [];
-        if (stateManager.get('isTrading') === false) {
-          startupEntryBlocks.push(stateManager.get('pauseReason') || stateManager.get('lastError') || 'StateManager.isTrading=false');
+        if (stateManager.isPaused()) {
+          startupEntryBlocks.push(stateManager.get('pauseReason'));
         }
         const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
         if (globalHaltReason) {
@@ -2818,7 +2818,7 @@ class OGZPrimeV14Bot {
   }
 
   async _recoverDataFeedPauseIfFresh(symbol, timeframe) {
-    if (stateManager.get('isTrading') !== false) return;
+    if (!stateManager.isPaused()) return;
     if (typeof stateManager.resumeTradingIfPausedBy !== 'function') return;
 
     const timeframeMs = timeframe ? this.candleAggregator?.getIntervalMs(timeframe) : null;
@@ -3550,7 +3550,7 @@ class OGZPrimeV14Bot {
         candleCount: this.priceHistory.length,
         // Bot status
         botMode: this.config.sandboxMode ? 'PAPER' : 'LIVE',
-        isTrading: this.isRunning,
+        isRunning: this.isRunning,
         totalTrades: stats.totalTrades || 0,
         winRate: stats.winRate || '0%',
         balance: stats.balance || '0.00',

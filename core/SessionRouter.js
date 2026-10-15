@@ -598,11 +598,7 @@ class SessionRouter extends EventEmitter {
   }
 
   _stateManagerReportsPaused() {
-    if (!this.stateManager) return false;
-    if (typeof this.stateManager.get === 'function') {
-      return this.stateManager.get('isTrading') === false;
-    }
-    return this.stateManager.state && this.stateManager.state.isTrading === false;
+    return this.stateManager.isPaused();
   }
 
   _applyLocalPauseFallback(reason) {

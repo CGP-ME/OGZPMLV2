@@ -148,7 +148,7 @@ function resetStateManager() {
     unrealizedPnL: 0,
     totalPnL: 0,
     closedTrades: [],
-    isTrading: false,
+    pauseReason: null,
     lastError: null,
     lastUpdate: Date.now()
   };
@@ -1185,14 +1185,14 @@ const GATES = [
           ...overrides
         });
         router.stateManager = {
-          state: { activeTrades: new Map(), isTrading: true },
+          state: { activeTrades: new Map(), pauseReason: null },
+          isPaused: () => !!router.stateManager.state.pauseReason,
           pauseTrading: async (reason) => {
-            router.stateManager.state.isTrading = false;
             router.stateManager.state.pauseReason = reason;
             return { success: true };
           },
           resumeTrading: async () => {
-            router.stateManager.state.isTrading = true;
+            router.stateManager.state.pauseReason = null;
             return { success: true };
           }
         };
@@ -1262,7 +1262,7 @@ const GATES = [
         ], 'failed transition must append failed-safe journal phase');
         assert.strictEqual(failureStatus.state, 'RECOVERY_REQUIRED', 'failed transition must project recovery required');
         assert.strictEqual(failureStatus.safeModeReason, 'kraken unsubscribe failed', 'failed status should carry failure reason');
-        assert.strictEqual(failureRouter.stateManager.state.isTrading, false, 'failed transition must leave trading paused');
+        assert.strictEqual(failureRouter.stateManager.isPaused(), true, 'failed transition must leave trading paused');
 
         const crashDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-journal-gate-'));
         tempDirs.push(crashDir);

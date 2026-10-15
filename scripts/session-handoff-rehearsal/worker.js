@@ -128,19 +128,19 @@ state.resumeTrading = async (...args) => { if (expectedDestination) verifyComple
     now = Date.parse('2026-10-12T13:25:00Z');
     await router._checkTransition();
     assert.equal(state.get('activeTrades').size, 0, 'five-minute wind-down did not flatten');
-    assert.equal(state.get('isTrading'), false);
+    assert.equal(state.isPaused(), true);
     verifyCompleted('crypto closed and persisted before transfer', 'crypto');
     expectedDestination = 'stocks';
     now = Date.parse('2026-10-12T13:30:00Z'); await router._checkTransition();
     assert.equal(router.activeSession, 'stocks', router.failedSafeReason);
-    assert.equal(state.get('isTrading'), true); expectedDestination = null;
+    assert.equal(state.isPaused(), false); expectedDestination = null;
     await open('TSLA', 'SELL_SHORT', 50); state.updateLastPrice('TSLA', 45);
     now = Date.parse('2026-10-12T19:55:00Z'); await router._checkTransition();
     assert.equal(state.get('activeTrades').size, 0, 'stock wind-down did not flatten');
-    assert.equal(state.get('isTrading'), false);
+    assert.equal(state.isPaused(), true);
     verifyCompleted('stocks closed and persisted before transfer', 'stocks');
     expectedDestination = 'crypto'; now = Date.parse('2026-10-12T20:00:00Z'); await router._checkTransition();
-    assert.equal(router.activeSession, 'crypto', router.failedSafeReason); assert.equal(state.get('isTrading'), true); expectedDestination = null;
+    assert.equal(router.activeSession, 'crypto', router.failedSafeReason); assert.equal(state.isPaused(), false); expectedDestination = null;
     const reloaded = new StateManager(); assert.equal(reloaded.get('activeTrades').size, 0); near(reloaded.get('realizedPnL'), state.get('realizedPnL'), 'reloaded P&L'); near(reloaded.getEquity(), state.getEquity(), 'reloaded equity');
     const residualId = await open('BTC-USD', 'BUY', 100); state.updateLastPrice('BTC-USD', 105);
     incompleteClose = true; now = Date.parse('2026-10-13T13:25:00Z'); await router._checkTransition();
@@ -150,12 +150,12 @@ state.resumeTrading = async (...args) => { if (expectedDestination) verifyComple
     assert.equal(residual.decisionLedger.exits.length, 2, 'both partial close attempts must be recorded');
     near(residual.decisionLedger.exits.reduce((sum, leg) => sum + leg.exitOrderQuantity, 0) + residual.remainingOrderQuantity, residual.entryOrderQuantity, 'partial fill quantity conservation');
     assert(residual.decisionLedger.exits.every(leg => leg.exitOrderQuantity > 0 && leg.remainingOrderQuantity > 0));
-    assert.equal(router.activeSession, 'crypto'); assert.equal(state.get('isTrading'), false); assert.equal(router.windDownFlattenComplete, false); assert.equal(router.getEntryBlockStatus().blocked, true);
+    assert.equal(router.activeSession, 'crypto'); assert.equal(state.isPaused(), true); assert.equal(router.windDownFlattenComplete, false); assert.equal(router.getEntryBlockStatus().blocked, true);
     assert.equal(state.getDashboardRuntimeScope().assetClass, 'crypto'); assert.equal(ledgers().length, 2);
     const residualReload = new StateManager(); near(residualReload.get('activeTrades').get(residualId).remainingOrderQuantity, residual.remainingOrderQuantity, 'persisted incomplete close');
     assert.deepEqual(residualReload.get('activeTrades').get(residualId).decisionLedger.exits, residual.decisionLedger.exits, 'partial exit ledger must survive reload');
     assert.equal(orderCalls, 0);
-    fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ status: 'pass', checkpoints, reloadVerified: true, incompleteClose: { retainedQuantity: residual.remainingOrderQuantity, activeSession: router.activeSession, paused: !state.get('isTrading'), failure: router.failedSafeReason }, brokerOrderCalls: orderCalls, traceEvents: traces.map(t => t.event), limitations: ['Scripted strategy signals and external broker snapshots; actual router/executor/state/ledger/memory/persistence', 'Runner context receives StateManager scope; full runner bootstrap and real broker connectivity not exercised'] }, null, 2));
+    fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ status: 'pass', checkpoints, reloadVerified: true, incompleteClose: { retainedQuantity: residual.remainingOrderQuantity, activeSession: router.activeSession, paused: state.isPaused(), failure: router.failedSafeReason }, brokerOrderCalls: orderCalls, traceEvents: traces.map(t => t.event), limitations: ['Scripted strategy signals and external broker snapshots; actual router/executor/state/ledger/memory/persistence', 'Runner context receives StateManager scope; full runner bootstrap and real broker connectivity not exercised'] }, null, 2));
     console.log('PASS paper handoff, ledger, persisted state and incomplete close');
   } finally { await router.stop(); await memory.cleanup(); unsubscribe(); }
 })().catch(e => { console.error(e.stack); process.exitCode = 1; });

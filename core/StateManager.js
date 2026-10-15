@@ -71,7 +71,6 @@
  * @property {Map} state.activeTrades - Active trade records (orderId → trade)
  * @property {number} state.realizedPnL - Cumulative realized profit/loss
  * @property {number} state.unrealizedPnL - Current unrealized P&L
- * @property {boolean} state.isTrading - Whether trading is active
  */
 
 const ConfigLoader = require('../foundation/ConfigLoader');
@@ -543,7 +542,6 @@ class StateManager {
       // ─────────────────────────────────────────────────────────────────────
       // SYSTEM STATE
       // ─────────────────────────────────────────────────────────────────────
-      isTrading: false,         // false = paused/stopped
       lastError: null,          // Last error message (for pause reason)
       pauseReason: null,
       pauseSource: null,
@@ -631,7 +629,6 @@ class StateManager {
       closedTrades: [],
       brokerVerificationIntegrity: { status: 'trusted', lanes: [] },
       brokerUnverifiableEvidenceRecords: [],
-      isTrading: getConfigValue('mode.execution') === 'paper',
       lastError: null,
       pauseReason: null,
       pauseSource: null,
@@ -2536,6 +2533,10 @@ class StateManager {
    * Pause trading for safety
    * @param {string} reason - Why trading is being paused
    */
+  isPaused() {
+    return typeof this.state.pauseReason === 'string' && this.state.pauseReason.trim().length > 0;
+  }
+
   async pauseTrading(reason, options = {}) {
     console.log('[StateManager] PAUSING TRADING:', reason);
 
@@ -2554,7 +2555,6 @@ class StateManager {
       : null;
 
     const updates = {
-      isTrading: false,
       lastError: reason,
       pausedAt: Date.now(),
       pauseReason: reason,
@@ -2583,7 +2583,6 @@ class StateManager {
     console.log('[StateManager] RESUMING TRADING');
 
     const updates = {
-      isTrading: true,
       lastError: null,
       pausedAt: null,
       pauseReason: null,
@@ -2640,7 +2639,7 @@ class StateManager {
   }
 
   _isDataFeedLivenessPause() {
-    if (this.state.isTrading !== false) return false;
+    if (!this.isPaused()) return false;
     const pauseSource = typeof this.state.pauseSource === 'string'
       ? this.state.pauseSource.trim()
       : this.state.pauseSource || null;
@@ -2653,7 +2652,6 @@ class StateManager {
     }
 
     const pauseReason = String(this.state.pauseReason || this.state.lastError || '').trim();
-    this.state.isTrading = true;
     this.state.pauseReason = null;
     this.state.pauseSource = null;
     this.state.pauseRecoverable = false;
@@ -2666,7 +2664,7 @@ class StateManager {
   }
 
   _migrateLegacyTtpFlatnessPause(activeTradeCount) {
-    if (this.state.isTrading !== false || !this._isLegacyTtpFlatnessPause()) {
+    if (!this.isPaused() || !this._isLegacyTtpFlatnessPause()) {
       return false;
     }
     if (this.state.pauseRecoverable !== false) {
@@ -2699,7 +2697,6 @@ class StateManager {
       currentDateET: cutoffDate,
       reason: `${pauseReason}; migrated from legacy global pause to entry-blocking quarantine`,
     };
-    this.state.isTrading = true;
     this.state.pauseReason = null;
     this.state.pauseSource = null;
     this.state.pauseRecoverable = false;
@@ -2714,7 +2711,7 @@ class StateManager {
   async resumeTradingIfPausedBy(source, options = {}) {
     await this.acquireLock();
     try {
-      if (this.state.isTrading !== false) {
+      if (!this.isPaused()) {
         return { success: true, resumed: false, reason: 'not_paused' };
       }
 
@@ -2751,7 +2748,6 @@ class StateManager {
       }
 
       const updates = {
-        isTrading: true,
         lastError: null,
         pausedAt: null,
         pauseReason: null,
@@ -4343,14 +4339,20 @@ class StateManager {
             withExitLifecycleFields(trade, { legacy: true }),
           ])
         );
-        if (typeof this.state.isTrading !== 'boolean') {
-          const invalidIsTrading = this.state.isTrading;
-          const pauseReason = `[StateManager.load] invalid persisted isTrading=${JSON.stringify(invalidIsTrading)}; forcing entries paused`;
-          this.state.isTrading = false;
-          this.state.pauseReason = this.state.pauseReason || pauseReason;
-          this.state.lastError = this.state.lastError || pauseReason;
+        if (Object.prototype.hasOwnProperty.call(this.state, 'isTrading')) {
+          delete this.state.isTrading;
           correctedStateShape = true;
-          console.warn(pauseReason);
+        }
+        const retiredEnableError = '[StateManager.load] invalid persisted isTrading=';
+        if (!this.state.pauseSource && typeof this.state.pauseReason === 'string'
+          && this.state.pauseReason.startsWith(retiredEnableError)) {
+          this.state.pauseReason = null;
+          this.state.pausedAt = null;
+          correctedStateShape = true;
+        }
+        if (typeof this.state.lastError === 'string' && this.state.lastError.startsWith(retiredEnableError)) {
+          this.state.lastError = null;
+          correctedStateShape = true;
         }
         if (!this.state.symbolEntryHalts || typeof this.state.symbolEntryHalts !== 'object' || Array.isArray(this.state.symbolEntryHalts)) {
           this.state.symbolEntryHalts = {};

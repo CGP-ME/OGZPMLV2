@@ -1,3 +1,11 @@
+## 2026-10-15 — Removed the independent isTrading enable requirement
+
+- Problem: persisted isTrading and paper-only initialization could veto entries despite selecting paper/live, with no deliberate pause. The earlier fresh-paper-only fix had not removed this authority.
+- Change: remove the field and its producers/readers. Existing explicit pauseReason records now own pause status through StateManager.isPaused(); executor, session confirmation/recovery, startup reporting, legacy pause display and rehearsal consumers follow that record. Remove stored legacy enable flags and their synthetic malformed-flag pause; preserve actual manual/session pauses. Rename runner process-status narration to isRunning.
+- Verification: pinned candidate 8c917c88 actual StateManager probes passed fresh paper/live/backtest, stale/malformed flag removal, persisted manual/session pause and resume, and legacy synthetic pause cleanup. Actual executor pause branch and independent actual-StateManager/router-predicate checks passed. No real order, state file, service, or backtest run.
+- Review: Mercury alleged shallow-copy rollback of Maps. The entire reported update method is byte-identical in base/candidate; this is an inherited concern, not repaired or represented as a clean Mercury verdict. Astra adversarial GO under Trey's standing Astra-go ruling found no introduced break; REVIEW-ASTRA.md and original Mercury answer are retained in ogz-meta/inbox/codex/2026-10-15/remove-istrading/.
+- Limits: the existing full SessionRouter gate stops before changed behavior because its constructor fixture omits mode; no full-transition PASS is claimed. Older Jest fixtures still assert retired isTrading behavior and were not used as acceptance. Separate journal/auth/drawdown changes are not included. Runtime activation: none; PM2 remains untouched. Inherited dirty edits preserved separately in worktree/index.
+
 ## 2026-10-14 — Reconciled env-reader census with delivered fixes and remaining limits
 
 - Updated the original 184-name source census with the raw dotenv/text readers missed by the initial literal search, their delivered corrections, current source hashes, and exact scope exclusions. No remaining archived-name reader was identified in that static scope; this is not runtime proof or whole Stop1 acceptance.

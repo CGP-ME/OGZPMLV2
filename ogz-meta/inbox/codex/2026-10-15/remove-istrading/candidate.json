@@ -1,0 +1,13 @@
+{
+  "base": "9f9becacd8efe8c0cc4112bbd94b0bb219db3478",
+  "candidate": "8c917c88b7171d1c15f855904c94ed5ab5ab0181",
+  "files": [
+    "core/StateManager.js",
+    "core/OrderExecutor.js",
+    "core/SessionRouter.js",
+    "run-empire-v2.js",
+    "scripts/session-handoff-rehearsal/worker.js",
+    "ogz-meta/gates/multi-runtime-gate-runner.js",
+    "public/unified-dashboard-legacy.html"
+  ]
+}
