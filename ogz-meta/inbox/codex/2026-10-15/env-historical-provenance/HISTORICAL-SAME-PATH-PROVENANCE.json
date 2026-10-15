@@ -1,0 +1,2212 @@
+{
+  "scope": "Historical ConfigLoader route evidence only. Exact baseline and exact runtime-path source-map joins; no values, secrets, semantic replacement claims, or migration acceptance.",
+  "baseline": "98c84304^:foundation/ConfigLoader.js",
+  "inputs": {
+    "archivedKeyInventory": "ogz-meta/inbox/codex/2026-10-15/env-archive/archived-key-reconciliation.json",
+    "effectiveSourcesBefore": "ogz-meta/inbox/codex/2026-10-15/env-archive/effective-sources-before.json"
+  },
+  "counts": {
+    "archivedKeys": 184,
+    "keysWithHistoricalRoutes": 62,
+    "keysWithAtLeastOneSamePathOwner": 25,
+    "unresolvedOrPartial": 163
+  },
+  "rows": [
+    {
+      "key": "ACCOUNT_BALANCE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ACCOUNT_DRAWDOWN_BYPASS",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ALPACA_MODE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "broker.alpacaMode",
+          "trackLine": 978,
+          "envHelper": "envStr",
+          "envLine": 978,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "broker.alpacaMode",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2982,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ALPACA_SYMBOLS",
+      "historicalRoutes": [
+        {
+          "runtimePath": "broker.alpacaSymbols",
+          "trackLine": 979,
+          "envHelper": "envStr",
+          "envLine": 979,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "broker.alpacaSymbols",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2983,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_EXTERNAL_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_PASSWORD",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_USERNAME",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ARCHON_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ASSET_CLASS",
+      "historicalRoutes": [
+        {
+          "runtimePath": "broker.assetClass",
+          "trackLine": 983,
+          "envHelper": "envStr",
+          "envLine": 983,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "broker.assetClass",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2986,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ATR_FILTER_ENABLED",
+      "historicalRoutes": [
+        {
+          "runtimePath": "filters.atrEnabled",
+          "trackLine": 907,
+          "envHelper": "envBool",
+          "envLine": 907,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:filters",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        },
+        {
+          "runtimePath": "filters.atrEnabled",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3267,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:filters",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ATR_MIN_PERCENT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "filters.atrMinPercent",
+          "trackLine": 908,
+          "envHelper": "envFloat",
+          "envLine": 908,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:filters",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        },
+        {
+          "runtimePath": "filters.atrMinPercent",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3268,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:filters",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "AVATAR_ENABLED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "AVATAR_IMAGE_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BACKTEST_FAST",
+      "historicalRoutes": [
+        {
+          "runtimePath": "backtest.fast",
+          "trackLine": 732,
+          "envHelper": "envBool",
+          "envLine": 732,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:internals.json:backtest",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BACKTEST_MODE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BASE_POSITION_SIZE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "positionSizing.basePositionSize",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2324,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:positionSizing",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        },
+        {
+          "runtimePath": "sizing.basePositionSize",
+          "trackLine": 787,
+          "envHelper": "envFloat",
+          "envLine": 787,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BOT_WS_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BREAKEVEN_EXIT_PERCENT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.breakevenExitPercent",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2475,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BREAKEVEN_TRIGGER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.breakevenTrigger",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2474,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BRIGHTDATA_SERP_ZONE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BROKER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "broker.assetClass",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2986,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "broker.id",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2981,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "broker.tradingPair",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2984,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BTC_WALLET_ADDRESS",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CANDLE_PATTERN_MIN_CONFIDENCE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "confidence.candlePatternMinConfidence",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2267,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:confidence",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CANDLE_TIMEFRAME",
+      "historicalRoutes": [
+        {
+          "runtimePath": "broker.candleTimeframe",
+          "trackLine": 981,
+          "envHelper": "envStr",
+          "envLine": 981,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "broker.candleTimeframe",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2985,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CLAUDE_CODE_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "COINBASE_API_KEY_NAME",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "COINBASE_PRIVATE_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONFIDENCE_BOOST",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONFIDENCE_PENALTY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONFIRM_LIVE_TRADING",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONTROL_WEBSOCKET_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DATABASE_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DATA_FRESHNESS_WINDOW",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DATA_WEBSOCKET_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DID_AVATAR_ID",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DIRECTION_FILTER",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EDGAR_USER_AGENT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ELEVENLABS_VOICE_ID",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EMERGENCY_CONFIDENCE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_ARBITRAGE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "features.enableArbitrage",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3653,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_DYNAMIC_SIZING",
+      "historicalRoutes": [
+        {
+          "runtimePath": "features.enableDynamicSizing",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3650,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:features",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_HEDGING",
+      "historicalRoutes": [
+        {
+          "runtimePath": "features.enableHedging",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3654,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_LEARNING",
+      "historicalRoutes": [
+        {
+          "runtimePath": "features.enableLearning",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3652,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:features",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_PRICE_BROADCAST",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_SHORTS",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_TRAI",
+      "historicalRoutes": [
+        {
+          "runtimePath": "pipeline.enableTRAI",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3681,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "trai.enabled",
+          "trackLine": 999,
+          "envHelper": "envBool",
+          "envLine": 999,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:trai",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_VOLATILITY_SCALING",
+      "historicalRoutes": [
+        {
+          "runtimePath": "features.enableVolatilityScaling",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3651,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EVAL_RULES_ENABLED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EXECUTION_MODE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EXIT_SYSTEM",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.exitSystem",
+          "trackLine": 862,
+          "envHelper": "envStr",
+          "envLine": 862,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "exits.exitSystem",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2471,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEATURE_FLAG",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_MAKER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "fees.makerFee",
+          "trackLine": 876,
+          "envHelper": "envFloat",
+          "envLine": 659,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        },
+        {
+          "runtimePath": "fees.makerFee",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3254,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_SAFETY_BUFFER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "fees.safetyBuffer",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3258,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_SLIPPAGE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "fees.slippage",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3256,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_TAKER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "fees.takerFee",
+          "trackLine": 877,
+          "envHelper": "envFloat",
+          "envLine": 660,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        },
+        {
+          "runtimePath": "fees.takerFee",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3255,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_TOTAL_ROUNDTRIP",
+      "historicalRoutes": [
+        {
+          "runtimePath": "fees.totalRoundTrip",
+          "trackLine": 878,
+          "envHelper": "envFloat",
+          "envLine": 661,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        },
+        {
+          "runtimePath": "fees.totalRoundTrip",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3257,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:fees",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FIB_PROXIMITY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FINAL_TARGET",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.profitTiers.final",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2485,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "tiers.final",
+          "trackLine": 870,
+          "envHelper": "envFloat",
+          "envLine": 870,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FUND_TARGET",
+      "historicalRoutes": [
+        {
+          "runtimePath": "fundTarget",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3703,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:fundTarget",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_EXCHANGE_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_EXCHANGE_API_SECRET",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_SANDBOX",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GOOGLE_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GRAFANA_PASSWORD",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GUI_WEBSOCKET_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "HIGH_VOL_MULTIPLIER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "positionSizing.highVolMultiplier",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2330,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "HIGH_VOL_THRESHOLD",
+      "historicalRoutes": [
+        {
+          "runtimePath": "positionSizing.highVolThreshold",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2332,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "HOUSTON_TARGET",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "JWT_SECRET",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LICENSE_ENCRYPTION_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LICENSE_PRIVATE_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LICENSE_PUBLIC_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LIVE_TRADING",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOG_DIRECTORY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOG_LEVEL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOW_VOL_MULTIPLIER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "positionSizing.lowVolMultiplier",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2329,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOW_VOL_THRESHOLD",
+      "historicalRoutes": [
+        {
+          "runtimePath": "positionSizing.lowVolThreshold",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2331,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_CONFIDENCE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "confidence.maxConfidence",
+          "trackLine": 782,
+          "envHelper": "envFloat",
+          "envLine": 782,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "confidence.maxConfidence",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2265,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_DAILY_LOSS",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_DRAWDOWN",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_POSITION_SIZE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_POSITION_SIZE_PCT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "positionSizing.maxPositionSize",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2325,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:positionSizing",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        },
+        {
+          "runtimePath": "sizing.maxPositionSize",
+          "trackLine": 788,
+          "envHelper": "envFloat",
+          "envLine": 788,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_RISK_PER_TRADE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "risk.maxRiskPerTrade",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2276,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MEMORY_DIR",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MIN_HOLD_TIME_MINUTES",
+      "historicalRoutes": [
+        {
+          "runtimePath": "holdTimes.minHoldTimeMinutes",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3238,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MIN_PROFIT_TRAIL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MIN_TRADE_CONFIDENCE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOBILE_PASSWORD",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOBILE_SECRET",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MODULE_AUTOLOADER_PATH",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_HTTP_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_PERSONALITY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_VOICE_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_VPS_MODE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_WS_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MPM_BREAKEVEN_THRESHOLD",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "NARRATOR_LABEL_SEED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "NEWS_SEARCH_PROVIDER",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "NODE_ENV",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_API_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_PUBLIC_HOST",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_SSL_SERVER",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_WS_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_CLOUD_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_ENABLED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PAPER_TRADING",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PATTERN_CONFIDENCE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PATTERN_DOMINANCE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PATTERN_UPDATE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "POSTGRES_PASSWORD",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "POST_BREAKEVEN_TRAIL",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.postBreakevenTrail",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2476,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PRIMARY_ASSET",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PROFIT_PROTECTION",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.profitProtectionLevel",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2477,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "REDIS_PASSWORD",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "REDIS_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "RISK_CHECK",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "RISK_MANAGER_BYPASS",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "RISK_PER_TRADE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_MAX_HOLD_TIME",
+      "historicalRoutes": [
+        {
+          "runtimePath": "scalper.maxHoldTime",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3355,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_MICRO_PROFIT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "scalper.microProfitTarget",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3351,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_MOMENTUM_SHIFT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "scalper.momentumShiftExit",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3353,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_QUICK_PROFIT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "scalper.quickProfitTarget",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3352,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_STOP_MULTIPLIER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "scalper.stopMultiplier",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3354,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SESSION_ROUTER_ENABLED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SITE_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SONAR_TOKEN",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SONAR_USER_TOKEN",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SOURCEGRAPH_API_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SOURCEGRAPH_INSTANCE_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SR_MAX_LEVELS",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SR_MIN_STRENGTH",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SR_PROXIMITY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SSL_ENABLED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SSL_SERVER_HOST",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SSL_SERVER_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "STARTING_BALANCE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "startingBalance",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 3704,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": "config:settings.json:startingBalance",
+          "evidenceKind": "legacy_base_config_property_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "STOP_LOSS_PERCENT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.stopLossPercent",
+          "trackLine": 857,
+          "envHelper": "envFloat",
+          "envLine": 857,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "exits.stopLossPercent",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2467,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUBSCRIPTION_TIER",
+      "historicalRoutes": [
+        {
+          "runtimePath": "misc.subscriptionTier",
+          "trackLine": 1058,
+          "envHelper": "envStr",
+          "envLine": 1058,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:misc",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUPABASE_ANON_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUPABASE_SERVICE_KEY",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUPABASE_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TAKE_PROFIT_PERCENT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.takeProfitPercent",
+          "trackLine": 858,
+          "envHelper": "envFloat",
+          "envLine": 858,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "exits.takeProfitPercent",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2468,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TESTING",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TEST_MODE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIER1_TARGET",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.profitTiers.tier1",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2482,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "tiers.tier1",
+          "trackLine": 867,
+          "envHelper": "envFloat",
+          "envLine": 867,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIER2_TARGET",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.profitTiers.tier2",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2483,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "tiers.tier2",
+          "trackLine": 868,
+          "envHelper": "envFloat",
+          "envLine": 868,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIER3_TARGET",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.profitTiers.tier3",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2484,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "tiers.tier3",
+          "trackLine": 869,
+          "envHelper": "envFloat",
+          "envLine": 869,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIGHT_TRAIL_DISTANCE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.tightTrailDistance",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2490,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRADE_INTERVAL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRADING_MODE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRADING_PAIR",
+      "historicalRoutes": [
+        {
+          "runtimePath": "broker.tradingPair",
+          "trackLine": 980,
+          "envHelper": "envStr",
+          "envLine": 980,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "broker.tradingPair",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2984,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAILING_ACTIVATION",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.trailingActivation",
+          "trackLine": 860,
+          "envHelper": "envFloat",
+          "envLine": 860,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "exits.trailingActivation",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2470,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAILING_STOP_PERCENT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.trailingStopPercent",
+          "trackLine": 859,
+          "envHelper": "envFloat",
+          "envLine": 859,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "exits.trailingStopPercent",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2469,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAIL_DISTANCE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "exits.normalTrailDistance",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "env",
+          "envLine": 2489,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_AUTO_HARVEST",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_BACKTEST_MODE",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_ENABLE_BACKTEST",
+      "historicalRoutes": [
+        {
+          "runtimePath": "pipeline.traiEnableBacktest",
+          "baseConfigLine": 2256,
+          "trackLine": null,
+          "envHelper": "envBool",
+          "envLine": 3682,
+          "routeKind": "legacy_base_config_property",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "legacy_base_config_property_no_exact_current_source_path"
+        },
+        {
+          "runtimePath": "trai.enableBacktest",
+          "trackLine": 1006,
+          "envHelper": "envBool",
+          "envLine": 1006,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:trai",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_ENABLE_LLM",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_HARVEST_BOOST_WR",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_HARVEST_MIN_TRADES",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_HARVEST_PENALTY_WR",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MAX_CONF",
+      "historicalRoutes": [
+        {
+          "runtimePath": "trai.maxConf",
+          "trackLine": 1005,
+          "envHelper": "envFloat",
+          "envLine": 1005,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:trai",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MAX_RISK",
+      "historicalRoutes": [
+        {
+          "runtimePath": "trai.maxRisk",
+          "trackLine": 1003,
+          "envHelper": "envFloat",
+          "envLine": 1003,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:trai",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MIN_CONF",
+      "historicalRoutes": [
+        {
+          "runtimePath": "trai.minConf",
+          "trackLine": 1004,
+          "envHelper": "envFloat",
+          "envLine": 1004,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:trai",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MODE",
+      "historicalRoutes": [
+        {
+          "runtimePath": "trai.mode",
+          "trackLine": 1000,
+          "envHelper": "envStr",
+          "envLine": 1000,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:trai",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_VETO",
+      "historicalRoutes": [
+        {
+          "runtimePath": "trai.vetoPower",
+          "trackLine": 1002,
+          "envHelper": "envBool",
+          "envLine": 1002,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": null,
+          "evidenceKind": "track_runtime_path_no_exact_current_source_path"
+        }
+      ],
+      "unresolved": true,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_WEIGHT",
+      "historicalRoutes": [
+        {
+          "runtimePath": "trai.weight",
+          "trackLine": 1001,
+          "envHelper": "envFloat",
+          "envLine": 1001,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:trai",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TTP_RULES_ENABLED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "USER_NARRATOR",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "USE_MODULE_AUTOLOADER",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "USE_SSL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "VOICE_ENABLED",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WEBHOOK_DRY_RUN",
+      "historicalRoutes": [
+        {
+          "runtimePath": "webhookOrders.dryRun",
+          "trackLine": 991,
+          "envHelper": "envBool",
+          "envLine": 991,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:services.webhookOrders.dryRun",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WEBHOOK_ORDERS_ENABLED",
+      "historicalRoutes": [
+        {
+          "runtimePath": "webhookOrders.enabled",
+          "trackLine": 990,
+          "envHelper": "envBool",
+          "envLine": 990,
+          "routeKind": "track_runtime_path",
+          "samePathOwnerBefore": "config:settings.json:services.webhookOrders.enabled",
+          "evidenceKind": "track_runtime_path_same_path_owner_evidence_only"
+        }
+      ],
+      "unresolved": false,
+      "provenanceStatus": "historical_route_evidence_only",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WEBSOCKET_DOMAIN",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WS_HOST",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WS_PORT",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WS_URL",
+      "historicalRoutes": [],
+      "unresolved": true,
+      "provenanceStatus": "unknown_no_route_in_scoped_historical_source",
+      "historicalValueMigrationAccepted": false
+    }
+  ]
+}

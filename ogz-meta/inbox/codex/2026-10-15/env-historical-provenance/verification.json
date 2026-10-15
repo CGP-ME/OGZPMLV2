@@ -1,0 +1,27 @@
+{
+  "historicalCommit": "3549ac25fe61063786c559062eb6c818b2ea877d",
+  "historicalConfigLoaderBlob": "6cfb15f02f39568e4f3dd5396876402b249a5bfa",
+  "currentHeadAtReview": "78458d485fbfa74e0c8f4ed32b430dfe2d7bace4",
+  "archivedNames": 184,
+  "historicalNamesTraced": 62,
+  "historicalRouteRecordsVerified": 88,
+  "namesWithAtLeastOneExactCurrentPathOwner": 25,
+  "namesWithNoScopedHistoricalRoute": 122,
+  "unresolvedOrPartialNames": 163,
+  "previous31MappingsRetained": true,
+  "additionalHistoricalNamesTraced": 31,
+  "checks": [
+    "Every env call matched an independently parsed historical AST node by helper, literal key and line",
+    "Every track route matched an independent AST literal path and line",
+    "Every joined owner equals the previously captured source map at exactly the same runtime path",
+    "All rows explicitly retain historicalValueMigrationAccepted=false",
+    "No env or private credential values were read or emitted"
+  ],
+  "inputSha256": {
+    "ogz-meta/inbox/codex/2026-10-15/env-archive/archived-key-reconciliation.json": "2779a65003e1939e2d5fb7372b4acf4637e7fb452e516f1cf7cfbaa9bbe4f443",
+    "ogz-meta/inbox/codex/2026-10-15/env-archive/effective-sources-before.json": "5aaaaaf38e2c6d5c8d1c0fdb017a8f3a7b46d381587477e2816374d2d756f94a"
+  },
+  "generatorSha256": "cd13d940803f422773cad8535b03801ed5d65a8fc06a600ee6216a3d52dc1db4",
+  "outputSha256": "254aec138f46d2dbbc42ffdf863dc22af7b1fd978e98fc078805d0e1d361b8ee",
+  "runtimeActivated": false
+}
