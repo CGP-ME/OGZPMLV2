@@ -1,3 +1,13 @@
+## 2026-10-14 — Reconciled session-report configuration and state readers
+
+Problem: the standalone session form read retired trading env keys, selected the first vaguely named OGZ process, and guessed state values from an obsolete path. This could misreport the actual bot and fabricate balance/PnL defaults.
+
+Change: use canonical internal owners for the exact bot process, transition-store directory, and persisted paper-state file. Report mode/symbol only from a complete activation record observed after that process started. Label persisted paper balance and show observation status, source, read time, and file modification time in both Markdown tables. Missing observations remain unknown with a stated issue; no trading gate, throw, fallback setting, or bot mutation was added.
+
+Verification: six native Node tests passed (retired env cannot override scope; exact process; canonical state; stale/missing observations; rendered provenance). Actual read-only CLI observation succeeded. Independent Terra review passed after fixing omitted Markdown provenance. Mercury refuted its duplicate-declaration claim but could not verify callers; direct caller search closes that reporting-only gap, without claiming clean Mercury production clearance. Evidence: `ogz-meta/inbox/codex/2026-10-15/env-session-report/{receipt.json,REVIEW.md,fixtures/probe.cjs}`.
+
+Limits/runtime: this is persisted-state reporting, not broker/in-memory reconciliation. No daily PnL is invented. No PM2 reload; reload remains held at Trey's direction. This change does not certify whole Stop 1 completion.
+
 ## 2026-10-14 — Archived the unused historical Mercury config attachment
 
 - Problem: `ogz-meta/config_2.js`, imported as documentation in `3faaff55`, still looked like an active configuration owner and read archived OLLAMA_URL.

@@ -1,0 +1,22 @@
+{
+  "scope": "standalone session reporting helper canonical configuration/state readers",
+  "source_sha256": "637d9034e30608dcf64092547239b2065808fa7f44eb771e4692475c037c8736",
+  "verification": {
+    "isolatedCases": 6,
+    "passed": 6,
+    "actualReadOnlyCli": "passed",
+    "renderedProvenance": "start and end tables"
+  },
+  "review": {
+    "independent": "Terra; PASS after rendering correction",
+    "mercuryRun": "2026-10-15T05-09-44-617Z-4a3985dc52fb",
+    "mercuryVerdict": "cannot_verify; ledger no_claim",
+    "unresolvedReviewerGap": "caller search completed directly; see REVIEW.md"
+  },
+  "runtimeActivation": "No service restart or state mutation",
+  "limits": [
+    "Persisted file observation, not broker or in-memory reconciliation",
+    "Daily PnL remains unknown without an observed source",
+    "Not Stop 1 completion"
+  ]
+}

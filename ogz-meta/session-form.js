@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { getInternalsFileValue } = require('../foundation/ConfigLoader');
 
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 const FORM_TEMPLATE_PATH = path.join(__dirname, 'ledger', 'SESSION-HANDOFF-FORM.md');
@@ -26,78 +27,113 @@ const FORM_TEMPLATE_PATH = path.join(__dirname, 'ledger', 'SESSION-HANDOFF-FORM.
  */
 async function collectBotState() {
   const state = {
-    process: {
-      pm2Status: 'unknown',
-      uptime: 'unknown',
-      restarts: 'unknown',
-      memoryUsage: 'unknown',
-      cpuUsage: 'unknown'
-    },
+    process: { pm2Status: 'unknown', uptime: 'unknown', restarts: 'unknown', memoryUsage: 'unknown', cpuUsage: 'unknown' },
     trading: {
-      mode: process.env.TRADING_MODE || process.env.BACKTEST_MODE === 'true' ? 'BACKTEST' : 'PAPER',
-      inPosition: 'unknown',
-      balance: 'unknown',
-      activeAsset: process.env.TRADING_PAIR || 'BTC-USD',
-      dailyPnL: 'unknown',
-      totalTradesToday: 'unknown',
-      winRate: 'unknown'
+      mode: 'unknown', inPosition: 'unknown', balance: 'unknown', activeAsset: 'unknown', dailyPnL: 'unknown',
+      totalTradesToday: 'unknown', winRate: 'unknown',
+      persistedState: { status: 'unobserved', source: 'unknown', observedAt: 'unknown' }
     },
-    connections: {
-      krakenWs: 'unknown',
-      dashboardWs: 'unknown',
-      lastDataReceived: 'unknown',
-      sslServer: 'unknown',
-      dashboardAccessible: 'unknown'
-    },
+    connections: { krakenWs: 'unknown', dashboardWs: 'unknown', lastDataReceived: 'unknown', sslServer: 'unknown', dashboardAccessible: 'unknown' },
     knownIssues: []
   };
+  const botProcessName = getInternalsFileValue('services.supervisor.botProcess');
+  const transitionStoreDir = getInternalsFileValue('sessionRouter.transitionStoreDir');
+  const stateFilePath = getInternalsFileValue('paths.stateFile');
+  const repoRoot = path.resolve(__dirname, '..');
 
-  // Try to get PM2 status
   try {
     const pm2Output = execSync('pm2 jlist 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
     const pm2Data = JSON.parse(pm2Output);
-    const ogzProcess = pm2Data.find(p => p.name === 'ogzprime' || p.name.includes('ogz'));
-
-    if (ogzProcess) {
-      state.process.pm2Status = ogzProcess.pm2_env?.status || 'unknown';
-      state.process.uptime = ogzProcess.pm2_env?.pm_uptime
-        ? `${Math.floor((Date.now() - ogzProcess.pm2_env.pm_uptime) / 1000 / 60)} minutes`
-        : 'unknown';
-      state.process.restarts = ogzProcess.pm2_env?.restart_time || 0;
-      state.process.memoryUsage = ogzProcess.monit?.memory
-        ? `${Math.round(ogzProcess.monit.memory / 1024 / 1024)} MB`
-        : 'unknown';
-      state.process.cpuUsage = ogzProcess.monit?.cpu !== undefined
-        ? `${ogzProcess.monit.cpu}%`
-        : 'unknown';
+    const ogzProcess = typeof botProcessName === 'string'
+      ? pm2Data.find(processInfo => processInfo.name === botProcessName)
+      : undefined;
+    if (!ogzProcess) {
+      state.knownIssues.push(`PM2 bot process not observed: ${String(botProcessName)}`);
+    } else {
+      state.process.pm2Status = typeof ogzProcess.pm2_env?.status === 'string' ? ogzProcess.pm2_env.status : 'unknown';
+      const pmStartedAt = Number(ogzProcess.pm2_env?.pm_uptime);
+      state.process.uptime = Number.isFinite(pmStartedAt) ? `${Math.floor((Date.now() - pmStartedAt) / 60000)} minutes` : 'unknown';
+      const restartCount = Number(ogzProcess.pm2_env?.restart_time);
+      state.process.restarts = Number.isFinite(restartCount) ? restartCount : 'unknown';
+      state.process.memoryUsage = Number.isFinite(ogzProcess.monit?.memory) ? `${Math.round(ogzProcess.monit.memory / 1024 / 1024)} MB` : 'unknown';
+      state.process.cpuUsage = Number.isFinite(ogzProcess.monit?.cpu) ? `${ogzProcess.monit.cpu}%` : 'unknown';
+      if (state.process.pm2Status !== 'online') {
+        state.knownIssues.push(`Runtime scope unobserved: PM2 bot process is ${state.process.pm2Status}`);
+      } else if (typeof transitionStoreDir !== 'string') {
+        state.knownIssues.push('Runtime scope unobserved: canonical transition store path is unavailable');
+      } else if (!Number.isFinite(pmStartedAt)) {
+        state.knownIssues.push('Runtime scope unobserved: PM2 bot start time is unavailable');
+      } else {
+        const transitionStateFile = path.resolve(repoRoot, transitionStoreDir, 'transition-state.json');
+        if (!fs.existsSync(transitionStateFile)) {
+          state.knownIssues.push(`Runtime scope unobserved: ${transitionStateFile} is unavailable`);
+        } else {
+          const transition = JSON.parse(fs.readFileSync(transitionStateFile, 'utf8'));
+          const transitionUpdatedAt = Date.parse(transition.updatedAt);
+          const scope = transition.runtimeScope;
+          const scopeIsComplete = transition.state === 'TARGET_ACTIVATED'
+            && transition.runtimeScopeStatus === 'complete'
+            && transition.scopeComplete === true
+            && scope?.runtimeScopeStatus === 'complete'
+            && scope?.scopeComplete === true;
+          if (!Number.isFinite(transitionUpdatedAt) || transitionUpdatedAt < pmStartedAt) {
+            state.knownIssues.push('Runtime scope unobserved: transition record predates the selected PM2 bot process');
+          } else if (!scopeIsComplete) {
+            state.knownIssues.push('Runtime scope unobserved: transition record has no complete active scope');
+          } else if (typeof scope.executionMode !== 'string' || typeof scope.symbol !== 'string') {
+            state.knownIssues.push('Runtime scope unobserved: complete scope lacks execution mode or symbol');
+          } else {
+            state.trading.mode = scope.executionMode.toUpperCase();
+            state.trading.activeAsset = scope.symbol;
+          }
+        }
+      }
     }
-  } catch (e) {
-    state.process.pm2Status = 'not running or pm2 unavailable';
+  } catch (error) {
+    if (state.process.pm2Status === 'unknown') state.process.pm2Status = 'not running or pm2 unavailable';
+    state.knownIssues.push(`Runtime scope unobserved: ${error.message}`);
   }
 
-  // Try to get StateManager data
-  try {
-    const stateFile = path.join(__dirname, '..', 'data', 'state.json');
-    if (fs.existsSync(stateFile)) {
-      const stateData = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-      state.trading.inPosition = stateData.position > 0
-        ? `Yes (${stateData.position} @ ${stateData.entryPrice || 'unknown'})`
-        : 'No';
-      state.trading.balance = stateData.balance ? `$${stateData.balance.toFixed(2)}` : 'unknown';
-      state.trading.dailyPnL = stateData.dailyPnL ? `$${stateData.dailyPnL.toFixed(2)}` : '$0.00';
+  if (state.trading.mode === 'PAPER' && typeof stateFilePath === 'string') {
+    const persistedStateFile = path.resolve(repoRoot, stateFilePath);
+    try {
+      if (!fs.existsSync(persistedStateFile)) {
+        state.knownIssues.push(`Persisted paper state unobserved: ${persistedStateFile} is unavailable`);
+      } else {
+        const stateData = JSON.parse(fs.readFileSync(persistedStateFile, 'utf8'));
+        state.trading.persistedState = {
+          status: 'observed',
+          source: `internals.paths.stateFile:${persistedStateFile}`,
+          observedAt: new Date().toISOString(),
+          fileModifiedAt: fs.statSync(persistedStateFile).mtime.toISOString()
+        };
+        if (Array.isArray(stateData.activeTrades)) {
+          const activeTradeCount = stateData.activeTrades.length;
+          state.trading.inPosition = activeTradeCount > 0 ? `Yes (${activeTradeCount} active trade${activeTradeCount === 1 ? '' : 's'})` : 'No';
+        } else {
+          state.knownIssues.push('Persisted paper state observed without activeTrades');
+        }
+        if (Number.isFinite(stateData.balance)) {
+          state.trading.balance = `$${stateData.balance.toFixed(2)}`;
+        } else {
+          state.knownIssues.push('Persisted paper state observed without a finite balance');
+        }
+      }
+    } catch (error) {
+      state.knownIssues.push(`Persisted paper state unobserved: ${error.message}`);
     }
-  } catch (e) {
-    // State file not available
+  } else if (state.trading.mode !== 'PAPER') {
+    state.knownIssues.push('Persisted paper state unobserved: no fresh observed paper runtime scope');
+  } else {
+    state.knownIssues.push('Persisted paper state unobserved: canonical state file path is unavailable');
   }
 
-  // Check SSL server
   try {
     execSync('pgrep -f "ogzprime-ssl-server" > /dev/null 2>&1');
     state.connections.sslServer = 'Running';
-  } catch (e) {
+  } catch (error) {
     state.connections.sslServer = 'Down';
   }
-
   return state;
 }
 
@@ -366,7 +402,11 @@ function generateMarkdown(form) {
 |-------|-------|
 | **Mode** | ${s2.trading?.mode || 'unknown'} |
 | **In Position** | ${s2.trading?.inPosition || 'unknown'} |
-| **Balance** | ${s2.trading?.balance || 'unknown'} |
+| **Persisted paper balance** | ${s2.trading?.balance || 'unknown'} |
+| **Persisted state status** | ${s2.trading?.persistedState?.status || 'unknown'} |
+| **Persisted state source** | ${s2.trading?.persistedState?.source || 'unknown'} |
+| **State observed at** | ${s2.trading?.persistedState?.observedAt || 'unknown'} |
+| **State file modified at** | ${s2.trading?.persistedState?.fileModifiedAt || 'unknown'} |
 | **Active Asset** | ${s2.trading?.activeAsset || 'unknown'} |
 | **Daily P&L** | ${s2.trading?.dailyPnL || 'unknown'} |
 
@@ -446,7 +486,11 @@ ${w.notes ? `- Notes: ${w.notes}` : ''}
 |-------|-------|
 | **Mode** | ${s5.trading?.mode || 'Not captured'} |
 | **In Position** | ${s5.trading?.inPosition || 'Not captured'} |
-| **Balance** | ${s5.trading?.balance || 'Not captured'} |
+| **Persisted paper balance** | ${s5.trading?.balance || 'Not captured'} |
+| **Persisted state status** | ${s5.trading?.persistedState?.status || 'Not captured'} |
+| **Persisted state source** | ${s5.trading?.persistedState?.source || 'Not captured'} |
+| **State observed at** | ${s5.trading?.persistedState?.observedAt || 'Not captured'} |
+| **State file modified at** | ${s5.trading?.persistedState?.fileModifiedAt || 'Not captured'} |
 | **Active Asset** | ${s5.trading?.activeAsset || 'Not captured'} |
 | **Daily P&L** | ${s5.trading?.dailyPnL || 'Not captured'} |
 
