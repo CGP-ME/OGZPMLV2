@@ -1,3 +1,11 @@
+## 2026-10-15 — Record remaining trading-stop authorities and New York ruling
+
+Recorded the six delivered authority removals and the remaining manual/session/prop/reconciliation paths in a bounded active-code audit. Identified SessionRouter's 30-minute entry wind-down, unowned resume calls, two no-op global halt methods with active callers, and missing demonstrated v2 pause/resume completion. This is an evidence record, not a claim that all controls or deployment are complete.
+
+Trey selected midnight-to-midnight America/New_York with DST for the requested 50% whole-account daily-loss rule; prop evaluations keep their required clocks. The new rule is not yet implemented: recurring whole-account valuation, persisted scoped baseline, breach acknowledgement and v2 Resume remain unfinished. Paper must use its simulated account ledger; live must use whole broker-account equity, not USD cash.
+
+Verification: direct source reads/searches and commit IDs, with file:line evidence and scope limits in [FINDINGS.md](ogz-meta/inbox/codex/2026-10-15/trading-stop-audit/FINDINGS.md). Prose-only record, no Mercury required. Runtime unchanged; the separate state-file recovery does not deploy these source changes.
+
 ## 2026-10-15 — Recover contaminated paper snapshot from live runtime state
 
 Recovered data/state-paper.json from the running bot's own persistence projection, after two read-only runtime observations agreed and the destination was confirmed from the loaded ConfigLoader. Preserved the contaminated file privately, checked it had not changed, wrote the replacement atomically, and verified the resulting JSON against the captured snapshot. Recovered balance 10000, zero positions, and the original SessionRouter transition pause; no guessed values or position deletion. A temporary localhost inspector was used and closed. PID 2943769/restart_count 0 remained unchanged; no restart or resume.
