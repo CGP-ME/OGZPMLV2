@@ -1,0 +1,46 @@
+{
+  "roles": {
+    "bot": {
+      "repeatLoadSameConfig": true,
+      "repeatLoadSameSources": true,
+      "repeatLoadSameFingerprint": true,
+      "unchangedSinceArchive": true,
+      "fingerprint": "88b2ae90eb28b337c37049e7feb4f3c06bc48b860e589124d8cb4bca2577e654"
+    },
+    "dashboard": {
+      "repeatLoadSameConfig": true,
+      "repeatLoadSameSources": true,
+      "repeatLoadSameFingerprint": true,
+      "unchangedSinceArchive": true,
+      "fingerprint": "6696366f8688f3e080ffd5787066e3ca0bb9c9f44b925d1e5f9509180598faf4"
+    },
+    "checkout": {
+      "repeatLoadSameConfig": true,
+      "repeatLoadSameSources": true,
+      "repeatLoadSameFingerprint": true,
+      "unchangedSinceArchive": true,
+      "fingerprint": "c5144a54daccd5199efbc79d60b43673b785598c1b3ced92aac52963923c8a32"
+    },
+    "supervisor": {
+      "repeatLoadSameConfig": true,
+      "repeatLoadSameSources": true,
+      "repeatLoadSameFingerprint": true,
+      "unchangedSinceArchive": true,
+      "fingerprint": "c443704bc5db7a4770adc6597b7788aefc7daf5eb6bd48859e249df033f2eaf8"
+    },
+    "market-data-tool": {
+      "repeatLoadSameConfig": true,
+      "repeatLoadSameSources": true,
+      "repeatLoadSameFingerprint": true,
+      "unchangedSinceArchive": true,
+      "fingerprint": "d8668bde350fa4e50b21264eb9be1105da5e2265779d76a9737f04dbfb8838be"
+    }
+  },
+  "filesUnchanged": true,
+  "canonicalFileHashes": {
+    "config/settings.json": "b306f8f1e4a3d0bb3f419f9a71190ef2596a5cf334f73936a8da94c2f81a78fd",
+    "config/internals.json": "ef331f141294908401df7eb048a37791d25ed43e38a0868dac1dd6f397b3b37b"
+  },
+  "runtimeReloadPerformed": false,
+  "saveIdempotenceExercised": false
+}

@@ -1,3 +1,13 @@
+## 2026-10-15 — Reconcile archived env inventory without claiming full Stop 1 acceptance
+
+Trey challenged the reduction in environment entries and restated Stop 1: dynamic/static single ownership, full provenance, idempotence without deduplication concealing conflicts, and no orphan code or phantom callers. Corrected the acceptance boundary: matching ConfigLoader outputs proves archive non-interference, not every setting's initialization/consumer/effect. Existing October 11 whole-config evidence remains the starting inventory, not a completion certificate.
+
+Verified 206 original assignments/distinct names, 22 retained exact credentials, 184 names/values preserved in the private original. No duplicate assignments or canonical JSON properties. Five application roles repeat-load identical effective values, source maps and fingerprints, with unchanged canonical files. All 184 names now have source-reference records; the expanded 571-file scan includes ogz-meta runtime helpers. It finds old env readers in the standalone diagnostic, session-form helper, legacy config_2 copy, and a gate fixture. No migration destination is invented for names with no verified current owner. Preliminary semantic agent mappings remain investigation leads and are not shipped as accepted provenance.
+
+The paper close authorized by Trey completed through executeTrade with success, one recorded close and zero remaining positions; trading is paused. Final paper state has not been reset or archived and PM2 has not been recreated with its old env removed. Dashboard connections were reassigned to Fable; this lane made no dashboard edits. The diagnostic's separate simulation/global exit overrides require an explicit preserve-versus-retire disposition; a question is pending. Other legacy tooling findings remain open, not silently counted as fixed.
+
+Review/verification: checked the inventory count, concrete reader locations, five-role before/after and repeat-load receipts, and source scope. This is a documentation/evidence change, with no production change or Mercury pass claimed. Separate alias cleanup 4fff6549 has its own clean staged-source Mercury review. Global reindex remains blocked by exhausted embedding credits. Evidence: ogz-meta/inbox/codex/2026-10-15/env-archive/RECONCILIATION.md and linked JSON receipts. Stop 1 is not declared complete; runtime reload remains paused.
+
 ## 2026-10-15 — Remove unused ConfigLoader compatibility aliases
 
 Problem: ConfigLoader still exported MIN_CONFIDENCE and FEES_ROUND_TRIP as calculated aliases and validateLegacy as an unused alternate method name. No current caller was found; these exports left a misleading compatibility surface after the canonical-owner migration.

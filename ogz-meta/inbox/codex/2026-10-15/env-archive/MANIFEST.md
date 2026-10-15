@@ -10,3 +10,7 @@ Source: current VPS tree on codex/archive-legacy-env, inspected 2026-10-15 UTC (
 - REVIEW.md: bounded Mercury findings and root disposition; no clean-review or restart claim.
 
 Private original .env, candidate, complete snapshots, PM2 configuration, and raw review stay under private/ and must not be published. Runtime restart/provenance remains pending the open paper position disposition.
+
+## October15 reconciliation supplement
+
+RECONCILIATION.md and archived-key-reconciliation.json account for all184 archived names and delimit source evidence from accepted behavior. current-key-references.json records the571-file scan; repeat-load-proof.json and duplicate-name-check.json record deterministic loading and duplicate-name absence. No raw env values are included. Kept to correct the acceptance overclaim and preserve unresolved findings.

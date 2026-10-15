@@ -1,0 +1,2089 @@
+{
+  "scope": "Tracked current code/config including tools, tuning, deployment and ogz-meta runtime helpers; excludes tests, historical evidence/vendor/data trees; literal identifier census is not dynamic-call or external-process proof.",
+  "scannedFiles": [
+    ".claude/hooks/enforce-pipeline.sh",
+    ".claude/settings.json",
+    ".github/workflows/ci.yml",
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/claude.yml",
+    ".github/workflows/deploy.yml",
+    ".github/workflows/protected-paths.yml",
+    ".vscode/launch.json",
+    ".vscode/tasks.json",
+    "BASELINE-matrix-2026-04-07.json",
+    "TierFeatureFlags.js",
+    "TradingProfileManager.js",
+    "backtest.sh",
+    "backtest/OptimizedBacktestEngine.js",
+    "backtest/backtest-api.js",
+    "backtest/results/7dcf4a74-23fb-4608-b21c-cffabd800938.json",
+    "backtest/results/fe2296d2-a8f1-4bd2-9024-41b6c6eed55d.json",
+    "brokers/AlpacaAdapter.js",
+    "brokers/BinanceAdapter.js",
+    "brokers/BrokerFactory.js",
+    "brokers/BrokerRegistry.js",
+    "brokers/CMEAdapter.js",
+    "brokers/CoinbaseAdapter.js",
+    "brokers/GeminiAdapter.js",
+    "brokers/IBrokerAdapter.js",
+    "brokers/InteractiveBrokersAdapter.js",
+    "brokers/KrakenIBrokerAdapter.js",
+    "brokers/OandaAdapter.js",
+    "brokers/SchwabAdapter.js",
+    "brokers/TastyworksAdapter.js",
+    "brokers/UpholdAdapter.js",
+    "config/internals.json",
+    "config/pattern-descriptions.json",
+    "config/settings.json",
+    "core/AdaptiveTimeframeSelector.js",
+    "core/AssetConfigManager.js",
+    "core/AssetRegistry.js",
+    "core/AtomicWrite.js",
+    "core/AuthFailureGuard.js",
+    "core/BacktestRecorder.js",
+    "core/BacktestRunner.js",
+    "core/BotStateFrame.js",
+    "core/CandleAggregator.js",
+    "core/CandleHelper.js",
+    "core/CandlePatternDetector.js",
+    "core/CandleProcessor.js",
+    "core/CandleStore.js",
+    "core/ContractValidator.js",
+    "core/CryptoMarketFeed.js",
+    "core/DashboardBroadcaster.js",
+    "core/DashboardDepthCoalescer.js",
+    "core/DataFileInstrument.js",
+    "core/DecisionAutopsyLogger.js",
+    "core/DecisionLedgerLogger.js",
+    "core/DrawdownTracker.js",
+    "core/DynamicPositionSizer.js",
+    "core/EMACalibrator.js",
+    "core/EnhancedPatternRecognition.js",
+    "core/ErrorHandler.js",
+    "core/EvalRuleEngine.js",
+    "core/EventLoopMonitor.js",
+    "core/ExitContractManager.js",
+    "core/FeatureExtractor.js",
+    "core/FeatureFlagManager.js",
+    "core/FeeModel.js",
+    "core/FibonacciDetector.js",
+    "core/IndicatorCalculator.js",
+    "core/KillSwitch.js",
+    "core/KrakenAdapterV2.js",
+    "core/MAExtensionFilter.js",
+    "core/MarketRegimeDetector.js",
+    "core/MemoryManager.js",
+    "core/MessageQueue.js",
+    "core/ModuleAutoLoader.js",
+    "core/ModuleInitializer.js",
+    "core/MultiAssetManager.js",
+    "core/NewsSearchProvider.js",
+    "core/NtfyTraceNotifier.js",
+    "core/OgzTpoIntegration.js",
+    "core/OptimizedIndicators.js",
+    "core/OrderExecutor.js",
+    "core/OrderRouter.js",
+    "core/OutputPaths.js",
+    "core/PIDController.js",
+    "core/PatternBasedExitModel.js",
+    "core/PatternMaturity.js",
+    "core/PatternMemoryBank.js",
+    "core/PatternQualityScoring.js",
+    "core/PatternScope.js",
+    "core/PerformanceAnalyzer.js",
+    "core/PerformanceDashboardIntegration.js",
+    "core/PerformanceValidator.js",
+    "core/PerformanceVisualizer.js",
+    "core/PipelineSnapshot.js",
+    "core/PnLCalculator.js",
+    "core/PnLTracker.js",
+    "core/PolicyBuilder.js",
+    "core/PositionEffect.js",
+    "core/PositionSizer.js",
+    "core/PositionTracker.js",
+    "core/ProfitExitPlanner.js",
+    "core/RegimeDetector.js",
+    "core/RiskManager.js",
+    "core/RiskManagerConfig.js",
+    "core/RuntimeAuditSink.js",
+    "core/RuntimeConfigProof.js",
+    "core/SessionRouter.js",
+    "core/SingletonLock.js",
+    "core/StateManager.js",
+    "core/StrategyOrchestrator.js",
+    "core/Supervisor.js",
+    "core/SupportResistanceDetector.js",
+    "core/SymbolTradingContext.js",
+    "core/TRAIDecisionModule.js",
+    "core/TRAIPatternIntegration.js",
+    "core/TRAIWebContext.js",
+    "core/Telemetry.js",
+    "core/TimeFrameManager.js",
+    "core/TimeframeEngine.js",
+    "core/TraceSpine.js",
+    "core/TradeIntelligenceEngine.js",
+    "core/TradeJournal.js",
+    "core/TradeJournalBridge.js",
+    "core/TradeNarrator.js",
+    "core/TradeReplayCapture.js",
+    "core/TradingLoop.js",
+    "core/TtpCutoffEnforcer.js",
+    "core/TwoPoleOscillator.js",
+    "core/UnifiedPatternMemory.js",
+    "core/VolumeProfile.js",
+    "core/WebSocketManager.js",
+    "core/WebhookOrderAdapter.js",
+    "core/WhaleFilings.js",
+    "core/dto/DecisionLedgerSchema.js",
+    "core/dto/ExitContractOwnership.js",
+    "core/dto/FrozenExitPolicy.js",
+    "core/dto/IndicatorSnapshotDTO.js",
+    "core/exit/BreakEvenManager.js",
+    "core/exit/DynamicTrailingStop.js",
+    "core/exit/MaxHoldChecker.js",
+    "core/exit/StopLossChecker.js",
+    "core/exit/TakeProfitChecker.js",
+    "core/exit/TrailingStopChecker.js",
+    "core/indicators/IndicatorEngine.js",
+    "core/indicators/TwoPoleOscillator.js",
+    "core/invariants.js",
+    "core/ogzTwoPoleOscillator.js",
+    "core/persistent_llm_client.js",
+    "core/session-router/TransitionStore.js",
+    "core/tradeLogger.js",
+    "core/trai_core.js",
+    "core/trai_llm_config.js",
+    "core/trai_symbol_extractor.js",
+    "deploy/create-package.sh",
+    "devtools/repo-dump-for-gpt.js",
+    "ecosystem.config.js",
+    "ecosystem.watch.config.js",
+    "foundation/ConfigLoader.js",
+    "foundation/IBrokerAdapter.js",
+    "foundation/Instrument.js",
+    "foundation/MarketCalendar.js",
+    "foundation/ResilientWebSocket.js",
+    "foundation/ohlc-normalize.js",
+    "instrument.js",
+    "kraken_adapter_simple.js",
+    "mercury.config.json",
+    "modules/BreakAndRetest.js",
+    "modules/DonchianBreakout.js",
+    "modules/EMASMACrossoverSignal.js",
+    "modules/EMATrendRetest.js",
+    "modules/FairValueGapDetector.js",
+    "modules/LiquiditySweepDetector.js",
+    "modules/MADynamicSR.js",
+    "modules/MultiTimeframeAdapter.js",
+    "modules/NoWickImbalance.js",
+    "modules/OpeningRangeBreakout.js",
+    "modules/PropSafeEMAPullback.js",
+    "modules/RSI2MeanReversion.js",
+    "modules/SmartMoneySweep.js",
+    "modules/TimeSeriesMomentum.js",
+    "ogz-meta/analyze-strategy-attribution.js",
+    "ogz-meta/anchor-doc.js",
+    "ogz-meta/approve.js",
+    "ogz-meta/ask_1.js",
+    "ogz-meta/ast/property-to-function.js",
+    "ogz-meta/ast/scan-dto-violations.js",
+    "ogz-meta/audit-features.js",
+    "ogz-meta/automation/daily-alignment-maintenance.sh",
+    "ogz-meta/bombardier.js",
+    "ogz-meta/build-claudito-context.js",
+    "ogz-meta/claudito-logger.js",
+    "ogz-meta/cognition/mercury-bridge.js",
+    "ogz-meta/cognition/mercury-canaries.json",
+    "ogz-meta/cognition/mercury-rules/no-banned-report-language.json",
+    "ogz-meta/cognition/mercury-rules/no-proof-partial-as-full-close.json",
+    "ogz-meta/cognition/mercury-rules/no-public-dashboard-websocket-token.json",
+    "ogz-meta/cognition/mercury-rules/no-swallowed-trading-path-fallback.json",
+    "ogz-meta/cognition/parsers.js",
+    "ogz-meta/cognition/prompts.js",
+    "ogz-meta/commander.js",
+    "ogz-meta/config_2.js",
+    "ogz-meta/dep-scanner.js",
+    "ogz-meta/execute-mission.js",
+    "ogz-meta/gates/eval-live-posture-gate.js",
+    "ogz-meta/gates/multi-runtime-gate-runner.js",
+    "ogz-meta/gates/splits/tournament-splits-2026-07-18.json",
+    "ogz-meta/health-monitor.sh",
+    "ogz-meta/indexer_1.js",
+    "ogz-meta/janitor.js",
+    "ogz-meta/manifest-schema.js",
+    "ogz-meta/mongo-store_1.js",
+    "ogz-meta/ogz-close.js",
+    "ogz-meta/ogz-run.js",
+    "ogz-meta/pipeline-audit.js",
+    "ogz-meta/pipeline-phase10-statemachine.js",
+    "ogz-meta/pipeline-phase12-fuzz.js",
+    "ogz-meta/pipeline-phase7-handoff.js",
+    "ogz-meta/pipeline-phase7b-connectionmap_1.js",
+    "ogz-meta/pipeline-phase9-invariants.js",
+    "ogz-meta/pipeline-supervisor.js",
+    "ogz-meta/pipeline.js",
+    "ogz-meta/prodlock-portable/manifest-schema.js",
+    "ogz-meta/prodlock-portable/ollama-brain.js",
+    "ogz-meta/prodlock-portable/pipeline.js",
+    "ogz-meta/prodlock-portable/slash-router.js",
+    "ogz-meta/rag-embeddings.js",
+    "ogz-meta/rag-query.js",
+    "ogz-meta/reject.js",
+    "ogz-meta/replacements/MISSION-1773135593547.js",
+    "ogz-meta/replacements/MISSION-1773136513814.js",
+    "ogz-meta/replacements/MISSION-1773270019688.js",
+    "ogz-meta/replacements/trade-validator-fixed.js",
+    "ogz-meta/session-form.js",
+    "ogz-meta/sessions/SESSION-2026-02-11-07-58-01-test-session-form-pipeline.json",
+    "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+    "ogz-meta/sessions/SESSION-2026-02-11-21-35-14-verify-trade-journal-multi-ass.json",
+    "ogz-meta/slash-router.js",
+    "ogz-meta/spec-parser.js",
+    "ogz-meta/specs/decision-ledger-schema.json",
+    "ogz-meta/support-missions/1766677373822.artifacts.json",
+    "ogz-meta/support.js",
+    "ogz-meta/test-fixtures/c2b-syntax-bug.js",
+    "ogz-meta/test-fixtures/c2c-race-condition.js",
+    "ogz-meta/update-ledger.js",
+    "ogzprime-ssl-server.js",
+    "package.json",
+    "pine-transpiler/__tests__/PineCorpus.catalog.test.js",
+    "pine-transpiler/__tests__/PineFeatureScanner.refusal.test.js",
+    "pine-transpiler/__tests__/PineParityHarness.test.js",
+    "pine-transpiler/__tests__/PineParser.call-vs-def.test.js",
+    "pine-transpiler/__tests__/PineRuntime.cast-fns.test.js",
+    "pine-transpiler/__tests__/PineRuntime.fabrication-purge.test.js",
+    "pine-transpiler/__tests__/PineRuntime.load-refusal.test.js",
+    "pine-transpiler/__tests__/PineRuntime.noop-ta-arg.repro.test.js",
+    "pine-transpiler/__tests__/PineRuntime.sms-v4-behavior.test.js",
+    "pine-transpiler/__tests__/PineRuntime.tv-oracle.test.js",
+    "pine-transpiler/__tests__/PineRuntime.type-violation.test.js",
+    "pine-transpiler/__tests__/PineTALib.edge-evidence.test.js",
+    "pine-transpiler/__tests__/PineTALib.golden.test.js",
+    "pine-transpiler/__tests__/PineTupleAssignment.test.js",
+    "pine-transpiler/core/PineArray.js",
+    "pine-transpiler/core/PineFeatureScanner.js",
+    "pine-transpiler/core/PineLexer.js",
+    "pine-transpiler/core/PineParityHarness.js",
+    "pine-transpiler/core/PineParser.js",
+    "pine-transpiler/core/PineRuntime.js",
+    "pine-transpiler/core/PineStrategyBridge.js",
+    "pine-transpiler/core/PineTALib.js",
+    "pine-transpiler/fixtures/parity/sms-v4.fixture.json",
+    "pine-transpiler/helpers/SessionTracker.js",
+    "pine-transpiler/modules/SmartMoneySweep-v4.js",
+    "pine-transpiler/tools/pine-import.js",
+    "public/TimeframeManager.js",
+    "public/complete-integration.js",
+    "public/convert-modules.js",
+    "public/ds-base.js",
+    "public/final-dashboard.js",
+    "public/js/ChartManager.js",
+    "public/js/IndicatorAdapter.js",
+    "public/js/chart.js",
+    "public/js/command-palette.js",
+    "public/js/core.js",
+    "public/js/drawing-tools.js",
+    "public/js/indicators.js",
+    "public/js/operator/trade-manager.js",
+    "public/js/panels/ambient-fx.js",
+    "public/js/panels/asset-tf-card.js",
+    "public/js/panels/bot-intelligence.js",
+    "public/js/panels/candle-countdown.js",
+    "public/js/panels/celebration.js",
+    "public/js/panels/chain-of-thought.js",
+    "public/js/panels/chart-panel.js",
+    "public/js/panels/confidence-heatbar.js",
+    "public/js/panels/configuration-settings.js",
+    "public/js/panels/custom-alerts.js",
+    "public/js/panels/edge-analytics-panel.js",
+    "public/js/panels/edge-analytics.js",
+    "public/js/panels/equity-curve.js",
+    "public/js/panels/gate-meter.js",
+    "public/js/panels/goal-tracker.js",
+    "public/js/panels/header-strip.js",
+    "public/js/panels/layout-switcher.js",
+    "public/js/panels/live-readouts.js",
+    "public/js/panels/live-report.js",
+    "public/js/panels/loss-recovery.js",
+    "public/js/panels/milestone-effects.js",
+    "public/js/panels/news-ticker.js",
+    "public/js/panels/open-positions.js",
+    "public/js/panels/pattern-card.js",
+    "public/js/panels/pattern-sparkline.js",
+    "public/js/panels/rail-resize.js",
+    "public/js/panels/risk-gauge.js",
+    "public/js/panels/session-phase.js",
+    "public/js/panels/size-preview.js",
+    "public/js/panels/spoofing-detector.js",
+    "public/js/panels/strategy-leaderboard.js",
+    "public/js/panels/system-health.js",
+    "public/js/panels/system-snapshot.js",
+    "public/js/panels/trade-log.js",
+    "public/js/panels/trade-replay.js",
+    "public/js/panels/trai-brain.js",
+    "public/js/panels/victory-animations.js",
+    "public/js/panels/voice-fx.js",
+    "public/js/panels/voice-manager.js",
+    "public/js/panels/watchlist-strip.js",
+    "public/js/posthog-init.js",
+    "public/js/run-frontend-empire-v2.js",
+    "public/js/theme-customizer.js",
+    "public/js/websocket.js",
+    "public/module-integrator.js",
+    "public/modules/fibOverlay.js",
+    "public/modules/goalTracker.js",
+    "public/modules/leaderboardUploader.js",
+    "public/modules/sparkleEffects.js",
+    "public/modules/stochasticOverlay.js",
+    "public/modules/supportResistance.js",
+    "public/modules/trendLines.js",
+    "public/ogz-core-config.js",
+    "public/ogz-fx-engine.js",
+    "public/ogzp-core-mind.js",
+    "public/performance/equity_2025-11-08T13-04-33-291Z.json",
+    "public/performance/equity_2025-11-08T14-13-53-873Z.json",
+    "public/performance/equity_2025-11-08T22-33-56-969Z.json",
+    "public/performance/equity_2025-11-08T22-58-52-879Z.json",
+    "public/performance/equity_2025-11-08T23-03-52-879Z.json",
+    "public/performance/equity_2025-11-09T09-43-57-915Z.json",
+    "public/performance/metrics_2025-11-08T13-04-33-291Z.json",
+    "public/performance/metrics_2025-11-08T14-13-53-873Z.json",
+    "public/performance/metrics_2025-11-08T22-33-56-969Z.json",
+    "public/performance/metrics_2025-11-08T22-58-52-879Z.json",
+    "public/performance/metrics_2025-11-08T23-03-52-879Z.json",
+    "public/performance/metrics_2025-11-09T09-43-57-915Z.json",
+    "public/performance/trades_2025-11-08T13-04-33-291Z.json",
+    "public/performance/trades_2025-11-08T14-13-53-873Z.json",
+    "public/performance/trades_2025-11-08T22-33-56-969Z.json",
+    "public/performance/trades_2025-11-08T22-58-52-879Z.json",
+    "public/performance/trades_2025-11-08T23-03-52-879Z.json",
+    "public/performance/trades_2025-11-09T09-43-57-915Z.json",
+    "public/prime-bootstorm.js",
+    "public/proof/track-record/app.js",
+    "public/proof/track-record/data/accounts/MAX58356.json",
+    "public/proof/track-record/data/accounts/preview-001.json",
+    "public/proof/track-record/data/index.json",
+    "public/proof/track-record/data/streams.json",
+    "public/stripe-checkout.js",
+    "public/support.js",
+    "public/trai-widget.js",
+    "run-empire-v2.js",
+    "scripts/backup-state.sh",
+    "scripts/build-ogz-rag-index.js",
+    "scripts/candle-interpolator.js",
+    "scripts/check-config-boundary.js",
+    "scripts/check-dashboard-token-containment.js",
+    "scripts/check-protected-paths.js",
+    "scripts/cleanup-patterns.js",
+    "scripts/cpu-vps-setup.sh",
+    "scripts/download-tsla-polygon.js",
+    "scripts/download-tsla-walkback.js",
+    "scripts/download-tsla-walkforward.js",
+    "scripts/fetch-cryptocompare.js",
+    "scripts/fetch-historical-candles.js",
+    "scripts/fetch-stock-data.js",
+    "scripts/generate-live-proof.js",
+    "scripts/lint-dto.js",
+    "scripts/mercury-analyze.js",
+    "scripts/mercury-substrate-digest.js",
+    "scripts/publish-gates-proof.sh",
+    "scripts/scan-secrets.js",
+    "scripts/search-ogz-rag-index.js",
+    "scripts/session-handoff-rehearsal/executor-context.js",
+    "scripts/session-handoff-rehearsal/run.js",
+    "scripts/session-handoff-rehearsal/worker.js",
+    "scripts/smoke-test.js",
+    "scripts/supervisor-daemon.js",
+    "scripts/telemetry-report.js",
+    "scripts/test-patterns.js",
+    "scripts/update-repo-history.js",
+    "scripts/vps-disk-alarm.js",
+    "server/dashboard-market-scope.js",
+    "server/dashboard-pattern-contract.js",
+    "server/dashboard-session-auth.js",
+    "server/dashboard-stock-stream-config.js",
+    "server/dashboard-ticker-frame.js",
+    "server/emitter-bridge.js",
+    "server/kraken-depth-adapter.js",
+    "server/stock-data-adapter.js",
+    "src/indicators/ogzTwoPoleOscillator.js",
+    "start-ogzprime.sh",
+    "tools/backfill-mercury-costs.js",
+    "tools/backtest-worker-env.js",
+    "tools/cachebust.js",
+    "tools/campaign-integrity.js",
+    "tools/config-audit.js",
+    "tools/data-parity-check.js",
+    "tools/decision-autopsy-report.js",
+    "tools/dep-scanner.js",
+    "tools/eval-trade-inspector.js",
+    "tools/fee-profiles.js",
+    "tools/grid-search-confidence.js",
+    "tools/harvest-pattern-pack.js",
+    "tools/instrument-env.js",
+    "tools/kill-switch.js",
+    "tools/lint-fallbacks.js",
+    "tools/matrix-sweep.js",
+    "tools/parallel-backtest.js",
+    "tools/probe-tfe-alive.js",
+    "tools/regression-test.js",
+    "tools/repodumpforgpt.js",
+    "tools/run-audit-apex.js",
+    "tools/run-audit-revised-part2.js",
+    "tools/run-audit-revised.js",
+    "tools/run-audit.js",
+    "tools/serena-bridge.js",
+    "tools/serena-symbol-scanner.js",
+    "tools/single-backtest.js",
+    "tools/strategy-lab.js",
+    "tools/strategy-parity.js",
+    "tools/trade-validator.js",
+    "tools/tuning-profiles.js",
+    "tools/weekend-campaign-gauntlet.js",
+    "trai_brain/claude-bridge/cli.js",
+    "trai_brain/claude-bridge/edit-ledger.js",
+    "trai_brain/claude-bridge/finish-gate.js",
+    "trai_brain/claude-bridge/hook-input.js",
+    "trai_brain/claude-bridge/ignore-policy.json",
+    "trai_brain/claude-bridge/policy.js",
+    "trai_brain/claude-bridge/post-edit.js",
+    "trai_brain/claude-bridge/post-read.js",
+    "trai_brain/claude-bridge/pre-bash.js",
+    "trai_brain/claude-bridge/pre-edit.js",
+    "trai_brain/claude-bridge/pre-read.js",
+    "trai_brain/claude-bridge/prepare.js",
+    "trai_brain/claude-bridge/prior-fixes.js",
+    "trai_brain/claude-bridge/proof-writer.js",
+    "trai_brain/claude-bridge/read-ledger.js",
+    "trai_brain/claude-bridge/smoke-test.sh",
+    "trai_brain/claude-bridge/task-contract.js",
+    "trai_brain/data_ingestion.py",
+    "trai_brain/inference.py",
+    "trai_brain/inference_server.py",
+    "trai_brain/inference_server_gguf.py",
+    "trai_brain/memory_store.js",
+    "trai_brain/mercury-bridge/adversarial-review.js",
+    "trai_brain/mercury-bridge/ask.js",
+    "trai_brain/mercury-bridge/codex-challenger.js",
+    "trai_brain/mercury-bridge/config.js",
+    "trai_brain/mercury-bridge/consensus.js",
+    "trai_brain/mercury-bridge/cost-accounting.js",
+    "trai_brain/mercury-bridge/deploy-layer4.sh",
+    "trai_brain/mercury-bridge/direct-question.js",
+    "trai_brain/mercury-bridge/doctrine-review.js",
+    "trai_brain/mercury-bridge/evidence-ingestion.js",
+    "trai_brain/mercury-bridge/explicit-continuation.js",
+    "trai_brain/mercury-bridge/indexer.js",
+    "trai_brain/mercury-bridge/llm-client.js",
+    "trai_brain/mercury-bridge/mongo-store.js",
+    "trai_brain/mercury-bridge/provider-preflight.js",
+    "trai_brain/mercury-bridge/query-router.js",
+    "trai_brain/mercury-bridge/react-loop.js",
+    "trai_brain/mercury-bridge/reviewer-panel.js",
+    "trai_brain/mercury-bridge/run-ledger.js",
+    "trai_brain/mercury-bridge/searcher.js",
+    "trai_brain/mercury-bridge/substrate-digest.js",
+    "trai_brain/mercury-bridge/tool-adapter.js",
+    "trai_brain/mercury-bridge/trace-memory.js",
+    "trai_brain/mock_inference_server.py",
+    "trai_brain/persistent_llm_client.js",
+    "trai_brain/prompt_schemas.js",
+    "trai_brain/read_only_tools.js",
+    "trai_brain/repository-policy.js",
+    "trai_brain/research_mode.js",
+    "trai_brain/shared/break-my-fix-frame.js",
+    "trai_brain/trai_core.js",
+    "tuning/15m-tsla-1yr-walkforward.json",
+    "tuning/aapl-15m-10mo.json",
+    "tuning/amzn-15m-10mo.json",
+    "tuning/baseline.json",
+    "tuning/diagnostic-report-1772632803026.json",
+    "tuning/diagnostic-report-1772632891052.json",
+    "tuning/diagnostic-report-1772633017594.json",
+    "tuning/fullstack-report-1773207795385.json",
+    "tuning/nflx-15m-10mo.json",
+    "tuning/nvda-15m-10mo.json",
+    "tuning/pipeline-diagnostic.js",
+    "tuning/qqq-1h-2y.json",
+    "tuning/regression-baseline.json",
+    "tuning/round1-results.json",
+    "tuning/run-round1.js",
+    "tuning/seg_16_uptrend.json",
+    "tuning/seg_1_range.json",
+    "tuning/seg_5_range.json",
+    "tuning/spy-1h-2y.json",
+    "tuning/tsla-15m-10mo.json",
+    "tuning/tsla-15m-500.json",
+    "tuning/tsla-15m-tiny.json",
+    "tuning/tsla-15m-unseen.json",
+    "tuning/tsla-15m-year1.json",
+    "tuning/tsla-15m-year2.json",
+    "tuning/tsla-1h-2y.json",
+    "tuning/tuning-report-1772573573715.json",
+    "tuning/tuning-report-1772573585870.json",
+    "tuning/tuning-report-1772573590775.json",
+    "tuning/tuning-report-1772573603036.json",
+    "tuning/tuning-report-1772573735868.json",
+    "tuning/tuning-report-1772573740117.json",
+    "tuning/tuning-report-1772573746151.json",
+    "tuning/tuning-report-1772573750799.json",
+    "tuning/tuning-report-1772573754801.json",
+    "tuning/tuning-report-1772573770635.json",
+    "tuning/tuning-report-1772573774124.json",
+    "tuning/tuning-report-1772573777865.json",
+    "tuning/tuning-report-1772573781794.json",
+    "tuning/tuning-report-1772573785505.json",
+    "tuning/tuning-report-1772573797905.json",
+    "tuning/tuning-report-1772573803022.json",
+    "tuning/tuning-report-1772573807491.json",
+    "tuning/tuning-report-1772573811540.json",
+    "tuning/tuning-report-1772573816054.json",
+    "tuning/tuning-report-1772573993685.json",
+    "tuning/tuning-report-1772573999203.json",
+    "tuning/tuning-report-1772574003351.json",
+    "tuning/tuning-report-1772574007141.json",
+    "tuning/tuning-report-1772574010888.json",
+    "tuning/tuning-report-1772574022297.json",
+    "tuning/tuning-report-1772574028388.json",
+    "tuning/tuning-report-1772574032616.json",
+    "tuning/tuning-report-1772574129200.json",
+    "tuning/tuning-report-1772574134298.json",
+    "tuning/tuning-report-1772574139022.json",
+    "tuning/tuning-report-1772574142746.json",
+    "tuning/tuning-report-1772574146566.json",
+    "tuning/tuning-report-1772574150297.json",
+    "tuning/tuning-report-1772574170120.json",
+    "tuning/tuning-report-1772574174757.json",
+    "tuning/tuning-report-1772574179199.json",
+    "tuning/tuning-report-1772574183602.json",
+    "tuning/tuning-report-1772574187965.json",
+    "tuning/tuning-report-1772574191976.json",
+    "tuning/tuning-report-1772574531766.json",
+    "tuning/tuning-report-1772574631632.json",
+    "tuning/tuning-report-1772576243255.json",
+    "tuning/tuning-report-1772576372257.json",
+    "tuning/tuning-report-1772576954465.json",
+    "tuning/tuning-report-1772577947579.json",
+    "tuning/tuning-report-1772579164612.json",
+    "tuning/tuning-report-1772579338161.json",
+    "tuning/tuning-summary.json",
+    "tuning/validation-2023.json",
+    "utils/discordNotifier.js",
+    "utils/telegramNotifier.js",
+    "utils/tradeLogger.js"
+  ],
+  "oversizedFilesExcluded": [
+    "ogz-meta/tournament/pass1/matrix-tsla-2y-months-1-18-all-quick-2026-07-19-1784492466171.json",
+    "tuning/15m-tsla-1yr-walkback.json",
+    "tuning/alpaca-coin-15m-2y.json",
+    "tuning/alpaca-mara-15m-2y.json",
+    "tuning/alpaca-nvda-15m-2y.json",
+    "tuning/alpaca-qqq-15m-2y.json",
+    "tuning/alpaca-riot-15m-2y.json",
+    "tuning/alpaca-spy-15m-2y.json",
+    "tuning/alpaca-tsla-15m-2y.json",
+    "tuning/amd-15m-2y.json",
+    "tuning/coin-15m-2y.json",
+    "tuning/full-45k.json",
+    "tuning/mara-15m-2y.json",
+    "tuning/nvda-15m-2y.json",
+    "tuning/nvda-1m-2y.json",
+    "tuning/pltr-15m-2y.json",
+    "tuning/qqq-15m-2y.json",
+    "tuning/qqq-1m-2y.json",
+    "tuning/riot-15m-2y.json",
+    "tuning/spy-15m-2y.json",
+    "tuning/spy-1m-2y.json",
+    "tuning/tsla-15m-18mo.json",
+    "tuning/tsla-15m-2y.json",
+    "tuning/tsla-1m-2y-months-1-18.json",
+    "tuning/tsla-1m-2y.json",
+    "tuning/tsla-1m-4y.json"
+  ],
+  "references": {
+    "ACCOUNT_BALANCE": [],
+    "ACCOUNT_DRAWDOWN_BYPASS": [
+      {
+        "file": "tools/run-audit-revised.js",
+        "line": 84,
+        "directProcessEnvRead": false
+      }
+    ],
+    "ALPACA_MODE": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1989,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 316,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 326,
+        "directProcessEnvRead": false
+      }
+    ],
+    "ALPACA_SYMBOLS": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1994,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 455,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 459,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 462,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 465,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 270,
+        "directProcessEnvRead": false
+      }
+    ],
+    "API_EXTERNAL_URL": [],
+    "API_PASSWORD": [],
+    "API_PORT": [],
+    "API_USERNAME": [],
+    "ARCHON_API_KEY": [],
+    "ASSET_CLASS": [
+      {
+        "file": "foundation/Instrument.js",
+        "line": 47,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 64,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 131,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 139,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 359,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 370,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 381,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 392,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 409,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 425,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 444,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/slash-router.js",
+        "line": 1667,
+        "directProcessEnvRead": false
+      }
+    ],
+    "ATR_FILTER_ENABLED": [
+      {
+        "file": "run-empire-v2.js",
+        "line": 302,
+        "directProcessEnvRead": false
+      }
+    ],
+    "ATR_MIN_PERCENT": [],
+    "AVATAR_ENABLED": [],
+    "AVATAR_IMAGE_URL": [],
+    "BACKTEST_FAST": [
+      {
+        "file": "core/CandleProcessor.js",
+        "line": 1144,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/EnhancedPatternRecognition.js",
+        "line": 561,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 4789,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 4799,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 555,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 127,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 128,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1791,
+        "directProcessEnvRead": false
+      }
+    ],
+    "BACKTEST_MODE": [
+      {
+        "file": "core/StateManager.js",
+        "line": 582,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/StateManager.js",
+        "line": 4245,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/StateManager.js",
+        "line": 4248,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 45,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/multi-runtime-gate-runner.js",
+        "line": 612,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "ogz-meta/gates/multi-runtime-gate-runner.js",
+        "line": 617,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 554,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/session-form.js",
+        "line": 37,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 81,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 82,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 137,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 138,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 154,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 155,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1790,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/run-round1.js",
+        "line": 36,
+        "directProcessEnvRead": false
+      }
+    ],
+    "BASE_POSITION_SIZE": [
+      {
+        "file": "core/DynamicPositionSizer.js",
+        "line": 11,
+        "directProcessEnvRead": false
+      }
+    ],
+    "BOT_WS_URL": [],
+    "BREAKEVEN_EXIT_PERCENT": [],
+    "BREAKEVEN_TRIGGER": [],
+    "BRIGHTDATA_SERP_ZONE": [],
+    "BROKER": [
+      {
+        "file": "brokers/GeminiAdapter.js",
+        "line": 508,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "brokers/KrakenIBrokerAdapter.js",
+        "line": 119,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "brokers/SchwabAdapter.js",
+        "line": 524,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/MultiAssetManager.js",
+        "line": 43,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 149,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 153,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 192,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/TradeNarrator.js",
+        "line": 777,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/TtpCutoffEnforcer.js",
+        "line": 836,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/IBrokerAdapter.js",
+        "line": 334,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/Instrument.js",
+        "line": 76,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/claudito-logger.js",
+        "line": 383,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/claudito-logger.js",
+        "line": 418,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/slash-router.js",
+        "line": 1668,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/js/panels/system-health.js",
+        "line": 11,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/js/panels/system-health.js",
+        "line": 336,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/js/panels/system-health.js",
+        "line": 338,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 847,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/run-audit.js",
+        "line": 32,
+        "directProcessEnvRead": false
+      }
+    ],
+    "BTC_WALLET_ADDRESS": [],
+    "CANDLE_PATTERN_MIN_CONFIDENCE": [],
+    "CANDLE_TIMEFRAME": [
+      {
+        "file": "tuning/pipeline-diagnostic.js",
+        "line": 42,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "tuning/pipeline-diagnostic.js",
+        "line": 71,
+        "directProcessEnvRead": false
+      }
+    ],
+    "CLAUDE_CODE_API_KEY": [],
+    "COINBASE_API_KEY_NAME": [],
+    "COINBASE_PRIVATE_KEY": [],
+    "CONFIDENCE_BOOST": [],
+    "CONFIDENCE_PENALTY": [],
+    "CONFIRM_LIVE_TRADING": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1896,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1521,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1524,
+        "directProcessEnvRead": false
+      }
+    ],
+    "CONTROL_WEBSOCKET_PORT": [],
+    "DATABASE_URL": [
+      {
+        "file": "scripts/scan-secrets.js",
+        "line": 54,
+        "directProcessEnvRead": false
+      }
+    ],
+    "DATA_FRESHNESS_WINDOW": [],
+    "DATA_WEBSOCKET_PORT": [],
+    "DID_AVATAR_ID": [],
+    "DIRECTION_FILTER": [
+      {
+        "file": "backtest.sh",
+        "line": 96,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest.sh",
+        "line": 98,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest.sh",
+        "line": 106,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1789,
+        "directProcessEnvRead": false
+      }
+    ],
+    "EDGAR_USER_AGENT": [],
+    "ELEVENLABS_VOICE_ID": [],
+    "EMERGENCY_CONFIDENCE": [],
+    "ENABLE_ARBITRAGE": [],
+    "ENABLE_DYNAMIC_SIZING": [],
+    "ENABLE_HEDGING": [],
+    "ENABLE_LEARNING": [],
+    "ENABLE_PRICE_BROADCAST": [],
+    "ENABLE_SHORTS": [],
+    "ENABLE_TRAI": [
+      {
+        "file": "run-empire-v2.js",
+        "line": 1796,
+        "directProcessEnvRead": false
+      }
+    ],
+    "ENABLE_VOLATILITY_SCALING": [],
+    "EVAL_RULES_ENABLED": [
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 24,
+        "directProcessEnvRead": false
+      }
+    ],
+    "EXECUTION_MODE": [
+      {
+        "file": "run-empire-v2.js",
+        "line": 1786,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/run-audit-revised.js",
+        "line": 68,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 58,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 186,
+        "directProcessEnvRead": false
+      }
+    ],
+    "EXIT_SYSTEM": [
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 556,
+        "directProcessEnvRead": false
+      }
+    ],
+    "FEATURE_FLAG": [],
+    "FEE_MAKER": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1865,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1793,
+        "directProcessEnvRead": false
+      }
+    ],
+    "FEE_SAFETY_BUFFER": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1877,
+        "directProcessEnvRead": false
+      }
+    ],
+    "FEE_SLIPPAGE": [
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 3644,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1874,
+        "directProcessEnvRead": false
+      }
+    ],
+    "FEE_TAKER": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1868,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1794,
+        "directProcessEnvRead": false
+      }
+    ],
+    "FEE_TOTAL_ROUNDTRIP": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1871,
+        "directProcessEnvRead": false
+      }
+    ],
+    "FIB_PROXIMITY": [],
+    "FINAL_TARGET": [
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 311,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 332,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 337,
+        "directProcessEnvRead": false
+      }
+    ],
+    "FUND_TARGET": [
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 57,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 405,
+        "directProcessEnvRead": false
+      }
+    ],
+    "GEMINI_API_KEY": [],
+    "GEMINI_EXCHANGE_API_KEY": [],
+    "GEMINI_EXCHANGE_API_SECRET": [],
+    "GEMINI_SANDBOX": [],
+    "GOOGLE_API_KEY": [],
+    "GRAFANA_PASSWORD": [],
+    "GUI_WEBSOCKET_PORT": [],
+    "HIGH_VOL_MULTIPLIER": [],
+    "HIGH_VOL_THRESHOLD": [],
+    "HOUSTON_TARGET": [],
+    "JWT_SECRET": [],
+    "LICENSE_ENCRYPTION_KEY": [],
+    "LICENSE_PRIVATE_KEY": [],
+    "LICENSE_PUBLIC_KEY": [],
+    "LIVE_TRADING": [
+      {
+        "file": "core/StateManager.js",
+        "line": 4257,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/WebhookOrderAdapter.js",
+        "line": 53,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/WebhookOrderAdapter.js",
+        "line": 58,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/WebhookOrderAdapter.js",
+        "line": 75,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/WebhookOrderAdapter.js",
+        "line": 82,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/WebhookOrderAdapter.js",
+        "line": 89,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1896,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1910,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1957,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1961,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 43,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 303,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1520,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 1523,
+        "directProcessEnvRead": false
+      }
+    ],
+    "LOG_DIRECTORY": [],
+    "LOG_LEVEL": [],
+    "LOW_VOL_MULTIPLIER": [],
+    "LOW_VOL_THRESHOLD": [],
+    "MAX_CONFIDENCE": [],
+    "MAX_DAILY_LOSS": [],
+    "MAX_DRAWDOWN": [],
+    "MAX_POSITION_SIZE": [
+      {
+        "file": "core/DynamicPositionSizer.js",
+        "line": 19,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 3139,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 3142,
+        "directProcessEnvRead": false
+      }
+    ],
+    "MAX_POSITION_SIZE_PCT": [],
+    "MAX_RISK_PER_TRADE": [],
+    "MEMORY_DIR": [],
+    "MIN_HOLD_TIME_MINUTES": [],
+    "MIN_PROFIT_TRAIL": [],
+    "MIN_TRADE_CONFIDENCE": [
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 81,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 99,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/OrderExecutor.js",
+        "line": 3436,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 39,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 40,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 41,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 114,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 170,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 246,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 305,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 308,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 23,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 46,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 304,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 801,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/run-audit-revised.js",
+        "line": 84,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/run-audit-revised.js",
+        "line": 85,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/tuning-summary.json",
+        "line": 87,
+        "directProcessEnvRead": false
+      }
+    ],
+    "MOBILE_PASSWORD": [],
+    "MOBILE_SECRET": [],
+    "MODULE_AUTOLOADER_PATH": [],
+    "MOVER_API_KEY": [],
+    "MOVER_HTTP_PORT": [],
+    "MOVER_PERSONALITY": [],
+    "MOVER_VOICE_API_KEY": [],
+    "MOVER_VPS_MODE": [],
+    "MOVER_WS_PORT": [],
+    "MPM_BREAKEVEN_THRESHOLD": [],
+    "NARRATOR_LABEL_SEED": [],
+    "NEWS_SEARCH_PROVIDER": [],
+    "NODE_ENV": [
+      {
+        "file": "ecosystem.config.js",
+        "line": 20,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ecosystem.config.js",
+        "line": 33,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ecosystem.config.js",
+        "line": 46,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ecosystem.config.js",
+        "line": 78,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 554,
+        "directProcessEnvRead": false
+      }
+    ],
+    "OGZ_API_URL": [],
+    "OGZ_PUBLIC_HOST": [],
+    "OGZ_SSL_SERVER": [],
+    "OGZ_WS_URL": [],
+    "OLLAMA_API_KEY": [],
+    "OLLAMA_CLOUD_URL": [],
+    "OLLAMA_ENABLED": [],
+    "OLLAMA_URL": [
+      {
+        "file": "ogz-meta/config_2.js",
+        "line": 67,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "ogz-meta/config_2.js",
+        "line": 142,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/indexer_1.js",
+        "line": 583,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "trai_brain/mercury-bridge/config.js",
+        "line": 356,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "trai_brain/mercury-bridge/config.js",
+        "line": 608,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "trai_brain/mercury-bridge/indexer.js",
+        "line": 849,
+        "directProcessEnvRead": false
+      }
+    ],
+    "PAPER_TRADING": [
+      {
+        "file": "ogz-meta/commander.js",
+        "line": 44,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 81,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 82,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 137,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 138,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 154,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+        "line": 155,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/support.js",
+        "line": 64,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 296,
+        "directProcessEnvRead": false
+      }
+    ],
+    "PATTERN_CONFIDENCE": [],
+    "PATTERN_DOMINANCE": [
+      {
+        "file": "TierFeatureFlags.js",
+        "line": 80,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "TierFeatureFlags.js",
+        "line": 196,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/FeatureFlagManager.js",
+        "line": 128,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/FeatureFlagManager.js",
+        "line": 151,
+        "directProcessEnvRead": false
+      }
+    ],
+    "PATTERN_UPDATE": [],
+    "PORT": [
+      {
+        "file": "backtest/backtest-api.js",
+        "line": 31,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest/backtest-api.js",
+        "line": 715,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest/backtest-api.js",
+        "line": 716,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest/backtest-api.js",
+        "line": 785,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest/backtest-api.js",
+        "line": 790,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest/backtest-api.js",
+        "line": 791,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "backtest/backtest-api.js",
+        "line": 792,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/SingletonLock.js",
+        "line": 423,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/SingletonLock.js",
+        "line": 438,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 554,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/final-dashboard.js",
+        "line": 1,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/stripe-checkout.js",
+        "line": 121,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/stripe-checkout.js",
+        "line": 122,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/stripe-checkout.js",
+        "line": 124,
+        "directProcessEnvRead": false
+      }
+    ],
+    "POSTGRES_PASSWORD": [],
+    "POST_BREAKEVEN_TRAIL": [],
+    "PRIMARY_ASSET": [],
+    "PROFIT_PROTECTION": [],
+    "REDIS_PASSWORD": [],
+    "REDIS_URL": [
+      {
+        "file": "scripts/scan-secrets.js",
+        "line": 57,
+        "directProcessEnvRead": false
+      }
+    ],
+    "RISK_CHECK": [],
+    "RISK_MANAGER_BYPASS": [
+      {
+        "file": "tools/run-audit-revised.js",
+        "line": 84,
+        "directProcessEnvRead": false
+      }
+    ],
+    "RISK_PER_TRADE": [],
+    "SCALPER_MAX_HOLD_TIME": [],
+    "SCALPER_MICRO_PROFIT": [],
+    "SCALPER_MOMENTUM_SHIFT": [],
+    "SCALPER_QUICK_PROFIT": [],
+    "SCALPER_STOP_MULTIPLIER": [],
+    "SESSION_ROUTER_ENABLED": [],
+    "SITE_URL": [],
+    "SONAR_TOKEN": [],
+    "SONAR_USER_TOKEN": [],
+    "SOURCEGRAPH_API_KEY": [],
+    "SOURCEGRAPH_INSTANCE_URL": [],
+    "SR_MAX_LEVELS": [],
+    "SR_MIN_STRENGTH": [],
+    "SR_PROXIMITY": [],
+    "SSL_ENABLED": [],
+    "SSL_SERVER_HOST": [],
+    "SSL_SERVER_PORT": [],
+    "STARTING_BALANCE": [
+      {
+        "file": "ogz-meta/claudito-logger.js",
+        "line": 363,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/claudito-logger.js",
+        "line": 378,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/claudito-logger.js",
+        "line": 396,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/claudito-logger.js",
+        "line": 405,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/claudito-logger.js",
+        "line": 410,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 56,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 187,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 268,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "utils/discordNotifier.js",
+        "line": 332,
+        "directProcessEnvRead": false
+      }
+    ],
+    "STOP_LOSS_PERCENT": [
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 27,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 62,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 119,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 655,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/matrix-sweep.js",
+        "line": 321,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/parallel-backtest.js",
+        "line": 833,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/run-audit-revised.js",
+        "line": 84,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/pipeline-diagnostic.js",
+        "line": 45,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "tuning/run-round1.js",
+        "line": 38,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/tuning-summary.json",
+        "line": 82,
+        "directProcessEnvRead": false
+      }
+    ],
+    "SUBSCRIPTION_TIER": [],
+    "SUPABASE_ANON_KEY": [],
+    "SUPABASE_SERVICE_KEY": [],
+    "SUPABASE_URL": [
+      {
+        "file": "scripts/scan-secrets.js",
+        "line": 60,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TAKE_PROFIT_PERCENT": [
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 28,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 63,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "BASELINE-matrix-2026-04-07.json",
+        "line": 120,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 378,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 381,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 656,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tools/parallel-backtest.js",
+        "line": 833,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/pipeline-diagnostic.js",
+        "line": 46,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "tuning/run-round1.js",
+        "line": 39,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/tuning-summary.json",
+        "line": 83,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TESTING": [
+      {
+        "file": "core/OptimizedIndicators.js",
+        "line": 213,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/PerformanceAnalyzer.js",
+        "line": 138,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TEST_MODE": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 2151,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 2153,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 297,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TIER1_TARGET": [
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 308,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 321,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 326,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 357,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 362,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/pipeline-diagnostic.js",
+        "line": 47,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "tuning/run-round1.js",
+        "line": 40,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/tuning-summary.json",
+        "line": 84,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TIER2_TARGET": [
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 309,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/pipeline-diagnostic.js",
+        "line": 48,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "tuning/run-round1.js",
+        "line": 41,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/tuning-summary.json",
+        "line": 85,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TIER3_TARGET": [
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 310,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/pipeline-diagnostic.js",
+        "line": 49,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "tuning/run-round1.js",
+        "line": 42,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "tuning/tuning-summary.json",
+        "line": 86,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TIGHT_TRAIL_DISTANCE": [
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 642,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 645,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 650,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TRADE_INTERVAL": [],
+    "TRADING_MODE": [
+      {
+        "file": "ogz-meta/session-form.js",
+        "line": 37,
+        "directProcessEnvRead": true
+      }
+    ],
+    "TRADING_PAIR": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1994,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/session-form.js",
+        "line": 40,
+        "directProcessEnvRead": true
+      },
+      {
+        "file": "run-empire-v2.js",
+        "line": 270,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TRAILING_ACTIVATION": [],
+    "TRAILING_STOP_PERCENT": [],
+    "TRAIL_DISTANCE": [
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 641,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/pipeline-phase7-handoff.js",
+        "line": 645,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TRAI_AUTO_HARVEST": [],
+    "TRAI_BACKTEST_MODE": [],
+    "TRAI_ENABLE_BACKTEST": [],
+    "TRAI_ENABLE_LLM": [],
+    "TRAI_HARVEST_BOOST_WR": [],
+    "TRAI_HARVEST_MIN_TRADES": [],
+    "TRAI_HARVEST_PENALTY_WR": [],
+    "TRAI_MAX_CONF": [],
+    "TRAI_MAX_RISK": [],
+    "TRAI_MIN_CONF": [
+      {
+        "file": "core/TRAIDecisionModule.js",
+        "line": 761,
+        "directProcessEnvRead": false
+      }
+    ],
+    "TRAI_MODE": [],
+    "TRAI_VETO": [],
+    "TRAI_WEIGHT": [],
+    "TTP_RULES_ENABLED": [
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 25,
+        "directProcessEnvRead": false
+      }
+    ],
+    "USER_NARRATOR": [
+      {
+        "file": "public/js/core.js",
+        "line": 313,
+        "directProcessEnvRead": false
+      }
+    ],
+    "USE_MODULE_AUTOLOADER": [],
+    "USE_SSL": [],
+    "VOICE_ENABLED": [],
+    "WEBHOOK_DRY_RUN": [
+      {
+        "file": "core/WebhookOrderAdapter.js",
+        "line": 53,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "core/WebhookOrderAdapter.js",
+        "line": 84,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1910,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1970,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 22,
+        "directProcessEnvRead": false
+      }
+    ],
+    "WEBHOOK_ORDERS_ENABLED": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1910,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1961,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1967,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1970,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "foundation/ConfigLoader.js",
+        "line": 1973,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "ogz-meta/gates/eval-live-posture-gate.js",
+        "line": 21,
+        "directProcessEnvRead": false
+      }
+    ],
+    "WEBSOCKET_DOMAIN": [],
+    "WS_HOST": [
+      {
+        "file": "core/WebSocketManager.js",
+        "line": 140,
+        "directProcessEnvRead": false
+      }
+    ],
+    "WS_PORT": [],
+    "WS_URL": [
+      {
+        "file": "public/trai-widget.js",
+        "line": 13,
+        "directProcessEnvRead": false
+      },
+      {
+        "file": "public/trai-widget.js",
+        "line": 392,
+        "directProcessEnvRead": false
+      }
+    ]
+  }
+}
