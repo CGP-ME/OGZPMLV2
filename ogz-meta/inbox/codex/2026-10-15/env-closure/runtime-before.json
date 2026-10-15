@@ -1,0 +1,1110 @@
+{
+  "capturedAt": "2026-10-15T04:17:47.582Z",
+  "pid": 2895852,
+  "fingerprint": "88b2ae90eb28b337c37049e7feb4f3c06bc48b860e589124d8cb4bca2577e654",
+  "loadedModules": [
+    "run-empire-v2.js",
+    "core/RuntimeAuditSink.js",
+    "foundation/ConfigLoader.js",
+    "core/AtomicWrite.js",
+    "core/trai_llm_config.js",
+    "instrument.js",
+    "core/TraceSpine.js",
+    "core/NtfyTraceNotifier.js",
+    "core/DashboardDepthCoalescer.js",
+    "core/PatternMaturity.js",
+    "server/stock-data-adapter.js",
+    "server/dashboard-stock-stream-config.js",
+    "server/dashboard-pattern-contract.js",
+    "core/FeatureFlagManager.js",
+    "core/CandleHelper.js",
+    "core/ContractValidator.js",
+    "core/CandleStore.js",
+    "core/IndicatorCalculator.js",
+    "core/TRAIWebContext.js",
+    "config/pattern-descriptions.json",
+    "core/CandleAggregator.js",
+    "core/RegimeDetector.js",
+    "foundation/MarketCalendar.js",
+    "core/FeatureExtractor.js",
+    "core/OrderRouter.js",
+    "core/OrderExecutor.js",
+    "core/StateManager.js",
+    "core/TradeNarrator.js",
+    "core/FeeModel.js",
+    "core/dto/ExitContractOwnership.js",
+    "core/dto/FrozenExitPolicy.js",
+    "core/PositionEffect.js",
+    "core/AuthFailureGuard.js",
+    "core/ExitContractManager.js",
+    "core/PolicyBuilder.js",
+    "core/ProfitExitPlanner.js",
+    "core/exit/TakeProfitChecker.js",
+    "core/exit/StopLossChecker.js",
+    "core/exit/BreakEvenManager.js",
+    "core/exit/MaxHoldChecker.js",
+    "brokers/BrokerRegistry.js",
+    "ogz-meta/claudito-logger.js",
+    "core/UnifiedPatternMemory.js",
+    "core/PatternScope.js",
+    "core/WebhookOrderAdapter.js",
+    "core/SymbolTradingContext.js",
+    "core/AssetRegistry.js",
+    "core/indicators/IndicatorEngine.js",
+    "core/dto/IndicatorSnapshotDTO.js",
+    "core/ogzTwoPoleOscillator.js",
+    "modules/EMASMACrossoverSignal.js",
+    "modules/MADynamicSR.js",
+    "core/VolumeProfile.js",
+    "core/FibonacciDetector.js",
+    "core/TradingLoop.js",
+    "core/CandlePatternDetector.js",
+    "core/DecisionAutopsyLogger.js",
+    "core/OutputPaths.js",
+    "core/SessionRouter.js",
+    "core/session-router/TransitionStore.js",
+    "core/DashboardBroadcaster.js",
+    "core/BacktestRunner.js",
+    "foundation/ohlc-normalize.js",
+    "core/BacktestRecorder.js",
+    "core/DataFileInstrument.js",
+    "core/CandleProcessor.js",
+    "core/WebSocketManager.js",
+    "core/BotStateFrame.js",
+    "core/ModuleInitializer.js",
+    "core/ModuleAutoLoader.js",
+    "utils/discordNotifier.js",
+    "utils/telegramNotifier.js",
+    "utils/tradeLogger.js",
+    "core/tradeLogger.js",
+    "core/AdaptiveTimeframeSelector.js",
+    "core/AssetConfigManager.js",
+    "core/CryptoMarketFeed.js",
+    "core/DecisionLedgerLogger.js",
+    "core/DrawdownTracker.js",
+    "core/DynamicPositionSizer.js",
+    "core/EMACalibrator.js",
+    "core/EnhancedPatternRecognition.js",
+    "core/OptimizedIndicators.js",
+    "core/TwoPoleOscillator.js",
+    "core/ErrorHandler.js",
+    "core/EvalRuleEngine.js",
+    "core/EventLoopMonitor.js",
+    "core/KillSwitch.js",
+    "core/KrakenAdapterV2.js",
+    "brokers/IBrokerAdapter.js",
+    "kraken_adapter_simple.js",
+    "server/kraken-depth-adapter.js",
+    "core/MAExtensionFilter.js",
+    "core/MarketRegimeDetector.js",
+    "core/MemoryManager.js",
+    "core/MessageQueue.js",
+    "core/MultiAssetManager.js",
+    "core/NewsSearchProvider.js",
+    "core/WhaleFilings.js",
+    "core/OgzTpoIntegration.js",
+    "src/indicators/ogzTwoPoleOscillator.js",
+    "core/indicators/TwoPoleOscillator.js",
+    "core/PIDController.js",
+    "core/PatternBasedExitModel.js",
+    "core/PatternMemoryBank.js",
+    "core/PatternQualityScoring.js",
+    "core/PerformanceAnalyzer.js",
+    "core/PerformanceDashboardIntegration.js",
+    "core/PerformanceVisualizer.js",
+    "core/PerformanceValidator.js",
+    "core/PipelineSnapshot.js",
+    "core/PnLCalculator.js",
+    "core/PnLTracker.js",
+    "core/PositionSizer.js",
+    "core/PositionTracker.js",
+    "core/RiskManager.js",
+    "core/RiskManagerConfig.js",
+    "core/RuntimeConfigProof.js",
+    "core/SingletonLock.js",
+    "core/StrategyOrchestrator.js",
+    "modules/OpeningRangeBreakout.js",
+    "modules/FairValueGapDetector.js",
+    "modules/BreakAndRetest.js",
+    "modules/LiquiditySweepDetector.js",
+    "modules/MultiTimeframeAdapter.js",
+    "modules/SmartMoneySweep.js",
+    "modules/DonchianBreakout.js",
+    "modules/PropSafeEMAPullback.js",
+    "modules/EMATrendRetest.js",
+    "modules/RSI2MeanReversion.js",
+    "modules/TimeSeriesMomentum.js",
+    "core/Supervisor.js",
+    "core/SupportResistanceDetector.js",
+    "core/TRAIDecisionModule.js",
+    "core/TRAIPatternIntegration.js",
+    "core/Telemetry.js",
+    "core/TimeFrameManager.js",
+    "core/TimeframeEngine.js",
+    "core/TradeIntelligenceEngine.js",
+    "core/TradeJournal.js",
+    "core/TradeJournalBridge.js",
+    "core/TradeReplayCapture.js",
+    "core/TtpCutoffEnforcer.js",
+    "core/invariants.js",
+    "core/persistent_llm_client.js",
+    "core/trai_core.js",
+    "trai_brain/memory_store.js",
+    "trai_brain/read_only_tools.js",
+    "trai_brain/repository-policy.js",
+    "trai_brain/prompt_schemas.js",
+    "core/trai_symbol_extractor.js",
+    "brokers/BrokerFactory.js",
+    "TierFeatureFlags.js",
+    "modules/NoWickImbalance.js",
+    "brokers/KrakenIBrokerAdapter.js",
+    "brokers/AlpacaAdapter.js",
+    "foundation/IBrokerAdapter.js",
+    "foundation/ResilientWebSocket.js",
+    "core/dto/DecisionLedgerSchema.js"
+  ],
+  "scripts": [
+    {
+      "file": "run-empire-v2.js",
+      "loadedHash": "fa0aff4d6453c0164c1361b5e69f765be271df1fbfc71121c1e85b8a7398690b",
+      "diskHash": "fa0aff4d6453c0164c1361b5e69f765be271df1fbfc71121c1e85b8a7398690b",
+      "same": true
+    },
+    {
+      "file": "core/RuntimeAuditSink.js",
+      "loadedHash": "148aae5f6a04008f31ba97f4cd0c2f17995b30e0e304babb58691d92fc276fb7",
+      "diskHash": "148aae5f6a04008f31ba97f4cd0c2f17995b30e0e304babb58691d92fc276fb7",
+      "same": true
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "loadedHash": "a975aa1fcb3b7ad28fb78a555932f4c4e113d96c8860d2c49042e9131bea82a8",
+      "diskHash": "6e7f55a7a8a25f54de1b7ebd3359e2b157d44659e13696a45e4d261e810374da",
+      "same": false
+    },
+    {
+      "file": "core/AtomicWrite.js",
+      "loadedHash": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+      "diskHash": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+      "same": true
+    },
+    {
+      "file": "core/trai_llm_config.js",
+      "loadedHash": "b4e6b39ced245d509b8c7f593c005c21116da2faf827711230e2ebaa0bc853cc",
+      "diskHash": "b4e6b39ced245d509b8c7f593c005c21116da2faf827711230e2ebaa0bc853cc",
+      "same": true
+    },
+    {
+      "file": "instrument.js",
+      "loadedHash": "2cd89f545e9fc21a13ad03f0a14aa6fbad8b53812b28cc09c5e7d1073e86acb7",
+      "diskHash": "2cd89f545e9fc21a13ad03f0a14aa6fbad8b53812b28cc09c5e7d1073e86acb7",
+      "same": true
+    },
+    {
+      "file": "core/TraceSpine.js",
+      "loadedHash": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+      "diskHash": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+      "same": true
+    },
+    {
+      "file": "core/NtfyTraceNotifier.js",
+      "loadedHash": "11f4c14814416f16afe3deea619afdff16fb44c49d319176eed07b093b104247",
+      "diskHash": "11f4c14814416f16afe3deea619afdff16fb44c49d319176eed07b093b104247",
+      "same": true
+    },
+    {
+      "file": "core/DashboardDepthCoalescer.js",
+      "loadedHash": "594026ccdfd6ce2697da4a979dfda99e6c6ba94cfa2e2a3a14b47663d519c925",
+      "diskHash": "594026ccdfd6ce2697da4a979dfda99e6c6ba94cfa2e2a3a14b47663d519c925",
+      "same": true
+    },
+    {
+      "file": "core/PatternMaturity.js",
+      "loadedHash": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+      "diskHash": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+      "same": true
+    },
+    {
+      "file": "server/stock-data-adapter.js",
+      "loadedHash": "95c8d2cf400d2c0cf70a88980ef363fe4ccbc4c6b0a402c3a1e0332a24182432",
+      "diskHash": "95c8d2cf400d2c0cf70a88980ef363fe4ccbc4c6b0a402c3a1e0332a24182432",
+      "same": true
+    },
+    {
+      "file": "server/dashboard-stock-stream-config.js",
+      "loadedHash": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+      "diskHash": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+      "same": true
+    },
+    {
+      "file": "server/dashboard-pattern-contract.js",
+      "loadedHash": "d9c381e9219624390803cbcce816bad8a2fb38df11d1ea40a69397450b05015b",
+      "diskHash": "d9c381e9219624390803cbcce816bad8a2fb38df11d1ea40a69397450b05015b",
+      "same": true
+    },
+    {
+      "file": "core/FeatureFlagManager.js",
+      "loadedHash": "38d64b660fe2a4e93efa6cd2c402c07d3596d641cd08ccf0fb01ed7806569efd",
+      "diskHash": "38d64b660fe2a4e93efa6cd2c402c07d3596d641cd08ccf0fb01ed7806569efd",
+      "same": true
+    },
+    {
+      "file": "core/CandleHelper.js",
+      "loadedHash": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+      "diskHash": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+      "same": true
+    },
+    {
+      "file": "core/ContractValidator.js",
+      "loadedHash": "d18f2e5f7cfae85fbaef6e943263f3408b09cd7c408a36bbc77f05fae6462b09",
+      "diskHash": "d18f2e5f7cfae85fbaef6e943263f3408b09cd7c408a36bbc77f05fae6462b09",
+      "same": true
+    },
+    {
+      "file": "core/CandleStore.js",
+      "loadedHash": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "diskHash": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "same": true
+    },
+    {
+      "file": "core/IndicatorCalculator.js",
+      "loadedHash": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+      "diskHash": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+      "same": true
+    },
+    {
+      "file": "core/TRAIWebContext.js",
+      "loadedHash": "69c571e92f86c5d386551edf1284a2426ffa2bac6c8963b20f7cbcf8614dbe45",
+      "diskHash": "69c571e92f86c5d386551edf1284a2426ffa2bac6c8963b20f7cbcf8614dbe45",
+      "same": true
+    },
+    {
+      "file": "core/CandleAggregator.js",
+      "loadedHash": "905ebcd54e300cf3679d250e2e4c3ba93114f62ccf0325a47bc2177807f91a8a",
+      "diskHash": "905ebcd54e300cf3679d250e2e4c3ba93114f62ccf0325a47bc2177807f91a8a",
+      "same": true
+    },
+    {
+      "file": "core/RegimeDetector.js",
+      "loadedHash": "ed6591dbe64900304ab6f2b84355e53aca45f72a3b18ccef5db74f926c3ca570",
+      "diskHash": "ed6591dbe64900304ab6f2b84355e53aca45f72a3b18ccef5db74f926c3ca570",
+      "same": true
+    },
+    {
+      "file": "foundation/MarketCalendar.js",
+      "loadedHash": "a8696a6efceb8607e137748c974967c74c64cb489baf0c3f8f6735294d8563a6",
+      "diskHash": "a8696a6efceb8607e137748c974967c74c64cb489baf0c3f8f6735294d8563a6",
+      "same": true
+    },
+    {
+      "file": "core/FeatureExtractor.js",
+      "loadedHash": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4",
+      "diskHash": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4",
+      "same": true
+    },
+    {
+      "file": "core/OrderRouter.js",
+      "loadedHash": "5a537b96be658ad113f464f845c696a0d45c2200a7264e064c89f7bab5c27b89",
+      "diskHash": "5a537b96be658ad113f464f845c696a0d45c2200a7264e064c89f7bab5c27b89",
+      "same": true
+    },
+    {
+      "file": "core/OrderExecutor.js",
+      "loadedHash": "efd052831bfc5756f7641513f86482d6984c3a1d9c4b39f8c7a8fd945cd67b2c",
+      "diskHash": "efd052831bfc5756f7641513f86482d6984c3a1d9c4b39f8c7a8fd945cd67b2c",
+      "same": true
+    },
+    {
+      "file": "core/StateManager.js",
+      "loadedHash": "55d86dd55864f9001fcb408b5c7eb071d15609ff81973d8dac2b73dacef48045",
+      "diskHash": "55d86dd55864f9001fcb408b5c7eb071d15609ff81973d8dac2b73dacef48045",
+      "same": true
+    },
+    {
+      "file": "core/TradeNarrator.js",
+      "loadedHash": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+      "diskHash": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+      "same": true
+    },
+    {
+      "file": "core/FeeModel.js",
+      "loadedHash": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+      "diskHash": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+      "same": true
+    },
+    {
+      "file": "core/dto/ExitContractOwnership.js",
+      "loadedHash": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+      "diskHash": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+      "same": true
+    },
+    {
+      "file": "core/dto/FrozenExitPolicy.js",
+      "loadedHash": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+      "diskHash": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+      "same": true
+    },
+    {
+      "file": "core/PositionEffect.js",
+      "loadedHash": "70a5a4df27ccfd8972ab6bbfa954776abc64839ba1e80e8f061bca704f35e0b0",
+      "diskHash": "70a5a4df27ccfd8972ab6bbfa954776abc64839ba1e80e8f061bca704f35e0b0",
+      "same": true
+    },
+    {
+      "file": "core/AuthFailureGuard.js",
+      "loadedHash": "62aa1860bbfec49b0fcd2e22e937f4a1aa41d0d06d55416055f611af633dd44c",
+      "diskHash": "62aa1860bbfec49b0fcd2e22e937f4a1aa41d0d06d55416055f611af633dd44c",
+      "same": true
+    },
+    {
+      "file": "core/ExitContractManager.js",
+      "loadedHash": "0aad139c0a69c0f77269cc4a1670f3584b3a02dee980190e2624b16c397773d7",
+      "diskHash": "0aad139c0a69c0f77269cc4a1670f3584b3a02dee980190e2624b16c397773d7",
+      "same": true
+    },
+    {
+      "file": "core/PolicyBuilder.js",
+      "loadedHash": "8aec1a3240f4dd94059f94de67e986aeb5119f586d573cbe1cfbbdbf2abcc924",
+      "diskHash": "8aec1a3240f4dd94059f94de67e986aeb5119f586d573cbe1cfbbdbf2abcc924",
+      "same": true
+    },
+    {
+      "file": "core/ProfitExitPlanner.js",
+      "loadedHash": "0d51678b5746e5b15811550560a4d6f06834435a94812b70ad25b04fda5f2ef3",
+      "diskHash": "0d51678b5746e5b15811550560a4d6f06834435a94812b70ad25b04fda5f2ef3",
+      "same": true
+    },
+    {
+      "file": "core/exit/TakeProfitChecker.js",
+      "loadedHash": "cf599d44caf1f985409857a3a2d7671640a1607861e5f3a3cc617777683fbf6b",
+      "diskHash": "cf599d44caf1f985409857a3a2d7671640a1607861e5f3a3cc617777683fbf6b",
+      "same": true
+    },
+    {
+      "file": "core/exit/StopLossChecker.js",
+      "loadedHash": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d",
+      "diskHash": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d",
+      "same": true
+    },
+    {
+      "file": "core/exit/BreakEvenManager.js",
+      "loadedHash": "f2dbe9294f5b8d7d0c6d3e6eba35af76f4e825f344fbe5cd8da7dc87ebbb72b7",
+      "diskHash": "f2dbe9294f5b8d7d0c6d3e6eba35af76f4e825f344fbe5cd8da7dc87ebbb72b7",
+      "same": true
+    },
+    {
+      "file": "core/exit/MaxHoldChecker.js",
+      "loadedHash": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+      "diskHash": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+      "same": true
+    },
+    {
+      "file": "brokers/BrokerRegistry.js",
+      "loadedHash": "2533590a406e3cc1572e4dc7734e9d1502a5c23bdaa658ad326e1e74ff5d5da2",
+      "diskHash": "2533590a406e3cc1572e4dc7734e9d1502a5c23bdaa658ad326e1e74ff5d5da2",
+      "same": true
+    },
+    {
+      "file": "ogz-meta/claudito-logger.js",
+      "loadedHash": "f50b0d676607abf455f1b5a4a9565a00f9a7fe01c6f59d27b0e938b6987c0631",
+      "diskHash": "f50b0d676607abf455f1b5a4a9565a00f9a7fe01c6f59d27b0e938b6987c0631",
+      "same": true
+    },
+    {
+      "file": "core/UnifiedPatternMemory.js",
+      "loadedHash": "5d745dfadfa494516be1e31fc30da0cf0ae7d485d929d1264ad9b952525dfa7d",
+      "diskHash": "5d745dfadfa494516be1e31fc30da0cf0ae7d485d929d1264ad9b952525dfa7d",
+      "same": true
+    },
+    {
+      "file": "core/PatternScope.js",
+      "loadedHash": "872a2a74cb4ad1085a665505f228a2d30b8c4adfeaaa143b92d2b7aa4b41a9ce",
+      "diskHash": "872a2a74cb4ad1085a665505f228a2d30b8c4adfeaaa143b92d2b7aa4b41a9ce",
+      "same": true
+    },
+    {
+      "file": "core/WebhookOrderAdapter.js",
+      "loadedHash": "7c15d70259bd1a502ece9fccd9dbf26bc5e4512d9ddf862399b8d4a91b7c5ec2",
+      "diskHash": "7c15d70259bd1a502ece9fccd9dbf26bc5e4512d9ddf862399b8d4a91b7c5ec2",
+      "same": true
+    },
+    {
+      "file": "core/SymbolTradingContext.js",
+      "loadedHash": "0afb7ac436bf2cfd84ecac2648b31bfe01498302ca424bf8457ffaea0fd806a4",
+      "diskHash": "0afb7ac436bf2cfd84ecac2648b31bfe01498302ca424bf8457ffaea0fd806a4",
+      "same": true
+    },
+    {
+      "file": "core/AssetRegistry.js",
+      "loadedHash": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+      "diskHash": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+      "same": true
+    },
+    {
+      "file": "core/indicators/IndicatorEngine.js",
+      "loadedHash": "7309eaec492b900526c2918efc91f8ceeff41d6f2f09ebbe7f7f23b2abfbcb0e",
+      "diskHash": "7309eaec492b900526c2918efc91f8ceeff41d6f2f09ebbe7f7f23b2abfbcb0e",
+      "same": true
+    },
+    {
+      "file": "core/dto/IndicatorSnapshotDTO.js",
+      "loadedHash": "77e2e0d313aedff1bf606fb39b4e4e802e658d0cedcf022b6994cd9c8f98b00e",
+      "diskHash": "77e2e0d313aedff1bf606fb39b4e4e802e658d0cedcf022b6994cd9c8f98b00e",
+      "same": true
+    },
+    {
+      "file": "core/ogzTwoPoleOscillator.js",
+      "loadedHash": "8ded3a3635ee6e39bb88dc41def43a23c7636579957a63b1915d2807f882412e",
+      "diskHash": "8ded3a3635ee6e39bb88dc41def43a23c7636579957a63b1915d2807f882412e",
+      "same": true
+    },
+    {
+      "file": "modules/EMASMACrossoverSignal.js",
+      "loadedHash": "e0e5ff8888520426e14b8ae85bcbf7b032410ce7a8414e0a6a8b78ae3bca012a",
+      "diskHash": "e0e5ff8888520426e14b8ae85bcbf7b032410ce7a8414e0a6a8b78ae3bca012a",
+      "same": true
+    },
+    {
+      "file": "modules/MADynamicSR.js",
+      "loadedHash": "2393f93ea23be2f65bba254035b9401d4e05f2cc9fec2b0db28a51b4fe69a755",
+      "diskHash": "2393f93ea23be2f65bba254035b9401d4e05f2cc9fec2b0db28a51b4fe69a755",
+      "same": true
+    },
+    {
+      "file": "core/VolumeProfile.js",
+      "loadedHash": "428b59a7f3d027371ffdeb50dc000095ab9669f02d1dfa4ffae75c998ca1c7d0",
+      "diskHash": "428b59a7f3d027371ffdeb50dc000095ab9669f02d1dfa4ffae75c998ca1c7d0",
+      "same": true
+    },
+    {
+      "file": "core/FibonacciDetector.js",
+      "loadedHash": "33483b9d9767499a73358b31862c1f2b40319b93dd70a82318666964d1eb49be",
+      "diskHash": "33483b9d9767499a73358b31862c1f2b40319b93dd70a82318666964d1eb49be",
+      "same": true
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "loadedHash": "6ae65452f401fa4250be1a8ccef4e7b701541a21c77051a14dd619206d8c4d8c",
+      "diskHash": "6ae65452f401fa4250be1a8ccef4e7b701541a21c77051a14dd619206d8c4d8c",
+      "same": true
+    },
+    {
+      "file": "core/CandlePatternDetector.js",
+      "loadedHash": "6687cb910c9f825b71d3a428da63d41cd1cb4d2b40b8d154c38d50fb63efc45b",
+      "diskHash": "6687cb910c9f825b71d3a428da63d41cd1cb4d2b40b8d154c38d50fb63efc45b",
+      "same": true
+    },
+    {
+      "file": "core/DecisionAutopsyLogger.js",
+      "loadedHash": "bfc8289809490d509e0ddf2ab651fdac40ac3f23b89810ad204ebceea807f9ca",
+      "diskHash": "bfc8289809490d509e0ddf2ab651fdac40ac3f23b89810ad204ebceea807f9ca",
+      "same": true
+    },
+    {
+      "file": "core/OutputPaths.js",
+      "loadedHash": "0b1c1da942182adf81ae7783c630acf9142be9078151c11e2124dc1a147ce237",
+      "diskHash": "0b1c1da942182adf81ae7783c630acf9142be9078151c11e2124dc1a147ce237",
+      "same": true
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "loadedHash": "6a5170b4bff74bf7e8bf204d89b77e4ef7e06a77b24f897484a3b24a25ca67dc",
+      "diskHash": "6a5170b4bff74bf7e8bf204d89b77e4ef7e06a77b24f897484a3b24a25ca67dc",
+      "same": true
+    },
+    {
+      "file": "core/session-router/TransitionStore.js",
+      "loadedHash": "534cd8b626287720feaa9d44fa403ca5e07d238127ba12758e2b175674fec524",
+      "diskHash": "534cd8b626287720feaa9d44fa403ca5e07d238127ba12758e2b175674fec524",
+      "same": true
+    },
+    {
+      "file": "core/DashboardBroadcaster.js",
+      "loadedHash": "6e1657c711a65772ddcc31f3b7a79f8784950be22f70b324b70030e6ddfbdcd6",
+      "diskHash": "6e1657c711a65772ddcc31f3b7a79f8784950be22f70b324b70030e6ddfbdcd6",
+      "same": true
+    },
+    {
+      "file": "core/BacktestRunner.js",
+      "loadedHash": "0d187458a6d65b5cc421b55cf554387f262255b5b10b84e3e6ed4e5954dda2a7",
+      "diskHash": "0d187458a6d65b5cc421b55cf554387f262255b5b10b84e3e6ed4e5954dda2a7",
+      "same": true
+    },
+    {
+      "file": "foundation/ohlc-normalize.js",
+      "loadedHash": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "diskHash": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "same": true
+    },
+    {
+      "file": "core/BacktestRecorder.js",
+      "loadedHash": "3377ecc4bf9f6c52056a6daed50909c9f860e28c7fb6078ce979bc4aac6c77a6",
+      "diskHash": "3377ecc4bf9f6c52056a6daed50909c9f860e28c7fb6078ce979bc4aac6c77a6",
+      "same": true
+    },
+    {
+      "file": "core/DataFileInstrument.js",
+      "loadedHash": "ad4e68dd0bee90f1aa02f0332063fe60e9d9985948c9940d2715f77bf55c9ae3",
+      "diskHash": "ad4e68dd0bee90f1aa02f0332063fe60e9d9985948c9940d2715f77bf55c9ae3",
+      "same": true
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "loadedHash": "efd220e8426749ec61d30fde466b2aeac6eddd21da85195eb5222dc881d70e94",
+      "diskHash": "efd220e8426749ec61d30fde466b2aeac6eddd21da85195eb5222dc881d70e94",
+      "same": true
+    },
+    {
+      "file": "core/WebSocketManager.js",
+      "loadedHash": "1d089eee395e3c9362f3a21206e851bdb95573d05bde844abd684031bc4a0f51",
+      "diskHash": "1d089eee395e3c9362f3a21206e851bdb95573d05bde844abd684031bc4a0f51",
+      "same": true
+    },
+    {
+      "file": "core/BotStateFrame.js",
+      "loadedHash": "873a02e9ee1ed1d0e484b05db41190dfabdaaaa35d614bc940770fd019aefb4e",
+      "diskHash": "873a02e9ee1ed1d0e484b05db41190dfabdaaaa35d614bc940770fd019aefb4e",
+      "same": true
+    },
+    {
+      "file": "core/ModuleInitializer.js",
+      "loadedHash": "bda4267081c6b13cf64ce3d42be79bdb12e6f1161f98a47ac1f50e7b39d45beb",
+      "diskHash": "bda4267081c6b13cf64ce3d42be79bdb12e6f1161f98a47ac1f50e7b39d45beb",
+      "same": true
+    },
+    {
+      "file": "core/ModuleAutoLoader.js",
+      "loadedHash": "182e0df810fd622767b0aa0ddda326210865b0ea8cc06185b25e08c35c716b78",
+      "diskHash": "182e0df810fd622767b0aa0ddda326210865b0ea8cc06185b25e08c35c716b78",
+      "same": true
+    },
+    {
+      "file": "utils/discordNotifier.js",
+      "loadedHash": "f22e127fa7ac7bc605ced97d71f39e0132ff70fce95823837cde0f7edbcf2b72",
+      "diskHash": "f22e127fa7ac7bc605ced97d71f39e0132ff70fce95823837cde0f7edbcf2b72",
+      "same": true
+    },
+    {
+      "file": "utils/telegramNotifier.js",
+      "loadedHash": "a1f691ac2854e21bcc47550beb625092a8895ecb3021a4d9db4a054b35268b3b",
+      "diskHash": "a1f691ac2854e21bcc47550beb625092a8895ecb3021a4d9db4a054b35268b3b",
+      "same": true
+    },
+    {
+      "file": "core/tradeLogger.js",
+      "loadedHash": "a3ec58eed9e334f49878eb7ba7a3d3cd825e69f7650fc22c223a3cdc9c6a8829",
+      "diskHash": "a3ec58eed9e334f49878eb7ba7a3d3cd825e69f7650fc22c223a3cdc9c6a8829",
+      "same": true
+    },
+    {
+      "file": "core/AdaptiveTimeframeSelector.js",
+      "loadedHash": "bf899c9e1ab9a29cbabc54f464589066bf2cb6db71cfdd2c4cbdbf51217dc2ef",
+      "diskHash": "bf899c9e1ab9a29cbabc54f464589066bf2cb6db71cfdd2c4cbdbf51217dc2ef",
+      "same": true
+    },
+    {
+      "file": "core/AssetConfigManager.js",
+      "loadedHash": "801919412b92a17f6a95098e4fabd4ee70be0f001241b7cf50e02ba4f19b37c1",
+      "diskHash": "801919412b92a17f6a95098e4fabd4ee70be0f001241b7cf50e02ba4f19b37c1",
+      "same": true
+    },
+    {
+      "file": "core/CryptoMarketFeed.js",
+      "loadedHash": "418dced3dbad4c204c7a68c7ef32ec16ba44f8eaa12c64850f4328944949ed68",
+      "diskHash": "418dced3dbad4c204c7a68c7ef32ec16ba44f8eaa12c64850f4328944949ed68",
+      "same": true
+    },
+    {
+      "file": "core/DecisionLedgerLogger.js",
+      "loadedHash": "367aa42bc0d6f2be49129b61190e446fe6b7ef806c8f6175227d36d6d0476fb1",
+      "diskHash": "367aa42bc0d6f2be49129b61190e446fe6b7ef806c8f6175227d36d6d0476fb1",
+      "same": true
+    },
+    {
+      "file": "core/DrawdownTracker.js",
+      "loadedHash": "3417b5fd6260338bae821bffd4b6728fb67f6815b5cae283289d3e8783ae5f9a",
+      "diskHash": "3417b5fd6260338bae821bffd4b6728fb67f6815b5cae283289d3e8783ae5f9a",
+      "same": true
+    },
+    {
+      "file": "core/DynamicPositionSizer.js",
+      "loadedHash": "14f5141e872b2ff74b7c2e0cd3a245a322f065fc99905c4c77ef80f5e6bc7f29",
+      "diskHash": "14f5141e872b2ff74b7c2e0cd3a245a322f065fc99905c4c77ef80f5e6bc7f29",
+      "same": true
+    },
+    {
+      "file": "core/EMACalibrator.js",
+      "loadedHash": "d78e50e80a3760534c45ddb4bb003405351a6e844736ca7e85c1d39aacde28c5",
+      "diskHash": "d78e50e80a3760534c45ddb4bb003405351a6e844736ca7e85c1d39aacde28c5",
+      "same": true
+    },
+    {
+      "file": "core/EnhancedPatternRecognition.js",
+      "loadedHash": "a227bd4739dc0ada031fdd7486ec2baabe9041f67c9147c6f23ca062c2814bfa",
+      "diskHash": "a227bd4739dc0ada031fdd7486ec2baabe9041f67c9147c6f23ca062c2814bfa",
+      "same": true
+    },
+    {
+      "file": "core/OptimizedIndicators.js",
+      "loadedHash": "bfe35c5a7c31d4f7e22df807f7ae2986e2a521c020389db2ba0ed5e3c68e954a",
+      "diskHash": "bfe35c5a7c31d4f7e22df807f7ae2986e2a521c020389db2ba0ed5e3c68e954a",
+      "same": true
+    },
+    {
+      "file": "core/TwoPoleOscillator.js",
+      "loadedHash": "94da817ac63600138858c51df26898861ce8bb6ab29f187f0ffd0c0bc2487b4b",
+      "diskHash": "94da817ac63600138858c51df26898861ce8bb6ab29f187f0ffd0c0bc2487b4b",
+      "same": true
+    },
+    {
+      "file": "core/ErrorHandler.js",
+      "loadedHash": "7ab8076eff5cb3264d4982f1418f0a633ff3525d212a0b61f27694c473f8e547",
+      "diskHash": "7ab8076eff5cb3264d4982f1418f0a633ff3525d212a0b61f27694c473f8e547",
+      "same": true
+    },
+    {
+      "file": "core/EvalRuleEngine.js",
+      "loadedHash": "4d6c6418914f9da34212333750e2a3955ccbd836d1c9dadf27b61f7a5b7a0413",
+      "diskHash": "4d6c6418914f9da34212333750e2a3955ccbd836d1c9dadf27b61f7a5b7a0413",
+      "same": true
+    },
+    {
+      "file": "core/EventLoopMonitor.js",
+      "loadedHash": "39675e75a298272cfd65ac78b6e446fed6f75acff5fb8f7cbcb093bac0580072",
+      "diskHash": "39675e75a298272cfd65ac78b6e446fed6f75acff5fb8f7cbcb093bac0580072",
+      "same": true
+    },
+    {
+      "file": "core/KillSwitch.js",
+      "loadedHash": "92eff1dc3f5b3ddf1441b2f75c965143215be9fefee3d8043920e18e1fa81bd6",
+      "diskHash": "92eff1dc3f5b3ddf1441b2f75c965143215be9fefee3d8043920e18e1fa81bd6",
+      "same": true
+    },
+    {
+      "file": "core/KrakenAdapterV2.js",
+      "loadedHash": "86d98ed9583d7e7feb3f696225142e68aeed327f8fc70e44b9a663333f6d396c",
+      "diskHash": "86d98ed9583d7e7feb3f696225142e68aeed327f8fc70e44b9a663333f6d396c",
+      "same": true
+    },
+    {
+      "file": "brokers/IBrokerAdapter.js",
+      "loadedHash": "654421f9a5c60134c5d9b67c99e22a597e0c702de0e1a895e6925bdd1dd89d57",
+      "diskHash": "654421f9a5c60134c5d9b67c99e22a597e0c702de0e1a895e6925bdd1dd89d57",
+      "same": true
+    },
+    {
+      "file": "kraken_adapter_simple.js",
+      "loadedHash": "99dabaddff38d4a32db9672526f2046fcf4823abaee7dcf858a11ce80634c7a6",
+      "diskHash": "99dabaddff38d4a32db9672526f2046fcf4823abaee7dcf858a11ce80634c7a6",
+      "same": true
+    },
+    {
+      "file": "server/kraken-depth-adapter.js",
+      "loadedHash": "52267c60d4226b02c751a7c2321b13bdd2ba1382504561e11fb50aabc4025eef",
+      "diskHash": "52267c60d4226b02c751a7c2321b13bdd2ba1382504561e11fb50aabc4025eef",
+      "same": true
+    },
+    {
+      "file": "core/MAExtensionFilter.js",
+      "loadedHash": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+      "diskHash": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+      "same": true
+    },
+    {
+      "file": "core/MarketRegimeDetector.js",
+      "loadedHash": "7e6bb22acd5f9afd75a11d72561d108a04eadfe0865aeca0adc197aafa9bc7ab",
+      "diskHash": "7e6bb22acd5f9afd75a11d72561d108a04eadfe0865aeca0adc197aafa9bc7ab",
+      "same": true
+    },
+    {
+      "file": "core/MemoryManager.js",
+      "loadedHash": "8a0e4790b85c378e0fc54524e8c5bebb19c28d7534eaf03996b86116ab8d082d",
+      "diskHash": "8a0e4790b85c378e0fc54524e8c5bebb19c28d7534eaf03996b86116ab8d082d",
+      "same": true
+    },
+    {
+      "file": "core/MessageQueue.js",
+      "loadedHash": "d584c8d8b13ba3f1b444128a727a67c5d9dc20c58a52d1ea8673ab09e7ae6883",
+      "diskHash": "d584c8d8b13ba3f1b444128a727a67c5d9dc20c58a52d1ea8673ab09e7ae6883",
+      "same": true
+    },
+    {
+      "file": "core/MultiAssetManager.js",
+      "loadedHash": "9fb0f1d5fc75d7aeb5c4248d70e1e258696ea1044fcc2ad2f8efced4159d6763",
+      "diskHash": "9fb0f1d5fc75d7aeb5c4248d70e1e258696ea1044fcc2ad2f8efced4159d6763",
+      "same": true
+    },
+    {
+      "file": "core/NewsSearchProvider.js",
+      "loadedHash": "b162a3bb83c3a23e4c9ce61eb280c30554ed22f4649345a3a36cb2d2180891e1",
+      "diskHash": "b162a3bb83c3a23e4c9ce61eb280c30554ed22f4649345a3a36cb2d2180891e1",
+      "same": true
+    },
+    {
+      "file": "core/WhaleFilings.js",
+      "loadedHash": "0227af520fb17f59091d5a28466316fc0089616c0f81307fd383a35162713272",
+      "diskHash": "0227af520fb17f59091d5a28466316fc0089616c0f81307fd383a35162713272",
+      "same": true
+    },
+    {
+      "file": "core/OgzTpoIntegration.js",
+      "loadedHash": "479699fa401331b6e0e14afe90019155f6ebf52f56a7cdb4c4114f18e333262f",
+      "diskHash": "479699fa401331b6e0e14afe90019155f6ebf52f56a7cdb4c4114f18e333262f",
+      "same": true
+    },
+    {
+      "file": "src/indicators/ogzTwoPoleOscillator.js",
+      "loadedHash": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389",
+      "diskHash": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389",
+      "same": true
+    },
+    {
+      "file": "core/indicators/TwoPoleOscillator.js",
+      "loadedHash": "b484260f2bd76592f65fc8ac2b40689fd357b68d15921dfeb8d6d6827d1e72f6",
+      "diskHash": "b484260f2bd76592f65fc8ac2b40689fd357b68d15921dfeb8d6d6827d1e72f6",
+      "same": true
+    },
+    {
+      "file": "core/PIDController.js",
+      "loadedHash": "0547d70f57b72b1a6f44ea5562a4d21036c4b31bdd4bb24711e7959ac93213d4",
+      "diskHash": "0547d70f57b72b1a6f44ea5562a4d21036c4b31bdd4bb24711e7959ac93213d4",
+      "same": true
+    },
+    {
+      "file": "core/PatternBasedExitModel.js",
+      "loadedHash": "b457c2f1d1c13d57b600c9e2284ebd87471a03ca9dc6063549dce0dda4634f7e",
+      "diskHash": "b457c2f1d1c13d57b600c9e2284ebd87471a03ca9dc6063549dce0dda4634f7e",
+      "same": true
+    },
+    {
+      "file": "core/PatternMemoryBank.js",
+      "loadedHash": "02a9d1c60dce0b2736d9993d008f05ed8ce85b48d8410a31449c5d9447a27707",
+      "diskHash": "02a9d1c60dce0b2736d9993d008f05ed8ce85b48d8410a31449c5d9447a27707",
+      "same": true
+    },
+    {
+      "file": "core/PatternQualityScoring.js",
+      "loadedHash": "7aef5d7033cc2f24dae3c31449764cb53ae8e9c9dc738f2455b761db6b0aff93",
+      "diskHash": "7aef5d7033cc2f24dae3c31449764cb53ae8e9c9dc738f2455b761db6b0aff93",
+      "same": true
+    },
+    {
+      "file": "core/PerformanceAnalyzer.js",
+      "loadedHash": "960012bc0cc6670436ff38841fc8b32a567cf8121c94bd44faea2f1b55f17513",
+      "diskHash": "960012bc0cc6670436ff38841fc8b32a567cf8121c94bd44faea2f1b55f17513",
+      "same": true
+    },
+    {
+      "file": "core/PerformanceDashboardIntegration.js",
+      "loadedHash": "ea526c5d71d26ee45d5ffa8d1197f37097727b8988524aa6c3b76761a3bde57e",
+      "diskHash": "ea526c5d71d26ee45d5ffa8d1197f37097727b8988524aa6c3b76761a3bde57e",
+      "same": true
+    },
+    {
+      "file": "core/PerformanceVisualizer.js",
+      "loadedHash": "80014fb993ba729a067b4e2918e9de4b7cc2d9329204b8d2464a8409cd64de22",
+      "diskHash": "80014fb993ba729a067b4e2918e9de4b7cc2d9329204b8d2464a8409cd64de22",
+      "same": true
+    },
+    {
+      "file": "core/PerformanceValidator.js",
+      "loadedHash": "a5d5b551330a5d28c6a9b218db672ae6c309d0f92620fe72cd9eb8243fffd47e",
+      "diskHash": "a5d5b551330a5d28c6a9b218db672ae6c309d0f92620fe72cd9eb8243fffd47e",
+      "same": true
+    },
+    {
+      "file": "core/PipelineSnapshot.js",
+      "loadedHash": "138d289b9b45129b455f81037fe37bdbe89a914532ecfb877032cbc61348db47",
+      "diskHash": "138d289b9b45129b455f81037fe37bdbe89a914532ecfb877032cbc61348db47",
+      "same": true
+    },
+    {
+      "file": "core/PnLCalculator.js",
+      "loadedHash": "1179fca7b3abc8f9f4c895d0002d5d9e85f25d6634fb33fc7237aa817c688f0b",
+      "diskHash": "1179fca7b3abc8f9f4c895d0002d5d9e85f25d6634fb33fc7237aa817c688f0b",
+      "same": true
+    },
+    {
+      "file": "core/PnLTracker.js",
+      "loadedHash": "93d1dbd9d98e2f156e7a0dc65bb54d987cd37518c725a5c58b0fb085f04e407c",
+      "diskHash": "93d1dbd9d98e2f156e7a0dc65bb54d987cd37518c725a5c58b0fb085f04e407c",
+      "same": true
+    },
+    {
+      "file": "core/PositionSizer.js",
+      "loadedHash": "e98e07537ffcf3d857871f6aff518eddd0d06c071d979620afa8a609a5dffcba",
+      "diskHash": "e98e07537ffcf3d857871f6aff518eddd0d06c071d979620afa8a609a5dffcba",
+      "same": true
+    },
+    {
+      "file": "core/PositionTracker.js",
+      "loadedHash": "3ec7bcbee8f23e700a6a84985b6524e8ef708ecd10bf7b2a1160ac76fbf0f4ea",
+      "diskHash": "3ec7bcbee8f23e700a6a84985b6524e8ef708ecd10bf7b2a1160ac76fbf0f4ea",
+      "same": true
+    },
+    {
+      "file": "core/RiskManager.js",
+      "loadedHash": "c4c8662077c4617416837ca018660dcbc3ecfe25beba0b7af3d78ebbaef67ca6",
+      "diskHash": "c4c8662077c4617416837ca018660dcbc3ecfe25beba0b7af3d78ebbaef67ca6",
+      "same": true
+    },
+    {
+      "file": "core/RiskManagerConfig.js",
+      "loadedHash": "aa1908a332dd79176445e9da2664510ebf790c78eec21ae81b6c7df5b239d305",
+      "diskHash": "aa1908a332dd79176445e9da2664510ebf790c78eec21ae81b6c7df5b239d305",
+      "same": true
+    },
+    {
+      "file": "core/RuntimeConfigProof.js",
+      "loadedHash": "dfbdef3f82457d7457c994efb4b66de9f9a26f5e557faea39c814f9ddfff18be",
+      "diskHash": "dfbdef3f82457d7457c994efb4b66de9f9a26f5e557faea39c814f9ddfff18be",
+      "same": true
+    },
+    {
+      "file": "core/SingletonLock.js",
+      "loadedHash": "b6e89a882656150397c35e58f0b6772c582ba638f398296fc9074434961f3c84",
+      "diskHash": "b6e89a882656150397c35e58f0b6772c582ba638f398296fc9074434961f3c84",
+      "same": true
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "loadedHash": "f7323d3f5e1bf12ddf7ddec46e885e1950ff70204e2e22aedb90f269f2207167",
+      "diskHash": "f7323d3f5e1bf12ddf7ddec46e885e1950ff70204e2e22aedb90f269f2207167",
+      "same": true
+    },
+    {
+      "file": "modules/OpeningRangeBreakout.js",
+      "loadedHash": "8a580556386991d72b5bf3b98c1f6086c64934f4252ff1ff8aea6120fa7672e3",
+      "diskHash": "8a580556386991d72b5bf3b98c1f6086c64934f4252ff1ff8aea6120fa7672e3",
+      "same": true
+    },
+    {
+      "file": "modules/FairValueGapDetector.js",
+      "loadedHash": "c59c640bbedc6fa1d7ea1ac67c01dfa4e31f0edea957221cdca094a2fe8ee6bd",
+      "diskHash": "c59c640bbedc6fa1d7ea1ac67c01dfa4e31f0edea957221cdca094a2fe8ee6bd",
+      "same": true
+    },
+    {
+      "file": "modules/BreakAndRetest.js",
+      "loadedHash": "7fdc3f2144be8ae34de5cad9e640a0222486f52118a613221912eca23fdf7fb0",
+      "diskHash": "7fdc3f2144be8ae34de5cad9e640a0222486f52118a613221912eca23fdf7fb0",
+      "same": true
+    },
+    {
+      "file": "modules/LiquiditySweepDetector.js",
+      "loadedHash": "1e47a19eec21f16d656e5bbf519e1001500bc21bc73d667e54f6e34b09312312",
+      "diskHash": "1e47a19eec21f16d656e5bbf519e1001500bc21bc73d667e54f6e34b09312312",
+      "same": true
+    },
+    {
+      "file": "modules/MultiTimeframeAdapter.js",
+      "loadedHash": "97edfd9fb0270f44c5ffd626e912b9bb74686ca5a06b2a969aef960a2e95ab63",
+      "diskHash": "97edfd9fb0270f44c5ffd626e912b9bb74686ca5a06b2a969aef960a2e95ab63",
+      "same": true
+    },
+    {
+      "file": "modules/SmartMoneySweep.js",
+      "loadedHash": "6beb0f1f3d8d89fb13ab20f2dc4696f10c1768b0a712e45fa25f81a2e54ae1e0",
+      "diskHash": "6beb0f1f3d8d89fb13ab20f2dc4696f10c1768b0a712e45fa25f81a2e54ae1e0",
+      "same": true
+    },
+    {
+      "file": "modules/DonchianBreakout.js",
+      "loadedHash": "2d8f748f81d3dc8b0e0a4d8ec30efa06fc26853e2f991ffb09e006ed4f3eabde",
+      "diskHash": "2d8f748f81d3dc8b0e0a4d8ec30efa06fc26853e2f991ffb09e006ed4f3eabde",
+      "same": true
+    },
+    {
+      "file": "modules/PropSafeEMAPullback.js",
+      "loadedHash": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+      "diskHash": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+      "same": true
+    },
+    {
+      "file": "modules/EMATrendRetest.js",
+      "loadedHash": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+      "diskHash": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+      "same": true
+    },
+    {
+      "file": "modules/RSI2MeanReversion.js",
+      "loadedHash": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+      "diskHash": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+      "same": true
+    },
+    {
+      "file": "modules/TimeSeriesMomentum.js",
+      "loadedHash": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+      "diskHash": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+      "same": true
+    },
+    {
+      "file": "core/Supervisor.js",
+      "loadedHash": "7c7f8ac4f97ddaab00bd928b8827f6858a2a8ace3305f7746babcbb60b8c0314",
+      "diskHash": "7c7f8ac4f97ddaab00bd928b8827f6858a2a8ace3305f7746babcbb60b8c0314",
+      "same": true
+    },
+    {
+      "file": "core/SupportResistanceDetector.js",
+      "loadedHash": "1edb5b485b880f06ac34f7c90c3d6bee4b75c421a0aecd75f9b2dc8adc06d26a",
+      "diskHash": "1edb5b485b880f06ac34f7c90c3d6bee4b75c421a0aecd75f9b2dc8adc06d26a",
+      "same": true
+    },
+    {
+      "file": "core/TRAIDecisionModule.js",
+      "loadedHash": "754fd77d3f8ae5fac3ce6def9bbfde636edf683318e3e01ee96d3cb36037c7c8",
+      "diskHash": "754fd77d3f8ae5fac3ce6def9bbfde636edf683318e3e01ee96d3cb36037c7c8",
+      "same": true
+    },
+    {
+      "file": "core/TRAIPatternIntegration.js",
+      "loadedHash": "899dd389c58c6cc5c00f6b074f791588b385d0e34424a383f3a6f332e1dd119e",
+      "diskHash": "899dd389c58c6cc5c00f6b074f791588b385d0e34424a383f3a6f332e1dd119e",
+      "same": true
+    },
+    {
+      "file": "core/Telemetry.js",
+      "loadedHash": "c1df36e9162cd13fa3922f1054577b033e5a495daa7b9cb76a9ce07aad5d7577",
+      "diskHash": "c1df36e9162cd13fa3922f1054577b033e5a495daa7b9cb76a9ce07aad5d7577",
+      "same": true
+    },
+    {
+      "file": "core/TimeFrameManager.js",
+      "loadedHash": "7cf1b2a22c606c5fb831abae4d160868c40fb6862cf42dbd0a375bc7e78c7ba6",
+      "diskHash": "7cf1b2a22c606c5fb831abae4d160868c40fb6862cf42dbd0a375bc7e78c7ba6",
+      "same": true
+    },
+    {
+      "file": "core/TimeframeEngine.js",
+      "loadedHash": "43ce0bdd3f71d107105436ceee6f42fe61194ff40a237e0cd631f71fb99f52af",
+      "diskHash": "43ce0bdd3f71d107105436ceee6f42fe61194ff40a237e0cd631f71fb99f52af",
+      "same": true
+    },
+    {
+      "file": "core/TradeIntelligenceEngine.js",
+      "loadedHash": "29d9e341738cf900ebda0498a639881a865081aef31880181ff5ab87fe2c28d0",
+      "diskHash": "29d9e341738cf900ebda0498a639881a865081aef31880181ff5ab87fe2c28d0",
+      "same": true
+    },
+    {
+      "file": "core/TradeJournal.js",
+      "loadedHash": "fc025edd4513030e10680fd2e940538791cf1b03fe6ee4c077942ed8035909d3",
+      "diskHash": "fc025edd4513030e10680fd2e940538791cf1b03fe6ee4c077942ed8035909d3",
+      "same": true
+    },
+    {
+      "file": "core/TradeJournalBridge.js",
+      "loadedHash": "002c28ec0106f765a8cc8600ec79aa819f59bb042fa1a55da0b5d5e041858e0e",
+      "diskHash": "002c28ec0106f765a8cc8600ec79aa819f59bb042fa1a55da0b5d5e041858e0e",
+      "same": true
+    },
+    {
+      "file": "core/TradeReplayCapture.js",
+      "loadedHash": "5e8bcc70eadf5b76228ab6363812d0dd2bd777108caeb48c113e8870d177d4f1",
+      "diskHash": "5e8bcc70eadf5b76228ab6363812d0dd2bd777108caeb48c113e8870d177d4f1",
+      "same": true
+    },
+    {
+      "file": "core/TtpCutoffEnforcer.js",
+      "loadedHash": "b521848084723b6805c5cb8e1ef8a93dd839432e28216f3e1252a538b1711f80",
+      "diskHash": "b521848084723b6805c5cb8e1ef8a93dd839432e28216f3e1252a538b1711f80",
+      "same": true
+    },
+    {
+      "file": "core/invariants.js",
+      "loadedHash": "30b80f035651e754ac1e737cf250ae4292a1c2e305a389999d041672058d89b5",
+      "diskHash": "30b80f035651e754ac1e737cf250ae4292a1c2e305a389999d041672058d89b5",
+      "same": true
+    },
+    {
+      "file": "core/persistent_llm_client.js",
+      "loadedHash": "91823e569ba22f7914025f25265f4eb296bbb0aaab8d463481626592376b86c7",
+      "diskHash": "91823e569ba22f7914025f25265f4eb296bbb0aaab8d463481626592376b86c7",
+      "same": true
+    },
+    {
+      "file": "core/trai_core.js",
+      "loadedHash": "1c5415a41e92df8e1ff3837e8f208113c9c7e411eb2474d1a8398209658113ab",
+      "diskHash": "1c5415a41e92df8e1ff3837e8f208113c9c7e411eb2474d1a8398209658113ab",
+      "same": true
+    },
+    {
+      "file": "trai_brain/memory_store.js",
+      "loadedHash": "9349e4c988098724eeceb10ecaf5dcab686ccf11bb8e42df70880517d49824be",
+      "diskHash": "9349e4c988098724eeceb10ecaf5dcab686ccf11bb8e42df70880517d49824be",
+      "same": true
+    },
+    {
+      "file": "trai_brain/read_only_tools.js",
+      "loadedHash": "281e849c3d7384de7bda7f804e1b6e5e7df8d82d691f8bfc81d9c9038441d143",
+      "diskHash": "281e849c3d7384de7bda7f804e1b6e5e7df8d82d691f8bfc81d9c9038441d143",
+      "same": true
+    },
+    {
+      "file": "trai_brain/repository-policy.js",
+      "loadedHash": "15334a31fcc149776943c19a033e0864923c8193eb6bd38e8895f865decc6463",
+      "diskHash": "15334a31fcc149776943c19a033e0864923c8193eb6bd38e8895f865decc6463",
+      "same": true
+    },
+    {
+      "file": "trai_brain/prompt_schemas.js",
+      "loadedHash": "b194aa21b7dac1b8882c788fa1f8f46a379f4a62203e6cbe87bf6056197d0b39",
+      "diskHash": "b194aa21b7dac1b8882c788fa1f8f46a379f4a62203e6cbe87bf6056197d0b39",
+      "same": true
+    },
+    {
+      "file": "core/trai_symbol_extractor.js",
+      "loadedHash": "679fb60a36e3b46ee2fd075d413f103ac7188dd65dd30b6693dbe088bf2574e0",
+      "diskHash": "679fb60a36e3b46ee2fd075d413f103ac7188dd65dd30b6693dbe088bf2574e0",
+      "same": true
+    },
+    {
+      "file": "brokers/BrokerFactory.js",
+      "loadedHash": "3a5172db5d0b5b6deab3aedc494d6d289038a39b1ef5c6dc44015e582f988e6c",
+      "diskHash": "3a5172db5d0b5b6deab3aedc494d6d289038a39b1ef5c6dc44015e582f988e6c",
+      "same": true
+    },
+    {
+      "file": "TierFeatureFlags.js",
+      "loadedHash": "0411be28878d9ad0c92938d6c0ba32e4710572cfefc7f242eeb630d04f479c1f",
+      "diskHash": "0411be28878d9ad0c92938d6c0ba32e4710572cfefc7f242eeb630d04f479c1f",
+      "same": true
+    },
+    {
+      "file": "modules/NoWickImbalance.js",
+      "loadedHash": "d838e1f44cae20a3e98a175bc08c5e95f6b2fa1787e01baa5927c2471bcd341e",
+      "diskHash": "d838e1f44cae20a3e98a175bc08c5e95f6b2fa1787e01baa5927c2471bcd341e",
+      "same": true
+    },
+    {
+      "file": "brokers/KrakenIBrokerAdapter.js",
+      "loadedHash": "ec6fd4ba1fe76d0ee5c434728e8594e5abc56ea0f562247674062e54f57a19ee",
+      "diskHash": "ec6fd4ba1fe76d0ee5c434728e8594e5abc56ea0f562247674062e54f57a19ee",
+      "same": true
+    },
+    {
+      "file": "brokers/AlpacaAdapter.js",
+      "loadedHash": "6c28240d65ebd1b931ecbbbf2c784e72706afe860186d1be091369e3ca56ad44",
+      "diskHash": "6c28240d65ebd1b931ecbbbf2c784e72706afe860186d1be091369e3ca56ad44",
+      "same": true
+    },
+    {
+      "file": "foundation/IBrokerAdapter.js",
+      "loadedHash": "5194b814707e9c65f5f206860b5017a47dfb130dc7b787de6b9b9100f2ecee08",
+      "diskHash": "5194b814707e9c65f5f206860b5017a47dfb130dc7b787de6b9b9100f2ecee08",
+      "same": true
+    },
+    {
+      "file": "foundation/ResilientWebSocket.js",
+      "loadedHash": "da5bb2b60d84c4a7949bc725dc3f666c5c6f3a078ae3b43989349afe60fc2490",
+      "diskHash": "da5bb2b60d84c4a7949bc725dc3f666c5c6f3a078ae3b43989349afe60fc2490",
+      "same": true
+    },
+    {
+      "file": "core/dto/DecisionLedgerSchema.js",
+      "loadedHash": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "diskHash": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "same": true
+    }
+  ]
+}

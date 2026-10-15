@@ -1,0 +1,3382 @@
+{
+  "scope": "Disposition of the existing 184 archived names only. No repository-wide rediscovery, source edits, env values, deployment claims, or feature-retirement inference.",
+  "inputs": {
+    "archivedInventory": "ogz-meta/inbox/codex/2026-10-15/env-archive/archived-key-reconciliation.json",
+    "literalCensus": "ogz-meta/inbox/codex/2026-10-15/env-archive/current-key-references.json",
+    "exactHistoricalRoutes": "ogz-meta/inbox/codex/2026-10-15/env-historical-provenance/HISTORICAL-SAME-PATH-PROVENANCE.json"
+  },
+  "method": {
+    "canonicalOwnerRule": "Only the exact historical runtime-path to effective-source-map joins are called canonical owner evidence.",
+    "actualReaderRule": "Only current literal references already classified as direct process.env reads are called actual readers. Other literal references are retained separately because comments, diagnostics, strings, and config-field names are not reads.",
+    "pm2BotGraphResult": "No archived name has a direct named process.env reader in the scanned PM2 bot entry/module evidence. run-empire-v2.js injects resolved ConfigLoader snapshot fields at 1380-1389; ConfigLoader narrows bot bootstrap input to PROFILE, DOTENV_CONFIG_PATH, and BACKTEST_RUN_DESCRIPTOR_PATH at 2248-2277. None is among this archived census.",
+    "computedReaderAndCredentialLimit": "This does not prove arbitrary dynamic external code cannot read process.env. In the examined ConfigLoader credential funnel, the bot allowlist is explicit at foundation/ConfigLoader.js:358-381 and none of these archived names is in it; retained credentials are outside this 184-name census."
+  },
+  "counts": {
+    "total": 184,
+    "no_current_reader_found_in_stated_scanned_scope_retained_private_archive": 148,
+    "canonical_current_owner_exact_same_path": 25,
+    "legacy_tooling_reader": 10,
+    "bootstrap_platform_owner": 1
+  },
+  "rows": [
+    {
+      "key": "ACCOUNT_BALANCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ACCOUNT_DRAWDOWN_BYPASS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "tools/run-audit-revised.js",
+          "line": 84,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ALPACA_MODE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1989,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 316,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 326,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ALPACA_SYMBOLS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1994,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 455,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 459,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 462,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 465,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 270,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_EXTERNAL_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_PASSWORD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "API_USERNAME",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ARCHON_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ASSET_CLASS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/Instrument.js",
+          "line": 47,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 64,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 131,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 139,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 359,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 370,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 381,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 392,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 409,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 425,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 444,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/slash-router.js",
+          "line": 1667,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ATR_FILTER_ENABLED",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "filters.atrEnabled",
+          "currentOwnerEvidence": "config:settings.json:filters",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 907
+        },
+        {
+          "runtimePath": "filters.atrEnabled",
+          "currentOwnerEvidence": "config:settings.json:filters",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3267
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 302,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ATR_MIN_PERCENT",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "filters.atrMinPercent",
+          "currentOwnerEvidence": "config:settings.json:filters",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 908
+        },
+        {
+          "runtimePath": "filters.atrMinPercent",
+          "currentOwnerEvidence": "config:settings.json:filters",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3268
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "AVATAR_ENABLED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "AVATAR_IMAGE_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BACKTEST_FAST",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "backtest.fast",
+          "currentOwnerEvidence": "config:internals.json:backtest",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 732
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/CandleProcessor.js",
+          "line": 1144,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 561,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 4789,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 4799,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 555,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 127,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 128,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1791,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BACKTEST_MODE",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "ogz-meta/gates/multi-runtime-gate-runner.js",
+          "line": 612,
+          "directProcessEnvRead": true
+        },
+        {
+          "file": "ogz-meta/session-form.js",
+          "line": 37,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/StateManager.js",
+          "line": 582,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/StateManager.js",
+          "line": 4245,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/StateManager.js",
+          "line": 4248,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 45,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 554,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 81,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 82,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 137,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 138,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 154,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 155,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1790,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/run-round1.js",
+          "line": 36,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/multi-runtime-gate-runner.js",
+          "line": 617,
+          "directProcessEnvRead": false,
+          "access": "write"
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BASE_POSITION_SIZE",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "positionSizing.basePositionSize",
+          "currentOwnerEvidence": "config:settings.json:positionSizing",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 2324
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/DynamicPositionSizer.js",
+          "line": 11,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BOT_WS_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BREAKEVEN_EXIT_PERCENT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BREAKEVEN_TRIGGER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BRIGHTDATA_SERP_ZONE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BROKER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "brokers/GeminiAdapter.js",
+          "line": 508,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "brokers/KrakenIBrokerAdapter.js",
+          "line": 119,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "brokers/SchwabAdapter.js",
+          "line": 524,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/MultiAssetManager.js",
+          "line": 43,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 149,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 153,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 192,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/TradeNarrator.js",
+          "line": 777,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/TtpCutoffEnforcer.js",
+          "line": 836,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/IBrokerAdapter.js",
+          "line": 334,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/Instrument.js",
+          "line": 76,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/claudito-logger.js",
+          "line": 383,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/claudito-logger.js",
+          "line": 418,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/slash-router.js",
+          "line": 1668,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/js/panels/system-health.js",
+          "line": 11,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/js/panels/system-health.js",
+          "line": 336,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/js/panels/system-health.js",
+          "line": 338,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 847,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/run-audit.js",
+          "line": 32,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "BTC_WALLET_ADDRESS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CANDLE_PATTERN_MIN_CONFIDENCE",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "confidence.candlePatternMinConfidence",
+          "currentOwnerEvidence": "config:settings.json:confidence",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 2267
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CANDLE_TIMEFRAME",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "tuning/pipeline-diagnostic.js",
+          "line": 42,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "tuning/pipeline-diagnostic.js",
+          "line": 71,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CLAUDE_CODE_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "COINBASE_API_KEY_NAME",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "COINBASE_PRIVATE_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONFIDENCE_BOOST",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONFIDENCE_PENALTY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONFIRM_LIVE_TRADING",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1896,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1521,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1524,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "CONTROL_WEBSOCKET_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DATABASE_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "scripts/scan-secrets.js",
+          "line": 54,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DATA_FRESHNESS_WINDOW",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DATA_WEBSOCKET_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DID_AVATAR_ID",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "DIRECTION_FILTER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "backtest.sh",
+          "line": 96,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest.sh",
+          "line": 98,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest.sh",
+          "line": 106,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1789,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EDGAR_USER_AGENT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ELEVENLABS_VOICE_ID",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EMERGENCY_CONFIDENCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_ARBITRAGE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_DYNAMIC_SIZING",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "features.enableDynamicSizing",
+          "currentOwnerEvidence": "config:settings.json:features",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3650
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_HEDGING",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_LEARNING",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "features.enableLearning",
+          "currentOwnerEvidence": "config:settings.json:features",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3652
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_PRICE_BROADCAST",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_SHORTS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_TRAI",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "trai.enabled",
+          "currentOwnerEvidence": "config:settings.json:trai",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 999
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 1796,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "ENABLE_VOLATILITY_SCALING",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EVAL_RULES_ENABLED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 24,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EXECUTION_MODE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 1786,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/run-audit-revised.js",
+          "line": 68,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 58,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 186,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "EXIT_SYSTEM",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 556,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEATURE_FLAG",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_MAKER",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "fees.makerFee",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 659
+        },
+        {
+          "runtimePath": "fees.makerFee",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3254
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1865,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1793,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_SAFETY_BUFFER",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "fees.safetyBuffer",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3258
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1877,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_SLIPPAGE",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "fees.slippage",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3256
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 3644,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1874,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_TAKER",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "fees.takerFee",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 660
+        },
+        {
+          "runtimePath": "fees.takerFee",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3255
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1868,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1794,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FEE_TOTAL_ROUNDTRIP",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "fees.totalRoundTrip",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 661
+        },
+        {
+          "runtimePath": "fees.totalRoundTrip",
+          "currentOwnerEvidence": "config:settings.json:fees",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3257
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1871,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FIB_PROXIMITY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FINAL_TARGET",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 311,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 332,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 337,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "FUND_TARGET",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "fundTarget",
+          "currentOwnerEvidence": "config:settings.json:fundTarget",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3703
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 57,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 405,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_EXCHANGE_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_EXCHANGE_API_SECRET",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GEMINI_SANDBOX",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GOOGLE_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GRAFANA_PASSWORD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "GUI_WEBSOCKET_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "HIGH_VOL_MULTIPLIER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "HIGH_VOL_THRESHOLD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "HOUSTON_TARGET",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "JWT_SECRET",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LICENSE_ENCRYPTION_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LICENSE_PRIVATE_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LICENSE_PUBLIC_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LIVE_TRADING",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/StateManager.js",
+          "line": 4257,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/WebhookOrderAdapter.js",
+          "line": 53,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/WebhookOrderAdapter.js",
+          "line": 58,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/WebhookOrderAdapter.js",
+          "line": 75,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/WebhookOrderAdapter.js",
+          "line": 82,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/WebhookOrderAdapter.js",
+          "line": 89,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1896,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1910,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1957,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1961,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 43,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 303,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1520,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1523,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOG_DIRECTORY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOG_LEVEL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOW_VOL_MULTIPLIER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "LOW_VOL_THRESHOLD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_CONFIDENCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_DAILY_LOSS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_DRAWDOWN",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_POSITION_SIZE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/DynamicPositionSizer.js",
+          "line": 19,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 3139,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 3142,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_POSITION_SIZE_PCT",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "positionSizing.maxPositionSize",
+          "currentOwnerEvidence": "config:settings.json:positionSizing",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 2325
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MAX_RISK_PER_TRADE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MEMORY_DIR",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MIN_HOLD_TIME_MINUTES",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MIN_PROFIT_TRAIL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MIN_TRADE_CONFIDENCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 81,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 99,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "line": 3436,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 39,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 40,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 41,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 114,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 170,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 246,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 305,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 308,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 23,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 46,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 304,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 801,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/run-audit-revised.js",
+          "line": 84,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/run-audit-revised.js",
+          "line": 85,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/tuning-summary.json",
+          "line": 87,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOBILE_PASSWORD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOBILE_SECRET",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MODULE_AUTOLOADER_PATH",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_HTTP_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_PERSONALITY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_VOICE_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_VPS_MODE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MOVER_WS_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "MPM_BREAKEVEN_THRESHOLD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "NARRATOR_LABEL_SEED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "NEWS_SEARCH_PROVIDER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "NODE_ENV",
+      "disposition": "bootstrap_platform_owner",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "owner": "PM2 ecosystem process environment",
+          "evidence": "ecosystem.config.js:20,33,46,78"
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ecosystem.config.js",
+          "line": 20,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ecosystem.config.js",
+          "line": 33,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ecosystem.config.js",
+          "line": 46,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ecosystem.config.js",
+          "line": 78,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 554,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "NODE_ENV is a platform/bootstrap setting, not an obsolete trading setting.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_API_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_PUBLIC_HOST",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_SSL_SERVER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OGZ_WS_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_CLOUD_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_ENABLED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "OLLAMA_URL",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "ogz-meta/config_2.js",
+          "line": 67,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/config_2.js",
+          "line": 142,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/indexer_1.js",
+          "line": 583,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "trai_brain/mercury-bridge/config.js",
+          "line": 356,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "trai_brain/mercury-bridge/config.js",
+          "line": 608,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "trai_brain/mercury-bridge/indexer.js",
+          "line": 849,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PAPER_TRADING",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/commander.js",
+          "line": 44,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 81,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 82,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 137,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 138,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 154,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/sessions/SESSION-2026-02-11-17-08-20-fix-backtest-pattern-memory-fi.json",
+          "line": 155,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/support.js",
+          "line": 64,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 296,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PATTERN_CONFIDENCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PATTERN_DOMINANCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "TierFeatureFlags.js",
+          "line": 80,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "TierFeatureFlags.js",
+          "line": 196,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/FeatureFlagManager.js",
+          "line": 128,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/FeatureFlagManager.js",
+          "line": 151,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PATTERN_UPDATE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "backtest/backtest-api.js",
+          "line": 31,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest/backtest-api.js",
+          "line": 715,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest/backtest-api.js",
+          "line": 716,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest/backtest-api.js",
+          "line": 785,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest/backtest-api.js",
+          "line": 790,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest/backtest-api.js",
+          "line": 791,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "backtest/backtest-api.js",
+          "line": 792,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/SingletonLock.js",
+          "line": 423,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/SingletonLock.js",
+          "line": 438,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 554,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/final-dashboard.js",
+          "line": 1,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/stripe-checkout.js",
+          "line": 121,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/stripe-checkout.js",
+          "line": 122,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/stripe-checkout.js",
+          "line": 124,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "POSTGRES_PASSWORD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "POST_BREAKEVEN_TRAIL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PRIMARY_ASSET",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "PROFIT_PROTECTION",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "REDIS_PASSWORD",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "REDIS_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "scripts/scan-secrets.js",
+          "line": 57,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "RISK_CHECK",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "RISK_MANAGER_BYPASS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "tools/run-audit-revised.js",
+          "line": 84,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "RISK_PER_TRADE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_MAX_HOLD_TIME",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_MICRO_PROFIT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_MOMENTUM_SHIFT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_QUICK_PROFIT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SCALPER_STOP_MULTIPLIER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SESSION_ROUTER_ENABLED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SITE_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SONAR_TOKEN",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SONAR_USER_TOKEN",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SOURCEGRAPH_API_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SOURCEGRAPH_INSTANCE_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SR_MAX_LEVELS",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SR_MIN_STRENGTH",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SR_PROXIMITY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SSL_ENABLED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SSL_SERVER_HOST",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SSL_SERVER_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "STARTING_BALANCE",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "startingBalance",
+          "currentOwnerEvidence": "config:settings.json:startingBalance",
+          "historicalRouteKind": "legacy_base_config_property",
+          "historicalSourceLine": 3704
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/claudito-logger.js",
+          "line": 363,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/claudito-logger.js",
+          "line": 378,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/claudito-logger.js",
+          "line": 396,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/claudito-logger.js",
+          "line": 405,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/claudito-logger.js",
+          "line": 410,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 56,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 187,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 268,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "utils/discordNotifier.js",
+          "line": 332,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "STOP_LOSS_PERCENT",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "tuning/pipeline-diagnostic.js",
+          "line": 45,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 27,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 62,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 119,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 655,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/matrix-sweep.js",
+          "line": 321,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/parallel-backtest.js",
+          "line": 833,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/run-audit-revised.js",
+          "line": 84,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/run-round1.js",
+          "line": 38,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/tuning-summary.json",
+          "line": 82,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUBSCRIPTION_TIER",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "misc.subscriptionTier",
+          "currentOwnerEvidence": "config:settings.json:misc",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 1058
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUPABASE_ANON_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUPABASE_SERVICE_KEY",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "SUPABASE_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "scripts/scan-secrets.js",
+          "line": 60,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TAKE_PROFIT_PERCENT",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "tuning/pipeline-diagnostic.js",
+          "line": 46,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 28,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 63,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "BASELINE-matrix-2026-04-07.json",
+          "line": 120,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 378,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 381,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 656,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tools/parallel-backtest.js",
+          "line": 833,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/run-round1.js",
+          "line": 39,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/tuning-summary.json",
+          "line": 83,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TESTING",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 213,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 138,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TEST_MODE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 2151,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 2153,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 297,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIER1_TARGET",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "tuning/pipeline-diagnostic.js",
+          "line": 47,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 308,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 321,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 326,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 357,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 362,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/run-round1.js",
+          "line": 40,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/tuning-summary.json",
+          "line": 84,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIER2_TARGET",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "tuning/pipeline-diagnostic.js",
+          "line": 48,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 309,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/run-round1.js",
+          "line": 41,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/tuning-summary.json",
+          "line": 85,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIER3_TARGET",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "tuning/pipeline-diagnostic.js",
+          "line": 49,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 310,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/run-round1.js",
+          "line": 42,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "tuning/tuning-summary.json",
+          "line": 86,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TIGHT_TRAIL_DISTANCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 642,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 645,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 650,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRADE_INTERVAL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRADING_MODE",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "ogz-meta/session-form.js",
+          "line": 37,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRADING_PAIR",
+      "disposition": "legacy_tooling_reader",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [
+        {
+          "file": "ogz-meta/session-form.js",
+          "line": 40,
+          "directProcessEnvRead": true
+        }
+      ],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1994,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 270,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "An actual current process.env read remains, but the recorded reader is standalone tooling or a gate/session helper, not the PM2 bot module graph.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAILING_ACTIVATION",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAILING_STOP_PERCENT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAIL_DISTANCE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 641,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/pipeline-phase7-handoff.js",
+          "line": 645,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_AUTO_HARVEST",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_BACKTEST_MODE",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_ENABLE_BACKTEST",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "trai.enableBacktest",
+          "currentOwnerEvidence": "config:settings.json:trai",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 1006
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_ENABLE_LLM",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_HARVEST_BOOST_WR",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_HARVEST_MIN_TRADES",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_HARVEST_PENALTY_WR",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MAX_CONF",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "trai.maxConf",
+          "currentOwnerEvidence": "config:settings.json:trai",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 1005
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MAX_RISK",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "trai.maxRisk",
+          "currentOwnerEvidence": "config:settings.json:trai",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 1003
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MIN_CONF",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "trai.minConf",
+          "currentOwnerEvidence": "config:settings.json:trai",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 1004
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/TRAIDecisionModule.js",
+          "line": 761,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_MODE",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "trai.mode",
+          "currentOwnerEvidence": "config:settings.json:trai",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 1000
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_VETO",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TRAI_WEIGHT",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "trai.weight",
+          "currentOwnerEvidence": "config:settings.json:trai",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 1001
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "TTP_RULES_ENABLED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 25,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "USER_NARRATOR",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "public/js/core.js",
+          "line": 313,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "USE_MODULE_AUTOLOADER",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "USE_SSL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "VOICE_ENABLED",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WEBHOOK_DRY_RUN",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "webhookOrders.dryRun",
+          "currentOwnerEvidence": "config:settings.json:services.webhookOrders.dryRun",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 991
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/WebhookOrderAdapter.js",
+          "line": 53,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "core/WebhookOrderAdapter.js",
+          "line": 84,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1910,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1970,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 22,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WEBHOOK_ORDERS_ENABLED",
+      "disposition": "canonical_current_owner_exact_same_path",
+      "canonicalCurrentOwnerEvidence": [
+        {
+          "runtimePath": "webhookOrders.enabled",
+          "currentOwnerEvidence": "config:settings.json:services.webhookOrders.enabled",
+          "historicalRouteKind": "track_runtime_path",
+          "historicalSourceLine": 990
+        }
+      ],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1910,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1961,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1967,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1970,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "foundation/ConfigLoader.js",
+          "line": 1973,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "ogz-meta/gates/eval-live-posture-gate.js",
+          "line": 21,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "The historical route and captured effective source map agree on the identical runtime path. This is owner evidence only, not value-migration acceptance.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WEBSOCKET_DOMAIN",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WS_HOST",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "core/WebSocketManager.js",
+          "line": 140,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WS_PORT",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    },
+    {
+      "key": "WS_URL",
+      "disposition": "no_current_reader_found_in_stated_scanned_scope_retained_private_archive",
+      "canonicalCurrentOwnerEvidence": [],
+      "actualCurrentProcessEnvReaders": [],
+      "literalReferencesNotReaders": [
+        {
+          "file": "public/trai-widget.js",
+          "line": 13,
+          "directProcessEnvRead": false
+        },
+        {
+          "file": "public/trai-widget.js",
+          "line": 392,
+          "directProcessEnvRead": false
+        }
+      ],
+      "rationale": "No actual current direct env reader and no exact historical-route/current-owner join were found in this bounded scan; private archival retention does not label the feature retired.",
+      "preservedInPrivateOriginal": true,
+      "historicalValueMigrationAccepted": false
+    }
+  ]
+}

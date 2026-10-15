@@ -1,0 +1,26 @@
+{
+  "verifiedAt": "2026-10-15T04:20:10.371Z",
+  "pid": 2943769,
+  "status": "online",
+  "restarts": 0,
+  "mode": "paper",
+  "profile": "paper",
+  "isTrading": false,
+  "positions": 0,
+  "pauseReason": "Operator flatten and environment reload",
+  "fingerprint": "88b2ae90eb28b337c37049e7feb4f3c06bc48b860e589124d8cb4bca2577e654",
+  "fingerprintUnchanged": true,
+  "sourceMapEntries": 2623,
+  "sourceMapUnchanged": true,
+  "archivedNamesInRuntime": [
+    "NODE_ENV"
+  ],
+  "archivedNamesInProc": [
+    "NODE_ENV"
+  ],
+  "credentialNamesInRuntime": [],
+  "otherServicePidsUnchanged": true,
+  "savedDumpArchivedNames": [
+    "NODE_ENV"
+  ]
+}

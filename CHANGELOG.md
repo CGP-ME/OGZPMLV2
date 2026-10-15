@@ -1,3 +1,12 @@
+## 2026-10-15 — Reloaded the bot with a clean environment and recorded all archived-name dispositions
+
+- Problem: the reduced credentials-only `.env` was installed, but PM2 still supplied the original archived settings to the running bot. PM2 restart merges existing environment keys.
+- Change: with operator approval, privately backed up process/state/dump evidence and recreated only `ogz-prime-v2` from the existing ecosystem definition using platform inputs. Preserved paper mode, operator pause and zero positions; saved the PM2 resurrection dump. No production code, config values or ledger reset in this change.
+- Verification: actual PID 2943769 reports the unchanged fingerprint and identical 2,623 source-map entries; runtime, `/proc`, PM2 and saved dump retain only ecosystem-owned NODE_ENV from the 184 archived names. All 157 loaded repo scripts match disk. Other service PIDs unchanged.
+- Review: independent Terra evidence review corrected one harness write mislabelled as a read and qualified module membership; resolved. No Mercury pass claimed for this documentation-only delivery.
+- Limits: WebSocket/supervisor still have their old environments. Ten archived names still have standalone tooling readers; 148 have no reader found in the bounded scan, not proven intentional retirements. Existing ingress/accepted-candle scope labels disagree; logged, not repaired here. This is bot env reload completion, not full Stop 1 or trading acceptance.
+- Runtime activation: completed for the bot only; entries remain paused. Evidence: `ogz-meta/inbox/codex/2026-10-15/env-closure/MANIFEST.md`.
+
 ## 2026-10-15 — Extend archived environment provenance with historical AST evidence
 
 Problem: the existing 184-name archive reconciliation recorded only 31 direct historical ConfigLoader mappings; regex missed indirect track inputs and legacy BASE_CONFIG properties. Added a bounded AST extractor for the exact pre-migration loader, using lexical bindings and static property ancestry. It preserves all prior mapped names and adds 31 more: 62 names with 88 route records. Twenty-five names have at least one identical-runtime-path owner in the previously captured effective source map. The 122 names without a route in this scoped historical file remain explicitly unknown; partial or absent current-owner matches leave 163 unresolved/partial names. No semantic destinations or retirement decisions are invented.
