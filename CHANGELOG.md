@@ -1,3 +1,11 @@
+## 2026-10-14 — Archived the unused historical Mercury config attachment
+
+- Problem: `ogz-meta/config_2.js`, imported as documentation in `3faaff55`, still looked like an active configuration owner and read archived OLLAMA_URL.
+- Change: moved the exact original file to `ogz-meta/archive/2026-10-15/env-config-copies/config_2.js`; added its historical status and active Mercury owner to the archive README. No compatibility alias or runtime implementation was added. Nine archived env names still have standalone tool readers; this does not close those tools.
+- Verification: old HEAD blob and archived file hash are identical. No references in tracked source outside evidence; package and PM2 definitions, ModuleAutoLoader categories and actual bot/relay/supervisor module lists do not load it. Active Mercury resolves its own `trai_brain/mercury-bridge/config.js`.
+- Review: Mercury AST blast radius reported zero callers/isolated; its answer was cannot_verify because it did not inspect other files. Independent Terra review inspected the missing reference, entry-point and computed-loader evidence and found no in-repo break. External/untracked commands remain outside this evidence. No clean Mercury verdict is claimed or required for this historical attachment move.
+- Runtime activation: none required; production code, config values and services unchanged. Receipt: `ogz-meta/inbox/codex/2026-10-15/env-unused-mercury-copy/receipt.json`.
+
 ## 2026-10-15 — Reloaded the bot with a clean environment and recorded all archived-name dispositions
 
 - Problem: the reduced credentials-only `.env` was installed, but PM2 still supplied the original archived settings to the running bot. PM2 restart merges existing environment keys.

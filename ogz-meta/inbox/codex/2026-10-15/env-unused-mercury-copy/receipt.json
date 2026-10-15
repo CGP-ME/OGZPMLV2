@@ -1,0 +1,49 @@
+{
+  "source": "ogz-meta/config_2.js",
+  "archive": "ogz-meta/archive/2026-10-15/env-config-copies/config_2.js",
+  "sha256Before": "71b5e4c76f6f96cc5436a061796dc1b655cbd64dd677e189e2baa2805740110a",
+  "sha256After": "71b5e4c76f6f96cc5436a061796dc1b655cbd64dd677e189e2baa2805740110a",
+  "sourceIntroductionCommit": "3faaff553dff0df11b9638aadd403bc814d8aa0a",
+  "trackedLiteralReferencesOutsideEvidence": 0,
+  "mercury": {
+    "run": "2026-10-15T04-36-08-304Z-60f4c1b089a2",
+    "astCallers": 0,
+    "risk": "isolated",
+    "verdict": "cannot_verify",
+    "limitation": "Reviewer did not independently search other files; not represented as a clean Mercury review."
+  },
+  "productionCodeChanged": false,
+  "runtimeRestartRequired": false,
+  "remainingStandaloneArchivedNameReaders": 9,
+  "runtimeSampledProcesses": [
+    {
+      "pid": 2943769,
+      "configCopyLoaded": false
+    },
+    {
+      "pid": 3935053,
+      "configCopyLoaded": false
+    },
+    {
+      "pid": 3935117,
+      "configCopyLoaded": false
+    }
+  ],
+  "activeMercuryConfig": "trai_brain/mercury-bridge/config.js",
+  "movedFileTrackedSourceHash": "6cb990c21ecfc889d812d4a60650f270d923fdb7",
+  "movedFileDestinationHash": "6cb990c21ecfc889d812d4a60650f270d923fdb7",
+  "independentReview": {
+    "reviewer": "Terra active_config_gaps",
+    "result": "No concrete in-repo dependency found",
+    "coverage": [
+      "tracked literal references",
+      "working-tree references outside evidence/archive",
+      "package entry/scripts",
+      "ecosystem configs",
+      "ModuleAutoLoader category paths",
+      "actual runtime module lists",
+      "active Mercury relative config import"
+    ],
+    "limitation": "External/untracked commands importing old path are not enumerable; no alias retained."
+  }
+}
