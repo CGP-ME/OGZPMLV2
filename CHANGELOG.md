@@ -1,3 +1,9 @@
+## 2026-10-15 — Record unsafe legacy StateManager verification
+
+An agent ran two legacy Jest commands around 15:40–15:41 UTC. Their temporary-file setup uses retired STATE_FILE environment settings and did not isolate the actual StateManager path. The real paper-state file was subsequently observed with balance 7500 and no saved pause; a test directly assigns that balance. Raw Jest output was not saved and no pre-test runtime snapshot exists. Root preserved the observed state privately, stopped further runtime tests/imports and disclosed the incident to Trey.
+
+Read-only PM2 verification found the same bot PID 2943769 and restart count 0. No restart, resume or guessed restore was performed. Recovery is OPEN: the saved state must be reconciled with authoritative runtime/journal evidence before reload. Neither a later isolated fixture nor source commits resolve this incident. Documentation reviewed against source lines and agent command report; no Mercury is required for this prose-only record. [Incident and evidence limits](ogz-meta/inbox/codex/2026-10-15/verification-state-incident/INCIDENT.md).
+
 ## 2026-10-15 — Remove sticky broker-read trading veto
 
 Problem: one failed broker read created a persistent OrderRouter entry veto, even after the adapter recovered. Removed its map, query API and sole Executor consumer while retaining outage events, traces, loud errors and actual adapter rejection behavior. Reconciled the retired test cases and rehearsal stub; independent financial-halt coverage is preserved.
