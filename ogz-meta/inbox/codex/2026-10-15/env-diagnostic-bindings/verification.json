@@ -1,0 +1,20 @@
+{
+  "pass": true,
+  "scope": "isolated config and consumer function probes; no historical candle loop executed",
+  "checks": [
+    "canonical configuration bindings ignore retired env",
+    "repeat bindings stable",
+    "exact selected strategy contract retained",
+    "percent fees on both notionals",
+    "per-share minimum on both orders",
+    "no global tier override",
+    "strategy stop/target/hold consumption",
+    "actual orchestrator output field and argument positions",
+    "actual DonchianBreakout and TimeSeriesMomentum off target/hold remain off",
+    "actual IndicatorEngine, ExitContractManager, VolumeProfile and StrategyOrchestrator constructors initialize"
+  ],
+  "limitations": [
+    "Full standalone simulator execution not accepted by these probes",
+    "Backtesting remains outside this task"
+  ]
+}

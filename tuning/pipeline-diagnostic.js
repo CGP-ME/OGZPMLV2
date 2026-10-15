@@ -23,37 +23,26 @@ const projectRoot = path.resolve(__dirname, '..');
 const IndicatorEngine = require(path.join(projectRoot, 'core/indicators/IndicatorEngine'));
 const { getInstance: getExitContractManager } = require(path.join(projectRoot, 'core/ExitContractManager'));
 const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
+const { t: _t, o: _o, h: _h, l: _l, c: _c, v: _v } = require(path.join(projectRoot, 'core/CandleHelper'));
 const { StrategyOrchestrator } = require(path.join(projectRoot, 'core/StrategyOrchestrator'));
 
-// ── SIGNAL MODULES ───────────────────────────────────────────────────────
-const EMASMACrossoverSignal = require(path.join(projectRoot, 'modules/EMASMACrossoverSignal'));
-const MADynamicSR = require(path.join(projectRoot, 'modules/MADynamicSR'));
-const LiquiditySweepDetector = require(path.join(projectRoot, 'modules/LiquiditySweepDetector'));
-const BreakAndRetest = require(path.join(projectRoot, 'modules/BreakAndRetest'));
-const MultiTimeframeAdapter = require(path.join(projectRoot, 'modules/MultiTimeframeAdapter'));
 const VolumeProfile = require(path.join(projectRoot, 'core/VolumeProfile'));
 
-// ── CONFIG FROM ENV ──────────────────────────────────────────────────────
-const CANDLE_FILE = process.env.CANDLE_FILE || 'data/btc-15m-2024-2025.json';
-const FEES_PCT = parseFloat(process.env.FEES_PCT) || 0;
-const MIN_CONFIDENCE = parseFloat(process.env.MIN_CONFIDENCE) || 35;
-const INITIAL_BALANCE = parseFloat(process.env.INITIAL_BALANCE) || 10000;
-const POSITION_SIZE_PCT = parseFloat(process.env.POSITION_SIZE_PCT) || 4;
-const CANDLE_TIMEFRAME = process.env.CANDLE_TIMEFRAME || process.env.TIMEFRAME || '15m';
-
-// Exit config from ConfigLoader
-const STOP_LOSS_PCT = parseFloat(process.env.STOP_LOSS_PERCENT) || ConfigLoader.get('exits.stopLossPercent') || 2.0;
-const TAKE_PROFIT_PCT = parseFloat(process.env.TAKE_PROFIT_PERCENT) || ConfigLoader.get('exits.takeProfitPercent') || 2.5;
-const TIER1 = parseFloat(process.env.TIER1_TARGET) || 0.007;
-const TIER2 = parseFloat(process.env.TIER2_TARGET) || 0.010;
-const TIER3 = parseFloat(process.env.TIER3_TARGET) || 0.015;
+// Diagnostic inputs use the same resolved configuration owners as the bot.
+// Supply the existing BACKTEST_RUN_DESCRIPTOR_PATH bootstrap input for candle data.
+const CANDLE_FILE = ConfigLoader.get('backtest.candleDataFile');
+const MIN_CONFIDENCE = ConfigLoader.get('confidence.minTradeConfidence') * 100;
+const INITIAL_BALANCE = ConfigLoader.get('startingBalance');
+const POSITION_SIZE_PCT = ConfigLoader.get('positionSizing.basePositionSize') * 100;
+const CANDLE_TIMEFRAME = ConfigLoader.get('execution.candleTimeframe');
+const feeModel = require(path.join(projectRoot, 'core/FeeModel')).fromTradingConfig();
 
 console.log('='.repeat(70));
 console.log('PIPELINE DIAGNOSTIC - PLUMBING VERIFICATION');
 console.log('='.repeat(70));
 console.log(`Candle file:    ${CANDLE_FILE}`);
 console.log(`Min confidence: ${MIN_CONFIDENCE}%`);
-console.log(`Fees/slippage:  ${FEES_PCT}%`);
+console.log(`Fee model:      ${feeModel.model}`);
 console.log('='.repeat(70));
 
 // ── LOAD CANDLES ─────────────────────────────────────────────────────────
@@ -82,10 +71,8 @@ const report = {
   config: {
     candleFile: CANDLE_FILE,
     minConfidence: MIN_CONFIDENCE,
-    feesPct: FEES_PCT,
-    stopLoss: STOP_LOSS_PCT,
-    takeProfit: TAKE_PROFIT_PCT,
-    tiers: [TIER1, TIER2, TIER3]
+    fees: ConfigLoader.get('fees'),
+    exitContracts: ConfigLoader.get('exitContracts')
   },
   tests: {
     tradingConfigRespect: { status: 'pending', details: {} },
@@ -100,24 +87,16 @@ const report = {
 };
 
 // ── INITIALIZE ALL MODULES ───────────────────────────────────────────────
-const indicatorEngine = new IndicatorEngine({ warmupCandles: 50 });
-const exitContractManager = getExitContractManager();
-const emaCrossover = new EMASMACrossoverSignal();
-const maDynamicSR = new MADynamicSR({ emaPeriod: 20, trendEmaPeriod: 50 });
-const liquiditySweep = new LiquiditySweepDetector(
-  ConfigLoader.get('strategies.LiquiditySweep')
-);
-const breakAndRetest = new BreakAndRetest(
-  () => ConfigLoader.get('strategies.BreakRetest'),
-  () => ConfigLoader.get('exitContracts.BreakRetest')
-);
-const mtfAdapter = new MultiTimeframeAdapter();
-const volumeProfile = new VolumeProfile(() => ConfigLoader.get('strategies.VolumeProfile'));
-
-const orchestrator = new StrategyOrchestrator({
-  minStrategyConfidence: MIN_CONFIDENCE / 100,
-  minConfluenceCount: 1,
+const indicatorEngine = new IndicatorEngine({
+  ...ConfigLoader.get('indicators.engine'),
+  ...ConfigLoader.get('internals.indicators.engine'),
+  symbol: ConfigLoader.get('execution.tradingPair'),
+  tf: CANDLE_TIMEFRAME
 });
+const exitContractManager = getExitContractManager();
+const volumeProfile = new VolumeProfile(() => ConfigLoader.get('strategies.VolumeProfile'));
+// The orchestrator owns its signal modules and their configuration providers.
+const orchestrator = new StrategyOrchestrator({ mtfBaseTimeframe: CANDLE_TIMEFRAME });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TEST 1: ConfigLoader Respect
@@ -126,23 +105,22 @@ console.log('TEST 1: ConfigLoader Respect');
 console.log('-'.repeat(50));
 
 const tcConfidence = ConfigLoader.get('confidence');
-const tcExits = ConfigLoader.get('exits');
+const tcExitContracts = ConfigLoader.get('exitContracts');
 const tcFees = ConfigLoader.get('fees');
 
 report.tests.tradingConfigRespect.details = {
   configConfidence: tcConfidence,
-  configExits: tcExits,
+  configExitContracts: tcExitContracts,
   configFees: tcFees,
-  envMinConfidence: MIN_CONFIDENCE,
-  envFeesPct: FEES_PCT
+  configuredMinConfidence: MIN_CONFIDENCE,
+  configuration: ConfigLoader.getReceipt()
 };
 
-// Check if we can read config values
-if (tcConfidence && tcExits) {
-  console.log(`  ✓ ConfigLoader readable`);
+// Check if we can read the actual configuration owners.
+if (tcConfidence && tcExitContracts) {
+  console.log('  ConfigLoader readable');
   console.log(`    - minTradeConfidence: ${tcConfidence.minTradeConfidence}`);
-  console.log(`    - stopLossPercent: ${tcExits.stopLossPercent}`);
-  console.log(`    - takeProfitPercent: ${tcExits.takeProfitPercent}`);
+  console.log(`    - exit contracts: ${Object.keys(tcExitContracts).join(', ')}`);
   report.tests.tradingConfigRespect.status = 'pass';
   report.summary.passed++;
 } else {
@@ -158,7 +136,7 @@ if (tcConfidence && tcExits) {
 console.log('\nTEST 2: Exit Contract Verification');
 console.log('-'.repeat(50));
 
-const strategyNames = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'BreakAndRetest', 'LiquiditySweep'];
+const strategyNames = Object.keys(ConfigLoader.get('exitContracts'));
 const contracts = {};
 let contractsValid = true;
 
@@ -192,12 +170,6 @@ const priceHistory = [];
 const strategyStats = {};
 let peakBalance = INITIAL_BALANCE;
 
-// Signal state
-let emaCrossoverSignal = null;
-let maDynamicSRSignal = null;
-let liquiditySweepSignal = null;
-let breakRetestSignal = null;
-
 // Gate counters
 const gateBlocks = {
   confidence: 0,
@@ -225,16 +197,11 @@ function checkExit(pos, price, time) {
     return { shouldExit: true, reason: 'stop_loss', pnlPercent };
   }
   // Take profit
-  if (pnlPercent >= contract.takeProfitPercent) {
+  if (contract.tpMode !== 'off' && pnlPercent >= contract.takeProfitPercent) {
     return { shouldExit: true, reason: 'take_profit', pnlPercent };
   }
-  // Tier 1
-  if (pnlPercent >= TIER1 * 100 && !pos.tier1Hit) {
-    pos.tier1Hit = true;
-    return { shouldExit: true, reason: 'profit_tier_1', pnlPercent };
-  }
   // Max hold
-  if (holdMinutes >= (contract.maxHoldTimeMinutes || 240)) {
+  if (contract.maxHoldMode !== 'off' && holdMinutes >= contract.maxHoldTimeMinutes) {
     return { shouldExit: true, reason: 'max_hold', pnlPercent };
   }
   return { shouldExit: false, reason: null, pnlPercent };
@@ -244,19 +211,13 @@ function executeEntry(price, confidence, time, direction, strategyName, exitCont
   const positionValue = balance * (POSITION_SIZE_PCT / 100);
   const amount = positionValue / price;
 
-  // Normalize strategyName - use 'RSI' as fallback (default strategy)
-  const normalizedStrategy = strategyName || 'RSI';
-
-  const baseContract = exitContract || exitContractManager.getDefaultContract(normalizedStrategy);
-  const contract = {
-    ...baseContract,
-    stopLossPercent: -Math.abs(STOP_LOSS_PCT),
-    takeProfitPercent: Math.abs(TAKE_PROFIT_PCT),
-  };
+  // The orchestrator supplies the selected strategy's complete contract.
+  const normalizedStrategy = strategyName;
+  const contract = exitContract;
 
   position = {
     entryPrice: price, entryTime: time, amount, confidence,
-    direction: direction || 'buy', exitContract: contract,
+    direction, exitContract: contract,
     strategyName: normalizedStrategy, mfe: 0, mae: 0,
   };
   balance -= positionValue;
@@ -273,9 +234,14 @@ function executeExit(price, reason, pnlPercent, time) {
   const grossPnlDollars = position.direction === 'sell'
     ? positionValue - exitValue
     : exitValue - positionValue;
-  const feeDollars = positionValue * (FEES_PCT / 100);
+  const feeDollars = feeModel.calculateRoundTripFees({
+    entryNotionalUsd: positionValue,
+    exitNotionalUsd: exitValue,
+    entryQuantity: position.amount,
+    exitQuantity: position.amount
+  });
   const pnlDollars = grossPnlDollars - feeDollars;
-  const netPnlPercent = pnlPercent - FEES_PCT;
+  const netPnlPercent = pnlDollars / positionValue * 100;
 
   balance += positionValue + pnlDollars;
 
@@ -322,12 +288,7 @@ for (let i = 0; i < candles.length; i++) {
   priceHistory.push(candle);
   if (priceHistory.length > 500) priceHistory.shift();
 
-  try { emaCrossoverSignal = emaCrossover.update(candle, priceHistory); } catch(e) {}
-  try { maDynamicSRSignal = maDynamicSR.update(candle, priceHistory); } catch(e) {}
-  try { breakRetestSignal = breakAndRetest.update(candle, priceHistory); } catch(e) {}
-  try { liquiditySweepSignal = liquiditySweep.feedCandle(candle); } catch(e) {}
-  try { mtfAdapter.ingestCandle(candle, candle.timeframe); } catch(e) {}
-  try { volumeProfile.update(candle, priceHistory); } catch(e) {}
+  volumeProfile.update(candle, priceHistory);
 
   if (i < WARMUP) continue;
 
@@ -344,11 +305,12 @@ for (let i = 0; i < candles.length; i++) {
   // Check entry
   if (!position) {
     const extras = {
-      emaCrossoverSignal, maDynamicSRSignal, breakRetestSignal, liquiditySweepSignal,
-      mtfAdapter, volumeProfile, price,
+      volumeProfile, price,
+      symbol: ConfigLoader.get('execution.tradingPair'),
+      timeframe: CANDLE_TIMEFRAME,
     };
 
-    const orchResult = orchestrator.evaluate(indicators, extras);
+    const orchResult = orchestrator.evaluate(indicators, [], null, priceHistory, extras);
 
     if (orchResult.direction === 'buy' || orchResult.direction === 'sell') {
       signalCount++;
@@ -375,7 +337,7 @@ for (let i = 0; i < candles.length; i++) {
 
       // Execute entry
       executeEntry(price, orchResult.confidence, time, orchResult.direction,
-                   orchResult.strategyName, orchResult.exitContract);
+                   orchResult.winnerStrategy, orchResult.exitContract);
     }
   }
 }
@@ -453,27 +415,29 @@ console.log('-'.repeat(50));
 const totalFees = trades.reduce((sum, t) => sum + (t.feeDollars || 0), 0);
 const avgFeePerTrade = trades.length > 0 ? totalFees / trades.length : 0;
 
-console.log(`  FEES_PCT setting: ${FEES_PCT}%`);
+console.log(`  Fee model: ${feeModel.model}`);
 console.log(`  Total fees paid: $${totalFees.toFixed(2)}`);
 console.log(`  Avg fee per trade: $${avgFeePerTrade.toFixed(2)}`);
 
 report.tests.feeVerification.details = {
-  feesPctSetting: FEES_PCT,
+  configuredFees: ConfigLoader.get('fees'),
   totalFeesPaid: totalFees,
   avgFeePerTrade
 };
 
-if (FEES_PCT > 0 && totalFees > 0) {
+const feesExpected = feeModel.model === 'percent'
+  ? feeModel.makerFee > 0 || feeModel.takerFee > 0
+  : feeModel.perShare > 0 || feeModel.minOrderFee > 0;
+if (trades.length === 0) {
+  report.tests.feeVerification.status = 'unverified';
+  report.flags.push('No completed trades available to verify configured fees');
+  report.summary.warnings++;
+} else if (!feesExpected || totalFees > 0) {
   report.tests.feeVerification.status = 'pass';
-  console.log(`  ✓ Fees are being applied`);
-  report.summary.passed++;
-} else if (FEES_PCT === 0) {
-  report.tests.feeVerification.status = 'pass';
-  console.log(`  ✓ Fees disabled (FEES_PCT=0)`);
   report.summary.passed++;
 } else {
   report.tests.feeVerification.status = 'fail';
-  report.flags.push('FEES_PCT > 0 but no fees applied');
+  report.flags.push('Configured fee model produced no fees on completed trades');
   report.summary.failed++;
 }
 

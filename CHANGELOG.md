@@ -1,3 +1,13 @@
+## 2026-10-14 — Reconciled standalone diagnostic with canonical configuration readers
+
+Problem: the old diagnostic still read retired env settings, overrode every strategy with global stops/targets, forced a first-tier full close, passed obsolete constructor/evaluate arguments, and calculated fees from a single synthetic percentage. Merely archiving env would leave this executable consumer inconsistent.
+
+Change: bind inputs to existing ConfigLoader owners and the existing run descriptor; preserve the orchestrator's exact strategy exit contract, including disabled target/hold modes; remove obsolete duplicate signal instances and use the actual orchestrator argument/output fields; initialize IndicatorEngine with its resolved settings/scope; use FeeModel with actual entry/exit notionals and quantities. A zero-trade run no longer reports fee behavior as verified. No new settings store, fallback value, trading gate, or throw.
+
+Verification: isolated canonical binding/contract/fee probes passed, including both percent and per-share fees and actual Donchian/TimeSeriesMomentum disabled exits. Actual module constructors initialized without evaluating candles. Independent Terra caught the disabled-exit/null-coercion defect, which was fixed and probed. Astra's adversarial producer trace found no reachable defect in the changed reader paths. Mercury was run against the pinned candidate; broad answer said no_break_found but its ledger was no_claim, and focused follow-up could not inspect ConfigLoader. This is delivered under Trey's Astra-go ruling, not claimed as clean Mercury clearance. Evidence: `ogz-meta/inbox/codex/2026-10-15/env-diagnostic-bindings/REVIEW-ASTRA.md`, `REVIEW.md`, `candidate.json`, and `fixtures/probe.cjs`.
+
+Limits/runtime: valid existing run descriptor remains required for candle input. No historical candle loop or backtest was run; this does not certify the standalone simulator's full parity with production exits or complete Stop 1. No service restart or runtime activation; reloads remain held.
+
 ## 2026-10-14 — Reconciled session-report configuration and state readers
 
 Problem: the standalone session form read retired trading env keys, selected the first vaguely named OGZ process, and guessed state values from an obsolete path. This could misreport the actual bot and fabricate balance/PnL defaults.
