@@ -1,3 +1,13 @@
+## 2026-10-15 — Remove unused ConfigLoader compatibility aliases
+
+Problem: ConfigLoader still exported MIN_CONFIDENCE and FEES_ROUND_TRIP as calculated aliases and validateLegacy as an unused alternate method name. No current caller was found; these exports left a misleading compatibility surface after the canonical-owner migration.
+
+Change: remove only those three unused exports. Existing canonical get, snapshot, validate and save APIs remain the implementation. No settings values, gates, throws, defaults, fallbacks, deduplication, or replacement aliases were added.
+
+Verification: exact staged candidate 8ade1bb682b73f87720bf79ebfb17c9adc4a0a02 versus parent1269951c builds all five application-role snapshots with zero validation errors. Values, sources and fingerprints are equal before/after; repeat loads are identical. Syntax passes. Mercury staged-source adversarial review used AST blast radius (61 importing callers) and property/reference searches, returning no_break_found on run2026-10-15T03-09-42-698Z-e5b677e548fb. Review harness is pinned at9c550a22a4a03d9db79fa0bb8042e42f98c60ff8; global embedding index freshness is not claimed. Evidence: ogz-meta/inbox/codex/2026-10-15/env-unused-aliases/ (candidate, verification, REVIEW, MANIFEST).
+
+Limitations/runtime: this resolves only these unused exports. Whole-configuration consumer acceptance and the identified legacy tooling readers remain separate. No PM2 restart, broker operation, paper-state reset, or dashboard edit. Bot remains paused following the operator-authorized close; reload remains paused for env reconciliation.
+
 ## 2026-10-15 — Archive original environment and install credential-only replacement; runtime reload pending
 
 Trey requested a branch, full original .env archival, and effective env provenance after reload. Working branch is codex/archive-legacy-env from 75d5dd99. Preserved the complete original 206-key .env privately with restricted permissions; installed 22 exact credential values consumed by current ConfigLoader roles or Mercury tooling. Archived 184 legacy/unused entries, including trading knobs. The secret file and archive remain local and uncommitted. No JSON trading settings or production source changed.

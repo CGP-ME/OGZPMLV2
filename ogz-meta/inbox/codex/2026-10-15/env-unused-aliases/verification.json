@@ -1,0 +1,53 @@
+{
+  "base": "1269951cdb81a4da39a3cf2d86024e0b33a195e4",
+  "tree": "8ade1bb682b73f87720bf79ebfb17c9adc4a0a02",
+  "fileBlob": "558cf01a4a581b51731266c82c092f428bd14e7c",
+  "roles": [
+    {
+      "role": "bot",
+      "effectiveConfigUnchanged": true,
+      "sourcesUnchanged": true,
+      "fingerprintUnchanged": true,
+      "repeatedLoadIdempotent": true,
+      "errors": 0
+    },
+    {
+      "role": "dashboard",
+      "effectiveConfigUnchanged": true,
+      "sourcesUnchanged": true,
+      "fingerprintUnchanged": true,
+      "repeatedLoadIdempotent": true,
+      "errors": 0
+    },
+    {
+      "role": "checkout",
+      "effectiveConfigUnchanged": true,
+      "sourcesUnchanged": true,
+      "fingerprintUnchanged": true,
+      "repeatedLoadIdempotent": true,
+      "errors": 0
+    },
+    {
+      "role": "supervisor",
+      "effectiveConfigUnchanged": true,
+      "sourcesUnchanged": true,
+      "fingerprintUnchanged": true,
+      "repeatedLoadIdempotent": true,
+      "errors": 0
+    },
+    {
+      "role": "market-data-tool",
+      "effectiveConfigUnchanged": true,
+      "sourcesUnchanged": true,
+      "fingerprintUnchanged": true,
+      "repeatedLoadIdempotent": true,
+      "errors": 0
+    }
+  ],
+  "removedExports": [
+    "MIN_CONFIDENCE",
+    "FEES_ROUND_TRIP",
+    "validateLegacy"
+  ],
+  "runtimeActivated": false
+}

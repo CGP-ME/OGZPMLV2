@@ -4554,10 +4554,9 @@ const exported = Object.assign(ConfigLoader, {
   loadBacktestRunDescriptor,
   getConfigFileValue,
   getInternalsFileValue,
-  MIN_CONFIDENCE: () => ConfigLoader.get('confidence.minTradeConfidence'),
-  FEES_ROUND_TRIP: () => ConfigLoader.get('fees.totalRoundTrip'),
+
 });
-exported.validateLegacy = ConfigLoader.validate.bind(ConfigLoader);
+
 
 Object.defineProperty(exported, 'DEFAULT_TUNING_PROFILE', {
   enumerable: true,

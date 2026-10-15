@@ -1,0 +1,40 @@
+{
+  "run_id": "2026-10-15T03-09-42-698Z-e5b677e548fb",
+  "verdict": "no_break_found",
+  "termination": "answer_given",
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "candidate": {
+    "base": "1269951cdb81a4da39a3cf2d86024e0b33a195e4",
+    "tree": "8ade1bb682b73f87720bf79ebfb17c9adc4a0a02",
+    "fileBlob": "558cf01a4a581b51731266c82c092f428bd14e7c"
+  },
+  "sourceRefs": {
+    "current_change_evidence_bundle": {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-15/2026-10-15t03-08-20-612z-2923515-ced1ce2aeb2e/current-change-evidence.txt",
+      "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-15/2026-10-15t03-08-20-612z-2923515-ced1ce2aeb2e/current-change-evidence.txt:1",
+      "sha256": "d3cdc4f053402a0a3898d1045506273e740d9b41d49840d2b41c58724098cee5",
+      "bytes": 733854,
+      "lines": 23596,
+      "section_count": 5,
+      "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-15/2026-10-15t03-08-20-612z-2923515-ced1ce2aeb2e/manifest.json",
+      "manifest_sha256": "8c83888dade1654212b184453a1085bec388e0a115e8a7f3cd029213a7f69584",
+      "manifest_bytes": 16467
+    },
+    "supplied_evidence": [],
+    "auto_blast_radius_source": "current_changes",
+    "auto_blast_radius_files": [
+      {
+        "file": "foundation/ConfigLoader.js",
+        "callerCount": 61,
+        "riskLevel": "high"
+      }
+    ],
+    "auto_blast_radius_errors": [],
+    "changed_files": [
+      "foundation/ConfigLoader.js"
+    ],
+    "changed_file_count": 1,
+    "reference_names": [],
+    "reference_scans": []
+  }
+}
