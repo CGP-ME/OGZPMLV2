@@ -1,0 +1,14 @@
+{
+  "pass": true,
+  "checks": [
+    "no raw dotenv reader",
+    "canonical configured values and provenance",
+    "actual runtime mode not inferred",
+    "PM2 jlist nested fields and canonical process owner",
+    "briefing consumes renamed fields"
+  ],
+  "limits": [
+    "PM2 response stubbed in isolated check; canonical ConfigLoader is actual",
+    "No RAG calls or service mutations"
+  ]
+}

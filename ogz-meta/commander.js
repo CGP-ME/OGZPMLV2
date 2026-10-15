@@ -16,37 +16,36 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { ragQuery, formatForContext } = require('./rag-query');
 const { getSemanticRAG } = require('./rag-embeddings');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 /**
  * Get current bot state
  */
 function getCurrentState() {
+  const config = ConfigLoader.load({ silent: true }).config;
+  const configuredScope = {
+    status: 'configured',
+    launchProfile: config.mode.launchProfile,
+    executionMode: config.mode.execution,
+    tradingPair: config.execution.tradingPair,
+    minTradeConfidence: config.confidence.minTradeConfidence,
+    sources: {
+      launchProfile: ConfigLoader.getSource('mode.launchProfile'),
+      executionMode: ConfigLoader.getSource('mode.execution'),
+      tradingPair: ConfigLoader.getSource('execution.tradingPair'),
+      minTradeConfidence: ConfigLoader.getSource('confidence.minTradeConfidence')
+    }
+  };
   const state = {
     timestamp: new Date().toISOString(),
-    environment: {},
+    configuredScope,
+    runtime: {
+      mode: 'unobserved',
+      source: 'commander does not observe the active SessionRouter runtime scope'
+    },
     recentChanges: [],
-    knownIssues: [],
-    activeMode: 'UNKNOWN'
+    knownIssues: []
   };
-
-  // Read .env for current config
-  try {
-    const envContent = fs.readFileSync(path.join(path.dirname(__dirname), '.env'), 'utf8');
-    const lines = envContent.split('\n');
-
-    // Extract key settings
-    lines.forEach(line => {
-      if (line.includes('MIN_TRADE_CONFIDENCE')) {
-        const match = line.match(/MIN_TRADE_CONFIDENCE=([0-9.]+)/);
-        if (match) state.environment.MIN_TRADE_CONFIDENCE = match[1];
-      }
-      if (line.includes('LIVE_TRADING=true')) state.activeMode = 'LIVE_TRADING';
-      if (line.includes('PAPER_TRADING=true')) state.activeMode = 'PAPER_TRADING';
-      if (line.includes('BACKTEST_MODE=true')) state.activeMode = 'BACKTEST';
-    });
-  } catch (e) {
-    console.error('Could not read .env');
-  }
 
   // Get recent changes from CHANGELOG
   try {
@@ -84,15 +83,15 @@ function getCurrentState() {
 
   // Check bot status
   try {
-    const pm2Status = execSync('pm2 status --json 2>/dev/null', { encoding: 'utf8' });
+    const pm2Status = execSync('pm2 jlist 2>/dev/null', { encoding: 'utf8' });
     const processes = JSON.parse(pm2Status);
-    const bot = processes.find(p => p.name === 'ogz-prime-v2');
+    const bot = processes.find(p => p.name === ConfigLoader.getInternalsFileValue('services.supervisor.botProcess'));
     if (bot) {
       state.botStatus = {
-        running: bot.status === 'online',
-        uptime: bot.uptime,
-        restarts: bot.restart_time,
-        memory: bot.memory
+        running: bot.pm2_env.status === 'online',
+        uptime: Date.now() - bot.pm2_env.pm_uptime,
+        restarts: bot.pm2_env.restart_time,
+        memory: bot.monit.memory
       };
     }
   } catch (e) {
@@ -110,8 +109,11 @@ function generateBriefing(issue, state) {
 Generated: ${state.timestamp}
 
 ## CURRENT BOT STATE
-- **Mode**: ${state.activeMode}
-- **Trade Confidence**: ${state.environment.MIN_TRADE_CONFIDENCE || 'UNKNOWN'}
+- **Observed runtime mode**: ${state.runtime.mode} (${state.runtime.source})
+- **Configured launch profile**: ${state.configuredScope.launchProfile} (${state.configuredScope.sources.launchProfile})
+- **Configured execution mode**: ${state.configuredScope.executionMode} (${state.configuredScope.sources.executionMode})
+- **Configured trading pair**: ${state.configuredScope.tradingPair} (${state.configuredScope.sources.tradingPair})
+- **Configured minimum trade confidence**: ${state.configuredScope.minTradeConfidence} (${state.configuredScope.sources.minTradeConfidence})
 ${state.botStatus ? `- **Bot Status**: ${state.botStatus.running ? 'RUNNING' : 'STOPPED'}` : ''}
 
 ## ISSUE TO INVESTIGATE
@@ -167,14 +169,14 @@ ${state.knownIssues.slice(0, 5).map(i =>
 2. **DO NOT REPEAT approaches that FAILED before** (see above)
 3. **TRY approaches that WORKED for similar issues** (see above)
 4. Focus on NEW issues not previously documented
-5. Consider the current bot configuration (confidence=${state.environment.MIN_TRADE_CONFIDENCE})
+5. Consider the configured launch scope (profile=${state.configuredScope.launchProfile}, execution=${state.configuredScope.executionMode}, confidence=${state.configuredScope.minTradeConfidence}); commander does not observe active runtime scope.
 6. Check if the issue is related to recent changes
 
 ## CONTEXT FILES AVAILABLE
 - /opt/ogzprime/OGZPMLV2/ogz-meta/claudito_context.md (architecture)
 - /opt/ogzprime/OGZPMLV2/ogz-meta/ledger/fixes.jsonl (all fixed issues)
 - /opt/ogzprime/OGZPMLV2/CHANGELOG.md (recent changes)
-- /opt/ogzprime/OGZPMLV2/.env (current configuration)
+- /opt/ogzprime/OGZPMLV2/config/settings.json (canonical configuration through ConfigLoader)
 `;
 
   return briefing;
@@ -242,8 +244,10 @@ async function command(issue) {
   // Step 1: Get current state
   console.log('\n📊 Step 1: Assessing Current State...');
   const state = getCurrentState();
-  console.log(`   Mode: ${state.activeMode}`);
-  console.log(`   Confidence: ${state.environment.MIN_TRADE_CONFIDENCE}`);
+  console.log(`   Observed runtime mode: ${state.runtime.mode}`);
+  console.log(`   Configured launch profile: ${state.configuredScope.launchProfile}`);
+  console.log(`   Configured execution mode: ${state.configuredScope.executionMode}`);
+  console.log(`   Configured minimum trade confidence: ${state.configuredScope.minTradeConfidence}`);
   console.log(`   Known Fixed Issues: ${state.knownIssues.length}`);
 
   // Step 2: Check if this is a known issue (keyword search)
@@ -300,12 +304,12 @@ async function command(issue) {
   console.log('🎖️ Commander recommendation:');
   console.log(`   Deploy: ${agent.name} Agent`);
   console.log(`   Context: Full briefing provided`);
-  console.log(`   Priority: ${state.activeMode === 'LIVE_TRADING' ? 'CRITICAL' : 'HIGH'}`);
+  console.log('   Priority: HIGH (runtime scope unobserved by commander)');
 
-  if (state.environment.MIN_TRADE_CONFIDENCE === '0.03') {
-    console.log('\n⚠️  WARNING: Confidence is VERY LOW (0.03)');
-    console.log('   This may cause rapid trading regardless of fixes!');
-    console.log('   Consider raising MIN_TRADE_CONFIDENCE first.');
+  if (state.configuredScope.minTradeConfidence === 0.03) {
+    console.log('\nWARNING: Configured minimum trade confidence is VERY LOW (0.03)');
+    console.log('   This configured threshold may cause rapid trading regardless of fixes.');
+    console.log('   Review the canonical launch-profile confidence setting first.');
   }
 
   return {

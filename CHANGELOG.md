@@ -1,3 +1,11 @@
+## 2026-10-14 — Commander reads canonical configuration and reports its limits
+
+- Problem: commander parsed retired .env trading flags and confidence, labeled them active runtime, and read the wrong PM2 process/field shape.
+- Change: read the actual ConfigLoader with per-field provenance; update briefing, advice, and CLI consumers; label runtime scope unobserved. Read PM2 jlist using the static bot-process owner and nested status/uptime/restart/memory fields.
+- Verification: isolated native probe with actual ConfigLoader passed canonical values, sources, renamed consumers, and stubbed PM2 fields. Read-only actual getCurrentState also returned configured paper and the running bot; it does not prove active SessionRouter scope. No RAG or broker requests.
+- Review: independent Terra review PASS; no introduced raw env authority, defaults, or throws. This is an advisory developer tool, not a trading-path change. Evidence: ogz-meta/inbox/codex/2026-10-15/env-commander-reader/REVIEW.md and verification.json.
+- Runtime: no service reload, resume, or trading-policy change. Inherited dirty work preserved.
+
 ## 2026-10-14 — Reconciled pattern-isolation fixture with current configuration constructor
 
 Problem: the existing pattern scope check set retired env values and passed constructor options that UnifiedPatternMemory does not consume. It could load real learned state while pretending to be isolated; its unscoped-row test mutated only a detached snapshot.
