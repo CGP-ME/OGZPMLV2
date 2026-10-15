@@ -1,3 +1,9 @@
+## 2026-10-15 — Recover contaminated paper snapshot from live runtime state
+
+Recovered data/state-paper.json from the running bot's own persistence projection, after two read-only runtime observations agreed and the destination was confirmed from the loaded ConfigLoader. Preserved the contaminated file privately, checked it had not changed, wrote the replacement atomically, and verified the resulting JSON against the captured snapshot. Recovered balance 10000, zero positions, and the original SessionRouter transition pause; no guessed values or position deletion. A temporary localhost inspector was used and closed. PID 2943769/restart_count 0 remained unchanged; no restart or resume.
+
+Verification evidence and limits: [incident/recovery record](ogz-meta/inbox/codex/2026-10-15/verification-state-incident/INCIDENT.md). Snapshot recovery is complete, not a certification of prior ledger history. Malformed diagnostic test records remain preserved; unsafe legacy test isolation and earlier unassigned writes remain open. The running process still uses its old loaded source. This prose-only recovery receipt needs no Mercury; no raw state is committed.
+
 ## 2026-10-15 — Remove credential-prefix trading authority
 
 StateManager's Alpaca credential-prefix diagnostic created persisted symbol holds and an Executor entry veto. Removed that authority and its sole consumer; load retires only exact broker_unverifiable holds and the old entryBlocking field. Credential mismatch still emits error/trace evidence and preserves active trade records for reconciliation. Unrelated holds and actual broker request failures remain unchanged. Reconciled direct obsolete test assertions/mocks.
