@@ -1,3 +1,11 @@
+## 2026-10-15 — Remove credential-prefix trading authority
+
+StateManager's Alpaca credential-prefix diagnostic created persisted symbol holds and an Executor entry veto. Removed that authority and its sole consumer; load retires only exact broker_unverifiable holds and the old entryBlocking field. Credential mismatch still emits error/trace evidence and preserves active trade records for reconciliation. Unrelated holds and actual broker request failures remain unchanged. Reconciled direct obsolete test assertions/mocks.
+
+Verification: pinned native StateManager fixture passed saved-hold migration, preserved active evidence and retention of an independent reconciliation hold. ConfigLoader was replaced before import with temporary fixture paths; real state/log SHA-256 and mtimes were unchanged around root's isolated run. All five source files passed syntax and scoped diff checks. Mercury no_break_found covers two runtime files; Astra independently reviewed the full candidate. No full Jest/live-broker acceptance claim. Earlier unsafe legacy Jest writes are disclosed separately and remain unresolved; later passing fixtures do not erase them.
+
+Evidence: [verification and review](ogz-meta/inbox/codex/2026-10-15/credentials-no-trading-authority/MANIFEST.md). Runtime activation: no PM2 restart or trading resume; saved-state reconciliation remains required before reload. The requested 50% New York daily account-loss rule is not implemented by this removal.
+
 ## 2026-10-15 — Record unsafe legacy StateManager verification
 
 An agent ran two legacy Jest commands around 15:40–15:41 UTC. Their temporary-file setup uses retired STATE_FILE environment settings and did not isolate the actual StateManager path. The real paper-state file was subsequently observed with balance 7500 and no saved pause; a test directly assigns that balance. Raw Jest output was not saved and no pre-test runtime snapshot exists. Root preserved the observed state privately, stopped further runtime tests/imports and disclosed the incident to Trey.

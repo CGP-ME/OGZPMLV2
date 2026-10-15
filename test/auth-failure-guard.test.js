@@ -166,7 +166,6 @@ describe('AuthFailureGuard', () => {
       isSymbolHalted: jest.fn(() => false),
       getSymbolHaltReason: jest.fn(() => null),
       getSymbolHaltCode: jest.fn(() => null),
-      getBrokerVerificationEntryBlock: jest.fn(() => null),
       getState: jest.fn(() => ({ activeTrades: new Map() })),
       haltSymbol: jest.fn(),
       openPosition: jest.fn(() => ({ success: true, trade: { id: 'healthy-entry' } })),

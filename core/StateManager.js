@@ -2387,7 +2387,6 @@ class StateManager {
       status: 'untrusted',
       code: BROKER_UNVERIFIABLE,
       source: 'StateManager.load',
-      entryBlocking: true,
       brokerFlatVerified: false,
       manualReconciliationRequired: true,
       operatorActionRequired: true,
@@ -2396,65 +2395,9 @@ class StateManager {
       affectedLanes,
     };
 
-    const nextHalts = { ...(this.state.symbolEntryHalts || {}) };
-    for (const lane of affectedLanes) {
-      for (const symbol of lane.affectedSymbols) {
-        nextHalts[symbol] = {
-          reason: `[BROKER_UNVERIFIABLE] ${lane.reason}; active records remain evidence until broker flatness is witnessed`,
-          code: BROKER_UNVERIFIABLE,
-          haltedAt: Date.now(),
-          expiresAt: null,
-          authority: 'broker_verification',
-          financialIntegrityCritical: true,
-          entryBlockScope: 'symbol',
-          brokerId: lane.brokerId,
-          executionMode: lane.executionMode,
-          brokerFlatVerified: false,
-          manualReconciliationRequired: true,
-          operatorActionRequired: true,
-          affectedTradeIds: lane.tradeIds,
-        };
-      }
-    }
-    this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection(
-      nextHalts,
-      'StateManager.brokerVerification'
-    );
-
     emitTrace({}, 'BROKER_UNVERIFIABLE', this.state.brokerVerificationIntegrity);
     console.error(`[StateManager] BROKER_UNVERIFIABLE: ${affectedLanes.map(lane => `${lane.brokerId}:${lane.executionMode}:${lane.actualKeyPrefix}->${lane.expectedKeyPrefix}`).join(', ')}`);
     return true;
-  }
-
-  getBrokerVerificationEntryBlock(scope = {}) {
-    const integrity = this.state.brokerVerificationIntegrity;
-    if (!integrity || integrity.status !== 'untrusted' || integrity.code !== BROKER_UNVERIFIABLE || integrity.entryBlocking !== true) {
-      return null;
-    }
-    const brokerId = typeof scope.brokerId === 'string' ? scope.brokerId.trim().toLowerCase() : '';
-    const executionMode = typeof scope.executionMode === 'string' ? scope.executionMode.trim().toLowerCase() : '';
-    if (!brokerId || !executionMode) {
-      return null;
-    }
-    const lane = Array.isArray(integrity.affectedLanes)
-      ? integrity.affectedLanes.find((candidate) => (
-        candidate
-        && candidate.brokerId === brokerId
-        && candidate.executionMode === executionMode
-      ))
-      : null;
-    if (!lane) {
-      return null;
-    }
-    return {
-      blocked: true,
-      code: BROKER_UNVERIFIABLE,
-      reason: lane.reason || integrity.reason,
-      brokerId,
-      executionMode,
-      affectedSymbols: lane.affectedSymbols || [],
-      tradeIds: lane.tradeIds || [],
-    };
   }
 
   _stateSnapshotForPersistence(state = this.state) {
@@ -4379,6 +4322,20 @@ class StateManager {
           if (JSON.stringify(originalHalts) !== JSON.stringify(normalizedHalts)) {
             correctedStateShape = true;
           }
+        }
+        const retiredBrokerUnverifiableHalts = Object.entries(this.state.symbolEntryHalts)
+          .filter(([, halt]) => halt?.code === BROKER_UNVERIFIABLE)
+          .map(([symbol]) => symbol);
+        if (retiredBrokerUnverifiableHalts.length > 0) {
+          for (const symbol of retiredBrokerUnverifiableHalts) {
+            delete this.state.symbolEntryHalts[symbol];
+          }
+          correctedStateShape = true;
+        }
+        if (this.state.brokerVerificationIntegrity?.code === BROKER_UNVERIFIABLE
+          && Object.prototype.hasOwnProperty.call(this.state.brokerVerificationIntegrity, 'entryBlocking')) {
+          delete this.state.brokerVerificationIntegrity.entryBlocking;
+          correctedStateShape = true;
         }
         // Retire saved loss-cooldown bookkeeping regardless of its legacy shape.
         // Retired halt codes are removed by the collection normalizer above.

@@ -765,7 +765,7 @@ describe('StateManager load validation', () => {
     expect(manager.getEquity(110)).toBe(10000 + 300 * 0.1);
   });
 
-  test('load marks live Alpaca records broker-unverifiable with paper keys without deleting evidence records', () => {
+  test('load preserves live Alpaca mismatch evidence without credential-derived entry holds', () => {
     process.env.ALPACA_API_KEY = 'PKTESTPAPERKEY1234567890';
     process.env.ALPACA_MODE = 'paper';
     process.env.EXECUTION_MODE = 'paper';
@@ -806,7 +806,11 @@ describe('StateManager load validation', () => {
       ]],
       lastPrices: { TSLA: 100 },
       isTrading: true,
-      symbolEntryHalts: {},
+      symbolEntryHalts: {
+        TSLA: { code: 'broker_unverifiable', reason: 'legacy credential diagnostic hold', haltedAt: 1, expiresAt: null },
+        MSFT: { code: 'exit_monitor_reconciliation_required', reason: 'independent exit receipt hold', haltedAt: 2, expiresAt: null },
+      },
+      brokerVerificationIntegrity: { status: 'untrusted', code: 'broker_unverifiable', entryBlocking: true },
       symbolLossStreaks: {},
     }), 'utf8');
 
@@ -818,7 +822,6 @@ describe('StateManager load validation', () => {
     expect(manager.get('brokerVerificationIntegrity')).toEqual(expect.objectContaining({
       status: 'untrusted',
       code: 'broker_unverifiable',
-      entryBlocking: true,
       brokerFlatVerified: false,
       manualReconciliationRequired: true,
       operatorActionRequired: true,
@@ -833,17 +836,10 @@ describe('StateManager load validation', () => {
         }),
       ],
     }));
-    expect(manager.getSymbolHaltCode('TSLA')).toBe('broker_unverifiable');
-    expect(manager.getBrokerVerificationEntryBlock({
-      brokerId: 'alpaca',
-      executionMode: 'live',
-      symbol: 'TSLA',
-    })).toEqual(expect.objectContaining({
-      blocked: true,
-      code: 'broker_unverifiable',
-      brokerId: 'alpaca',
-      executionMode: 'live',
-    }));
+    expect(manager.get('brokerVerificationIntegrity')).not.toHaveProperty('entryBlocking');
+    expect(manager.getSymbolHaltCode('TSLA')).toBeNull();
+    expect(manager.getSymbolHaltCode('MSFT')).toBe('exit_monitor_reconciliation_required');
+    expect(typeof manager.getBrokerVerificationEntryBlock).toBe('undefined');
     const quarantineAttempt = manager.quarantineActiveTradesForSymbol(
       'TSLA',
       ['symbol_context_registration_failed:test'],
@@ -886,13 +882,12 @@ describe('StateManager load validation', () => {
     expect(saved.brokerVerificationIntegrity).toEqual(expect.objectContaining({
       status: 'untrusted',
       code: 'broker_unverifiable',
-      entryBlocking: true,
     }));
-    expect(saved.symbolEntryHalts.TSLA).toEqual(expect.objectContaining({
-      code: 'broker_unverifiable',
-      brokerId: 'alpaca',
-      executionMode: 'live',
-      brokerFlatVerified: false,
+    expect(saved.brokerVerificationIntegrity).not.toHaveProperty('entryBlocking');
+    expect(saved.symbolEntryHalts.TSLA).toBeUndefined();
+    expect(saved.symbolEntryHalts.MSFT).toEqual(expect.objectContaining({
+      code: 'exit_monitor_reconciliation_required',
+      reason: 'independent exit receipt hold',
     }));
   });
 

@@ -1,0 +1,11 @@
+{
+  "base": "d9cea81e7c1ccb30a6ebd8a9b8adbc0867cd1571",
+  "candidate": "ab61c1d211701ccc979a54a2aadcea6b0ec08252",
+  "files": [
+    "core/StateManager.js",
+    "core/OrderExecutor.js",
+    "test/order-executor-pause-gate.test.js",
+    "test/auth-failure-guard.test.js",
+    "test/state-manager-load.test.js"
+  ]
+}
