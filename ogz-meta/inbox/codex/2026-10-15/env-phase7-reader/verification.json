@@ -1,0 +1,16 @@
+{
+  "pass": true,
+  "checks": [
+    "raw canonical file contracts reported individually without runtime claim",
+    "JSON mode emits no numeric console output",
+    "raw dotenv parsing removed from both config functions",
+    "disabled tier policy ignored as intended",
+    "active tier order check preserved",
+    "no global R:R/15m/fee recommendation",
+    "fees explicitly require proposed size"
+  ],
+  "limits": [
+    "Only changed functions executed; full legacy phase7 tool not run",
+    "No trading numbers or production policy changed"
+  ]
+}

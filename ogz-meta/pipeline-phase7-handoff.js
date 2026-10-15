@@ -16,7 +16,7 @@
  * WHAT THIS CHECKS (that nothing else does):
  *   1. ACTION STRING MATCHING — Does Module A's output string match Module B's input check?
  *   2. PARAMETER FORWARDING — When A passes data to B, does B actually USE that data?
- *   3. CONFIG CONSISTENCY — Are .env values physically achievable given timeframe constraints?
+ *   3. CONFIG CONSISTENCY — Check active strategy-owned exit tiers.
  *   4. STRING COMPARISON INTEGRITY — Do === checks match the actual values being compared?
  *   5. CONFIG KEY MATCHING — Do config keys match between setter and getter?
  *   6. DUPLICATE ENV DETECTION — Are there conflicting .env entries?
@@ -38,6 +38,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const ROOT = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -268,118 +269,29 @@ function checkParameterForwarding() {
 
 // ═══════════════════════════════════════════════════════════════
 // CHECK 3: CONFIG CONSISTENCY
-// Are .env values physically achievable given timeframe constraints?
+// Check the active strategy-owned tier configuration.
 // ═══════════════════════════════════════════════════════════════
 function checkConfigConsistency() {
-  section('3 — CONFIG CONSISTENCY (env vs reality)');
+  section('3 — CONFIG CONSISTENCY (strategy contracts)');
 
-  // Load .env (try multiple locations)
-  let envContent;
-  let envPath;
-  const envPaths = [
-    path.join(ROOT, '.env'),
-    path.join(ROOT, 'config', '.env.example'),
-    path.join(ROOT, '.env.example'),
-  ];
-  for (const p of envPaths) {
-    try {
-      envContent = fs.readFileSync(p, 'utf8');
-      envPath = p;
-      break;
-    } catch (e) { /* try next */ }
-  }
-  if (!envContent) {
-    warn('configConsistency', '.env file', 'Could not find .env or .env.example — skipping config checks');
-    return;
-  }
-  if (!JSON_OUT) console.log(`  📁 Using: ${path.relative(ROOT, envPath)}`);
-
-  // Parse env values
-  const envVars = {};
-  for (const line of envContent.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('#') || !trimmed.includes('=')) continue;
-    const [key, ...rest] = trimmed.split('=');
-    const val = rest.join('=').split('#')[0].trim();
-    envVars[key.trim()] = val;
-  }
-
-  // ── Tier targets vs max hold time ──
-  const tier1 = parseFloat(envVars.TIER1_TARGET);
-  const tier2 = parseFloat(envVars.TIER2_TARGET);
-  const tier3 = parseFloat(envVars.TIER3_TARGET);
-  const finalTarget = parseFloat(envVars.FINAL_TARGET);
-  const maxHoldMinutes = parseFloat(envVars.MAX_HOLD_TIME_MINUTES) || 105;
-
-  // BTC 15m candle avg move: 0.3-0.8%. In maxHold minutes, max reasonable move:
-  // Rough heuristic: 15m candle = ~0.5% avg, maxHold/15 candles, sqrt scaling
-  const numCandles = maxHoldMinutes / 15;
-  const maxReasonableMove = 0.5 * Math.sqrt(numCandles) / 100; // as decimal
-
-  if (!isNaN(tier1)) {
+  const contracts = ConfigLoader.getConfigFileValue('exitContracts');
+  for (const [strategy, contract] of Object.entries(contracts)) {
+    const tieredExit = contract.profitManagement?.tieredExit;
+    if (tieredExit?.enabled !== true) continue;
+    const tiers = tieredExit.profitTiers;
+    if (!tiers || typeof tiers !== 'object') continue;
+    const { tier1, tier2, tier3, final: finalTarget } = tiers;
     check('configConsistency',
-      `TIER1_TARGET (${(tier1 * 100).toFixed(1)}%) reachable in ${maxHoldMinutes}min`,
-      tier1 <= maxReasonableMove * 1.5,
-      tier1 <= maxReasonableMove * 1.5
-        ? `${(tier1 * 100).toFixed(1)}% is achievable (max reasonable: ${(maxReasonableMove * 100 * 1.5).toFixed(1)}%)`
-        : `${(tier1 * 100).toFixed(1)}% is UNREACHABLE — max reasonable move in ${maxHoldMinutes}min is ~${(maxReasonableMove * 100 * 1.5).toFixed(1)}%`,
-      `Set TIER1_TARGET to ${(maxReasonableMove * 0.5 * 100).toFixed(1)}% or lower`
+      `${strategy} active tiered-exit contract`,
+      true,
+      `tier1=${tier1}; tier2=${tier2}; tier3=${tier3}; final=${finalTarget}`
     );
-  }
-
-  if (!isNaN(finalTarget)) {
-    check('configConsistency',
-      `FINAL_TARGET (${(finalTarget * 100).toFixed(1)}%) sanity check`,
-      finalTarget <= maxReasonableMove * 3,
-      finalTarget <= maxReasonableMove * 3
-        ? `${(finalTarget * 100).toFixed(1)}% is ambitious but possible`
-        : `${(finalTarget * 100).toFixed(1)}% is FANTASY — BTC rarely moves this much in ${maxHoldMinutes}min`,
-      `Set FINAL_TARGET to ${(maxReasonableMove * 2 * 100).toFixed(1)}% or lower for 15m scalping`
-    );
-  }
-
-  // ── Tier order sanity ──
-  if (!isNaN(tier1) && !isNaN(tier2) && !isNaN(tier3) && !isNaN(finalTarget)) {
-    check('configConsistency',
-      'Tier targets in ascending order',
-      tier1 < tier2 && tier2 < tier3 && tier3 < finalTarget,
-      tier1 < tier2 && tier2 < tier3 && tier3 < finalTarget
-        ? `${tier1} < ${tier2} < ${tier3} < ${finalTarget}`
-        : `WRONG ORDER: ${tier1}, ${tier2}, ${tier3}, ${finalTarget}`,
-      'Ensure TIER1 < TIER2 < TIER3 < FINAL'
-    );
-  }
-
-  // ── Tier 1 vs fee threshold ──
-  const feePercent = 0.0026 * 2; // Round-trip Kraken fee (0.26% * 2)
-  if (!isNaN(tier1)) {
-    check('configConsistency',
-      `TIER1_TARGET (${(tier1 * 100).toFixed(2)}%) > round-trip fees (${(feePercent * 100).toFixed(2)}%)`,
-      tier1 > feePercent,
-      tier1 > feePercent
-        ? `${(tier1 * 100).toFixed(2)}% clears ${(feePercent * 100).toFixed(2)}% fees by ${((tier1 - feePercent) * 100).toFixed(2)}%`
-        : `TIER1 is BELOW FEES — every tier 1 exit is a guaranteed loss`,
-      `Set TIER1_TARGET above ${(feePercent * 100).toFixed(2)}% (e.g., 0.007 for 0.7%)`
-    );
-  }
-
-  // ── ExitContractManager defaults vs .env ──
-  let ecmSrc;
-  try {
-    ecmSrc = fs.readFileSync(path.join(ROOT, 'core/ExitContractManager.js'), 'utf8');
-  } catch (e) { return; }
-
-  // Extract ECM default TP values per strategy
-  const ecmTPRegex = /(\w+):\s*\{[^}]*takeProfitPercent:\s*([\d.]+)/g;
-  let ecmMatch;
-  while ((ecmMatch = ecmTPRegex.exec(ecmSrc)) !== null) {
-    const strategy = ecmMatch[1];
-    const tp = parseFloat(ecmMatch[2]);
-    const envTP = parseFloat(envVars.TAKE_PROFIT_PERCENT);
-    if (!isNaN(envTP) && Math.abs(tp - envTP) > 0.5) {
-      warn('configConsistency',
-        `${strategy} ECM TP (${tp}%) vs .env TAKE_PROFIT_PERCENT (${envTP}%)`,
-        `Mismatch — document which one controls exits for ${strategy}`
+    if ([tier1, tier2, tier3, finalTarget].every(Number.isFinite)) {
+      check('configConsistency',
+        `${strategy} active tier targets in ascending order`,
+        tier1 < tier2 && tier2 < tier3 && tier3 < finalTarget,
+        `${tier1} < ${tier2} < ${tier3} < ${finalTarget}`,
+        'Repair the selected strategy tier ordering'
       );
     }
   }
@@ -617,110 +529,13 @@ function checkDuplicateEnv() {
 // Are values in the right order/range?
 // ═══════════════════════════════════════════════════════════════
 function checkNumericSanity() {
-  section('7 — NUMERIC SANITY');
+  section('7 — STRATEGY EXIT NUMBERS (raw file values, not resolved runtime or profitability acceptance)');
 
-  let envContent;
-  const envPathsNum = [
-    path.join(ROOT, '.env'),
-    path.join(ROOT, 'config', '.env.example'),
-  ];
-  for (const p of envPathsNum) {
-    try { envContent = fs.readFileSync(p, 'utf8'); break; } catch (e) { /* next */ }
+  const contracts = ConfigLoader.getConfigFileValue('exitContracts');
+  for (const [strategy, contract] of Object.entries(contracts)) {
+    if (!JSON_OUT) console.log(`  ${strategy}: stop=${contract.stopType}/${contract.stopLossPercent}; target=${contract.tpMode}/${contract.takeProfitPercent}; trail=${contract.trailType}/${contract.trailingStopPercent}; maxHold=${contract.maxHoldMode}/${contract.maxHoldTimeMinutes}`);
   }
-  if (!envContent) return;
-
-  const envVars = {};
-  for (const line of envContent.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('#') || !trimmed.includes('=')) continue;
-    const [key, ...rest] = trimmed.split('=');
-    envVars[key.trim()] = rest.join('=').split('#')[0].trim();
-  }
-
-  // ── Trail distances: tight < normal ──
-  const trailDist = parseFloat(envVars.TRAIL_DISTANCE);
-  const tightTrailDist = parseFloat(envVars.TIGHT_TRAIL_DISTANCE);
-  if (!isNaN(trailDist) && !isNaN(tightTrailDist)) {
-    check('numericSanity',
-      `TIGHT_TRAIL_DISTANCE (${tightTrailDist}) < TRAIL_DISTANCE (${trailDist})`,
-      tightTrailDist < trailDist,
-      tightTrailDist < trailDist
-        ? `Correct: tight (${tightTrailDist}) is tighter than normal (${trailDist})`
-        : `INVERTED — "tight" (${tightTrailDist}) is LOOSER than normal (${trailDist})`,
-      `Swap values or reduce TIGHT_TRAIL_DISTANCE below ${trailDist}`
-    );
-  }
-
-  // ── Stop loss < Take profit (absolute values) ──
-  const stopLoss = Math.abs(parseFloat(envVars.STOP_LOSS_PERCENT) || 0);
-  const takeProfit = parseFloat(envVars.TAKE_PROFIT_PERCENT) || 0;
-  if (stopLoss > 0 && takeProfit > 0) {
-    check('numericSanity',
-      `R:R ratio — SL (${stopLoss}%) vs TP (${takeProfit}%)`,
-      takeProfit > stopLoss,
-      takeProfit > stopLoss
-        ? `R:R = 1:${(takeProfit / stopLoss).toFixed(1)}`
-        : `NEGATIVE R:R — stop (${stopLoss}%) is wider than target (${takeProfit}%)`,
-      `Ensure TP > SL for positive expected value`
-    );
-  }
-
-  // ── Check ExitContractManager strategy defaults ──
-  try {
-    const ecmSrc = fs.readFileSync(path.join(ROOT, 'core/ExitContractManager.js'), 'utf8');
-
-    // Extract all strategy contracts
-    const contractRegex = /(\w+):\s*\{([^}]+)\}/g;
-    let match;
-    while ((match = contractRegex.exec(ecmSrc)) !== null) {
-      const strategy = ecmMatch[1];
-      const block = match[2];
-
-      const slMatch = block.match(/stopLossPercent:\s*([-\d.]+)/);
-      const tpMatch = block.match(/takeProfitPercent:\s*([\d.]+)/);
-      const trailMatch = block.match(/trailingStopPercent:\s*([\d.]+)/);
-      const maxHoldMatch = block.match(/maxHoldTimeMinutes:\s*(\d+)/);
-
-      if (slMatch && tpMatch) {
-        const sl = Math.abs(parseFloat(slMatch[1]));
-        const tp = parseFloat(tpMatch[1]);
-        const rr = tp / sl;
-
-        check('numericSanity',
-          `${strategy} contract: SL=${sl}% TP=${tp}% R:R=1:${rr.toFixed(1)}`,
-          rr >= 1.0,
-          rr >= 1.0
-            ? `Positive R:R (1:${rr.toFixed(1)})`
-            : `NEGATIVE R:R — losing more on losers than gaining on winners`,
-          `Increase TP or tighten SL for ${strategy}`
-        );
-
-        // Check TP is achievable on 15m candles
-        if (tp > 2.0) {
-          check('numericSanity',
-            `${strategy} TP (${tp}%) achievable on 15m`,
-            false,
-            `${tp}% TP is unreachable on 15m candles (avg move 0.3-0.8%)`,
-            `Reduce ${strategy} TP to 0.7-1.5% range`
-          );
-        }
-      }
-
-      // Check trailing < TP (trail should be tighter than target)
-      if (trailMatch && tpMatch) {
-        const trail = parseFloat(trailMatch[1]);
-        const tp = parseFloat(tpMatch[1]);
-        check('numericSanity',
-          `${strategy}: trail (${trail}%) < TP (${tp}%)`,
-          trail < tp,
-          trail < tp
-            ? 'Correct — trail is tighter than target'
-            : 'WRONG — trail is wider than TP, will never trigger before TP',
-          `Reduce trail to below ${tp}%`
-        );
-      }
-    }
-  } catch (e) { /* skip if ECM not found */ }
+  if (!JSON_OUT) console.log('  Fee coverage requires a proposed trade size and the selected fee model.');
 }
 
 // ═══════════════════════════════════════════════════════════════

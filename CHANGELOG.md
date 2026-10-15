@@ -1,3 +1,11 @@
+## 2026-10-14 — Legacy Phase 7 diagnostic reads strategy-owned exit configuration
+
+- Problem: two diagnostic sections parsed retired .env trading settings, invented global 15-minute reachability/fee/exit advice, and used an undefined regex match hidden by a catch.
+- Change: read canonical exitContracts through ConfigLoader, check enabled finite tier ordering per strategy, and report raw per-strategy exit numbers without runtime or profitability claims. Remove global exit advice and stale regex readers; preserve JSON-mode output.
+- Verification: syntax and isolated native probe passed against actual canonical file contracts and injected disabled/invalid tier cases, including zero numeric stdout in JSON mode. No production strategy numbers changed and no backtest ran.
+- Review: independent Terra review PASS after fixing its JSON-output finding. Evidence: ogz-meta/inbox/codex/2026-10-15/env-phase7-reader/REVIEW.md and verification.json.
+- Limit: full legacy CLI is not accepted here; unrelated historical source dependencies remain, including its reference to missing core/OptimizedTradingBrain.js. Remaining .env key-inventory/duplicate checks are credential diagnostics, not bot configuration authority. Runtime activation: none; no service reload or resume.
+
 ## 2026-10-14 — Commander reads canonical configuration and reports its limits
 
 - Problem: commander parsed retired .env trading flags and confidence, labeled them active runtime, and read the wrong PM2 process/field shape.
