@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-10-15T05:18:46.451Z",
+  "branch": "codex/archive-legacy-env",
+  "commit": "773020ed51f802ddf5d86485b401f50f61d89237",
+  "gates": [
+    {
+      "id": "scope.pattern_memory.scope_isolation",
+      "layer": "scope",
+      "status": "PASS",
+      "startedAt": "2026-10-15T05:18:46.251Z",
+      "finishedAt": "2026-10-15T05:18:46.352Z",
+      "detail": {
+        "unifiedScopeKey": "backtest:alpaca:acct-main:stocks:TSLA:15m",
+        "patternBankHashDiff": true,
+        "suppressedLogCount": 16
+      }
+    }
+  ],
+  "sourceHashes": {
+    "ogz-meta/gates/multi-runtime-gate-runner.js": "d6fccfd83217805b4828585b3b4c1f99f4ee5943dfb78a5d72f59018997bd0e2",
+    "ogz-meta/gates/eval-live-posture-gate.js": "25f3f3c8f6657c56f4865df080c57bcc9f2c5d9e866be9393feeac53a281de7a",
+    "core/UnifiedPatternMemory.js": "5d745dfadfa494516be1e31fc30da0cf0ae7d485d929d1264ad9b952525dfa7d",
+    "core/PatternMemoryBank.js": "02a9d1c60dce0b2736d9993d008f05ed8ce85b48d8410a31449c5d9447a27707",
+    "foundation/ConfigLoader.js": "6e7f55a7a8a25f54de1b7ebd3359e2b157d44659e13696a45e4d261e810374da",
+    "config/settings.json": "b306f8f1e4a3d0bb3f419f9a71190ef2596a5cf334f73936a8da94c2f81a78fd",
+    "config/internals.json": "ef331f141294908401df7eb048a37791d25ed43e38a0868dac1dd6f397b3b37b"
+  },
+  "scope": "Existing pattern-memory fixture only; no historical candle loop or broker activation"
+}

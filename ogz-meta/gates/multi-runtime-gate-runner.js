@@ -6,6 +6,8 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
+const Module = require('module');
+const vm = require('vm');
 const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -278,6 +280,47 @@ function addTrades(...trades) {
     sm.buildTradeScope(trade, trade?.symbol, 'multi-runtime-gate addTrades');
     sm.state.activeTrades.set(trade.orderId, trade);
   }
+}
+
+function loadScopedUnifiedPatternMemory(patternScope, dataDir) {
+  const ConfigLoader = require('../../foundation/ConfigLoader');
+  const canonicalPatternMemory = ConfigLoader.getConfigFileValue('patternMemory');
+  const patternMemory = {
+    ...canonicalPatternMemory,
+    persistToDisk: false,
+    minSamples: 1,
+    successThreshold: 0.6
+  };
+  const runtimeConfig = {
+    mode: { execution: 'backtest', backtest: true },
+    internals: { patternMemory: { saveInBacktest: false } },
+    execution: {
+      tradingPair: patternScope.symbol,
+      assetClass: patternScope.assetClass,
+      brokerId: patternScope.brokerId,
+      accountId: patternScope.accountId,
+      candleTimeframe: patternScope.timeframe
+    },
+    paths: { dataDir }
+  };
+  const configFacade = Object.freeze({
+    load: () => ({ config: runtimeConfig }),
+    getSection: (section) => section === 'patternMemory' ? { ...patternMemory } : undefined
+  });
+  const filename = path.join(REPO_ROOT, 'core', 'UnifiedPatternMemory.js');
+  const source = fs.readFileSync(filename, 'utf8');
+  const isolatedModule = { exports: {} };
+  const localRequire = Module.createRequire(filename);
+  const wrapped = vm.runInThisContext(Module.wrap(source), { filename });
+  wrapped.call(
+    isolatedModule.exports,
+    isolatedModule.exports,
+    (request) => request === '../foundation/ConfigLoader' ? configFacade : localRequire(request),
+    isolatedModule,
+    filename,
+    path.dirname(filename)
+  );
+  return isolatedModule.exports;
 }
 
 const GATES = [
@@ -606,26 +649,12 @@ const GATES = [
     layer: 'scope',
     description: 'Pattern memory public APIs require compatible immutable scope and reject unscoped learned-state paths.',
     run: () => withQuietConsole(async () => {
-      const { UnifiedPatternMemory, computeSignature } = require('../../core/UnifiedPatternMemory');
-      const PatternMemoryBank = require('../../core/PatternMemoryBank');
-      const previousEnv = {
-        BACKTEST_MODE: process.env.BACKTEST_MODE,
-        CANDLE_DATA_FILE: process.env.CANDLE_DATA_FILE,
-        BACKTEST_NO_PATTERN_SAVE: process.env.BACKTEST_NO_PATTERN_SAVE,
-        DATA_DIR: process.env.DATA_DIR
-      };
-      process.env.BACKTEST_MODE = 'true';
-      process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
-      process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
-      process.env.DATA_DIR = path.join(os.tmpdir(), `pattern-bank-gate-root-${Date.now()}`);
-
+      const patternMemoryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pattern-memory-gate-'));
       try {
+        const { UnifiedPatternMemory, computeSignature } = loadScopedUnifiedPatternMemory(patternScope(), patternMemoryDataDir);
+        const PatternMemoryBank = require('../../core/PatternMemoryBank');
         const features = patternFeatures();
-        const memory = new UnifiedPatternMemory({
-          persistToDisk: false,
-          minSamples: 1,
-          successThreshold: 0.6
-        });
+        const memory = new UnifiedPatternMemory();
 
         assert.strictEqual(memory.recordOutcome(features, {
           ...patternScope(),
@@ -655,7 +684,8 @@ const GATES = [
           scopeKey: 'backtest:alpaca:acct-main:stocks:SPY:15m'
         })), null, 'mismatched-scopeKey read must reject');
 
-        memory.patterns[computeSignature(features)] = {
+        const detachedSnapshot = memory.patterns;
+        detachedSnapshot[computeSignature(features)] = {
           signature: computeSignature(features),
           features: [...features],
           status: 'promoted',
@@ -670,10 +700,12 @@ const GATES = [
           lastOutcome: Date.now(),
           outcomes: [{ timestamp: Date.now(), pnl: 1, isWin: true }]
         };
+        assert.strictEqual(memory.patterns[computeSignature(features)], undefined,
+          'detached pattern snapshots must not inject unscoped rows');
         assert.strictEqual(
           memory.getConfidence(features, patternScope()).stats.scopeKey,
           'backtest:alpaca:acct-main:stocks:TSLA:15m',
-          'legacy unscoped exact key must not satisfy scoped reads'
+          'detached pattern snapshot mutation must not change scoped learned data'
         );
 
         assert.strictEqual(memory.getConfidence(features, patternScope({
@@ -699,6 +731,7 @@ const GATES = [
         assert.throws(
           () => new PatternMemoryBank({
             ...patternScope(),
+            dataDir: patternMemoryDataDir,
             dbPath: path.join(os.tmpdir(), `pattern-bank-gate-outside-${Date.now()}.json`),
             featureFlags: {
               PATTERN_MEMORY_PARTITION: {
@@ -713,7 +746,8 @@ const GATES = [
         assert.throws(
           () => new PatternMemoryBank({
             ...patternScope(),
-            dbPath: path.join(process.env.DATA_DIR, '..', `pattern-bank-gate-escaped-${Date.now()}.json`),
+            dataDir: patternMemoryDataDir,
+            dbPath: path.join(patternMemoryDataDir, '..', `pattern-bank-gate-escaped-${Date.now()}.json`),
             featureFlags: {
               PATTERN_MEMORY_PARTITION: {
                 settings: { backtestPersist: false }
@@ -727,6 +761,7 @@ const GATES = [
         assert.throws(
           () => new PatternMemoryBank({
             ...patternScope(),
+            dataDir: patternMemoryDataDir,
             featureFlags: {
               PATTERN_MEMORY_PARTITION: {
                 settings: {
@@ -742,7 +777,8 @@ const GATES = [
 
         const bank = new PatternMemoryBank({
           ...patternScope(),
-          dbPath: path.join(process.env.DATA_DIR, `pattern-bank-gate-${Date.now()}.json`),
+          dataDir: patternMemoryDataDir,
+          dbPath: path.join(patternMemoryDataDir, `pattern-bank-gate-${Date.now()}.json`),
           featureFlags: {
             PATTERN_MEMORY_PARTITION: {
               settings: { backtestPersist: false }
@@ -894,10 +930,7 @@ const GATES = [
           patternBankHashDiff: true
         };
       } finally {
-        for (const [key, value] of Object.entries(previousEnv)) {
-          if (value === undefined) delete process.env[key];
-          else process.env[key] = value;
-        }
+        fs.rmSync(patternMemoryDataDir, { recursive: true, force: true });
       }
     })
   },

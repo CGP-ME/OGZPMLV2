@@ -1,3 +1,13 @@
+## 2026-10-14 — Reconciled pattern-isolation fixture with current configuration constructor
+
+Problem: the existing pattern scope check set retired env values and passed constructor options that UnifiedPatternMemory does not consume. It could load real learned state while pretending to be isolated; its unscoped-row test mutated only a detached snapshot.
+
+Change: the existing fixture now loads the real class with a local ConfigLoader dependency supplying canonical pattern settings plus explicit test-only scope/storage, without changing shared config cache or process env. All bank instances use its unique temporary directory, removed in finally. Its snapshot assertion now verifies the actual detached-snapshot contract. No production learning behavior or real backtest bank/export policy changed.
+
+Verification: the real `node ogz-meta/gates/multi-runtime-gate-runner.js --gate scope.pattern_memory.scope_isolation` command passed after the eval-reader dependency repair. Independent Terra review caught missing temporary-directory cleanup; that was fixed, reviewed, and the real command passed again. Final receipt and source hashes: `ogz-meta/inbox/codex/2026-10-15/env-pattern-fixture/focused-result.json`; review: `REVIEW.md`. Mercury returned cannot_verify because its source selection did not expose this tool change; no clean Mercury claim.
+
+Limits/runtime: focused fixture only, no historical backtest or service restart. Tests use a disposable directory, never a real learned bank. Trey subsequently clarified that real backtests must learn from clean state and support explicit symbol-pack exports; that separate requirement is preserved for the pattern-memory stop.
+
 ## 2026-10-14 — Reconciled eval diagnostic computed configuration readers
 
 Problem: the eval helper could not even import because it read confidence from a removed settings-root path. Its computed env checks, tuning overlay, guessed state path, and broker-mode fallback still consulted retired configuration; the pattern-scope fixture imported this broken helper too.
