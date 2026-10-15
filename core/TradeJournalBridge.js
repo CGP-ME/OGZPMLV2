@@ -31,8 +31,6 @@ const ConfigLoader = require('../foundation/ConfigLoader');  // CHANGE 2026-02-2
 const { normalizePatternScope, requirePatternScope } = require('./PatternScope');
 const { emitTrace } = require('./TraceSpine');
 
-const JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE = 'journal_persistence_down';
-const JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD = 3;
 const JOURNAL_WRITE_ERROR_CODES = new Set([
   'EACCES',
   'EBUSY',
@@ -1280,7 +1278,7 @@ class TradeJournalBridge {
   _recordJournalPersistenceFailure(record, err) {
     if (record?.journalPersistenceFailureRecorded === true) {
       return {
-        paused: false,
+        tradingAction: 'none',
         alreadyRecorded: true,
         failureStreak: this._journalPersistenceFailureStreak,
       };
@@ -1293,78 +1291,44 @@ class TradeJournalBridge {
       : 1;
     record.journalPersistenceFailureStreak = this._journalPersistenceFailureStreak;
     record.journalPersistenceErrorCode = nonEmptyStringOrNull(err?.code);
+    record.journalPersistenceStatus = 'failed';
 
-    if (this._journalPersistenceFailureStreak < JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD) {
-      return { paused: false, failureStreak: this._journalPersistenceFailureStreak };
-    }
-    if (this._journalPersistenceFailureStreak > JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD) {
-      return { paused: false, alreadyPaused: true, failureStreak: this._journalPersistenceFailureStreak };
-    }
-
-    const stateManager = this.bot?.stateManager;
-    const reason = `[TradeJournalBridge] journal persistence failed ${this._journalPersistenceFailureStreak} consecutive time(s); new entries halted until a journal write succeeds`;
-    emitTrace(this.bot || {}, 'TRADE_JOURNAL_INFRASTRUCTURE_HALTED', {
+    const reason = `[TradeJournalBridge] journal persistence failed ${this._journalPersistenceFailureStreak} consecutive time(s): ${errorMessageOrNull(err) || 'unknown error'}`;
+    console.error(reason);
+    emitTrace(this.bot || {}, 'TRADE_JOURNAL_PERSISTENCE_FAILED', {
       symbol: record.context?.entry?.symbol || record.context?.exitRecord?.symbol || record.scope?.symbol || null,
       orderId: record.orderId,
       action: record.action,
       phase: record.phase,
-      source: JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE,
+      source: record.source || 'TradeJournalBridge',
       reason,
       failureStreak: this._journalPersistenceFailureStreak,
       journalStatus: 'infrastructure_down',
+      trustStatus: 'untrusted',
       manualReconciliationRequired: true,
+      tradingAction: 'none',
     });
-
-    if (!stateManager || typeof stateManager.pauseTrading !== 'function') {
-      console.error(`${reason}; StateManager.pauseTrading unavailable`);
-      return { paused: false, reason: 'pause_trading_unavailable', failureStreak: this._journalPersistenceFailureStreak };
-    }
-
-    Promise.resolve(stateManager.pauseTrading(reason, {
-      source: JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE,
-      recoverable: true,
-    })).catch((pauseErr) => {
-      console.error(`[TradeJournalBridge] journal infrastructure entry halt failed: ${pauseErr.message}`);
-    });
-    return { paused: true, failureStreak: this._journalPersistenceFailureStreak };
+    return { tradingAction: 'none', failureStreak: this._journalPersistenceFailureStreak };
   }
 
   _recordJournalPersistenceSuccess(context = {}) {
     if (!Number.isInteger(this._journalPersistenceFailureStreak) || this._journalPersistenceFailureStreak === 0) {
-      return { resumed: false, reason: 'no_failure_streak' };
+      return { tradingAction: 'none', reason: 'no_failure_streak' };
     }
 
     const previousStreak = this._journalPersistenceFailureStreak;
     this._journalPersistenceFailureStreak = 0;
-    if (previousStreak < JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD) {
-      return { resumed: false, reason: 'threshold_not_reached', previousStreak };
-    }
-
-    const stateManager = this.bot?.stateManager;
-    if (!stateManager || typeof stateManager.resumeTradingIfPausedBy !== 'function') {
-      return { resumed: false, reason: 'resume_if_paused_unavailable', previousStreak };
-    }
-
-    Promise.resolve(stateManager.resumeTradingIfPausedBy(JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE, {
-      resumeSource: 'journal_persistence_recovered',
-      reason: 'journal write succeeded after infrastructure failure',
-    })).then((result) => {
-      if (result?.resumed === true) {
-        emitTrace(this.bot || {}, 'TRADE_JOURNAL_INFRASTRUCTURE_RECOVERED', {
-          symbol: context.symbol || null,
-          orderId: context.orderId || null,
-          action: context.action || null,
-          phase: context.phase || null,
-          source: context.source || null,
-          previousFailureStreak: previousStreak,
-          reason: 'journal write succeeded after infrastructure failure',
-        });
-      }
-    }).catch((resumeErr) => {
-      console.error(`[TradeJournalBridge] journal infrastructure resume failed: ${resumeErr.message}`);
+    emitTrace(this.bot || {}, 'TRADE_JOURNAL_PERSISTENCE_RECOVERED', {
+      symbol: context.symbol || null,
+      orderId: context.orderId || null,
+      action: context.action || null,
+      phase: context.phase || null,
+      source: context.source || 'TradeJournalBridge',
+      previousFailureStreak: previousStreak,
+      reason: 'journal write succeeded after persistence failure',
+      tradingAction: 'none',
     });
-
-    return { resumed: true, previousStreak };
+    return { tradingAction: 'none', previousFailureStreak: previousStreak };
   }
 
   _markVisibilityPersistenceFailureAlert(record) {

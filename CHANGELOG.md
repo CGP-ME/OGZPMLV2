@@ -1,3 +1,11 @@
+## 2026-10-15 — Journal persistence errors no longer control trading
+
+- Ruling: journal write failure must fail loudly and must not pause or resume trading. The old bridge paused after three failed writes and resumed after a later successful write.
+- Change: remove both trading-control calls and their threshold/source authority. Preserve failure status, error code, streak, trace evidence and loud errors; successful writes only report recovery. Loading saved state clears a retired journal_persistence_down pause without clearing independent failure evidence or manual/session pauses.
+- Verification: exact candidate fc08cb04 helper probes passed multiple failures across the retired threshold, duplicate-record handling, recovery and zero pause/resume calls. Actual StateManager fixture passed journal-pause retirement with failure evidence retained and manual/session pauses preserved. Root corrected the fixture to compile the exact candidate directly after Astra found a stale edits.json assumption; the corrected pinned probe passed. No real journal write or service command was used by these probes.
+- Review: Mercury objected to removing the safety pause, which is precisely Trey's authorized behavior. Astra independently reviewed against that ruling and returned GO; reviewed source and limits are in ogz-meta/inbox/codex/2026-10-15/journal-no-trading-authority/REVIEW-ASTRA.md. No clean Mercury verdict is claimed.
+- Activation: no PM2 reload or resume. Separate unrelated verification of the generic-risk change accidentally imported StateManager and saved real paper state; that incident is recorded separately and prevents claiming that all work this session was state-isolated. The journal-specific probes used disposable fixture state. Existing dirty work remains separate.
+
 ## 2026-10-15 — Removed the independent isTrading enable requirement
 
 - Problem: persisted isTrading and paper-only initialization could veto entries despite selecting paper/live, with no deliberate pause. The earlier fresh-paper-only fix had not removed this authority.

@@ -1,0 +1,8 @@
+{
+  "base": "8c917c88b7171d1c15f855904c94ed5ab5ab0181",
+  "candidate": "fc08cb047c017891ed7ca79bc21972b712376233",
+  "files": [
+    "core/TradeJournalBridge.js",
+    "core/StateManager.js"
+  ]
+}

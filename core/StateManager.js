@@ -4354,6 +4354,19 @@ class StateManager {
           this.state.lastError = null;
           correctedStateShape = true;
         }
+        if (this.state.pauseSource === 'journal_persistence_down') {
+          this.state.pauseReason = null;
+          this.state.pauseSource = null;
+          this.state.pauseRecoverable = false;
+          this.state.pauseScope = null;
+          this.state.pausedAt = null;
+          if (typeof this.state.lastError === 'string'
+            && this.state.lastError.startsWith('[TradeJournalBridge] journal persistence failed ')) {
+            this.state.lastError = null;
+          }
+          correctedStateShape = true;
+          console.error('[StateManager] Retired journal-generated trading pause; journal failure evidence remains recorded.');
+        }
         if (!this.state.symbolEntryHalts || typeof this.state.symbolEntryHalts !== 'object' || Array.isArray(this.state.symbolEntryHalts)) {
           this.state.symbolEntryHalts = {};
         } else {

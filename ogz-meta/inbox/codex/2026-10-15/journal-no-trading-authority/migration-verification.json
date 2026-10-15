@@ -1,0 +1,9 @@
+{
+  "pass": true,
+  "checks": [
+    "stored journal pause cleared without a journal write or resume call",
+    "manual and session pauses preserved",
+    "failure evidence preserved"
+  ],
+  "source": "fc08cb047c017891ed7ca79bc21972b712376233"
+}
