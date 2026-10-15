@@ -1,0 +1,32 @@
+{
+  "bot": {
+    "fingerprint": "88b2ae90eb28b337c37049e7feb4f3c06bc48b860e589124d8cb4bca2577e654",
+    "archivedEnvPoisonTestPassed": true,
+    "sourceCount": 2623,
+    "errors": []
+  },
+  "dashboard": {
+    "fingerprint": "6696366f8688f3e080ffd5787066e3ca0bb9c9f44b925d1e5f9509180598faf4",
+    "archivedEnvPoisonTestPassed": true,
+    "sourceCount": 122,
+    "errors": []
+  },
+  "checkout": {
+    "fingerprint": "c5144a54daccd5199efbc79d60b43673b785598c1b3ced92aac52963923c8a32",
+    "archivedEnvPoisonTestPassed": true,
+    "sourceCount": 12,
+    "errors": []
+  },
+  "supervisor": {
+    "fingerprint": "c443704bc5db7a4770adc6597b7788aefc7daf5eb6bd48859e249df033f2eaf8",
+    "archivedEnvPoisonTestPassed": true,
+    "sourceCount": 27,
+    "errors": []
+  },
+  "market-data-tool": {
+    "fingerprint": "d8668bde350fa4e50b21264eb9be1105da5e2265779d76a9737f04dbfb8838be",
+    "archivedEnvPoisonTestPassed": true,
+    "sourceCount": 58,
+    "errors": []
+  }
+}
