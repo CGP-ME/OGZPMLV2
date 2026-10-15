@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-10-15T00:25:36.004272+00:00",
+  "pid": 2895852,
+  "profile": "paper",
+  "balance": 10000,
+  "activeTrades": 0,
+  "closedTrades": 0,
+  "isTrading": true,
+  "pauseReason": null,
+  "session": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "crypto",
+    "brokerId": "kraken",
+    "symbols": [
+      "BTC-USD"
+    ],
+    "epoch": 213,
+    "lastEvent": "SESSION_TARGET_ACTIVATED"
+  },
+  "dashboardConnected": true,
+  "krakenConnected": true,
+  "paperStateArchived": true,
+  "transitionHistoryAndBrokerIntentsPreserved": true,
+  "journalReconciledOldPaperEntry": true,
+  "limits": [
+    "No completed new trade or scheduled transfer verified.",
+    "Startup logged dropped 30m and 1d non-active-timeframe payloads; not investigated in this reset.",
+    "Restored-position startup restriction is unchanged; clearing paper state is not a code fix."
+  ],
+  "mercuryIndex": {
+    "lastRecordedRun": "2026-10-03T03:26:00.549Z",
+    "activeChunkCount": 0,
+    "reindexedThisTask": false
+  }
+}
