@@ -1,3 +1,10 @@
+## 2026-10-14 — Reconciled env-reader census with delivered fixes and remaining limits
+
+- Updated the original 184-name source census with the raw dotenv/text readers missed by the initial literal search, their delivered corrections, current source hashes, and exact scope exclusions. No remaining archived-name reader was identified in that static scope; this is not runtime proof or whole Stop1 acceptance.
+- Cross-checked the receipt against the committed reviews and focused results. Replaced stale proposal references with delivered evidence; retained the computed-access limitations rather than promoting a static zero to runtime absence.
+- Evidence: ogz-meta/inbox/codex/2026-10-15/env-reader-census/SUMMARY.md and RECEIPT.json. Remaining items explicitly include held service reloads, the full old diagnostic's missing source dependency, unresolved live immediate exits, inherited dirty production work, and deferred backtest/pattern behavior.
+- Documentation only. No environment values, credentials, raw process evidence, or unrelated files included; no service activation.
+
 ## 2026-10-14 — Recorded pattern-learning isolation and recovery ruling
 
 - Trey clarified that backtests start without an inherited learning bank but must learn during each run and support explicit symbol-pack export for premium distribution. Crypto and stocks learning/state must stay separate through manual and SessionRouter broker shifts, with snapshots/backups or equivalent recoverability against contamination.
