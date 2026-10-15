@@ -1,3 +1,13 @@
+## 2026-10-14 — Reconciled eval diagnostic computed configuration readers
+
+Problem: the eval helper could not even import because it read confidence from a removed settings-root path. Its computed env checks, tuning overlay, guessed state path, and broker-mode fallback still consulted retired configuration; the pattern-scope fixture imported this broken helper too.
+
+Change: use the production profile's canonical confidence owner, retain PROFILE as bootstrap, replace the old exact env requirements with their corresponding canonical checks (six stock-sizing equivalents were missing), and replace the old confidence process-env provenance check with its actual profile source. Remove the unused tuning overlay and phantom trai.vetoPower assertion; passive TRAI/live-mode requirements remain. State and broker exposure inspection use the validated snapshot. Snapshot failure stays FAIL and does not consult obsolete env fallback paths. The broker reader callback now takes that snapshot as its first argument; repository consumers were checked.
+
+Verification: actual-loader/native probe passed for paper-not-live readiness, canonical confidence/source, poisoned retired env isolation, preserved backtest-profile rejection, no raw recovery reads, and canonical paper HTTP request construction through a stub. The real pattern-scope CLI imports successfully. Independent Terra review found no weakened live-posture check. Mercury returned cannot_verify because its source selection exposed no changed gate code; no clean Mercury claim. Evidence: `ogz-meta/inbox/codex/2026-10-15/env-eval-reader/{REVIEW.md,verification.json,fixtures/probe.cjs,candidate.json}`.
+
+Limits/runtime: existing old Jest env-driven live-PASS fixtures are not current acceptance evidence. No broker HTTP, historical backtest, live activation, new trading gate, new throw, or PM2 reload. This offline diagnostic deliberately does not certify the current paper/scheduled profile as eval-live ready. Reloads remain held.
+
 ## 2026-10-14 — Reconciled standalone diagnostic with canonical configuration readers
 
 Problem: the old diagnostic still read retired env settings, overrode every strategy with global stops/targets, forced a first-tier full close, passed obsolete constructor/evaluate arguments, and calculated fees from a single synthetic percentage. Merely archiving env would leave this executable consumer inconsistent.

@@ -10,41 +10,17 @@ const dotenv = require('dotenv');
 const ConfigLoader = require('../../foundation/ConfigLoader');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const EVAL_MIN_TRADE_CONFIDENCE = ConfigLoader.getConfigFileValue('confidence.minTradeConfidence');
+const EVAL_LAUNCH_PROFILE = 'production';
+const EVAL_MIN_TRADE_CONFIDENCE = ConfigLoader.getConfigFileValue(
+  `launchProfiles.${EVAL_LAUNCH_PROFILE}.confidence.minTradeConfidence`
+);
 if (!Number.isFinite(EVAL_MIN_TRADE_CONFIDENCE)) {
-  throw new Error('ConfigLoader confidence.minTradeConfidence file value must be a finite number');
+  throw new Error(`ConfigLoader launchProfiles.${EVAL_LAUNCH_PROFILE}.confidence.minTradeConfidence file value must be a finite number`);
 }
-const TUNING_PROFILE_DEFINITIONS = ConfigLoader.getConfigFileValue('tuningProfiles.definitions') || {};
 
 const REQUIRED_ENV_EXACT = Object.freeze({
-  PROFILE: 'production',
-  WEBHOOK_ORDERS_ENABLED: 'true',
-  WEBHOOK_DRY_RUN: 'false',
-  MIN_TRADE_CONFIDENCE: String(EVAL_MIN_TRADE_CONFIDENCE),
-  EVAL_RULES_ENABLED: 'true',
-  TTP_RULES_ENABLED: 'true',
-  TTP_VOLUME_CAP_ENABLED: 'true',
-  TTP_VOLUME_CAP_TIMEFRAME: '1m',
-  TTP_MARKET_TIME_ENABLED: 'true',
-  TTP_BLOCK_ENTRIES_AFTER_CUTOFF: 'true',
-  TTP_LIQUIDATION_ENABLED: 'true',
-  TTP_ACCOUNT_LIMITS_ENABLED: 'true',
-  TTP_DAILY_LOSS_PAUSE_ENABLED: 'true',
-  TTP_MAX_LOSS_ENABLED: 'true',
-  TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
-  TTP_EARNINGS_BLOCK_ENTRIES: 'true',
-  TTP_CONSISTENCY_ENABLED: 'true',
-  ENTRY_STOCK_SHARE_RANGE_ENABLED: 'true',
-  ENTRY_MIN_STOCK_SHARES: '2',
-  ENTRY_MAX_STOCK_SHARES: '0',
-  ENTRY_MAX_STOCK_NOTIONAL: '5000',
-  ENTRY_CONSISTENCY_CAP_BUFFER: '0.98',
-  ENTRY_DAILY_LOSS_RISK_FRACTION: '1.0',
+  PROFILE: EVAL_LAUNCH_PROFILE,
 });
-
-const REQUIRED_ENV_PROCESS_SOURCE = Object.freeze([
-  'MIN_TRADE_CONFIDENCE',
-]);
 
 const REQUIRED_CONFIG_EXACT = Object.freeze({
   'mode.execution': 'live',
@@ -61,7 +37,6 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'confidence.minTradeConfidence': EVAL_MIN_TRADE_CONFIDENCE,
   'trai.enabled': true,
   'trai.mode': 'passive',
-  'trai.vetoPower': false,
   'sessionRouter.mode': 'static',
   'sessionRouter.staticSession': 'stocks',
   'evalRules.enabled': true,
@@ -77,6 +52,12 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'evalRules.ttp.earningsRestriction.enabled': true,
   'evalRules.ttp.earningsRestriction.blockEntries': true,
   'evalRules.ttp.consistency.enabled': true,
+  'entryLogic.sizing.stockShareRange.enabled': true,
+  'entryLogic.sizing.stockShareRange.minShares': 2,
+  'entryLogic.sizing.stockShareRange.maxShares': 0,
+  'entryLogic.sizing.stockShareRange.maxNotionalUsd': 5000,
+  'entryLogic.sizing.stockShareRange.consistencyCapBuffer': 0.98,
+  'entryLogic.sizing.stockShareRange.dailyLossRiskFraction': 1,
 });
 
 const REQUIRED_CONFIG_PRESENT = Object.freeze([
@@ -98,11 +79,6 @@ const REQUIRED_NUMERIC_CONFIG = Object.freeze([
   'evalRules.ttp.consistency.maxPositionProfitRatio',
   'evalRules.ttp.consistency.profitTargetDollars',
   'evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio',
-]);
-
-const RUNTIME_PROFILE_KEYS = Object.freeze([
-  'RUNTIME_TUNING_PROFILE',
-  'TUNING_PROFILE',
 ]);
 
 function hasOwn(obj, key) {
@@ -149,20 +125,6 @@ function buildEffectiveEnv(sourceEnv = process.env, options = {}) {
   }
   for (const key of Object.keys(baseEnv)) {
     sources[key] = `env:${key}`;
-  }
-
-  const profileKey = values.BACKTEST_TUNING_PROFILE
-    ? 'BACKTEST_TUNING_PROFILE'
-    : (values.TUNING_PROFILE ? 'TUNING_PROFILE' : null);
-  if (profileKey) {
-    const profileName = String(values[profileKey] || '').trim();
-    const profile = TUNING_PROFILE_DEFINITIONS[profileName];
-    if (profile && profile.env) {
-      for (const [key, value] of Object.entries(profile.env)) {
-        values[key] = String(value);
-        sources[key] = `profile:${profileName}:${key}`;
-      }
-    }
   }
 
   return {
@@ -214,25 +176,7 @@ function resolveRepoPath(filePath) {
 }
 
 function runtimeStateFilePath(config) {
-  const configuredStateFile = getPath(config, 'paths.stateFile');
-  if (configuredStateFile) return resolveRepoPath(configuredStateFile);
-
-  const configuredDataDir = getPath(config, 'paths.dataDir');
-  const dataDir = configuredDataDir
-    ? resolveRepoPath(configuredDataDir)
-    : path.join(REPO_ROOT, 'data');
-  return path.join(dataDir, 'state.json');
-}
-
-function runtimeStateFilePathFromEnv(effectiveEnv) {
-  const configuredStateFile = effectiveEnv.values.STATE_FILE;
-  if (configuredStateFile) return resolveRepoPath(configuredStateFile);
-
-  const configuredDataDir = effectiveEnv.values.DATA_DIR;
-  const dataDir = configuredDataDir
-    ? resolveRepoPath(configuredDataDir)
-    : path.join(REPO_ROOT, 'data');
-  return path.join(dataDir, 'state.json');
+  return resolveRepoPath(getPath(config, 'paths.stateFile'));
 }
 
 function normalizeSerializedActiveTrades(activeTrades) {
@@ -307,13 +251,12 @@ function normalizeBrokerPosition(position) {
   };
 }
 
-async function readAlpacaPositions(effectiveEnv, configSnapshot) {
-  const values = effectiveEnv.values;
-  const brokerConfig = configSnapshot?.config?.broker || null;
-  const brokerSources = configSnapshot?.sources || {};
-  const apiKey = brokerConfig ? brokerConfig.alpacaApiKey : values.ALPACA_API_KEY;
-  const apiSecret = brokerConfig ? brokerConfig.alpacaApiSecret : values.ALPACA_API_SECRET;
-  const modeRaw = brokerConfig ? configSnapshot.config.execution.brokerMode : values.ALPACA_MODE;
+async function readAlpacaPositions(configSnapshot) {
+  const brokerConfig = configSnapshot.config.broker;
+  const brokerSources = configSnapshot.sources;
+  const apiKey = brokerConfig.alpacaApiKey;
+  const apiSecret = brokerConfig.alpacaApiSecret;
+  const modeRaw = configSnapshot.config.execution.brokerMode;
   const mode = modeRaw ? String(modeRaw).trim().toLowerCase() : '';
 
   if (!apiKey) {
@@ -323,17 +266,15 @@ async function readAlpacaPositions(effectiveEnv, configSnapshot) {
     throw new Error('ALPACA_API_SECRET must be explicitly set for broker exposure reconciliation');
   }
   if (mode !== 'paper' && mode !== 'live') {
-    throw new Error(`ALPACA_MODE must be explicitly set to paper or live for broker exposure reconciliation, got ${mode || 'missing'}`);
+    throw new Error(`execution.brokerMode must be explicitly set to paper or live for broker exposure reconciliation, got ${mode || 'missing'}`);
   }
-  if (brokerConfig) {
-    for (const [pathName, source] of Object.entries({
-      'broker.alpacaApiKey': brokerSources['broker.alpacaApiKey'],
-      'broker.alpacaApiSecret': brokerSources['broker.alpacaApiSecret'],
-      'execution.brokerMode': brokerSources['execution.brokerMode'],
-    })) {
-      if (!source || source === 'default') {
-        throw new Error(`${pathName} must be explicitly sourced for broker exposure reconciliation`);
-      }
+  for (const [pathName, source] of Object.entries({
+    'broker.alpacaApiKey': brokerSources['broker.alpacaApiKey'],
+    'broker.alpacaApiSecret': brokerSources['broker.alpacaApiSecret'],
+    'execution.brokerMode': brokerSources['execution.brokerMode'],
+  })) {
+    if (!source || source === 'default') {
+      throw new Error(`${pathName} must be explicitly sourced for broker exposure reconciliation`);
     }
   }
 
@@ -374,18 +315,17 @@ function expectEnvExact(report, key, expected) {
   }
 }
 
-function expectEnvProcessSource(report, key) {
-  const source = report.effectiveEnv.sources[key] || 'missing';
-  const existing = report.checked.env[key] || {
-    value: report.effectiveEnv.values[key] === undefined ? null : String(report.effectiveEnv.values[key]),
+function expectCanonicalConfidenceOwner(report) {
+  const configPath = 'confidence.minTradeConfidence';
+  const expectedSource = `config:settings.json:launchProfiles.${EVAL_LAUNCH_PROFILE}.confidence.minTradeConfidence`;
+  const source = report.configSnapshot.sources[configPath] || 'missing';
+  const existing = report.checked.config[configPath] || {
+    value: getPath(report.configSnapshot.config, configPath),
     source,
   };
-  report.checked.env[key] = { ...existing, source };
-
-  const selectedProfileSource = /^profile:[^:]+:[A-Z0-9_]+$/.test(String(source || '')) &&
-    source.endsWith(`:${key}`);
-  if (source !== `env:${key}` && !selectedProfileSource) {
-    addError(report.errors, `${key} must come from process env or selected tuning profile for eval-live posture, got ${source}`);
+  report.checked.config[configPath] = { ...existing, source };
+  if (source !== expectedSource) {
+    addError(report.errors, `${configPath} must come from ${expectedSource}, got ${source}`);
   }
 }
 
@@ -524,13 +464,6 @@ function validateTtpCrossChecks(report) {
   }
 }
 
-function selectedRuntimeProfileName(effectiveEnv) {
-  for (const key of RUNTIME_PROFILE_KEYS) {
-    if (effectiveEnv.values[key]) return String(effectiveEnv.values[key]);
-  }
-  return null;
-}
-
 function validateRuntimeProfile(report) {
   const backtestProfile = report.effectiveEnv.values.BACKTEST_TUNING_PROFILE;
   if (backtestProfile) {
@@ -539,18 +472,6 @@ function validateRuntimeProfile(report) {
       source: report.effectiveEnv.sources.BACKTEST_TUNING_PROFILE || 'env:BACKTEST_TUNING_PROFILE',
     };
     addError(report.errors, `BACKTEST_TUNING_PROFILE must not be set for eval-live posture, got ${backtestProfile}`);
-  }
-
-  const profileName = selectedRuntimeProfileName(report.effectiveEnv);
-  report.checked.profile.selectedRuntimeProfile = profileName;
-  if (!profileName) return;
-
-  let profile;
-  try {
-    profile = ConfigLoader.resolveTuningProfile(profileName);
-  } catch (error) {
-    addError(report.errors, `Runtime tuning profile '${profileName}' failed to resolve: ${error.message}`);
-    return;
   }
 }
 
@@ -576,9 +497,6 @@ function validateEvalLivePosture(sourceEnv = process.env, options = {}) {
   for (const [key, expected] of Object.entries(REQUIRED_ENV_EXACT)) {
     expectEnvExact(report, key, expected);
   }
-  for (const key of REQUIRED_ENV_PROCESS_SOURCE) {
-    expectEnvProcessSource(report, key);
-  }
 
   try {
     report.configSnapshot = loadConfigSnapshot(sourceEnv, options);
@@ -593,6 +511,7 @@ function validateEvalLivePosture(sourceEnv = process.env, options = {}) {
     for (const [configPath, expected] of Object.entries(REQUIRED_CONFIG_EXACT)) {
       expectConfigExact(report, configPath, expected);
     }
+    expectCanonicalConfidenceOwner(report);
     for (const configPath of REQUIRED_CONFIG_PRESENT) {
       expectConfigPresent(report, configPath);
     }
@@ -624,32 +543,19 @@ async function validateEvalLiveReadiness(sourceEnv = process.env, options = {}) 
     brokerPositions: [],
   };
 
-  let effectiveEnv;
   let configSnapshot;
   try {
-    effectiveEnv = buildEffectiveEnv(sourceEnv, options);
+    configSnapshot = loadConfigSnapshot(sourceEnv, options);
   } catch (error) {
-    addError(report.errors, `Runtime exposure reconciliation could not load env: ${error.message}`);
+    addError(report.errors, `Runtime exposure reconciliation could not load canonical config: ${error.message}`);
     report.status = 'FAIL';
     return report;
   }
 
-  try {
-    configSnapshot = loadConfigSnapshot(sourceEnv, options);
-  } catch (error) {
-    addError(report.errors, `Runtime exposure reconciliation continuing without config snapshot: ${error.message}`);
-  }
-
-  report.checked.runtimeExposure.configSnapshotLoaded = Boolean(configSnapshot);
-  const stateFileSource = configSnapshot
-    ? (configSnapshot.sources['paths.stateFile'] || 'missing')
-    : (effectiveEnv.sources.STATE_FILE ? effectiveEnv.sources.STATE_FILE.replace('STATE_FILE', 'paths.stateFile') : 'missing');
-  const configuredStateFile = configSnapshot
-    ? getPath(configSnapshot.config, 'paths.stateFile')
-    : effectiveEnv.values.STATE_FILE;
-  const resolvedStateFile = configSnapshot
-    ? runtimeStateFilePath(configSnapshot.config)
-    : runtimeStateFilePathFromEnv(effectiveEnv);
+  report.checked.runtimeExposure.configSnapshotLoaded = true;
+  const stateFileSource = configSnapshot.sources['paths.stateFile'] || 'missing';
+  const configuredStateFile = getPath(configSnapshot.config, 'paths.stateFile');
+  const resolvedStateFile = runtimeStateFilePath(configSnapshot.config);
   report.checked.runtimeExposure.stateFile = {
     path: resolvedStateFile,
     source: stateFileSource,
@@ -679,7 +585,7 @@ async function validateEvalLiveReadiness(sourceEnv = process.env, options = {}) 
 
   try {
     const readBrokerPositions = brokerPositionReader(options);
-    const positions = await readBrokerPositions(effectiveEnv, configSnapshot);
+    const positions = await readBrokerPositions(configSnapshot);
     if (!Array.isArray(positions)) {
       throw new Error(`broker position reader must return an array, got ${typeof positions}`);
     }

@@ -1,0 +1,16 @@
+{
+  "pass": true,
+  "checks": [
+    "canonical paper remains FAIL for live readiness",
+    "only PROFILE env requirement",
+    "canonical confidence value and owner",
+    "retired env poisoning cannot override checked config",
+    "retired backtest profile remains rejected",
+    "snapshot failure performs no legacy state or broker fallback",
+    "broker request uses canonical paper scope"
+  ],
+  "limits": [
+    "No broker network call, activation or PM2 reload",
+    "Legacy Jest env-driven live-PASS fixtures are not current acceptance evidence"
+  ]
+}
