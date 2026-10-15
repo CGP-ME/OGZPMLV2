@@ -1,3 +1,11 @@
+## 2026-10-15 — Remove sticky broker-read trading veto
+
+Problem: one failed broker read created a persistent OrderRouter entry veto, even after the adapter recovered. Removed its map, query API and sole Executor consumer while retaining outage events, traces, loud errors and actual adapter rejection behavior. Reconciled the retired test cases and rehearsal stub; independent financial-halt coverage is preserved.
+
+Verification: pinned native OrderRouter fixture with fake adapter passed outage observation, recovery and actual rejection propagation; all six changed files passed syntax and whitespace checks. No Jest/full-pipeline or live-broker acceptance claim. Astra GO after correcting an erroneous intermediate test removal. Mercury reported three source findings adjudicated against base in the linked review; delivery uses Trey's standing Astra override, not a claimed clean Mercury verdict.
+
+Evidence: [review and verification](ogz-meta/inbox/codex/2026-10-15/broker-read-no-trading-authority/MANIFEST.md). Limitations: 50% account-daily-loss replacement remains separate and unimplemented; unrelated pause and reconciliation authorities remain under review. Runtime activation: no restart or resume; committed code and running process remain separate.
+
 ## 2026-10-15 — Removed the generic venue drawdown rail and its callers
 
 - Problem: the generic rail could block production-profile entries after a 2.75% own-fill/high-water drawdown (3% rail minus 0.25% buffer). That is not Trey's authorized 50% whole-account daily-loss rule.

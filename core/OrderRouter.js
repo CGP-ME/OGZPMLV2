@@ -40,8 +40,7 @@ class OrderRouter extends EventEmitter {
     // Map adapter name -> normalized symbols it owns
     this.adapterSymbols = new Map();
 
-    // Map adapter name -> latest broker truth outage event
-    this.brokerTruthUnavailable = new Map();
+    // Subscription identity prevents duplicate outage listeners per adapter.
     this.brokerTruthUnavailableHandlers = new WeakMap();
 
     console.log('[OrderRouter] Initialized');
@@ -105,40 +104,6 @@ class OrderRouter extends EventEmitter {
   getBrokerForSymbol(symbol) {
     const normalized = this.normalizeSymbol(symbol);
     return this.symbolToAdapter.get(normalized) || null;
-  }
-
-  getBrokerTruthEntryBlock(scope = {}) {
-    const action = String(scope.action || '').trim().toUpperCase();
-    const positionEffect = String(scope.positionEffect || '').trim().toLowerCase();
-    const entryScoped = action === 'BUY'
-      || action === 'SELL_SHORT'
-      || positionEffect.startsWith('open');
-    if (!entryScoped) {
-      return { blocked: false };
-    }
-    const adapter = scope.symbol ? this.getBrokerForSymbol(scope.symbol) : null;
-    const broker = this._normalizeBrokerName(
-      scope.brokerName
-      || scope.brokerId
-      || (adapter && typeof adapter.getBrokerName === 'function' ? adapter.getBrokerName() : null)
-    );
-    if (!broker) {
-      return { blocked: false };
-    }
-    const record = this.brokerTruthUnavailable.get(broker);
-    if (!record) {
-      return { blocked: false };
-    }
-    return {
-      blocked: true,
-      code: record.code || BROKER_TRUTH_UNAVAILABLE,
-      reason: `[BROKER_TRUTH_UNAVAILABLE] ${broker}: ${record.reason || BROKER_TRUTH_UNAVAILABLE}`,
-      brokerId: broker,
-      event: record.event,
-      operation: record.operation,
-      at: record.at,
-      entryBlockScope: 'broker',
-    };
   }
 
   /**
@@ -440,7 +405,6 @@ class OrderRouter extends EventEmitter {
       at: new Date().toISOString(),
       payload,
     };
-    this.brokerTruthUnavailable.set(broker, record);
     console.error(`[OrderRouter] BROKER_TRUTH_UNAVAILABLE broker=${broker} reason=${record.reason}`);
     emitTrace({}, 'ORDER_ROUTER_BROKER_TRUTH_UNAVAILABLE', {
       traceId: createTraceId('order_router_broker_truth'),

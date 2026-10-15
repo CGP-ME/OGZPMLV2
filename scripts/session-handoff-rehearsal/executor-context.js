@@ -26,9 +26,6 @@ function paperRouter(router) {
     async sendOrder() {
       throw new Error('fixture paper OrderExecutor attempted broker routing');
     },
-    getBrokerTruthEntryBlock() {
-      return null;
-    },
   };
 }
 

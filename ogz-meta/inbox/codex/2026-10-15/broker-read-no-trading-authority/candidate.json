@@ -1,0 +1,12 @@
+{
+  "base": "ea226fb489b185a7f17eac13782ece6bbbf5d27b",
+  "candidate": "f5a58283d40242b7b76fed9113c4e2a5d58d4535",
+  "files": [
+    "core/OrderRouter.js",
+    "core/OrderExecutor.js",
+    "test/order-router-cancel.test.js",
+    "test/order-router-registration-ownership.test.js",
+    "scripts/session-handoff-rehearsal/executor-context.js",
+    "test/order-executor-pause-gate.test.js"
+  ]
+}

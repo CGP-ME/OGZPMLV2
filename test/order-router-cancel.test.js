@@ -355,16 +355,6 @@ describe('OrderRouter cancelAllOpenOrders', () => {
         operation: 'alpaca_ws_data_stream',
       });
 
-      expect(router.getBrokerTruthEntryBlock({ symbol: 'TSLA', action: 'BUY' })).toEqual(expect.objectContaining({
-        blocked: true,
-        code: 'broker_truth_unavailable',
-        brokerId: 'alpaca',
-        event: 'ALPACA_WS_TRANSPORT_UNAVAILABLE',
-        operation: 'alpaca_ws_data_stream',
-        entryBlockScope: 'broker',
-      }));
-      expect(router.getBrokerTruthEntryBlock({ symbol: 'TSLA', action: 'SELL' })).toEqual({ blocked: false });
-      expect(router.getBrokerTruthEntryBlock({ symbol: 'BTC-USD', action: 'BUY' })).toEqual({ blocked: false });
       expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('BROKER_TRUTH_UNAVAILABLE'));
       expect(traces).toEqual(expect.arrayContaining([
         expect.objectContaining({

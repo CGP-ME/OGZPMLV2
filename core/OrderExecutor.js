@@ -2916,37 +2916,6 @@ class OrderExecutor {
           executionMode: brokerVerificationBlock.executionMode,
         });
       }
-      const brokerTruthEntryBlock = typeof this.ctx.orderRouter?.getBrokerTruthEntryBlock === 'function'
-        ? this.ctx.orderRouter.getBrokerTruthEntryBlock({
-          brokerId: executionScope.brokerId,
-          symbol,
-          action: decision.action,
-          positionEffect,
-        })
-        : null;
-      if (brokerTruthEntryBlock?.blocked) {
-        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${brokerTruthEntryBlock.reason}`);
-        emitTrace(this.ctx, 'BROKER_TRUTH_ENTRY_BLOCKED', {
-          traceId,
-          signalId,
-          decisionId: decision.decisionId,
-          symbol,
-          action: decision.action,
-          positionEffect,
-          reason: brokerTruthEntryBlock.code || 'broker_truth_unavailable',
-          detail: brokerTruthEntryBlock.reason,
-          brokerId: brokerTruthEntryBlock.brokerId,
-          entryBlockScope: brokerTruthEntryBlock.entryBlockScope || 'broker',
-          brokerTruthEvent: brokerTruthEntryBlock.event || null,
-          brokerTruthAt: brokerTruthEntryBlock.at || null,
-          route: 'order_executor_entry_block_exits_still_allowed',
-        });
-        return blockedReturn(brokerTruthEntryBlock.code || 'broker_truth_unavailable', {
-          detail: brokerTruthEntryBlock.reason,
-          brokerId: brokerTruthEntryBlock.brokerId,
-          entryBlockScope: brokerTruthEntryBlock.entryBlockScope || 'broker',
-        });
-      }
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
       const symbolHaltCode = symbolHaltReason && typeof stateManager.getSymbolHaltCode === 'function'

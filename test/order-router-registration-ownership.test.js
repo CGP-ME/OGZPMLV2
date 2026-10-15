@@ -30,7 +30,6 @@ describe('rejected registrations preserve execution-account ownership', () => {
     expect(replacement.getPositions).not.toHaveBeenCalled();
     expect(replacement.listenerCount('broker_truth_unavailable')).toBe(0);
     replacement.emit('broker_truth_unavailable', { reason: 'rejected connection' });
-    expect(router.brokerTruthUnavailable.size).toBe(0);
   });
 
   test('late collision creates neither a partial symbol route nor a rejected broker reader', async () => {
