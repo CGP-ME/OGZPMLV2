@@ -168,19 +168,20 @@ test('ConfigLoader strategy params exist and are valid', () => {
   }
 });
 
-test('Exit contract thresholds are sane', () => {
+test('EMASMACrossover exit contract thresholds are sane', () => {
   const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
-  const stopLoss = ConfigLoader.get('exits.stopLossPercent');
-  const takeProfit = ConfigLoader.get('exits.takeProfitPercent');
+  const strategyName = 'EMASMACrossover';
+  const stopLoss = ConfigLoader.get(`exitContracts.${strategyName}.stopLossPercent`);
+  const takeProfit = ConfigLoader.get(`exitContracts.${strategyName}.takeProfitPercent`);
 
-  if (!stopLoss || stopLoss < 0.5 || stopLoss > 10) {
-    throw new Error(`stopLossPercent invalid: ${stopLoss}`);
+  if (!Number.isFinite(stopLoss) || stopLoss >= 0 || stopLoss < -10) {
+    throw new Error(`${strategyName}.stopLossPercent invalid: ${stopLoss}`);
   }
-  if (!takeProfit || takeProfit < 0.5 || takeProfit > 15) {
-    throw new Error(`takeProfitPercent invalid: ${takeProfit}`);
+  if (!Number.isFinite(takeProfit) || takeProfit <= 0 || takeProfit > 15) {
+    throw new Error(`${strategyName}.takeProfitPercent invalid: ${takeProfit}`);
   }
-  if (takeProfit < stopLoss) {
-    throw new Error(`takeProfit (${takeProfit}) < stopLoss (${stopLoss}) - bad R:R`);
+  if (takeProfit < Math.abs(stopLoss)) {
+    throw new Error(`${strategyName}.takeProfitPercent (${takeProfit}) < abs(stopLossPercent) (${Math.abs(stopLoss)}) - bad R:R`);
   }
 });
 

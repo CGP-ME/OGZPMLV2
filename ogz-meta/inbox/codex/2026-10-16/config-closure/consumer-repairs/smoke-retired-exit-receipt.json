@@ -1,0 +1,20 @@
+{
+  "base": "HEAD",
+  "file": "scripts/smoke-test.js",
+  "logicalChange": "replace retired global exits.stopLossPercent/takeProfitPercent smoke caller with EMASMACrossover-owned exit contract fields",
+  "retiredReadsSearch": {
+    "command": "rg -n \"exits\\.(stopLossPercent|takeProfitPercent)\" scripts --glob '*.js'",
+    "result": "no matches after edit"
+  },
+  "verification": {
+    "command": "python3 scripts/test-isolated.py -- node -e \"Object.assign(process.env,{PROFILE:'paper',WEBSOCKET_AUTH_TOKEN:'fixture-token',ALPACA_API_KEY:'fixture-key',ALPACA_API_SECRET:'fixture-secret',KRAKEN_API_KEY:'fixture-key',KRAKEN_API_SECRET:'fixture-secret'}); const C=require('./foundation/ConfigLoader'); C.load({loadDotenv:false,role:'bot',silent:true}); const s='EMASMACrossover'; const sl=C.get('exitContracts.'+s+'.stopLossPercent'); const tp=C.get('exitContracts.'+s+'.takeProfitPercent'); if(!Number.isFinite(sl)||sl>=0||!Number.isFinite(tp)||tp<=0||tp<Math.abs(sl)) throw new Error(JSON.stringify({sl,tp})); console.log(JSON.stringify({pass:true,strategy:s,stopLossPercent:sl,takeProfitPercent:tp}));\"",
+    "result": "PASS: {\"pass\":true,\"strategy\":\"EMASMACrossover\",\"stopLossPercent\":-0.5,\"takeProfitPercent\":1}"
+  },
+  "scope": "nonproduction helper caller only; no runtime activation, broker, PM2, or production process change",
+  "patchValidation": {
+    "command": "git apply --check --reverse ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/smoke-retired-exit.patch",
+    "result": "PASS against current working scripts/smoke-test.js candidate"
+  },
+  "commit": null,
+  "push": null
+}

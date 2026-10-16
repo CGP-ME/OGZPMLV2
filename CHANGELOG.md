@@ -1,3 +1,9 @@
+## 2026-10-16 — Retire smoke diagnostic reads of the deleted global exit owner
+
+Problem: the existing smoke check still requested exits.stopLossPercent and exits.takeProfitPercent after strategy-owned exit migration. Change: the explicitly named EMASMACrossover smoke case reads its actual canonical exit contract and checks the existing signed stop convention. This does not impose a global exit policy or change trading code.
+
+Verification/review: source review confirms the two retired getter paths are gone from this diagnostic. Isolated actual ConfigLoader read returned the canonical strategy stop -0.5 and TP 1; focused receipt is `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/smoke-retired-exit-receipt.json`. The entire legacy smoke suite was not represented as passing. Non-production diagnostic change; no runtime activation.
+
 ## 2026-10-16 — Preserve valid strategy exit values through consumers
 
 Problem: editable zero allocations reached strict positive-fraction exit checks; zero trailing distance and explicitly absent TP/time limits could be rejected in transport/records, and Donchian omitted its ATR period from its signal contract.
