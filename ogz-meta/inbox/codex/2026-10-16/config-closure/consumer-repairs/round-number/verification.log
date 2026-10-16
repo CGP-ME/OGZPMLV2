@@ -1,0 +1,3 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{"pass":true,"source":"source-baseline/source-candidate pinned to HEAD 101399e1 plus one ECM round block","baseline":{"nearLong":0.004,"awayLong":0.003976143141153081},"candidate":{"nearLong":0.0028,"awayLong":0.003976143141153081,"nearShort":0.0028,"awayShort":0.003976143141153081,"strategyBNearLong":0.0016,"disabledReason":"trailing_disabled"},"oracle":{"near":0.27999999999999997,"away":0.3976143141153081}}
+{"percentBranch":true,"channelOwnership":true,"zeroMultiplierMinimumClamp":true}

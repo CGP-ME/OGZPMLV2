@@ -811,6 +811,22 @@ class ExitContractManager {
       trailDistance *= Math.max(0, structureTightenMultiplier + ((1 - structureTightenMultiplier) * distanceRatio));
     }
 
+    if (currentPrice > 0) {
+      const roundNumberProximity = finiteOrNull(trailConfig.roundNumberProximity);
+      const roundNumberTighten = finiteOrNull(trailConfig.roundNumberTighten);
+      if (roundNumberProximity !== null && roundNumberTighten !== null) {
+        const roundNumbers = [1000, 5000, 10000];
+        for (const increment of roundNumbers) {
+          const nearest = Math.round(currentPrice / increment) * increment;
+          const distToRound = Math.abs(currentPrice - nearest) / currentPrice * 100;
+          if (distToRound < roundNumberProximity) {
+            trailDistance *= roundNumberTighten;
+            break;
+          }
+        }
+      }
+    }
+
     const minTrailPercent = finiteOrNull(trailConfig.minTrailPercent);
     const maxTrailPercent = finiteOrNull(trailConfig.maxTrailPercent);
     // A configured zero tightening factor still passes through the existing

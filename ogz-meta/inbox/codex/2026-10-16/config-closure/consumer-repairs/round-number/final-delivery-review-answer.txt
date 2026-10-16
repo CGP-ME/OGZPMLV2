@@ -1,0 +1,11 @@
+{
+  "record_type": "final_decision",
+  "decision": "no_break_found",
+  "summary": "Both original claims are refuted. The source file is fully present, and only a single roundNumberProximity handling block exists, so no duplicate handling or missing source defect is introduced.",
+  "answer": "INHERITED:\ncore/ExitContractManager.js\n- || 0: absent\n- swallowed catch: absent\n- bypass env: absent\n- silent default: absent\n\nFOURTH SHAPE CLASSIFIER:\n- guard added at core/ExitContractManager.js:814-828 (producer: diff artifact artifact-0002-526675ef304579cf)\n\nCLAIMS ADJUDICATION:\n- claim-5e39021728e00816789bc627: refuted – only a single roundNumberProximity handling block is present, no duplicate application of roundNumberTighten factor. Evidence: core/ExitContractManager.js:814-828.\n- claim-c82a3a54d9dd3c6f32b45054: refuted – the full source file is available, so the claim of missing source code is false. Evidence: core/ExitContractManager.js:1-1108.",
+  "citations": [
+    "core/ExitContractManager.js:814-828",
+    "core/ExitContractManager.js:1-12",
+    "core/ExitContractManager.js:1-1108"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "base": "101399e1b43fe3aa8259f5a28e6c59ffab87d691",
+  "baseTree": "464e37fb9c330e044a3bd5e84a09c9dba4c09a30",
+  "candidateTree": "bac41b09916728cf71e186e836c003557dc49585",
+  "candidateBlob": "5f4a8ab2850c2feea91bfea299f8350efd65f421",
+  "files": {
+    "source-baseline/ExitContractManager.js": "sha256:54625200ec050b31f16c9a387738e463bfe80d56845816ca35b0a5866a3696a9",
+    "source-candidate/ExitContractManager.js": "sha256:e8b1828b83ac8438f643f21c2a8d9966f7d2ebc9fd9bd452e4b70382d1d2fa4c",
+    "source-baseline/DynamicTrailingStop.js": "sha256:736607dcf9b6a2db83e058713cf7891d43b0a1d2e299dd6003a75301bf49d52f",
+    "fixtures/verify-round-number.cjs": "sha256:9a91dbcd32486ba4f7504051352975df551bff2d9bea6c41c77a1b787afd7721"
+  },
+  "patch": "change.patch",
+  "patchValidation": "git apply --check --reverse change.patch => PASS against current working ECM candidate",
+  "reviewBase": "e93b21629faa72717e14676b4f13acd47d446b3e",
+  "reviewCandidate": "bac41b09916728cf71e186e836c003557dc49585",
+  "baseConsumerBlobsUnchangedSinceFixtureBase": true
+}

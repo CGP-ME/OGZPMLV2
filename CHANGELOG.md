@@ -1,3 +1,13 @@
+## 2026-10-16 — Connect per-strategy round-number trailing settings to the active exit owner
+
+Problem: roundNumberProximity and roundNumberTighten were editable and frozen into each strategy policy, but their existing algorithm lived only in an unconstructed DynamicTrailingStop helper. Active ExitContractManager omitted it.
+
+Change: the existing nearest-round-number calculation now runs in the active managed trailing method, using that trade's frozen strategy values, before its existing min/max clamp. It applies once for nearby prices. Channel trailing keeps its own contract path. No new entry gate, global exit owner, throw, default or fallback; no preset values changed.
+
+Verification: actual pinned baseline/candidate ECM methods compared with the actual legacy algorithm in helper isolation. Near/away prices, long/short, distinct strategy policies, disabled trailing, percent/ATR paths, channel exclusion and zero tightening followed by the existing minimum floor pass. Exact fixture and production identities are in source-manifest.json; ECM and the oracle are unchanged between the older fixture base and current review base.
+
+Review: Mercury run 2026-10-16T21-13-53-141Z-15d3c2eb9630 returned transport no_claim with a nested final no_break_found. Astra independently issued scoped GO; both statuses are retained, not described as a clean transport verdict. Reviewer's reproduction-command omission was corrected and the isolated replay rerun with all source fixtures supplied. Evidence: `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/round-number/`. No PM2 restart, environment reload or runtime activation.
+
 ## 2026-10-16 — Preserve real indicator inputs and direction through pattern consumers
 
 Problem: TradingLoop overwrote canonical Bollinger width with an absent nested alias and passed nested MACD fields although the actual snapshot is flat. Feature extraction treated MACD zero as absent, flat percent-B as a fraction, and the active up/down trend names as neutral/missing.
