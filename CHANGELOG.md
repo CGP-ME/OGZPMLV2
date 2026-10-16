@@ -1,3 +1,10 @@
+## 2026-10-16 — Reconcile volatility migration test fixture
+
+- Problem: the existing high-volatility PolicyBuilder test omitted lowTargetMultiplier/highTargetMultiplier after 6f52bb08 moved those values into strategy contracts; its incomplete fixture failed normalization.
+- Change: add the same canonical 0.8/1.4 values to that one fixture. No production code, test assertions or trading behavior changed.
+- Verification/review: cheap-agent source review confirmed the one-line scope; root ran the actual existing high-volatility test in helper isolation against pinned candidate sources: one passed, 21 skipped by name selection. Other legacy suite failures remain recorded in the scale-out retirement packet; no broad pass claimed. Test-only change does not require production Mercury.
+- Activation: none. Evidence: [fixture review](ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/volatility-fixture-reconcile/review.md).
+
 ## 2026-10-16 — Retire inert per-strategy scale-out fee buffers
 
 - Ruling/research: Trey authorized removal if absent from the exit research. The October 12 paper discusses economic break-even and optional partial-profit experiments, but specifies neither this field nor a minimum-profit scale-out gate.

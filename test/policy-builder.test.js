@@ -523,7 +523,7 @@ describe('PolicyBuilder frozen exit policy', () => {
   test('freezes MPM-equivalent adjusted tier targets at trade birth', () => {
     const policy = PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
-      exitContract: exitContract({ profitManagement: profitManagement({ volatilityAdjustment: { enabled: true, lowThresholdPercent: 0.5, highThresholdPercent: 2.0, lookbackPeriods: 20 } }) }),
+      exitContract: exitContract({ profitManagement: profitManagement({ volatilityAdjustment: { enabled: true, lowThresholdPercent: 0.5, highThresholdPercent: 2.0, lowTargetMultiplier: 0.8, highTargetMultiplier: 1.4, lookbackPeriods: 20 } }) }),
       nowMs: fixedNowMs,
       volatility: 0.03,
       confidence: 0.85,

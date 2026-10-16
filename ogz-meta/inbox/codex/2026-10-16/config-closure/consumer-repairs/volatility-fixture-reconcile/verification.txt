@@ -1,0 +1,31 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+PASS test/policy-builder.test.js
+  PolicyBuilder frozen exit policy
+    ✓ freezes MPM-equivalent adjusted tier targets at trade birth (11 ms)
+    ○ skipped freezes a stable per-trade policy from explicit contract and config values
+    ○ skipped returns the same hash for the same explicit inputs
+    ○ skipped does not include runtime build timestamp in policy identity hash
+    ○ skipped does not include validation provenance in policy identity hash
+    ○ skipped does not retain mutable references to input contract objects
+    ○ skipped preserves the selected exit contract timeframe in the frozen policy
+    ○ skipped freezes an aligned MTF confluence snapshot at trade birth
+    ○ skipped marks MTF snapshot conflicts against short entries
+    ○ skipped requires the actual strategy exit contract and does not fall back to default
+    ○ skipped fails loudly when MTF snapshot fields are malformed
+    ○ skipped treats null MTF score as unavailable confluence, not malformed input
+    ○ skipped all base exit contracts declare structural-exit ownership explicitly
+    ○ skipped fails loudly when the selected contract omits a required profit-management value
+    ○ skipped preserves structural-exit contracts with null trailing fields
+    ○ skipped rejects tier allocations that exceed confirmed position size
+    ○ skipped rejects invalid break-even scale-out fraction
+    ○ skipped rejects invalid strategy contract numeric semantics
+    ○ skipped requires explicit build time instead of hidden Date.now lifecycle state
+    ○ skipped does not read process.env while building with an injected config reader
+    ○ skipped builds with the default ConfigLoader class reader
+    ○ skipped fails loudly when entry volatility or confidence is missing
+
+Test Suites: 1 passed, 1 total
+Tests:       21 skipped, 1 passed, 22 total
+Snapshots:   0 total
+Time:        1.186 s
+Ran all test suites within paths "test/policy-builder.test.js".

@@ -1,0 +1,9 @@
+{
+  "reviewBase": "44901df4f680374aa607784af053f03fcc81ee61",
+  "candidate": "c5fd97774735bd6b59a72e16fffbc37c9b12d98a",
+  "files": {
+    "test/policy-builder.test.js": "51ac687e3e8cb4eb7f1fe644d09d775785c0f577",
+    "core/PolicyBuilder.js": "2800ba69e3a7d8dd9dfde0f8741ca2af3c0e5777",
+    "core/dto/FrozenExitPolicy.js": "d9e46ad4525800c9b2df6df5210ec93783eb66e7"
+  }
+}
