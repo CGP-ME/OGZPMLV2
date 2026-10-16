@@ -251,7 +251,7 @@ class TwoPoleOscillator {
         let confidence = this.confidenceBase;
         const absoluteOscillator = Math.abs(oscillator);
 
-        if (absoluteOscillator >= this.extremeOverbought) {
+        if (oscillator >= this.extremeOverbought || oscillator <= this.extremeOversold) {
             confidence = this.confidenceExtreme;
             console.log(`[TwoPoleOscillator] EXTREME ZONE: ${oscillator.toFixed(this.zoneLogDigits)} - reversal imminent`);
         } else if (absoluteOscillator >= this.overbought) {

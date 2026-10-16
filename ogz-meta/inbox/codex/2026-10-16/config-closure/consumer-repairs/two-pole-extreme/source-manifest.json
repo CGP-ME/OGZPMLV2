@@ -1,0 +1,24 @@
+{
+  "reviewBase": "450895b546c0d48242acb5e218c2538999b9248e",
+  "reviewCandidate": "43f2247ca1e4e9b7c53f74df70c8b52f67e6d6b0",
+  "files": {
+    "foundation/ConfigLoader.js": "7d5bc5c33e5297f0b76d8928a547e755ef173e89",
+    "core/TwoPoleOscillator.js": "8ceb0078493cf16f638df6abda3caf15e9a174c1"
+  },
+  "reproductionSources": {
+    "source-baseline": {
+      "foundation/ConfigLoader.js": "a090c18fb07087754af4713b3bf743cd5d5784a2",
+      "core/TwoPoleOscillator.js": "f7091ec3313e707c0f5c42279091badf5a11f74f",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950",
+      "config/settings.json": "4e9e8d82b3c739593a8c4c19883720a04bcc1e53",
+      "config/internals.json": "87bb1549792a0a7cee26bc0be720db8fad1c57d3"
+    },
+    "source-candidate": {
+      "foundation/ConfigLoader.js": "7d5bc5c33e5297f0b76d8928a547e755ef173e89",
+      "core/TwoPoleOscillator.js": "8ceb0078493cf16f638df6abda3caf15e9a174c1",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950",
+      "config/settings.json": "4e9e8d82b3c739593a8c4c19883720a04bcc1e53",
+      "config/internals.json": "87bb1549792a0a7cee26bc0be720db8fad1c57d3"
+    }
+  }
+}

@@ -1,3 +1,11 @@
+## 2026-10-16 — TwoPole lower-extreme configuration consumer
+
+- Problem: extremeOversold was owned in dynamic config but ignored by the confidence calculation and omitted from editable descriptors.
+- Change: signed extreme comparisons consume both configured thresholds; the lower threshold receives the same finite-domain descriptor and new-engine initialization lifetime as its upper counterpart. Existing numbers and confidenceBase remain unchanged.
+- Verification: isolated real loader save/reload and fresh oscillator demonstrate changed lower threshold; retained instance remains unchanged. Baseline rejects the save. Twenty-seven default input pairs retain identical results.
+- Review: Mercury no_break_found on tree 43f2247ca1e4e9b7c53f74df70c8b52f67e6d6b0 against 450895b546c0d48242acb5e218c2538999b9248e; run 2026-10-16T21-22-23-007Z-da31d3b6b4cf.
+- Evidence: ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/two-pole-extreme/evidence.md. No runtime restart/activation.
+
 ## 2026-10-16 — Connect per-strategy round-number trailing settings to the active exit owner
 
 Problem: roundNumberProximity and roundNumberTighten were editable and frozen into each strategy policy, but their existing algorithm lived only in an unconstructed DynamicTrailingStop helper. Active ExitContractManager omitted it.

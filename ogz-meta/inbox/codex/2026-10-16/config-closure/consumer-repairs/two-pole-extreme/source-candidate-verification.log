@@ -1,0 +1,23 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+[TwoPoleOscillator] initialized [BigBeluga]
+   SMA Length: 25
+   Filter Length: 20
+   Thresholds: -0.5 to 0.5
+[TwoPoleOscillator] initialized [BigBeluga]
+   SMA Length: 25
+   Filter Length: 20
+   Thresholds: -0.5 to 0.5
+[TwoPoleOscillator] initialized [BigBeluga]
+   SMA Length: 25
+   Filter Length: 20
+   Thresholds: -0.5 to 0.5
+{"source":"source-candidate","save":{"success":true,"reason":null},"asymmetry":{"negative":85,"positive":85},"retainedOldInstance":65,"freshAfterSave":85,"descriptorVisibleAfterSave":true,"canonicalThresholdBeforeSave":-1,"freshThreshold":-0.75}
+[TwoPoleOscillator] initialized [BigBeluga]
+   SMA Length: 25
+   Filter Length: 20
+   Thresholds: -0.5 to 0.5
+[TwoPoleOscillator] initialized [BigBeluga]
+   SMA Length: 25
+   Filter Length: 20
+   Thresholds: -0.5 to 0.5
+{"assertionsPassed":true,"baselineDefaultsPreserved":true}
