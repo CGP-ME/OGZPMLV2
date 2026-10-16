@@ -8,7 +8,7 @@ describe('PolicyBuilder frozen exit policy', () => {
   const fixedNowMs = Date.parse('2026-06-28T18:30:00.000Z');
 
   const profitManagement = (overrides = {}) => ({
-    beScaleOut: { enabled: true, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5, feeBufferPercent: 0.05 },
+    beScaleOut: { enabled: true, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5 },
     breakEvenStop: { enabled: false, triggerPercent: 0.2 },
     tieredExit: { enabled: true, tier1ExitFraction: 0.30, tier2ExitFraction: 0.30, tier3ExitFraction: 0.20, enableMarketAdaptation: true, trendingTargetMultiplier: 1.3, rangingTargetMultiplier: 0.8, highConfidenceThreshold: 0.8, highConfidenceMultiplier: 1.2, lowConfidenceThreshold: 0.6, lowConfidenceMultiplier: 0.8, profitTiers: { tier1: 0.015, tier2: 0.020, tier3: 0.030, final: 0.050 } },
     trail: { enabled: false, minActivation: 1.5, feeBufferPercent: 0 },
@@ -28,7 +28,6 @@ describe('PolicyBuilder frozen exit policy', () => {
     'exitLogic.beScaleOut.triggerType': 'one_to_one_r',
     'exitLogic.beScaleOut.fixedPercentTrigger': 0.5,
     'exitLogic.beScaleOut.scaleOutFraction': 0.5,
-    'exitLogic.beScaleOut.feeBufferPercent': 0.05,
     'exitLogic.breakEvenStop.enabled': false,
     'exitLogic.breakEvenStop.triggerPercent': 0.2,
     'exitLogic.tieredExit.enabled': true,
@@ -432,7 +431,7 @@ describe('PolicyBuilder frozen exit policy', () => {
     })).toThrow(/tier1ExitFraction must be between 0 and 1/);
   });
 
-  test('rejects invalid break-even scale-out fraction and percent-form buffers', () => {
+  test('rejects invalid break-even scale-out fraction', () => {
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, scaleOutFraction: 1.2 } }) }),
@@ -441,23 +440,6 @@ describe('PolicyBuilder frozen exit policy', () => {
       configReader: reader(),
     })).toThrow(/scaleOutFraction must be between 0 and 1/);
 
-    expect(() => PolicyBuilder.buildForTrade({
-      strategyName: 'EMASMACrossover',
-      exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, feeBufferPercent: 101 } }) }),
-      nowMs: fixedNowMs,
-      ...policyContext,
-      configReader: reader(),
-    })).toThrow(/feeBufferPercent must be between 0 and 100 percent-form/);
-
-    const policy = PolicyBuilder.buildForTrade({
-      strategyName: 'EMASMACrossover',
-      exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, feeBufferPercent: 2 } }) }),
-      nowMs: fixedNowMs,
-      ...policyContext,
-      configReader: reader(),
-    });
-
-    expect(policy.profitManagement.beScaleOut.feeBufferPercent).toBe(2);
   });
 
   test('rejects invalid strategy contract numeric semantics', () => {

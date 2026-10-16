@@ -1,0 +1,131 @@
+{
+  "pinnedRef": "097ef8c3ff3fa2af3c7c90795e215d094003f206",
+  "field": "profitManagement.beScaleOut.feeBufferPercent",
+  "removedDeclarations": 17,
+  "priorValues": [
+    {
+      "owner": "EMASMACrossover",
+      "canonicalPath": "exitContracts.EMASMACrossover.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.EMASMACrossover.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "LiquiditySweep",
+      "canonicalPath": "exitContracts.LiquiditySweep.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.LiquiditySweep.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "BreakRetest",
+      "canonicalPath": "exitContracts.BreakRetest.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.BreakRetest.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "RSI",
+      "canonicalPath": "exitContracts.RSI.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.RSI.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "MADynamicSR",
+      "canonicalPath": "exitContracts.MADynamicSR.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.MADynamicSR.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "CandlePattern",
+      "canonicalPath": "exitContracts.CandlePattern.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.CandlePattern.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "MarketRegime",
+      "canonicalPath": "exitContracts.MarketRegime.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.MarketRegime.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "OGZTPO",
+      "canonicalPath": "exitContracts.OGZTPO.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.OGZTPO.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "OpeningRangeBreakout",
+      "canonicalPath": "exitContracts.OpeningRangeBreakout.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.OpeningRangeBreakout.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "SmartMoneySweep",
+      "canonicalPath": "exitContracts.SmartMoneySweep.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.SmartMoneySweep.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "DonchianBreakout",
+      "canonicalPath": "exitContracts.DonchianBreakout.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.DonchianBreakout.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "PropSafeEMAPullback",
+      "canonicalPath": "exitContracts.PropSafeEMAPullback.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.PropSafeEMAPullback.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "EMATrendRetest",
+      "canonicalPath": "exitContracts.EMATrendRetest.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.EMATrendRetest.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "RSI2MeanReversion",
+      "canonicalPath": "exitContracts.RSI2MeanReversion.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.RSI2MeanReversion.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "TimeSeriesMomentum",
+      "canonicalPath": "exitContracts.TimeSeriesMomentum.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.TimeSeriesMomentum.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "NoWickImbalance",
+      "canonicalPath": "exitContracts.NoWickImbalance.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.NoWickImbalance.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    },
+    {
+      "owner": "default",
+      "canonicalPath": "exitContracts.default.profitManagement.beScaleOut.feeBufferPercent",
+      "priorValue": 0.05,
+      "retainedTrailPath": "exitContracts.default.profitManagement.trail.feeBufferPercent",
+      "retainedTrailValue": 0.65
+    }
+  ],
+  "researchCitation": {
+    "research": "ogz-meta/inbox/codex/2026-10-12/exit-research/research.md",
+    "calculations": "ogz-meta/inbox/codex/2026-10-12/exit-research/calculations.json",
+    "finding": "The cited research discusses partial-profit experiments and economic break-even comparisons, but defines neither beScaleOut.feeBufferPercent nor a scale-out minimum-profit gate."
+  }
+}

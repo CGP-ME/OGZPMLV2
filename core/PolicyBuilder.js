@@ -245,7 +245,6 @@ function normalizeBeScaleOut(raw) {
     triggerType: requireString(raw.triggerType, 'exitContract.profitManagement.beScaleOut.triggerType'),
     fixedPercentTrigger: requirePercent(raw.fixedPercentTrigger, 'exitContract.profitManagement.beScaleOut.fixedPercentTrigger'),
     scaleOutFraction: requireFraction(raw.scaleOutFraction, 'exitContract.profitManagement.beScaleOut.scaleOutFraction'),
-    feeBufferPercent: requirePercent(raw.feeBufferPercent, 'exitContract.profitManagement.beScaleOut.feeBufferPercent'),
   };
 }
 

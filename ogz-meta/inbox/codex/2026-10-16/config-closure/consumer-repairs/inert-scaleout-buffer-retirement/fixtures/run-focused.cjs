@@ -1,0 +1,4 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process');
+const files=["config/settings.json", "config/internals.json", "foundation/ConfigLoader.js", "core/ExitContractManager.js", "core/PolicyBuilder.js", "core/ProfitExitPlanner.js", "core/dto/FrozenExitPolicy.js", "core/exit/TakeProfitChecker.js", "test/policy-builder.test.js", "test/profit-exit-planner.test.js", "test/exit-contract-manager-ownership.test.js"];
+for(const file of files) fs.copyFileSync(path.join(__dirname,'focused',file),path.join(process.cwd(),file));
+const r=cp.spawnSync(process.execPath,['node_modules/jest/bin/jest.js','--runInBand','--runTestsByPath','test/policy-builder.test.js','test/profit-exit-planner.test.js','test/exit-contract-manager-ownership.test.js'],{stdio:'inherit'});process.exit(r.status===null?1:r.status);

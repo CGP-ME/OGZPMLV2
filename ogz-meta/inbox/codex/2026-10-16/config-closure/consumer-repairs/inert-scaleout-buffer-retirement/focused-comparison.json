@@ -1,0 +1,36 @@
+{
+  "baselineFailingTests": [
+    "\u25cf ExitContractManager exit ownership contract \u203a all configured exit contracts carry the Lane 5 mode schema explicitly",
+    "\u25cf ExitContractManager exit ownership contract \u203a default contracts selected by strategy carry explicit structural ownership",
+    "\u25cf ExitContractManager exit ownership contract \u203a births strategy exit geometry from the selected timeframe contract",
+    "\u25cf ExitContractManager exit ownership contract \u203a does not let generic timeframe defaults clobber a locked strategy contract",
+    "\u25cf ExitContractManager exit ownership contract \u203a honors runtime per-timeframe exit geometry overrides at trade birth",
+    "\u25cf ExitContractManager exit ownership contract \u203a refuses runtime overrides that turn Donchian structural exits into percent exits",
+    "\u25cf ExitContractManager exit ownership contract \u203a honors runtime timeframeConfig overrides for generic strategy contracts",
+    "\u25cf ExitContractManager exit ownership contract \u203a unknown timeframeConfig fails loudly instead of inheriting 15m exits",
+    "\u25cf ExitContractManager exit ownership contract \u203a uses global ATR trail multiplier when contract trailAtrMult is explicitly null",
+    "\u25cf ExitContractManager exit ownership contract \u203a refuses malformed partialExit fractions before trade birth freezes the contract",
+    "\u25cf ExitContractManager exit ownership contract \u203a honors RSI2 long exit threshold as a frozen contract invalidation",
+    "\u25cf PolicyBuilder frozen exit policy \u203a all base exit contracts declare structural-exit ownership explicitly",
+    "\u25cf PolicyBuilder frozen exit policy \u203a builds with the default ConfigLoader class reader",
+    "\u25cf PolicyBuilder frozen exit policy \u203a freezes MPM-equivalent adjusted tier targets at trade birth"
+  ],
+  "candidateFailingTests": [
+    "\u25cf ExitContractManager exit ownership contract \u203a all configured exit contracts carry the Lane 5 mode schema explicitly",
+    "\u25cf ExitContractManager exit ownership contract \u203a default contracts selected by strategy carry explicit structural ownership",
+    "\u25cf ExitContractManager exit ownership contract \u203a births strategy exit geometry from the selected timeframe contract",
+    "\u25cf ExitContractManager exit ownership contract \u203a does not let generic timeframe defaults clobber a locked strategy contract",
+    "\u25cf ExitContractManager exit ownership contract \u203a honors runtime per-timeframe exit geometry overrides at trade birth",
+    "\u25cf ExitContractManager exit ownership contract \u203a refuses runtime overrides that turn Donchian structural exits into percent exits",
+    "\u25cf ExitContractManager exit ownership contract \u203a honors runtime timeframeConfig overrides for generic strategy contracts",
+    "\u25cf ExitContractManager exit ownership contract \u203a unknown timeframeConfig fails loudly instead of inheriting 15m exits",
+    "\u25cf ExitContractManager exit ownership contract \u203a uses global ATR trail multiplier when contract trailAtrMult is explicitly null",
+    "\u25cf ExitContractManager exit ownership contract \u203a refuses malformed partialExit fractions before trade birth freezes the contract",
+    "\u25cf ExitContractManager exit ownership contract \u203a honors RSI2 long exit threshold as a frozen contract invalidation",
+    "\u25cf PolicyBuilder frozen exit policy \u203a all base exit contracts declare structural-exit ownership explicitly",
+    "\u25cf PolicyBuilder frozen exit policy \u203a builds with the default ConfigLoader class reader",
+    "\u25cf PolicyBuilder frozen exit policy \u203a freezes MPM-equivalent adjusted tier targets at trade birth"
+  ],
+  "sameFailingTests": true,
+  "qualification": "Legacy suites are not green: same 14 failures and 47 passes on base and candidate. Includes absent fixture credentials, retired ConfigLoader APIs, prior ATR assertion, and missing migrated volatility multiplier fixture. Exact native policy/planner removal proof passes separately; no full-suite success claimed."
+}

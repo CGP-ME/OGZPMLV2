@@ -1,0 +1,50 @@
+{
+  "reviewBase": "cbf7200cd729830348d08c1a55b41e4ef9995f9d",
+  "reviewCandidate": "25fc977055304a4dd2813ce5d915cefb61e9a3ce",
+  "reproductionSources": {
+    "baseline": {
+      "config/settings.json": {
+        "blob": "3cda663277a590aba2501affa1c2a19f8f63e362",
+        "fixture": "settings.json"
+      },
+      "core/PolicyBuilder.js": {
+        "blob": "a076fdcaf01319f57515bc633eab50f964666316",
+        "fixture": "core/PolicyBuilder.js"
+      },
+      "core/ProfitExitPlanner.js": {
+        "blob": "45266da6c09ddea7a5e05b3630cf5970c6513cbb",
+        "fixture": "core/ProfitExitPlanner.js"
+      },
+      "core/dto/FrozenExitPolicy.js": {
+        "blob": "d9e46ad4525800c9b2df6df5210ec93783eb66e7",
+        "fixture": "core/dto/FrozenExitPolicy.js"
+      },
+      "core/exit/TakeProfitChecker.js": {
+        "blob": "1255b1285523e10977075562f5475e25cfe902a5",
+        "fixture": "core/exit/TakeProfitChecker.js"
+      }
+    },
+    "candidate": {
+      "config/settings.json": {
+        "blob": "1e54ab0458df6b19b6098dad1ebb7f10897d0bc0",
+        "fixture": "settings.json"
+      },
+      "core/PolicyBuilder.js": {
+        "blob": "2800ba69e3a7d8dd9dfde0f8741ca2af3c0e5777",
+        "fixture": "core/PolicyBuilder.js"
+      },
+      "core/ProfitExitPlanner.js": {
+        "blob": "45266da6c09ddea7a5e05b3630cf5970c6513cbb",
+        "fixture": "core/ProfitExitPlanner.js"
+      },
+      "core/dto/FrozenExitPolicy.js": {
+        "blob": "d9e46ad4525800c9b2df6df5210ec93783eb66e7",
+        "fixture": "core/dto/FrozenExitPolicy.js"
+      },
+      "core/exit/TakeProfitChecker.js": {
+        "blob": "1255b1285523e10977075562f5475e25cfe902a5",
+        "fixture": "core/exit/TakeProfitChecker.js"
+      }
+    }
+  }
+}

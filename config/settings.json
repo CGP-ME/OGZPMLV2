@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 14,
+  "revision": 15,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7
@@ -1680,8 +1680,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -1765,8 +1764,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -1850,8 +1848,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -1937,8 +1934,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2020,8 +2016,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2105,8 +2100,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2189,8 +2183,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2273,8 +2266,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2355,8 +2347,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2442,8 +2433,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2526,8 +2516,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2611,8 +2600,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2700,8 +2688,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2789,8 +2776,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2877,8 +2863,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -2963,8 +2948,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,
@@ -3058,8 +3042,7 @@
           "enabled": false,
           "triggerType": "one_to_one_r",
           "fixedPercentTrigger": 0.5,
-          "scaleOutFraction": 0.5,
-          "feeBufferPercent": 0.05
+          "scaleOutFraction": 0.5
         },
         "breakEvenStop": {
           "enabled": false,

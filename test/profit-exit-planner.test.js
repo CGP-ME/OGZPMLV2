@@ -29,7 +29,6 @@ describe('ProfitExitPlanner', () => {
         triggerType: 'one_to_one_r',
         fixedPercentTrigger: 0.5,
         scaleOutFraction: 0.5,
-        feeBufferPercent: 0.05,
       },
       breakEvenStop: {
         enabled: false,
@@ -113,7 +112,6 @@ describe('ProfitExitPlanner', () => {
             triggerType: 'one_to_one_r',
             fixedPercentTrigger: 0.5,
             scaleOutFraction: 0.5,
-            feeBufferPercent: 0.05,
           },
           breakEvenStop: { enabled: false, triggerPercent: 0.2 },
           tieredExit: { enabled: false, allocationBasis: 'cumulative_original_quantity', tiers: [] },
@@ -178,7 +176,6 @@ describe('ProfitExitPlanner', () => {
             triggerType: 'unsupported',
             fixedPercentTrigger: 0.5,
             scaleOutFraction: 0.5,
-            feeBufferPercent: 0.05,
           },
           breakEvenStop: { enabled: false, triggerPercent: 0.2 },
           tieredExit: {
@@ -202,7 +199,6 @@ describe('ProfitExitPlanner', () => {
             enabled: true,
             triggerType: 'fixed_percent',
             scaleOutFraction: 0.5,
-            feeBufferPercent: 0.05,
           },
           breakEvenStop: { enabled: false, triggerPercent: 0.2 },
           tieredExit: {

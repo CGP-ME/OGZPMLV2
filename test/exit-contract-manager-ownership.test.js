@@ -14,7 +14,7 @@ describe('ExitContractManager exit ownership contract', () => {
     useStructuralExits: false,
     invalidationConditions: [],
     profitManagement: {
-      beScaleOut: { enabled: false, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5, feeBufferPercent: 0.05 },
+      beScaleOut: { enabled: false, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5 },
       breakEvenStop: { enabled: false, triggerPercent: 0.2 },
       tieredExit: { enabled: false, tier1ExitFraction: 0.3, tier2ExitFraction: 0.3, tier3ExitFraction: 0.2, enableMarketAdaptation: false, trendingTargetMultiplier: 1, rangingTargetMultiplier: 1, highConfidenceThreshold: 1, highConfidenceMultiplier: 1, lowConfidenceThreshold: 0, lowConfidenceMultiplier: 1, profitTiers: { tier1: 0.015, tier2: 0.02, tier3: 0.03, final: 0.05 } },
       trail: { enabled: false, minActivation: 1.5, feeBufferPercent: 0 },
@@ -36,7 +36,6 @@ describe('ExitContractManager exit ownership contract', () => {
         triggerType: 'one_to_one_r',
         fixedPercentTrigger: 0.5,
         scaleOutFraction: 0.5,
-        feeBufferPercent: 0.05,
       },
       breakEvenStop: { enabled: false, triggerPercent: 0.2 },
       tieredExit: {
@@ -72,7 +71,6 @@ describe('ExitContractManager exit ownership contract', () => {
         triggerType: 'one_to_one_r',
         fixedPercentTrigger: 0.5,
         scaleOutFraction: 0.5,
-        feeBufferPercent: 0.05,
       },
       breakEvenStop: { enabled: false, triggerPercent: 0.2 },
       tieredExit: {

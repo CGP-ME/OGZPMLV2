@@ -1,0 +1,143 @@
+diff --git a/config/settings.json b/config/settings.json
+index 3cda6632..1e54ab04 100644
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -3 +3 @@
+-  "revision": 14,
++  "revision": 15,
+@@ -1683,2 +1683 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -1768,2 +1767 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -1853,2 +1851 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -1940,2 +1937 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2023,2 +2019 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2108,2 +2103 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2192,2 +2186 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2276,2 +2269 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2358,2 +2350 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2445,2 +2436 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2529,2 +2519 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2614,2 +2603 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2703,2 +2691 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2792,2 +2779 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2880,2 +2866 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -2966,2 +2951 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+@@ -3061,2 +3045 @@
+-          "scaleOutFraction": 0.5,
+-          "feeBufferPercent": 0.05
++          "scaleOutFraction": 0.5
+diff --git a/core/PolicyBuilder.js b/core/PolicyBuilder.js
+index a076fdca..2800ba69 100644
+--- a/core/PolicyBuilder.js
++++ b/core/PolicyBuilder.js
+@@ -248 +247,0 @@ function normalizeBeScaleOut(raw) {
+-    feeBufferPercent: requirePercent(raw.feeBufferPercent, 'exitContract.profitManagement.beScaleOut.feeBufferPercent'),
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index c932dceb..491f6a0a 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -666 +666 @@ const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
+-  /^exitContracts\.[A-Za-z0-9_]+\.profitManagement\.(beScaleOut\.(enabled|triggerType|fixedPercentTrigger|scaleOutFraction|feeBufferPercent)|breakEvenStop\.(enabled|triggerPercent)|tieredExit\.(enabled|tier1ExitFraction|tier2ExitFraction|tier3ExitFraction|enableMarketAdaptation|trendingTargetMultiplier|rangingTargetMultiplier|highConfidenceThreshold|highConfidenceMultiplier|lowConfidenceThreshold|lowConfidenceMultiplier|profitTiers\.(tier1|tier2|tier3|final))|trail\.(enabled|minActivationPercent|atrMultiplier|trendWidenMultiplier|structureTightenMultiplier|structureDistanceThreshold|profitRatchetThreshold|profitRatchetRate|profitRatchetFloor|minTrailPercent|maxTrailPercent|feeBufferPercent|roundNumberProximity|roundNumberTighten)|volatilityAdjustment\.(enabled|lowThresholdPercent|highThresholdPercent|lookbackPeriods)|contractVolatilityAdjustment\.(threshold|stopMultiplier|targetMultiplier))$/,
++  /^exitContracts\.[A-Za-z0-9_]+\.profitManagement\.(beScaleOut\.(enabled|triggerType|fixedPercentTrigger|scaleOutFraction)|breakEvenStop\.(enabled|triggerPercent)|tieredExit\.(enabled|tier1ExitFraction|tier2ExitFraction|tier3ExitFraction|enableMarketAdaptation|trendingTargetMultiplier|rangingTargetMultiplier|highConfidenceThreshold|highConfidenceMultiplier|lowConfidenceThreshold|lowConfidenceMultiplier|profitTiers\.(tier1|tier2|tier3|final))|trail\.(enabled|minActivationPercent|atrMultiplier|trendWidenMultiplier|structureTightenMultiplier|structureDistanceThreshold|profitRatchetThreshold|profitRatchetRate|profitRatchetFloor|minTrailPercent|maxTrailPercent|feeBufferPercent|roundNumberProximity|roundNumberTighten)|volatilityAdjustment\.(enabled|lowThresholdPercent|highThresholdPercent|lookbackPeriods)|contractVolatilityAdjustment\.(threshold|stopMultiplier|targetMultiplier))$/,
+@@ -2659 +2658,0 @@ const EDITABLE_SETTINGS = deepFreeze({
+-    ['beScaleOut.feeBufferPercent', { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' break-even scale-out fee buffer', effect: 'next_trade_policy_creation' }],
+diff --git a/test/exit-contract-manager-ownership.test.js b/test/exit-contract-manager-ownership.test.js
+index bdbcda32..b9b1246e 100644
+--- a/test/exit-contract-manager-ownership.test.js
++++ b/test/exit-contract-manager-ownership.test.js
+@@ -17 +17 @@ describe('ExitContractManager exit ownership contract', () => {
+-      beScaleOut: { enabled: false, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5, feeBufferPercent: 0.05 },
++      beScaleOut: { enabled: false, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5 },
+@@ -39 +38,0 @@ describe('ExitContractManager exit ownership contract', () => {
+-        feeBufferPercent: 0.05,
+@@ -75 +73,0 @@ describe('ExitContractManager exit ownership contract', () => {
+-        feeBufferPercent: 0.05,
+diff --git a/test/policy-builder.test.js b/test/policy-builder.test.js
+index 5ed3f80b..2ac2dfb8 100644
+--- a/test/policy-builder.test.js
++++ b/test/policy-builder.test.js
+@@ -11 +11 @@ describe('PolicyBuilder frozen exit policy', () => {
+-    beScaleOut: { enabled: true, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5, feeBufferPercent: 0.05 },
++    beScaleOut: { enabled: true, triggerType: 'one_to_one_r', fixedPercentTrigger: 0.5, scaleOutFraction: 0.5 },
+@@ -31 +30,0 @@ describe('PolicyBuilder frozen exit policy', () => {
+-    'exitLogic.beScaleOut.feeBufferPercent': 0.05,
+@@ -435 +434 @@ describe('PolicyBuilder frozen exit policy', () => {
+-  test('rejects invalid break-even scale-out fraction and percent-form buffers', () => {
++  test('rejects invalid break-even scale-out fraction', () => {
+@@ -444,17 +442,0 @@ describe('PolicyBuilder frozen exit policy', () => {
+-    expect(() => PolicyBuilder.buildForTrade({
+-      strategyName: 'EMASMACrossover',
+-      exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, feeBufferPercent: 101 } }) }),
+-      nowMs: fixedNowMs,
+-      ...policyContext,
+-      configReader: reader(),
+-    })).toThrow(/feeBufferPercent must be between 0 and 100 percent-form/);
+-
+-    const policy = PolicyBuilder.buildForTrade({
+-      strategyName: 'EMASMACrossover',
+-      exitContract: exitContract({ profitManagement: profitManagement({ beScaleOut: { ...profitManagement().beScaleOut, feeBufferPercent: 2 } }) }),
+-      nowMs: fixedNowMs,
+-      ...policyContext,
+-      configReader: reader(),
+-    });
+-
+-    expect(policy.profitManagement.beScaleOut.feeBufferPercent).toBe(2);
+diff --git a/test/profit-exit-planner.test.js b/test/profit-exit-planner.test.js
+index 851beb8f..c38f791b 100644
+--- a/test/profit-exit-planner.test.js
++++ b/test/profit-exit-planner.test.js
+@@ -32 +31,0 @@ describe('ProfitExitPlanner', () => {
+-        feeBufferPercent: 0.05,
+@@ -116 +114,0 @@ describe('ProfitExitPlanner', () => {
+-            feeBufferPercent: 0.05,
+@@ -181 +178,0 @@ describe('ProfitExitPlanner', () => {
+-            feeBufferPercent: 0.05,
+@@ -205 +201,0 @@ describe('ProfitExitPlanner', () => {
+-            feeBufferPercent: 0.05,

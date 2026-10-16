@@ -1,0 +1,25 @@
+{
+  "pinnedRef": "cbf7200cd729830348d08c1a55b41e4ef9995f9d",
+  "command": "python3 scripts/test-isolated.py --fixture <each packet fixture> -- node ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/inert-scaleout-buffer-retirement/fixtures/verify-retirement.cjs",
+  "result": "PASS",
+  "assertions": [
+    "baseline revision is 14 and candidate revision is 15",
+    "17 scale-out leaves had prior 0.05 and are absent in candidate",
+    "17 trail.feeBufferPercent values remain 0.65",
+    "actual copied PolicyBuilder policy is identical after removing only the retired field and policy hash",
+    "actual copied ProfitExitPlanner emits the same be_scaleout partial intent after policy-hash normalization"
+  ],
+  "observedDecision": {
+    "action": "exit_partial",
+    "reason": "be_scaleout",
+    "exitFraction": 0.5,
+    "expectedRemainingQuantity": 5,
+    "profitPercent": 0.010999999999999944,
+    "trigger": 0.005
+  },
+  "limitations": [
+    "Offline isolated source proof only; no runtime process, broker, trade, or configuration publication was used."
+  ],
+  "candidateTree": "25fc977055304a4dd2813ce5d915cefb61e9a3ce",
+  "rebaseQualification": "Native fixture was executed before receipt-only base commit; every exercised source blob was verified identical against the final base/candidate."
+}

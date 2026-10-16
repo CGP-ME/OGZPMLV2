@@ -1,0 +1,15 @@
+{
+  "reviewBase": "cbf7200cd729830348d08c1a55b41e4ef9995f9d",
+  "reviewCandidate": "25fc977055304a4dd2813ce5d915cefb61e9a3ce",
+  "resolvedBaseTree": "b490c5eea65a528029143b29bd9bef888188032e",
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "runId": "2026-10-16T22-21-08-351Z-e6c9b88ee3e9",
+  "verdict": "no_break_found",
+  "termination": "answer_given",
+  "maxTokens": 7750,
+  "question": "Mercury, break my fix. Require file:line evidence for any introduced break.",
+  "reviewers": [
+    "mercury"
+  ],
+  "scopeQualification": "Mercury discusses the three production paths; three fixture/test paths are also in exact candidate. Native proof and legacy-suite comparison recorded separately."
+}

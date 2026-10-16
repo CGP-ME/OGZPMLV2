@@ -1,3 +1,12 @@
+## 2026-10-16 — Retire inert per-strategy scale-out fee buffers
+
+- Ruling/research: Trey authorized removal if absent from the exit research. The October 12 paper discusses economic break-even and optional partial-profit experiments, but specifies neither this field nor a minimum-profit scale-out gate.
+- Change: archive and remove all 17 beScaleOut.feeBufferPercent declarations (each 0.05), their PolicyBuilder member, 16 editable descriptors, the matching descriptor override leaf, and obsolete fixture/assertion uses. Settings revision 14→15. Preserve all 17 independently consumed trail.feeBufferPercent values at 0.65 and existing strategy-owned trigger/fraction behavior.
+- Verification: isolated exact-source PolicyBuilder policies differ only by retired field and resulting hash; actual ProfitExitPlanner produces identical partial-close intent/fraction/remaining quantity. The three legacy suites have identical 14 failures/47 passes on base and candidate, preserved by name; they are not represented as green. The existing volatility test fixture omission is tracked for separate reconciliation.
+- Review: pinned Mercury adversarial review no_break_found; all remaining fee-buffer consumers belong to the separate trail/economic-cost paths. No threshold, gate, throw, fallback or default added.
+- Limits/activation: existing frozen policies are not rewritten; no PM2 reload or real-trade acceptance. Prior values and research reference are retained in the packet.
+- Evidence: [retirement and proof](ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/inert-scaleout-buffer-retirement/README.md).
+
 ## 2026-10-16 — Archive three obsolete confidence controls
 
 - Problem: regimeMinConfidence and confluenceMinScore had unused Orchestrator assignments; TwoPole confidenceBase was overwritten by every oscillator-zone branch. Their configuration values falsely implied control over trading.
