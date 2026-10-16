@@ -1,0 +1,16 @@
+{
+  "tree": "56ecbc4150189caaf71d9034f6de9bf4393b8dec",
+  "base": "2da57107bcc0ef25740d9a6b2a12746386e5512d",
+  "files": [
+    "core/StateManager.js",
+    "core/TradingLoop.js",
+    "core/OrderExecutor.js",
+    "run-empire-v2.js",
+    "test/order-executor-pause-gate.test.js",
+    "test/eval-signal-path-proof.test.js",
+    "test/trading-loop-exit-balance.test.js",
+    "test/trading-loop-trace-spine.test.js",
+    "test/auth-failure-guard.test.js",
+    "test/state-manager-open-position-scope.test.js"
+  ]
+}

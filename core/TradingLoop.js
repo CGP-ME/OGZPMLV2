@@ -1560,7 +1560,7 @@ class TradingLoop {
     // ─── STEP 2: ENTRY CHECK ───
     // Only if no exit was triggered AND we have a directional signal
     if (decision.action === 'HOLD' && finalDirection !== 'hold' && confidence >= minConfidence) {
-      const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
+
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
       const decisionInstantKey = this._entryDecisionInstantKey({
         decisionInstantKey: marketData?.timestamp ?? (Array.isArray(priceHistory) && priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.time : null),
@@ -1569,15 +1569,7 @@ class TradingLoop {
       // Opposite entry signals do not own exits. Exit contracts own exits.
       const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades, decisionInstantKey);
 
-      if (globalHaltReason) {
-        this._diag('ENTRY_BLOCK', {
-          symbol,
-          reason: 'global_halt',
-          detail: globalHaltReason
-        });
-        console.error(`[ENTRY] Blocked: new entries halted globally - ${globalHaltReason}`);
-        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: globalHaltReason };
-      } else if (symbolHaltReason) {
+      if (symbolHaltReason) {
         this._diag('ENTRY_BLOCK', {
           symbol,
           reason: 'symbol_halt',

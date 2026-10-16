@@ -4,8 +4,8 @@ const mockStateManager = {
   get: jest.fn(),
   getEquity: jest.fn(),
   getAvailableCapital: jest.fn(),
-  isHalted: jest.fn(() => false),
-  getHaltReason: jest.fn(() => null),
+
+
   isSymbolHalted: jest.fn(() => false),
   getSymbolHaltReason: jest.fn(() => null),
   getState: jest.fn(),

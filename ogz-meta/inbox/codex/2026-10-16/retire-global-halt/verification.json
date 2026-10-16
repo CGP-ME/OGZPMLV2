@@ -1,0 +1,19 @@
+{
+  "pass": true,
+  "checks": [
+    "retired global halt APIs absent from actual StateManager",
+    "fresh paper has no secondary enable",
+    "fresh live has no secondary enable",
+    "fresh backtest has no secondary enable",
+    "legacy boolean and malformed enable values removed without pausing",
+    "deliberate manual and transfer pauses persist and resume without enable flag",
+    "legacy synthetic enable-error pause removed",
+    "actual executor pause branch permits unpaused paper/live and blocks explicit pause",
+    "all production callers removed; symbol-specific holds retained"
+  ],
+  "source": "56ecbc4150189caaf71d9034f6de9bf4393b8dec",
+  "limits": [
+    "Isolated actual StateManager and extracted actual executor branch; no broker, PM2, live ledger or backtest run",
+    "Other execution checks and independent risk policies are not bypassed by this change"
+  ]
+}

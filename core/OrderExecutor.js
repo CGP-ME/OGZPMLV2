@@ -2890,16 +2890,16 @@ class OrderExecutor {
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'trading_paused', detail: pauseReason });
         return blockedReturn('trading_paused', { detail: pauseReason });
       }
-      const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
+
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
       const symbolHaltCode = symbolHaltReason && typeof stateManager.getSymbolHaltCode === 'function'
         ? stateManager.getSymbolHaltCode(symbol)
         : null;
-      if (globalHaltReason || symbolHaltReason) {
-        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
+      if (symbolHaltReason) {
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${symbolHaltReason}`);
         const blockReason = symbolHaltCode || 'halted';
-        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: blockReason, detail: globalHaltReason || symbolHaltReason });
-        return blockedReturn(blockReason, { detail: globalHaltReason || symbolHaltReason });
+        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: blockReason, detail: symbolHaltReason });
+        return blockedReturn(blockReason, { detail: symbolHaltReason });
       }
       const hedgeBlock = this._sameSymbolHedgeBlock(decision.action, symbol);
       if (hedgeBlock) {

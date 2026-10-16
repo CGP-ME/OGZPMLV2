@@ -24,8 +24,8 @@ const mockStateManager = {
   }),
   getEquity: jest.fn(() => 10000),
   getLastPrice: jest.fn(() => null),
-  isHalted: jest.fn(() => false),
-  getHaltReason: jest.fn(() => null),
+
+
   isSymbolHalted: jest.fn(() => false),
   getSymbolHaltReason: jest.fn(() => null),
 };

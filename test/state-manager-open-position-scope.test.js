@@ -342,8 +342,8 @@ describe('StateManager openPosition scope contract', () => {
       method: 'updateActiveTrade',
       orderId: 'BYPASS_TELEMETRY_1',
     }));
-    expect(manager.isHalted()).toBe(false);
-    expect(manager.getHaltReason()).toBeNull();
+    expect(manager.isHalted).toBeUndefined();
+    expect(manager.getHaltReason).toBeUndefined();
   });
 
   test('marks an active trade unjournaled without resetting exit lifecycle fields', async () => {

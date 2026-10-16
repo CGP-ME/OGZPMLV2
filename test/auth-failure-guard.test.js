@@ -161,8 +161,8 @@ describe('AuthFailureGuard', () => {
       get: jest.fn((key) => key === 'isTrading' ? true : (key === 'balance' ? 10000 : 0)),
       getEquity: jest.fn(() => 10000),
       getAvailableCapital: jest.fn(() => 10000),
-      isHalted: jest.fn(() => false),
-      getHaltReason: jest.fn(() => null),
+
+
       isSymbolHalted: jest.fn(() => false),
       getSymbolHaltReason: jest.fn(() => null),
       getSymbolHaltCode: jest.fn(() => null),

@@ -5,8 +5,8 @@ const mockStateManager = {
   get: jest.fn(),
   getEquity: jest.fn(),
   getAvailableCapital: jest.fn(),
-  isHalted: jest.fn(() => false),
-  getHaltReason: jest.fn(() => null),
+
+
   isSymbolHalted: jest.fn(() => false),
   getSymbolHaltReason: jest.fn(() => null),
   getSymbolHaltCode: jest.fn(() => null),
@@ -205,8 +205,8 @@ describe('OrderExecutor pause gate', () => {
       if (key === 'lastError') return null;
       return null;
     });
-    mockStateManager.isHalted.mockReturnValue(false);
-    mockStateManager.getHaltReason.mockReturnValue(null);
+
+
     mockStateManager.isSymbolHalted.mockReturnValue(false);
     mockStateManager.getSymbolHaltReason.mockReturnValue(null);
     mockStateManager.getSymbolHaltCode.mockReturnValue(null);

@@ -1942,10 +1942,7 @@ class OGZPrimeV14Bot {
         if (stateManager.isPaused()) {
           startupEntryBlocks.push(stateManager.get('pauseReason'));
         }
-        const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
-        if (globalHaltReason) {
-          startupEntryBlocks.push(`global halt: ${globalHaltReason}`);
-        }
+
         const startupSymbol = this.tradingPair || this.config.tradingPair;
         const symbolHaltReason = startupSymbol && stateManager.isSymbolHalted(startupSymbol)
           ? stateManager.getSymbolHaltReason(startupSymbol)

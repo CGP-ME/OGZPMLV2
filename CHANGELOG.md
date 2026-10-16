@@ -1,3 +1,9 @@
+## 2026-10-16 — Remove phantom global-halt methods and callers
+
+Removed StateManager.isHalted/getHaltReason, which returned constant false/null, and their unreachable runner/TradingLoop/OrderExecutor branches. Reconciled the direct test mocks/assertion. Manual pause and real symbol reconciliation remain; no gate, throw, default, fallback, or replacement enable flag was added.
+
+Verification: exact candidate source passed isolated native StateManager persistence/mode/legacy-isTrading migration checks and the Executor pause-branch probe; touched JS parses and production searches find no orphan callers. Astra independently returned GO. Mercury found_break was adjudicated against the base: its other cited sites were unchanged, and removing constant false/null APIs cannot remove an operative stop. Delivery uses Trey's Astra override; no clean Mercury/full-suite/browser/broker claim. [Review, source identities and limits](ogz-meta/inbox/codex/2026-10-16/retire-global-halt/REVIEW.md). No PM2 restart or resume; running code remains separate.
+
 ## 2026-10-15 — Isolate helper tests and probes from bot runtime
 
 Problem: helpers could import live modules with obsolete env overrides and write the real paper state, decision logs or learned-memory paths. Added a Linux bubblewrap launcher that runs a disposable source snapshot with separate filesystem/network/PID namespaces, clean child and supervisor environments, read-only dependencies, and no real runtime data, operator home, credentials or PM2 sockets. Routed the six offline test/regression commands through it. Raw repository Jest now refuses before test imports unless the namespace boundary is present. AGENTS specifies the same runner for native probes and explicit fixture files. Missing isolation stops only verification; it never falls back to a host run.

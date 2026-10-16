@@ -3939,21 +3939,7 @@ class StateManager {
     this._bypassViolations = [];
   }
 
-  /**
-   * Historical bypass halt surface retained for callers, but bypass detection
-   * is now telemetry-only and cannot globally halt entries.
-   */
-  isHalted() {
-    return false;
-  }
 
-  /**
-   * Historical bypass halt reason retained for callers.
-   * @returns {string|null} Reason for halt or null
-   */
-  getHaltReason() {
-    return null;
-  }
 
   _normalizeSymbolEntryHaltsCollection(symbolEntryHalts, source = 'StateManager.symbolEntryHalts') {
     if (!symbolEntryHalts || typeof symbolEntryHalts !== 'object' || Array.isArray(symbolEntryHalts)) {

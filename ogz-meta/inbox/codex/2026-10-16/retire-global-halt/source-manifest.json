@@ -1,0 +1,52 @@
+[
+  {
+    "path": "core/StateManager.js",
+    "blob": "9a33eed6a01eada9e7fc15756c70f537df42370a",
+    "sha256": "235f68533a0a9c5134b63c6e3398f9e89f217d200299e584332373731138c7b4"
+  },
+  {
+    "path": "core/TradingLoop.js",
+    "blob": "13a0e8e5118accd3a3b07c26789a5dec45e94514",
+    "sha256": "384ddb9208b2b92956c69364b8064e36d8c504822699e5d25229b64f3cc4576f"
+  },
+  {
+    "path": "core/OrderExecutor.js",
+    "blob": "3e26444df431c303b2eab6d7960761139458194c",
+    "sha256": "a1314dd1e3bb5d6d2840e34172ac0a7a2452e9585bee80c0a1758b4c665bbf1c"
+  },
+  {
+    "path": "run-empire-v2.js",
+    "blob": "8d31ba2c67561125ef7edefa070ca7d4e1b7022d",
+    "sha256": "5b42f330f625376a12e631d834d5166924f638dad918a074dbca97dffa12c8d9"
+  },
+  {
+    "path": "test/order-executor-pause-gate.test.js",
+    "blob": "1311e373402050f15908b121f5d0d8d4fb65b6a2",
+    "sha256": "cd227f0dbfb8ad989a1d4d122e5c763873fecb9daa8176d621861e4d4d3c740d"
+  },
+  {
+    "path": "test/eval-signal-path-proof.test.js",
+    "blob": "35ff938bc10a1c344b7c72df0f558497f710ae9c",
+    "sha256": "5ab0c0aed02c7d130eb6a9e9226c7d6ecac58d8cbd136c39490cf72eb5eb48df"
+  },
+  {
+    "path": "test/trading-loop-exit-balance.test.js",
+    "blob": "d8662404573fa4e2b050efee2f17354fd8f7d92f",
+    "sha256": "97eee7295f21446a0ad77cd7eb9d3797f9934e392236b8d52ef11cf9f01093cc"
+  },
+  {
+    "path": "test/trading-loop-trace-spine.test.js",
+    "blob": "5bd1946fb150c2fda3d368a64dfb3ee72c778064",
+    "sha256": "89f362f0fc031d3dc251da0f9155f27bc5f9892bb606bd7c54cff7a5e7c5a665"
+  },
+  {
+    "path": "test/auth-failure-guard.test.js",
+    "blob": "4c6c2b3636e5bf572314a745fac4367c86aeafad",
+    "sha256": "f2bdf71cf37045a79daf20bb59ba2e4efa193df7a6d70bfbdc2b8e3bdf1d2a51"
+  },
+  {
+    "path": "test/state-manager-open-position-scope.test.js",
+    "blob": "7087900275a6349dddad6dd39ac5edab8291fb3c",
+    "sha256": "f34d434fda56c69a686db756a18d9c793ab9347a9a0b6e2c5cf55f25e622c3ff"
+  }
+]
