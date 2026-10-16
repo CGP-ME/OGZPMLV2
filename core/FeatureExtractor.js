@@ -93,8 +93,10 @@ class FeatureExtractor {
       ?? indicators.volatilityNormalized
       ?? this._normalizeAtrPercent(indicators.atrPercent);
 
-    // [3] BB Position: 0-1 (percentB from IndicatorSnapshot) — null during warmup
-    const bbPosition = indicators.bb?.percentB ?? indicators.bbPercentB ?? null;
+    // IndicatorSnapshot's flat BB value is percent-form; the legacy nested
+    // calculator packet is a fraction. Normalize at this consuming boundary.
+    const bbPosition = indicators.bb?.percentB
+      ?? (indicators.bbPercentB == null ? null : indicators.bbPercentB / 100);
 
     // [4] Volume Profile: 0-1 (relative volume compared to average)
     const volumeProfile = this._normalizeVolume(candles);
@@ -192,8 +194,8 @@ class FeatureExtractor {
 
     const lower = trend.toLowerCase();
     const config = ConfigLoader.get('featureExtraction');
-    if (lower === 'uptrend' || lower === 'bullish') return config.trendBullishValue;
-    if (lower === 'downtrend' || lower === 'bearish') return config.trendBearishValue;
+    if (lower === 'up' || lower === 'uptrend' || lower === 'bullish') return config.trendBullishValue;
+    if (lower === 'down' || lower === 'downtrend' || lower === 'bearish') return config.trendBearishValue;
     if (lower === 'sideways' || lower === 'neutral' || lower === 'ranging') return config.neutralValue;
     return null;
   }
@@ -263,7 +265,7 @@ class FeatureExtractor {
    * Normalize MACD delta to 0-1
    */
   static _normalizeMacd(macd, flatSignal = null) {
-    if (!macd) return null;
+    if (macd == null) return null;
 
     const macdLine = typeof macd === 'number' ? macd : (macd.macd ?? macd.macdLine);
     const signalLine = typeof macd === 'number' ? flatSignal : (macd.signal ?? macd.signalLine);

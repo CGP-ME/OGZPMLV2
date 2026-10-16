@@ -781,7 +781,7 @@ BOT STATUS:
         !Number.isFinite(bbWidth) || !Number.isFinite(volatility) || trend == null) {
       return null;
     }
-    const trendNum = trend === 'uptrend' ? 1 : trend === 'downtrend' ? -1 : 0;
+    const trendNum = ['up', 'uptrend'].includes(trend) ? 1 : ['down', 'downtrend'].includes(trend) ? -1 : 0;
     return [rsi / 100, macd - macdSig, trendNum, bbWidth, volatility, 0.5, 0, 0, 0];
   }
 

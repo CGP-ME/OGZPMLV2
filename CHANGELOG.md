@@ -1,3 +1,13 @@
+## 2026-10-16 — Preserve real indicator inputs and direction through pattern consumers
+
+Problem: TradingLoop overwrote canonical Bollinger width with an absent nested alias and passed nested MACD fields although the actual snapshot is flat. Feature extraction treated MACD zero as absent, flat percent-B as a fraction, and the active up/down trend names as neutral/missing.
+
+Change: preserve the canonical snapshot width, pass actual flat MACD/signal, remove fake EMA/band aliases, convert flat percent-B units at its feature consumer, retain zero MACD, and recognize actual up/down directions in both EPR branches and the two TRAI feature consumers. No learned-bank rewrite, configuration-number change, gate, default or fallback was introduced.
+
+Verification: isolated actual FeatureExtractor/EPR plus AST-extracted TradingLoop producer and actual TRAI feature methods cover up/down/sideways and legacy names, optimized and provided inputs, zero MACD, percent-B units, and preserved width. Initial Astra review blocked two newly reachable direction consumers; those were corrected and the final candidate passed. Exact production blobs are unchanged when rebased after the independent exit/smoke commits.
+
+Review: Mercury found_break is preserved. Final Astra adjudication traced existing string validation before lowercase calls, actual IndicatorEngine EMA/BB outputs, and downstream consumers: both final allegations are unsupported. Qualified Astra GO under Trey's instruction; not a clean Mercury claim. Evidence: `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/pattern-input/` and shared `fixtures/verify.cjs`, `verification.log`. No broker/full-bank replay or runtime activation occurred.
+
 ## 2026-10-16 — Retire smoke diagnostic reads of the deleted global exit owner
 
 Problem: the existing smoke check still requested exits.stopLossPercent and exits.takeProfitPercent after strategy-owned exit migration. Change: the explicitly named EMASMACrossover smoke case reads its actual canonical exit contract and checks the existing signed stop convention. This does not impose a global exit policy or change trading code.

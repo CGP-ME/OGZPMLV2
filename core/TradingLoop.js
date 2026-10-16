@@ -1061,11 +1061,7 @@ class TradingLoop {
     const fibonacciDetector = symCtx.fibonacciDetector;
     const dtoState = indicatorEngine.getSnapshot();
     const indicators = dtoState.indicators || {};
-    indicators.ema12 = indicators.ema9 ?? null;
-    indicators.ema26 = indicators.ema21 ?? null;
     indicators.volatility = indicators.atr ?? null;
-    indicators.bbWidth = indicators.bb?.bandwidth ?? null;
-    indicators.bollingerBands = indicators.bb;
     indicators.trend = indicators.superTrendDirection ?? null;
     let nearestFibLevel = null;
     if (fibonacciDetector && priceHistory.length >= 30) {
@@ -1946,11 +1942,7 @@ class TradingLoop {
     // Indicators
     const dtoState = indicatorEngine.getSnapshot();
     const indicators = dtoState.indicators;
-    indicators.ema12 = indicators.ema9 ?? null;
-    indicators.ema26 = indicators.ema21 ?? null;
     indicators.volatility = indicators.atr ?? null;
-    indicators.bbWidth = indicators.bb?.bandwidth ?? null;
-    indicators.bollingerBands = indicators.bb;
     indicators.trend = indicators.superTrendDirection ?? null;
 
     // Patterns
@@ -1958,8 +1950,8 @@ class TradingLoop {
     const memoryPatterns = this.ctx.patternChecker.analyzePatterns({
       candles: priceHistory,
       trend: indicators.trend,
-      macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
-      macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
+      macd: indicators.macd,
+      macdSignal: indicators.macdSignal,
       rsi: indicators.rsi,
       volume: marketData?.volume ?? null,
       ...patternScope
@@ -1972,7 +1964,7 @@ class TradingLoop {
     const rawCandlePatterns = candlePatternDetector.detect(priceHistory, {
       rsi: indicators.rsi,
       trend: indicators.trend,
-      macd: indicators.macd?.macd ?? null,
+      macd: indicators.macd,
       volume: marketData?.volume ?? null
     });
     const minPatternConf = ConfigLoader.get('confidence.candlePatternMinConfidence');

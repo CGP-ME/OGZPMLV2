@@ -228,7 +228,8 @@ class FeatureExtractor {
       const rsiNormalized = calculatedRsi / 100;  // Scale to 0-1
       const macdDelta = calculatedMacd - calculatedSignal;
       // CHANGE 614: Fix case-sensitivity
-      const trendEncoded = calculatedTrend?.toLowerCase?.() === 'uptrend' ? 1 : calculatedTrend?.toLowerCase?.() === 'downtrend' ? -1 : 0;
+      const trendName = calculatedTrend.toLowerCase();
+      const trendEncoded = ['up', 'uptrend'].includes(trendName) ? 1 : ['down', 'downtrend'].includes(trendName) ? -1 : 0;
 
       // Candle pattern features
       const bodySize = Math.abs(c(latestCandle) - o(latestCandle)) / c(latestCandle);
@@ -283,7 +284,7 @@ class FeatureExtractor {
         rsi / 100,                                                   // Normalized RSI
         macd - signal,                                               // MACD delta
         // CHANGE 614: Fix case-sensitivity
-        trend?.toLowerCase?.() === 'uptrend' ? 1 : trend?.toLowerCase?.() === 'downtrend' ? -1 : 0,  // Trend
+        ['up', 'uptrend'].includes(trend.toLowerCase()) ? 1 : ['down', 'downtrend'].includes(trend.toLowerCase()) ? -1 : 0,  // Trend
         0,                                                           // BB width unavailable outside optimized path
         0,                                                           // Volatility unavailable outside optimized path
         flatCandleWickRatio,

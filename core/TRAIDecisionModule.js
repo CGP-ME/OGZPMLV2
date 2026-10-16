@@ -476,7 +476,7 @@ class TRAIDecisionModule extends EventEmitter {
         !Number.isFinite(bbWidth) || !Number.isFinite(volatility) || context.trend == null) {
       return null;
     }
-    const trendNum = context.trend === 'uptrend' ? 1 : context.trend === 'downtrend' ? -1 : 0;
+    const trendNum = ['up', 'uptrend'].includes(context.trend) ? 1 : ['down', 'downtrend'].includes(context.trend) ? -1 : 0;
     return [rsi / 100, macd - macdSignal, trendNum, bbWidth, volatility, 0.5, 0, 0, 0];
   }
   

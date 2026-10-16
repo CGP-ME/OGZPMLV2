@@ -1,0 +1,14 @@
+{
+  "reviewBase": "86e45d6ff451623b5f6591e1048f0ba48c4b9f87",
+  "reviewCandidate": "f6829d9753deb2c375cce680490d9f7a409ca680",
+  "deliveryBase": "d892f5e18846e196a8d24159ed0092c95eab71fd",
+  "deliveryCandidate": "a0c71827f05135ef31133c6b1777a732cf06aeb2",
+  "changedProductionBlobsIdentical": true,
+  "files": {
+    "core/EnhancedPatternRecognition.js": "0acfd7f9a0ce86b79952f8dadd9ecc29832e1549",
+    "core/FeatureExtractor.js": "171582007f383da63389b773ad78bb6b8e9e534e",
+    "core/TRAIDecisionModule.js": "d7221f6ad794af80b0e94b664df51c33a02e58a6",
+    "core/TradingLoop.js": "7f11271e2cbfb0ba0cc7e4a490bfc3539337e0cd",
+    "core/trai_core.js": "9f423f9d84c24ca08b7677d846d39b19b9c13e99"
+  }
+}
