@@ -1,3 +1,13 @@
+## 2026-10-16 — Refresh configuration provenance after approved retirements
+
+- Exact executable source: a2d0872896881f7c0b54242dc4d4c0581ef9b8e1 (settings revision15, internals5). The final evidence now includes role-source correction 89affa44, confidence retirement cbf7200c, scale-out-buffer retirement 44901df4 and the volatility fixture correction a2d08728.
+- Provenance: account for all 3,974 canonical leaves/empty containers; 2,281 have recorded role routes and 1,693 conditional profile/tool/deployment entries match the existing disposition set exactly. Zero invented canonical labels, missing owner entries, duplicate JSON keys, or shared setting paths except revision/schema metadata. The updater preserves every explicit scalar route and the two real group projections.
+- Native verification: six role/profile snapshots validate source-key existence, canonical-label resolution and scalar value equality. All 184 archived env names injected together leave config, source maps, revisions and fingerprints unchanged across six snapshots. All 1,392 editable fields pass changed save, canonical persistence, loader read, fresh reload, unchanged-repeat no-write/cache semantics and restoration. These are isolated copied-source checks, not live deployment.
+- Consumer evidence: getter census 288 literal/11 computed/13 accessor calls with named parser/static limits; bounded consumer traces distinguish actual effects from copied or dormant controls. Three approved obsolete confidence controls and the scale-out fee buffer are marked retired, no pending intent ruling. Preserved inactive features retain explicit limitations/defer evidence.
+- Review: independent cheap-agent source/evidence review GO for pinned accounting and saved-field transport; its initial stale-save warning was resolved by the completed matching 1,392-field run. Historical adversarial findings and per-change Mercury/Astra decisions remain intact.
+- Limits: no every-algorithm, full legacy-suite, UI-rendering, fresh Mercury-index or runtime-activation claim. PM2 reload/resume and the controlled paper walkthrough remain held; unrelated dirty work is preserved. Stop 1 end-to-end acceptance remains OPEN, not relabeled complete because counts pass.
+- Evidence/index: [configuration closure](ogz-meta/inbox/codex/2026-10-16/config-closure/README.md), [current audit index](ogz-meta/inbox/codex/2026-10-16/config-closure/AUDIT-INDEX.md).
+
 ## 2026-10-16 — Reconcile volatility migration test fixture
 
 - Problem: the existing high-volatility PolicyBuilder test omitted lowTargetMultiplier/highTargetMultiplier after 6f52bb08 moved those values into strategy contracts; its incomplete fixture failed normalization.

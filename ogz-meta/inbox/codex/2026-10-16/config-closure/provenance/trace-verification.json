@@ -1,9 +1,10 @@
 {
-  "candidate": "d17aee91e7e531f8145be693394b884fd3525853",
-  "canonicalLeavesAndEmptyContainers": 3958,
-  "roleSourceJoined": 2265,
+  "candidate": "a2d0872896881f7c0b54242dc4d4c0581ef9b8e1",
+  "canonicalLeavesAndEmptyContainers": 3974,
+  "roleSourceJoined": 2281,
   "conditionalProfileToolDeploymentRows": 1693,
   "unaccountedCanonicalPaths": 0,
+  "invalidCanonicalSourceLabels": 0,
   "duplicateJsonProperties": 0,
   "sharedCanonicalPaths": [
     "revision",

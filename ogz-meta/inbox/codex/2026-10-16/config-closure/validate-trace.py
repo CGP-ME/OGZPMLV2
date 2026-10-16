@@ -31,11 +31,13 @@ def leaves(value, prefix=''):
 
 
 canonical = {}
+canonical_values = {}
 for owner in ['config/settings.json', 'config/internals.json']:
     raw = subprocess.check_output(['git', 'show', f'{ref}:{owner}'])
     blob = subprocess.check_output(['git', 'hash-object', '--stdin'], input=raw).decode().strip()
     assert blob == manifest['files'][owner]
-    canonical[owner] = set(leaves(json.loads(raw, object_pairs_hook=unique_object)))
+    canonical_values[owner] = json.loads(raw, object_pairs_hook=unique_object)
+    canonical[owner] = set(leaves(canonical_values[owner]))
 assert not duplicate_keys, duplicate_keys
 shared_paths = canonical['config/settings.json'] & canonical['config/internals.json']
 assert shared_paths == {'revision', 'schemaVersion'}, shared_paths
@@ -47,6 +49,24 @@ expected = {(owner, key) for owner, paths in canonical.items() for key in paths}
 assert set(keys) == expected, {'missing': sorted(expected - set(keys)), 'extra': sorted(set(keys) - expected)}
 proof = json.loads((packet / 'provenance/current-result.json').read_text())
 assert proof['candidate'] == ref
+# A nonempty label is not provenance if its declared canonical path is invented.
+invalid_source_labels = []
+for snapshot, source_map in proof['sourceMaps'].items():
+    for runtime_path, source in source_map.items():
+        if not source.startswith('config:'):
+            continue
+        _, filename, canonical_path = source.split(':', 2)
+        owner = 'config/' + filename
+        if owner not in canonical_values:
+            invalid_source_labels.append((snapshot, runtime_path, source))
+            continue
+        value = canonical_values[owner]
+        try:
+            for key in canonical_path.split('.') if canonical_path else []:
+                value = value[int(key)] if isinstance(value, list) else value[key]
+        except (KeyError, IndexError, ValueError, TypeError):
+            invalid_source_labels.append((snapshot, runtime_path, source))
+assert not invalid_source_labels, invalid_source_labels
 for row in rows:
     for source in row['runtimeSources']:
         assert proof['sourceMaps'][source['snapshot']][source['runtimePath']] == source['source']
@@ -64,6 +84,7 @@ print(json.dumps({
     'roleSourceJoined': len(rows) - len(conditional),
     'conditionalProfileToolDeploymentRows': len(conditional),
     'unaccountedCanonicalPaths': 0,
+    'invalidCanonicalSourceLabels': 0,
     'duplicateJsonProperties': 0,
     'sharedCanonicalPaths': sorted(shared_paths),
     'archivedEnvNamesAccounted': len(env_keys),

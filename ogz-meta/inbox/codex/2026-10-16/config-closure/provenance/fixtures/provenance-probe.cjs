@@ -52,6 +52,25 @@ const snapshot = (role, profile) => {
   const loaded = ConfigLoader.load({ role, silent: true, loadDotenv: false });
   const config = loaded.config;
   const missingSources = leaves(config).filter(key => loaded.sources?.[key] === undefined);
+  const lookup = (value, dotted) => {
+    for (const key of dotted ? dotted.split('.') : []) {
+      assert.ok(value !== null && typeof value === 'object' && Object.hasOwn(value, key), `missing source path ${dotted}`);
+      value = value[key];
+    }
+    return value;
+  };
+  for (const [runtimePath, source] of Object.entries(loaded.sources)) {
+    const runtimeValue = lookup(config, runtimePath);
+    if (!source.startsWith('config:')) continue;
+    const [, owner, ownerPath] = source.split(':');
+    assert.ok(['settings.json', 'internals.json'].includes(owner), source);
+    const ownerValue = lookup(owner === 'settings.json' ? canonicalSettings : canonicalInternals, ownerPath);
+    if ((ownerValue === null || typeof ownerValue !== 'object') &&
+        (runtimeValue === null || typeof runtimeValue !== 'object')) {
+      assert.deepEqual(runtimeValue, ownerValue, `${role}/${profile}: ${runtimePath} -> ${source}`);
+    }
+  }
+
   return {
     role, profile, fingerprint: loaded.fingerprint, revisions: loaded.revisions,
     leafCount: leaves(config).length, sourceCount: Object.keys(loaded.sources || {}).length,
@@ -153,4 +172,5 @@ assert.deepEqual(matrix, canonicalInternals.tooling.matrixSweep);
 result.accessors = { tuningProfiles: tuning, feeProfiles: fees,
   parallelMatchesCanonical: true, matrixMatchesCanonical: true };
 result.checks.push('parallel, matrix, tuning-profile and fee-profile accessors resolve canonical fixture values');
+result.checks.push('every source key exists, every canonical source label resolves, and scalar source/value pairs match in every tested snapshot');
 console.log(JSON.stringify(result));
