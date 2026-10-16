@@ -17,9 +17,9 @@ The earlier PID hookup is withdrawn, not awaiting activation. No PM2 restart or 
 
 These were findings from the October 11 multi-agent config audit, not new unmapped settings. Stop 9 covers pattern-bank/ML inspection; the substantial build is a separate mission after the walk. TrAI and trace are Stop 10. Dormant controls must remain labeled unimplemented/deferred, not accepted as working features. They do not hold up Stops 1/2 as a new feature-build demand.
 
-## 3. Ledger reconciliation — executing
+## 3. Ledger reconciliation — source delivery completed October 16
 
-Trey authorized implementation and isolated feed-through tests, including recorded receipts or dashboard display. Compare only semantically matching account/execution data; simulated paper bankroll is not broker money. No automatic balance override or new trading restriction.
+The earlier prepared-work claim did not mean this was committed. Current source delivery has a fresh pinned isolated proof, clean Mercury and Astra GO; see [October 16 evidence](../../2026-10-16/ledger-delivery/REVIEW.md). The change records account-scoped USD cash comparisons in transition receipts and does not override balances or gate trading. Runtime activation and the broader paper walkthrough remain pending. Legacy full-router suites still have the same base/candidate failures; no full-suite pass is claimed.
 
 ## 4. Session-risk declarations — removed by Trey ruling
 

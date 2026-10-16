@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const SessionRouter = require('../core/SessionRouter');
+const RiskManager = require('../core/RiskManager');
 const { subscribeTrace } = require('../core/TraceSpine');
 const { applyExplicitRuntimeTestEnv } = require('./fixtures/explicit-runtime-env');
 
@@ -54,6 +55,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     router.orderRouter = { registerBroker: jest.fn() };
     router.onOhlcCallback = jest.fn();
     router.ctx = {
+      riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       candleTimeframe: '15m',
       config: {
         executionMode: 'paper',

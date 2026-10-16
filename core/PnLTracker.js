@@ -26,6 +26,14 @@ class PnLTracker {
 
     const fill = {
       pnl,
+      reconciliationPnl: trade.reconciliationPnl,
+      fillId: trade.fillId,
+      tradeId: trade.tradeId,
+      brokerId: trade.brokerId,
+      accountId: trade.accountId,
+      accountIdSource: trade.accountIdSource,
+      executionMode: trade.executionMode,
+      simulated: trade.simulated,
       symbol: trade.symbol || null,
       strategy: trade.strategy || trade.entryStrategy || null,
       venue: trade.venue || trade.executionVenue || null,

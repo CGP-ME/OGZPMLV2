@@ -29,38 +29,81 @@ class RiskManager {
   }
 
   reportExternalLedgerDelta(externalLedger = {}) {
-    const own = this.pnlTracker.getState();
-    const externalBalance = Number(externalLedger.balance ?? externalLedger.equity);
-    const source = externalLedger.source || externalLedger.venue || 'external_ledger';
+    const { brokerId, accountId, accountIdSource, executionMode, brokerExecutionMode, metric } = externalLedger;
+    const scope = { brokerId, accountId, accountIdSource, executionMode };
+    const sameScope = (value) => value.brokerId === brokerId && value.accountId === accountId && value.executionMode === executionMode;
+    const verifiedIdentity = (value) => typeof value.accountId === 'string' && value.accountId.length > 0 &&
+      typeof value.accountIdSource === 'string' && value.accountIdSource.startsWith('broker:');
+    const previous = [...this.reconciliationReports].reverse().find((value) =>
+      sameScope(value.scope) && value.metric === metric && value.baseline !== null);
     const report = {
-      source,
-      ownBalance: own.currentBalance,
-      externalBalance: Number.isFinite(externalBalance) ? externalBalance : null,
-      deltaDollars: Number.isFinite(externalBalance) ? externalBalance - own.currentBalance : null,
+      source: externalLedger.source,
+      scope,
+      brokerExecutionMode,
+      metric,
+      comparison: 'flat_account_change_since_observation',
+      status: 'non_comparable',
+      reason: null,
+      ownBalance: null,
+      externalBalance: Number.isFinite(externalLedger.balance) ? externalLedger.balance : null,
+      deltaDollars: null,
+      baseline: previous ? previous.baseline : null,
+      matchedFills: [],
+      excludedFillCount: 0,
+      alertTriggered: false,
       timestamp: new Date().toISOString(),
       authority: 'report_only',
     };
 
-    this.reconciliationReports.push(report);
-    if (this.reconciliationReports.length > 100) this.reconciliationReports.shift();
-
-    if (this.reconciliationReporter.enabled) {
-      const dollars = Math.abs(report.deltaDollars ?? 0);
-      const percent = own.currentBalance > 0 && report.deltaDollars !== null
-        ? Math.abs(report.deltaDollars / own.currentBalance) * 100
-        : null;
-      const dollarLimit = this.reconciliationReporter.alertDeltaDollars;
-      const percentLimit = this.reconciliationReporter.alertDeltaPercent;
-      const dollarBreach = dollarLimit !== null && dollars >= dollarLimit;
-      const percentBreach = percentLimit !== null && percent !== null && percent >= percentLimit;
-      if (dollarBreach || percentBreach) {
-        this._triggerAlert(
-          'reconciliation_delta',
-          `[RiskManager] Reconciliation delta from ${source}: own=${own.currentBalance}, external=${report.externalBalance}, delta=${report.deltaDollars}`
-        );
+    if (executionMode !== 'live' || brokerExecutionMode !== 'live') {
+      report.reason = 'execution_is_not_live_broker_trading';
+    } else if (!verifiedIdentity(scope)) {
+      report.reason = 'broker_account_identity_unverified';
+    } else if (metric !== 'USD_cash' || report.externalBalance === null) {
+      report.reason = 'broker_usd_cash_not_supplied';
+    } else if (externalLedger.localFlat !== true || externalLedger.brokerFlat !== true) {
+      report.reason = 'positions_or_orders_not_flat';
+    } else if (report.baseline === null) {
+      report.status = 'baseline_only';
+      report.reason = 'no_prior_flat_account_observation';
+      report.baseline = {
+        balance: report.externalBalance,
+        tradeHistoryStartIndex: this.pnlTracker.tradeHistory.length,
+        timestamp: report.timestamp,
+      };
+    } else {
+      const fills = this.pnlTracker.tradeHistory.slice(report.baseline.tradeHistoryStartIndex);
+      const unknownFill = fills.some((fill) => fill.simulated !== true && (
+        fill.simulated !== false || !verifiedIdentity(fill) || !fill.brokerId || fill.executionMode !== 'live' ||
+        (sameScope(fill) && !Number.isFinite(fill.reconciliationPnl))
+      ));
+      if (unknownFill) {
+        report.reason = 'post_baseline_fill_account_or_net_pnl_unproven';
+      } else {
+        report.matchedFills = fills.filter((fill) => fill.simulated === false && sameScope(fill))
+          .map((fill) => ({ fillId: fill.fillId, tradeId: fill.tradeId, symbol: fill.symbol, netPnl: fill.reconciliationPnl }));
+        report.excludedFillCount = fills.length - report.matchedFills.length;
+        report.ownBalance = report.baseline.balance + report.matchedFills.reduce((sum, fill) => sum + fill.netPnl, 0);
+        report.deltaDollars = report.externalBalance - report.ownBalance;
+        report.status = 'compared';
       }
     }
 
+    if (this.reconciliationReporter.enabled && report.status === 'compared') {
+      const dollars = Math.abs(report.deltaDollars);
+      const percent = report.ownBalance > 0 ? dollars / report.ownBalance * 100 : null;
+      const dollarLimit = this.reconciliationReporter.alertDeltaDollars;
+      const percentLimit = this.reconciliationReporter.alertDeltaPercent;
+      report.alertTriggered = (dollarLimit !== null && dollars >= dollarLimit) ||
+        (percentLimit !== null && percent !== null && percent >= percentLimit);
+      if (report.alertTriggered) {
+        this._triggerAlert('reconciliation_delta',
+          `[RiskManager] Reconciliation delta from ${report.source}: expected=${report.ownBalance}, external=${report.externalBalance}, delta=${report.deltaDollars}`);
+      }
+    }
+
+    this.reconciliationReports.push(report);
+    if (this.reconciliationReports.length > 100) this.reconciliationReports.shift();
     return report;
   }
 

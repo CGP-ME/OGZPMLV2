@@ -22,7 +22,7 @@ describe('RiskManager reconciliation reporting', () => {
 
 
 
-  test('external ledger reconciliation reports deltas but cannot mutate own balance', () => {
+  test('unscoped external ledger input is non-comparable and cannot mutate own balance', () => {
     const riskManager = new RiskManager({ enabled: true, alertDeltaDollars: 1, alertDeltaPercent: 0.1 });
     riskManager.initializeBalance(5000);
     riskManager.recordTradeResult({ success: true, pnl: 25, venue: 'stocks' });
@@ -33,9 +33,11 @@ describe('RiskManager reconciliation reporting', () => {
 
     expect(report).toEqual(expect.objectContaining({
       source: 'ttp',
-      ownBalance: 5025,
+      status: 'non_comparable',
+      reason: 'execution_is_not_live_broker_trading',
+      ownBalance: null,
       externalBalance: 4900,
-      deltaDollars: -125,
+      deltaDollars: null,
       authority: 'report_only',
     }));
     expect(after).toBe(before);
@@ -50,7 +52,8 @@ describe('RiskManager reconciliation reporting', () => {
       'core/StateManager.js',
       'core/PerformanceDashboardIntegration.js',
       'foundation/ConfigLoader.js',
-      'config/trading.config.json',
+      'config/settings.json',
+      'config/internals.json',
       'ogz-meta/gates/multi-runtime-gate-runner.js',
     ];
     const forbidden = [

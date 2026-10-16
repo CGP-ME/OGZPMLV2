@@ -1344,8 +1344,19 @@ class SessionRouter extends EventEmitter {
       throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getBalance() returned empty object`);
     }
 
+    const identity = typeof adapter.getAccountIdentity === 'function' ? adapter.getAccountIdentity() : null;
+    // These named adapter fields are USD cash, not converted portfolio equity.
+    const usdCash = brokerId === 'alpaca' ? balanceResult.USD :
+      brokerId === 'kraken' && balanceResult.currencies &&
+      ['USD', 'ZUSD'].some((key) => Object.prototype.hasOwnProperty.call(balanceResult.currencies, key))
+        ? balanceResult.total : null;
     return {
       brokerId,
+      accountId: identity?.brokerId === brokerId ? identity.accountId : null,
+      accountIdSource: identity?.brokerId === brokerId ? identity.accountIdSource : null,
+      brokerExecutionMode: brokerId === 'alpaca' ? adapter.config?.mode : brokerId === 'kraken' ? 'live' : null,
+      metric: 'USD_cash',
+      balance: Number.isFinite(usdCash) ? usdCash : null,
       openPositions: this._normalizeBrokerPositions(positionsResult, brokerId),
       openOrders: this._normalizeBrokerOrders(ordersResult, brokerId),
       balanceChecked: true
@@ -1373,6 +1384,13 @@ class SessionRouter extends EventEmitter {
       }
       for (const [role, snapshot] of Object.entries(snapshots)) {
         if (!snapshot) continue;
+        snapshot.ledgerReport = this.ctx.riskManager.reportExternalLedgerDelta({
+          ...snapshot,
+          source: `${snapshot.brokerId}:${role}`,
+          executionMode: this.ctx.config.executionMode,
+          localFlat: this._activeTradeEntries().length === 0,
+          brokerFlat: snapshot.openPositions.length === 0 && snapshot.openOrders.length === 0,
+        });
         if (!paperExecution && snapshot.openPositions.length > 0) {
           unsafeParts.push(`${role} ${snapshot.brokerId} open positions=${snapshot.openPositions.length}`);
         }

@@ -1,0 +1,478 @@
+{
+  "implementationTree": "a68b245cb9d38ace92ec30495529adc77e387766",
+  "boundary": "post-applyFill confirmed-fill inputs; not full broker execution",
+  "writes": {
+    "journalDir": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-10-13/ledger-reconciliation/fixtures/generated/run-0z7KXA/journal",
+    "productionStateWritten": false,
+    "brokerCalls": "fixture-only",
+    "pm2Calls": 0
+  },
+  "netFillEvidence": [
+    {
+      "fillId": "k-1",
+      "tradeId": "k-trade",
+      "brokerId": "kraken",
+      "accountId": "kraken-main",
+      "simulated": false,
+      "reconciliationPnl": 95
+    },
+    {
+      "fillId": "k-2",
+      "tradeId": "k-trade",
+      "brokerId": "kraken",
+      "accountId": "kraken-main",
+      "simulated": false,
+      "reconciliationPnl": 45
+    },
+    {
+      "fillId": "a-1",
+      "tradeId": "a-trade",
+      "brokerId": "alpaca",
+      "accountId": "alpaca-main",
+      "simulated": false,
+      "reconciliationPnl": -14.4
+    },
+    {
+      "fillId": "a-2",
+      "tradeId": "a-trade",
+      "brokerId": "alpaca",
+      "accountId": "alpaca-main",
+      "simulated": false,
+      "reconciliationPnl": -26.6
+    },
+    {
+      "fillId": "other-1",
+      "tradeId": "other-trade",
+      "brokerId": "alpaca",
+      "accountId": "other-account",
+      "simulated": false,
+      "reconciliationPnl": 8
+    },
+    {
+      "fillId": "sim-1",
+      "tradeId": "simulated-trade",
+      "brokerId": "kraken",
+      "accountId": "kraken-main",
+      "simulated": true,
+      "reconciliationPnl": 8.6
+    }
+  ],
+  "result": "pass",
+  "receiptReadback": [
+    {
+      "event": "SESSION_BROKER_RECONCILED",
+      "transitionId": "fixture-1",
+      "reports": {
+        "source": {
+          "scope": {
+            "brokerId": "kraken",
+            "accountId": "kraken-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "baseline_only",
+          "reason": "no_prior_flat_account_observation",
+          "metric": "USD_cash",
+          "ownBalance": null,
+          "externalBalance": 1000,
+          "deltaDollars": null,
+          "baseline": {
+            "balance": 1000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.607Z"
+          },
+          "matchedFills": [],
+          "alertTriggered": false
+        },
+        "target": {
+          "scope": {
+            "brokerId": "alpaca",
+            "accountId": "alpaca-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "baseline_only",
+          "reason": "no_prior_flat_account_observation",
+          "metric": "USD_cash",
+          "ownBalance": null,
+          "externalBalance": 2000,
+          "deltaDollars": null,
+          "baseline": {
+            "balance": 2000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.608Z"
+          },
+          "matchedFills": [],
+          "alertTriggered": false
+        }
+      }
+    },
+    {
+      "event": "SESSION_BROKER_RECONCILED",
+      "transitionId": "fixture-2",
+      "reports": {
+        "source": {
+          "scope": {
+            "brokerId": "kraken",
+            "accountId": "kraken-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "compared",
+          "reason": null,
+          "metric": "USD_cash",
+          "ownBalance": 1140,
+          "externalBalance": 1140,
+          "deltaDollars": 0,
+          "baseline": {
+            "balance": 1000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.607Z"
+          },
+          "matchedFills": [
+            {
+              "fillId": "k-1",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 95
+            },
+            {
+              "fillId": "k-2",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 45
+            }
+          ],
+          "alertTriggered": false
+        },
+        "target": {
+          "scope": {
+            "brokerId": "alpaca",
+            "accountId": "alpaca-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "compared",
+          "reason": null,
+          "metric": "USD_cash",
+          "ownBalance": 1959,
+          "externalBalance": 1959,
+          "deltaDollars": 0,
+          "baseline": {
+            "balance": 2000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.608Z"
+          },
+          "matchedFills": [
+            {
+              "fillId": "a-1",
+              "tradeId": "a-trade",
+              "symbol": "TSLA",
+              "netPnl": -14.4
+            },
+            {
+              "fillId": "a-2",
+              "tradeId": "a-trade",
+              "symbol": "TSLA",
+              "netPnl": -26.6
+            }
+          ],
+          "alertTriggered": false
+        }
+      }
+    },
+    {
+      "event": "SESSION_BROKER_RECONCILED",
+      "transitionId": "fixture-3",
+      "reports": {
+        "source": {
+          "scope": {
+            "brokerId": "kraken",
+            "accountId": "kraken-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "compared",
+          "reason": null,
+          "metric": "USD_cash",
+          "ownBalance": 1140,
+          "externalBalance": 1139,
+          "deltaDollars": -1,
+          "baseline": {
+            "balance": 1000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.607Z"
+          },
+          "matchedFills": [
+            {
+              "fillId": "k-1",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 95
+            },
+            {
+              "fillId": "k-2",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 45
+            }
+          ],
+          "alertTriggered": false
+        },
+        "target": {
+          "scope": {
+            "brokerId": "alpaca",
+            "accountId": "alpaca-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "compared",
+          "reason": null,
+          "metric": "USD_cash",
+          "ownBalance": 1959,
+          "externalBalance": 1961,
+          "deltaDollars": 2,
+          "baseline": {
+            "balance": 2000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.608Z"
+          },
+          "matchedFills": [
+            {
+              "fillId": "a-1",
+              "tradeId": "a-trade",
+              "symbol": "TSLA",
+              "netPnl": -14.4
+            },
+            {
+              "fillId": "a-2",
+              "tradeId": "a-trade",
+              "symbol": "TSLA",
+              "netPnl": -26.6
+            }
+          ],
+          "alertTriggered": false
+        }
+      }
+    },
+    {
+      "event": "SESSION_BROKER_RECONCILED",
+      "transitionId": "fixture-4",
+      "reports": {
+        "source": {
+          "scope": {
+            "brokerId": "kraken",
+            "accountId": "kraken-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "compared",
+          "reason": null,
+          "metric": "USD_cash",
+          "ownBalance": 1140,
+          "externalBalance": 1139,
+          "deltaDollars": -1,
+          "baseline": {
+            "balance": 1000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.607Z"
+          },
+          "matchedFills": [
+            {
+              "fillId": "k-1",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 95
+            },
+            {
+              "fillId": "k-2",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 45
+            }
+          ],
+          "alertTriggered": false
+        },
+        "target": {
+          "scope": {
+            "brokerId": "alpaca",
+            "accountId": null,
+            "accountIdSource": null,
+            "executionMode": "live"
+          },
+          "status": "non_comparable",
+          "reason": "broker_account_identity_unverified",
+          "metric": "USD_cash",
+          "ownBalance": null,
+          "externalBalance": 3000,
+          "deltaDollars": null,
+          "baseline": null,
+          "matchedFills": [],
+          "alertTriggered": false
+        }
+      }
+    },
+    {
+      "event": "SESSION_BROKER_RECONCILED",
+      "transitionId": "fixture-5",
+      "reports": {
+        "source": {
+          "scope": {
+            "brokerId": "kraken",
+            "accountId": "kraken-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "non_comparable",
+          "reason": "broker_usd_cash_not_supplied",
+          "metric": "USD_cash",
+          "ownBalance": null,
+          "externalBalance": null,
+          "deltaDollars": null,
+          "baseline": {
+            "balance": 1000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.607Z"
+          },
+          "matchedFills": [],
+          "alertTriggered": false
+        },
+        "target": {
+          "scope": {
+            "brokerId": "alpaca",
+            "accountId": "alpaca-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "compared",
+          "reason": null,
+          "metric": "USD_cash",
+          "ownBalance": 1959,
+          "externalBalance": 1961,
+          "deltaDollars": 2,
+          "baseline": {
+            "balance": 2000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.608Z"
+          },
+          "matchedFills": [
+            {
+              "fillId": "a-1",
+              "tradeId": "a-trade",
+              "symbol": "TSLA",
+              "netPnl": -14.4
+            },
+            {
+              "fillId": "a-2",
+              "tradeId": "a-trade",
+              "symbol": "TSLA",
+              "netPnl": -26.6
+            }
+          ],
+          "alertTriggered": false
+        }
+      }
+    },
+    {
+      "event": "SESSION_BROKER_RECONCILE_FAILED",
+      "transitionId": "fixture-6",
+      "reports": {
+        "source": {
+          "scope": {
+            "brokerId": "kraken",
+            "accountId": "kraken-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "compared",
+          "reason": null,
+          "metric": "USD_cash",
+          "ownBalance": 1140,
+          "externalBalance": 1139,
+          "deltaDollars": -1,
+          "baseline": {
+            "balance": 1000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.607Z"
+          },
+          "matchedFills": [
+            {
+              "fillId": "k-1",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 95
+            },
+            {
+              "fillId": "k-2",
+              "tradeId": "k-trade",
+              "symbol": "BTC-USD",
+              "netPnl": 45
+            }
+          ],
+          "alertTriggered": false
+        },
+        "target": {
+          "scope": {
+            "brokerId": "alpaca",
+            "accountId": "alpaca-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "live"
+          },
+          "status": "non_comparable",
+          "reason": "positions_or_orders_not_flat",
+          "metric": "USD_cash",
+          "ownBalance": null,
+          "externalBalance": 1961,
+          "deltaDollars": null,
+          "baseline": {
+            "balance": 2000,
+            "tradeHistoryStartIndex": 0,
+            "timestamp": "2026-10-13T20:23:40.608Z"
+          },
+          "matchedFills": [],
+          "alertTriggered": false
+        }
+      }
+    },
+    {
+      "event": "SESSION_BROKER_RECONCILED",
+      "transitionId": "fixture-7",
+      "reports": {
+        "source": {
+          "scope": {
+            "brokerId": "kraken",
+            "accountId": "kraken-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "paper"
+          },
+          "status": "non_comparable",
+          "reason": "execution_is_not_live_broker_trading",
+          "metric": "USD_cash",
+          "ownBalance": null,
+          "externalBalance": 1139,
+          "deltaDollars": null,
+          "baseline": null,
+          "matchedFills": [],
+          "alertTriggered": false
+        },
+        "target": {
+          "scope": {
+            "brokerId": "alpaca",
+            "accountId": "alpaca-main",
+            "accountIdSource": "broker:fixture",
+            "executionMode": "paper"
+          },
+          "status": "non_comparable",
+          "reason": "execution_is_not_live_broker_trading",
+          "metric": "USD_cash",
+          "ownBalance": null,
+          "externalBalance": 1961,
+          "deltaDollars": null,
+          "baseline": null,
+          "matchedFills": [],
+          "alertTriggered": false
+        }
+      }
+    }
+  ]
+}

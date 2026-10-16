@@ -4760,6 +4760,17 @@ class OrderExecutor {
 	                symbol,
 	                strategy: longResultStrategy,
 	                venue: buyTrade.executionVenue || buyTrade.venue || buyTrade.brokerId || null,
+	                brokerId: buyTrade.brokerId,
+	                accountId: buyTrade.accountId,
+	                accountIdSource: buyTrade.accountIdSource,
+	                executionMode: buyTrade.executionMode,
+	                simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true,
+	                fillId: closeResult.fillId,
+	                tradeId: closeResult.tradeId,
+	                reconciliationPnl: Number.isFinite(closeResult.netRealizedResult) && Number.isFinite(buyTrade.entryFee) &&
+	                  Number.isFinite(closeResult.filledQuantity) && Number.isFinite(buyTrade.entryOrderQuantity) && buyTrade.entryOrderQuantity > 0
+	                  ? closeResult.netRealizedResult - buyTrade.entryFee * closeResult.filledQuantity / buyTrade.entryOrderQuantity
+	                  : null,
 	                timestamp: new Date().toISOString()
 	              });
             } else if (this.ctx.riskManager) {
@@ -5348,6 +5359,17 @@ class OrderExecutor {
 	              symbol,
 	              strategy: shortResultStrategy,
 	              venue: shortTrade.executionVenue || shortTrade.venue || shortTrade.brokerId || null,
+	              brokerId: shortTrade.brokerId,
+	              accountId: shortTrade.accountId,
+	              accountIdSource: shortTrade.accountIdSource,
+	              executionMode: shortTrade.executionMode,
+	              simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true,
+	              fillId: closeResult.fillId,
+	              tradeId: closeResult.tradeId,
+	              reconciliationPnl: Number.isFinite(closeResult.netRealizedResult) && Number.isFinite(shortTrade.entryFee) &&
+	                Number.isFinite(closeResult.filledQuantity) && Number.isFinite(shortTrade.entryOrderQuantity) && shortTrade.entryOrderQuantity > 0
+	                ? closeResult.netRealizedResult - shortTrade.entryFee * closeResult.filledQuantity / shortTrade.entryOrderQuantity
+	                : null,
 	              timestamp: new Date().toISOString()
 	            });
           } else if (this.ctx.riskManager) {

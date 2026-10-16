@@ -1,0 +1,33 @@
+{
+  "source": "39ba5b7793e0bf990b507a57c836f1fac6e56b2a",
+  "native_reconciliation": {
+    "pass": true,
+    "journal_events": 7,
+    "additional_helper_journal_events": 1,
+    "checks": [
+      "long/short partial-close entry-fee allocation",
+      "broker/account isolation and unknown-fill non-comparability",
+      "simulated-paper exclusion and live-webhook receipt classification",
+      "flat baseline/comparison/discrepancy and durable transition journal readback",
+      "report retention/reset without balance or pause mutation",
+      "actual rehearsal helper constructs reporter consumed by router"
+    ]
+  },
+  "risk_manager_jest": {
+    "passed": 3,
+    "failed": 0
+  },
+  "legacy_router_jest": {
+    "base": {
+      "passed": 13,
+      "failed": 38
+    },
+    "candidate": {
+      "passed": 13,
+      "failed": 38
+    },
+    "same_failed_test_names": true,
+    "limits": "stale isTrading/isPaused mocks and incomplete timeframe contexts remain; no complete suite pass"
+  },
+  "runtime": "no restart/reload/resume, broker call or runtime-state modification"
+}

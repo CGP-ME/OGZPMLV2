@@ -1,0 +1,16 @@
+VERDICT: no_break_found
+ADVERSARIAL_REVIEW_BLOCKING: no
+
+CANDIDATE SET: examined 5 of 5; core/OrderExecutor.js, core/PnLTracker.js, core/RiskManager.js, core/SessionRouter.js, scripts/session-handoff-rehearsal/executor-context.js
+
+AST EVIDENCE:
+- SessionRouter constructor sets `this.ctx = null;` and later `wire(..., ctx)` assigns `this.ctx = ctx || null;`【open_file†L134-L149】
+- run-empire-v2.js creates and assigns a RiskManager to `this.riskManager` before wiring SessionRouter, guaranteeing `ctx.riskManager` is defined when SessionRouter runs【search†L712-L714】
+
+SUBSTANTIVE RESOLUTION: none
+
+WHAT I DID: examined all changed files, inspected relevant code paths, verified presence of `ctx.riskManager` before `snapshot.ledgerReport = this.ctx.riskManager.reportExternalLedgerDelta(...)` and confirmed OrderExecutor throws a proper `Error` object.
+WHAT I DID NOT DO: execute any code or run tests.
+WHAT I ASSUMED: that the provided source files represent the current repository state.
+WHY THIS VERDICT: all examined code paths either guard against missing `riskManager` or have it injected beforehand; no uncontrolled exceptions or missing guards were found.
+IF INCOMPLETE, WHY: none.

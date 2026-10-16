@@ -1,0 +1,21 @@
+# Ledger reconciliation delivery review
+
+The pending change was not in HEAD despite its October 13 implementation/proof record. Current delivery binds the two real close-result paths to PnLTracker account/net fields, compares flat verified live broker USD cash against a prior flat observation plus scoped net fills, and records the result in SessionRouter transition receipts. Paper bankroll and missing identity/cash are explicitly non-comparable. It reports discrepancies without changing balance, position admission or pauses. This is not the requested whole-account daily-loss protection.
+
+Final candidate: 39ba5b7793e0bf990b507a57c836f1fac6e56b2a; base: fc7abf312b99ad5461e19180a2b8d18b331ecb54. Source blobs and harness identity are pinned in source-manifest.json.
+
+## Review findings and resolution
+
+The first current Mercury review alleged a missing reporter and potentially throwing adapter identity reads. Production constructs RiskManager before wiring the router (runner:712,1064); both actual adapter identity methods simply return cached identity/null (AlpacaAdapter:887; KrakenIBrokerAdapter:146). Astra found real missing reporter producers in existing tests/rehearsal instead. All enumerated contexts now construct actual RiskManager; no runtime guard/default was added. The existing risk test now reads settings.json and internals.json rather than retired trading.config.json.
+
+The new close-result receipt had copied an inherited webhook-as-simulation expression. Live webhook receipts now retain simulated=false. The older applyFill producer's classification remains a separately recorded problem (delivery reconciliation D13); this commit does not certify the full webhook accounting route. accountIdSource is evidence of provenance; matching uses broker/account/execution identity, so two verified acquisition methods do not invent two accounts.
+
+Final Mercury run 2026-10-16T16-46-26-479Z-2df5309bb22c returned no_break_found. Independent Astra final GO for this exact candidate after producer corrections. Neither reviewer executed code. No global index-freshness claim.
+
+## Executed behavior
+
+The pinned native fixture runs actual RiskManager, PnLTracker, SessionRouter and TransitionStore with synthetic broker snapshots. It extracts the actual long/short recordTradeResult calls from the candidate; broker/applyFill execution is an explicit fixture boundary. Seven transition journal records and one additional actual-rehearsal-context record pass readback checks, including partial fees, matching/exclusion, discrepancy, alert/report-only behavior, unknown identity/cash, flatness and retained baseline/reset. The old fixture was adapted to the current constructor and no longer imports retired RiskManagerConfig/isTrading authority. Initial imports without fixture credentials failed; fixture-only credentials are supplied in disposable storage for full-suite comparisons, never from the operator environment.
+
+All three RiskManager Jest tests pass through scripts/test-isolated.py. The three older router suites have exactly the same 38 failing test names and 13 passes on base and final candidate under pinned source/canonical settings with fixture credentials. They remain broken by old pause mocks and incomplete contexts; this is not a full-suite pass. The exact native fixture independently exercises the introduced reporter path and the corrected rehearsal producer. No real state, credentials, broker network or PM2 sockets are accessible in the helper sandbox.
+
+To reproduce, export the source-manifest files as final__<repo path with slashes replaced by __>.cjs beneath fixtures; export base versions as base__...cjs. Export RiskManager/PnLTracker/OrderExecutor/SessionRouter, unchanged DrawdownTracker/MarketCalendar/ConfigLoader/TraceSpine/TransitionStore/AtomicWrite as <repo path with slashes replaced by __>.cjs, and settings.json as a module.exports fixture settings.cjs. Pass the fixture files individually using --fixture to python3 scripts/test-isolated.py -- node <reconcile.cjs>; run-tests.cjs final/base performs the pinned router-suite comparison. All writes occur only inside the disposable snapshot. No live service rehearsal or runtime acceptance is claimed.

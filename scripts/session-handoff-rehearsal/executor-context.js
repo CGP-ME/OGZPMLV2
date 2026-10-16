@@ -1,5 +1,7 @@
 'use strict';
 
+const RiskManager = require('../../core/RiskManager');
+
 /*
  * Fixture-only context for an isolated, paper-only OrderExecutor rehearsal.
  *
@@ -57,7 +59,7 @@ function strategyContract(strategyName) {
  * path. The caller owns isolated module loading, ConfigLoader setup, actual
  * StateManager lifecycle, DecisionLedgerLogger flushing, and assertions.
  *
- * Stub boundaries are notifications, performance/risk telemetry, dashboard,
+ * Stub boundaries are notifications, performance telemetry, dashboard,
  * and optional pattern recording. They are not order, state, ledger, policy,
  * or exit-contract substitutes.
  */
@@ -109,7 +111,7 @@ function makeExecutorContext({ root, config = {}, state, router, memory } = {}) 
     notifyTradeClose: noOpAsync,
     discordNotifier: { notifyTrade: noop },
     performanceAnalyzer: { processTrade: noop, getWinRate: () => null },
-    riskManager: { recordTradeResult: noop },
+    riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
     safetyNet: { updateTradeResult: noop },
     strategyOrchestrator: { recordTradeResult: noop },
     logTrade: noop,

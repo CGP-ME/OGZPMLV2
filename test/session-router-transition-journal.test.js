@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const SessionRouter = require('../core/SessionRouter');
+const RiskManager = require('../core/RiskManager');
 const { applyExplicitRuntimeTestEnv } = require('./fixtures/explicit-runtime-env');
 
 describe('SessionRouter transition journal', () => {
@@ -49,6 +50,7 @@ describe('SessionRouter transition journal', () => {
     router.orderRouter = { registerBroker: jest.fn() };
     router.onOhlcCallback = jest.fn();
     router.ctx = {
+      riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       candleTimeframe: '15m',
       config: {
         executionMode: 'paper',
@@ -417,6 +419,7 @@ describe('SessionRouter transition journal', () => {
       }))
     };
     router.ctx = {
+      riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       config: {
         executionMode: 'paper',
         accountId: 'acct-main',
@@ -549,6 +552,7 @@ describe('SessionRouter transition journal', () => {
       })
     };
     router.ctx = {
+      riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       config: {
         executionMode: 'paper',
         accountId: 'acct-main',
@@ -578,6 +582,7 @@ describe('SessionRouter transition journal', () => {
     const router = makeRouter();
     router.activeSession = 'crypto';
     router.ctx = {
+      riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       candleTimeframe: '15m',
       config: {
         executionMode: 'paper',
@@ -619,6 +624,7 @@ describe('SessionRouter transition journal', () => {
       }))
     };
     router.ctx = {
+      riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       candleTimeframe: '15m',
       config: {
         executionMode: 'paper',
@@ -661,6 +667,7 @@ describe('SessionRouter transition journal', () => {
       }))
     };
     router.ctx = {
+      riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       config: {
         executionMode: 'paper',
         accountId: 'acct-main',

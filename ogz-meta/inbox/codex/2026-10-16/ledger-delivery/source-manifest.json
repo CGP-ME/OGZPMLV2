@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-16",
+  "base": "fc7abf312b99ad5461e19180a2b8d18b331ecb54",
+  "reviewed_tree": "39ba5b7793e0bf990b507a57c836f1fac6e56b2a",
+  "harness_tree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "mercury_run": "2026-10-16T16-46-26-479Z-2df5309bb22c",
+  "mercury_verdict": "no_break_found",
+  "astra": "GO after reporter fixture producer corrections",
+  "files": {
+    "core/RiskManager.js": "95ff77ab2973566a4522752dbe184fe5129bac5e",
+    "core/PnLTracker.js": "16481ffd983c830ed194642ed7be9e2986691707",
+    "core/OrderExecutor.js": "7010e7a3668fa210c63314bfc88a5fb40e6c85fc",
+    "core/SessionRouter.js": "d0202e3554fa6ee8dde8782797ccd2c6489c9ac4",
+    "test/risk-manager-config.test.js": "3d570431c67328422df08ea4d10cd05700858de9",
+    "test/session-router-epoch-fencing.test.js": "f97f718e8f3678b68acdaef8f9fc100adee66793",
+    "test/session-router-fail-safe.test.js": "e7715902b811a32130582fb3e54aa2682f0c3956",
+    "test/session-router-transition-journal.test.js": "9f0d71f337ff4cfe14fb877a2b09053a17a4cc44",
+    "scripts/session-handoff-rehearsal/executor-context.js": "6ef44800ce2a2f9981d9c3940651ffbd6acaec81"
+  }
+}

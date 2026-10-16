@@ -1,0 +1,11 @@
+{
+  "base": "329ac1cf3f0a613b191319bec18b433e4e8f5e4b",
+  "productionCandidateTree": "a68b245cb9d38ace92ec30495529adc77e387766",
+  "reviewHarnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "productionFiles": {
+    "core/OrderExecutor.js": "82a56eac6c376b494d3b299485af65fe32f2d7fb",
+    "core/PnLTracker.js": "86f5375f210296f1e721551756f2ffe1d366e85c",
+    "core/RiskManager.js": "3e33837cc50d44b36dc795fd360554aa48b0b7c1",
+    "core/SessionRouter.js": "b5037a8ea0dfde55aa255d2ae3221592e1ccecff"
+  }
+}
