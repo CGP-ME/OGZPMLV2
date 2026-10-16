@@ -444,7 +444,8 @@
             outstanding.delete(write.id);
             const owner = owners.get(write.ownerId);
             const applied = data.success === true && data.saved === true && data.applied === true
-                && validView(data) && data.configuration.settings > write.revision
+                && validView(data) && (data.configuration.settings > write.revision
+                    || (data.changed === false && sameIdentity(data.configuration, write.configuration)))
                 && Object.entries(write.changes).every(([path, value]) => sameValue(data.fields[path]?.value, value));
             if (applied) {
                 // Late receipts still confirm their own write, but cannot replace newer
@@ -526,7 +527,7 @@
         const id = requestId();
         clearTimeout(readTimer);
         readId = null;
-        pending = { id, ownerId: selected, changes, revision: owner.base.settings, draft: { ...owner.draft } };
+        pending = { id, ownerId: selected, changes, revision: owner.base.settings, configuration: { ...owner.base }, draft: { ...owner.draft } };
         outstanding.set(id, pending);
         pending.timer = setTimeout(() => {
             const write = finishPending();

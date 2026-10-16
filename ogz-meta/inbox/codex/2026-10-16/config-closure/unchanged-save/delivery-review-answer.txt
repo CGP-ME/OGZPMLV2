@@ -1,0 +1,47 @@
+**VERDICT:** found_break
+
+**ADVERSARIAL_REVIEW_BLOCKING:** yes
+
+**CANDIDATE SET:** examined 3 of 3
+- core/WebSocketManager.js (diff) – changed condition in `handleSettings` (lines 145‑146)
+- foundation/ConfigLoader.js (source) – `saveSettings` returns `changed:false` when no settings were actually modified (lines 4308‑4309) and `changed:true` when a change occurs (lines 4326‑4327)
+- run-empire-v2.js (source) – defines `this.onSettingsApplied` callback (lines 1113‑1120)
+
+**AST EVIDENCE:**
+- `git_diff` on `core/WebSocketManager.js` shows the modified guard.
+- `open_file` on `foundation/ConfigLoader.js` shows the `changed` flag logic in the return objects.
+- `open_file` on `run-empire-v2.js` shows the registration of `onSettingsApplied`.
+
+**INHERITED:**
+- core/WebSocketManager.js – examined, change present.
+- foundation/ConfigLoader.js – examined, change present.
+- public/js/panels/configuration-settings.js – examined (no relevant changes).
+
+**FOURTH SHAPE CLASSIFIER:** 0 of 0 (no new throws or guards beyond the conditional change).
+
+**ALLEGATIONS:**
+- **MECHANICAL** – The conditional change in `WebSocketManager.handleSettings` directly alters control flow.
+- **SUBSTANTIVE** – The omission of the callback when `result.changed` is `false` can prevent expected side‑effects (logging, runtime audit updates) from occurring.
+
+**SUBSTANTIVE RESOLUTION:** UNRESOLVED‑FOR‑TREY
+
+**WHAT I DID:**
+1. Retrieved the diff for `core/WebSocketManager.js` (git_diff).
+2. Opened the surrounding source of `handleSettings` to view the new guard.
+3. Opened `foundation/ConfigLoader.js` to locate the `saveSettings` return objects and the `changed` flag.
+4. Opened `run-empire-v2.js` to confirm the definition and intended use of `onSettingsApplied`.
+5. Correlated the three pieces of evidence to assess the impact of the guard change.
+
+**WHAT I DID NOT DO:**
+- Execute the code or run tests; only static source evidence was examined.
+
+**WHAT I ASSUMED:**
+- The `onSettingsApplied` callback is expected to be invoked for any successful settings application, regardless of whether any values changed.
+
+**WHY THIS VERDICT:**
+- The diff adds `result.changed` to the guard (`if (result.applied && result.changed && this.ctx.onSettingsApplied)`【open_file†L145-L146】).
+- `saveSettings` returns `{…, applied:true, changed:false, …}` when the settings file is unchanged【open_file†L4308-L4309】, and `{…, applied:true, changed:true, …}` when changes are persisted【open_file†L4326-L4327】.
+- Therefore, when a settings request is applied but no actual modifications occur, the callback `onSettingsApplied` (defined in `run-empire-v2.js`【open_file†L1113-L1120】) will **not** be called, breaking the original contract.
+
+**IF INCOMPLETE, WHY:**
+- No additional evidence is required; the break is directly supported by the examined source and diff.

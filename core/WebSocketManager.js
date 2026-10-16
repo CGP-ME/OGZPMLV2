@@ -142,7 +142,7 @@ class WebSocketManager {
       ? { success: true, ...ConfigLoader.getSettingsView() }
       : ConfigLoader.saveSettings(message);
     const receipt = { type: 'settings_result', requestId: message.requestId, ...result };
-    if (result.applied && this.ctx.onSettingsApplied) {
+    if (result.applied && result.changed && this.ctx.onSettingsApplied) {
       this.ctx.onSettingsApplied(ConfigLoader.getCachedSnapshot(), receipt);
     }
     if (this.ctx.dashboardWs?.readyState === WebSocket.OPEN) {

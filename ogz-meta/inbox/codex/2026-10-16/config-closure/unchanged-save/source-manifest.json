@@ -1,0 +1,18 @@
+{
+  "base": "101399e1b43fe3aa8259f5a28e6c59ffab87d691",
+  "tree": "ce7de64803fbe3baf69170948ec2cf179330408a",
+  "files": [
+    "foundation/ConfigLoader.js",
+    "public/js/panels/configuration-settings.js",
+    "core/WebSocketManager.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceBlobs": {
+    "foundation/ConfigLoader.js": "7149ce339e8c57b26f53dedd4c7d381410777400",
+    "public/js/panels/configuration-settings.js": "ab0cc8aabf043f82857f335f75ca8d222949c347",
+    "core/WebSocketManager.js": "e0a0a12efd6aca22d424454785b6416c2085d94d"
+  },
+  "mercuryRun": "2026-10-16T20-45-36-061Z-baec4fa2c13f",
+  "mercuryVerdict": "found_break",
+  "adjudication": "Astra review: callback omission is the requested no-op behavior; runtime source confirms no request completion dependency."
+}

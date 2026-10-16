@@ -1,0 +1,19 @@
+{
+  "candidate": "ce7de64803fbe3baf69170948ec2cf179330408a",
+  "checks": [
+    "unchanged and repeated identical request: no write, revision, snapshot or callback mutation",
+    "all editable current values in one save preserve the canonical file and cached snapshot",
+    "real edit: one actual atomic write, revision increment, active-profile persistence, reload and callback",
+    "stale revision remains rejected; repeated current-value save has no side effects",
+    "equal array contents are unchanged; mixed request still applies its genuine change",
+    "existing settings_result receipt keeps success/saved/applied and reaches socket transport"
+  ],
+  "initialUnchangedSave": {
+    "writes": 0,
+    "applications": 0,
+    "previousRevision": 10,
+    "resultingRevision": 10
+  },
+  "editableFieldsExercised": 1372,
+  "passed": true
+}

@@ -4295,7 +4295,6 @@ function saveSettings(request) {
   if (nextEntrySizing.issues.length > 0) {
     return reject('invalid_entry_sizing_configuration', { issues: nextEntrySizing.issues });
   }
-  nextSettings.revision += 1;
   if (entries.some(([key]) => /^exitContracts\.[A-Za-z0-9_]+\.profitManagement\.trail\./.test(key))) {
     for (const contract of Object.values(nextConfig.exitContracts)) {
       const trail = contract.profitManagement.trail;
@@ -4304,6 +4303,11 @@ function saveSettings(request) {
       }
     }
   }
+  // Values already persisted need neither a revision nor runtime reapplication.
+  if (canonicalHash(nextSettings) === diskHash) {
+    return { success: true, saved: true, applied: true, changed: false, ...getSettingsView() };
+  }
+  nextSettings.revision += 1;
   nextConfig.revision = nextSettings.revision;
   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
   const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
@@ -4319,7 +4323,7 @@ function saveSettings(request) {
   // Synchronous publication after the existing atomic writer succeeds.
   settingsConfigFile = nextSettings;
   _cached = nextSnapshot;
-  return { success: true, saved: true, applied: true, ...getSettingsView() };
+  return { success: true, saved: true, applied: true, changed: true, ...getSettingsView() };
 }
 
 function _resetForTest() {
