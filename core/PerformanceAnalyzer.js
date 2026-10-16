@@ -80,7 +80,6 @@ class PerformanceAnalyzer {
     
     // Log initialization
     console.log('[PerformanceAnalyzer] initialized with configuration:');
-    console.log(`   Update interval: ${config.updateIntervalMs}ms`);
     console.log('   Alert thresholds configured');
     console.log(`   Min trades for analysis: ${this.config.minTradesForAnalysis}`);
     console.log(`   Edge decay lookback: ${this.config.edgeDecayLookback} trades`);

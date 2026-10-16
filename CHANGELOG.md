@@ -1,3 +1,11 @@
+## 2026-10-16 — Retire the nonexistent performance update interval
+
+Problem: `internals.performanceAnalysis.updateIntervalMs=60000` only appeared in an initialization log; PerformanceAnalyzer processes completed trades and has no interval scheduler. Removed that one canonical property and its misleading log, retaining every real performance setting and event-driven consumer. Internals revision 4→5. Original value and source evidence are preserved in `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/performance-interval-retirement/`.
+
+Verification: exact committed baseline/candidate analyzer classes, merged canonical settings, fixed clock and two synthetic closed trades through `scripts/test-isolated.py`. Results and complete analyzer state match; only the obsolete log disappears. Committed-source search identifies no other reader. No timer, guard, throw, default or trading restriction added. Mercury returned no_break_found for candidate 385401ff6e2390d9f09618a5ef031af92d54b1a4; its final rationale focused on inherited edgeDecayThreshold merge. The original answer, this review limitation and exact source identities are retained.
+
+Activation: source only; no PM2 operation. Live process reload remains held. This retirement does not resolve separate pending unused-control rulings.
+
 ## 2026-10-16 — Strategy-owned volatility target multipliers
 
 Problem: PolicyBuilder still hardcoded 0.8/1.4 volatility target factors outside the canonical owners. Added those exact initial values to all 17 exit-contract owners, migrated the two reads, and exposed 32 positive numeric settings across the 16 strategies for new policies. Settings revision 11→12. Neutral/disabled factors and existing frozen policies retain their behavior; no new throws, defaults, aliases or trading gates.

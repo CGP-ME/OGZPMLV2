@@ -1,0 +1,12 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{
+  "result": "pass",
+  "canonicalMerge": "settings.performanceAnalysis then internals.performanceAnalysis",
+  "syntheticClosedTrades": 2,
+  "resultsIdentical": true,
+  "stateIdentical": true,
+  "baselineLoggedObsoleteInterval": true,
+  "candidateLoggedObsoleteInterval": false,
+  "analyzerContainsNoIntervalOrTimeoutTimer": true,
+  "limitation": "Copied committed sources only; this does not start the application or exercise broker execution."
+}

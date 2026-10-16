@@ -1,0 +1,15 @@
+diff --git a/config/internals.json b/config/internals.json
+index 87bb1549..e71b889f 100644
+--- a/config/internals.json
++++ b/config/internals.json
+@@ -3 +3 @@
+-  "revision": 4,
++  "revision": 5,
+@@ -49 +48,0 @@
+-    "updateIntervalMs": 60000,
+diff --git a/core/PerformanceAnalyzer.js b/core/PerformanceAnalyzer.js
+index 3f8e15a3..84178a5d 100755
+--- a/core/PerformanceAnalyzer.js
++++ b/core/PerformanceAnalyzer.js
+@@ -83 +82,0 @@ class PerformanceAnalyzer {
+-    console.log(`   Update interval: ${config.updateIntervalMs}ms`);

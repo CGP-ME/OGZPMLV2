@@ -1,0 +1,16 @@
+{
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "reviewCandidate": "385401ff6e2390d9f09618a5ef031af92d54b1a4",
+  "reviewBase": "6f52bb08a5d4f4d344fba8ac05e299d044faf063",
+  "resolvedBaseTree": "9c216057fb9781a38a27fe44ea7fed1e6decb442",
+  "runId": "2026-10-16T21-55-59-141Z-697b28e3c659",
+  "verdict": "no_break_found",
+  "termination": "answer_given",
+  "question": "Mercury, break my fix. Require file:line evidence for any introduced break.",
+  "maxTokens": 7750,
+  "reviewers": [
+    "mercury"
+  ],
+  "iterations": 36,
+  "reviewLimit": "Mercury focused its final rationale on inherited edgeDecayThreshold merge, not an exhaustive absence proof; actual interval retirement is independently established by source search and native class comparison."
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 4,
+  "revision": 5,
   "backtest": {
     "candleDataFile": "",
     "reportTag": "",
@@ -46,7 +46,6 @@
     "outputFile": "data/pipeline-snapshots.jsonl"
   },
   "performanceAnalysis": {
-    "updateIntervalMs": 60000,
     "performanceDbPath": "data/performance.json",
     "verboseLogging": false
   },

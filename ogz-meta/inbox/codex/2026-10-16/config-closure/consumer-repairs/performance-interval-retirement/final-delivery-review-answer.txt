@@ -1,0 +1,33 @@
+**VERDICT:** no_break_found
+
+**ADVERSARIAL_REVIEW_BLOCKING:** no
+
+**CANDIDATE SET:** examined 2 of 2
+- `config/internals.json` (current source) – examined lines 1‑200, 40‑80, 200‑260.
+- `core/PerformanceAnalyzer.js` (current source) – examined lines 1‑120, 740‑791.
+
+**AST EVIDENCE:**
+- `core/PerformanceAnalyzer.js` constructor receives a merged config object (lines 724‑727) that spreads both `resolvedConfig.config.performanceAnalysis` (from `config/settings.json`) and `resolvedConfig.config.internals.performanceAnalysis` (from `config/internals.json`).【open_file†L724-L727】
+- `config/settings.json` defines `edgeDecayThreshold` under `performanceAnalysis` (lines 134‑135).【open_file†L132-L135】
+- `config/internals.json` does **not** define `edgeDecayThreshold` (search returned no matches).【search†L0】
+
+**INHERITED:**
+- Both changed files were fully read. No unread or unresolved evidence remains.
+
+**FOURTH SHAPE CLASSIFIER:** 0 of 0 – no new throws, guards, or fallback mechanisms introduced in the diff.
+
+**ALLEGATIONS:**
+- **MECHANICAL** – claim that `edgeDecayThreshold` is missing a default.
+  - **Basis:** receipt (archived diff) and current source files.
+
+**SUBSTANTIVE RESOLUTION:** none – the claim is disproven by existing configuration.
+
+**WHAT I DID:** examined the relevant source files, performed targeted searches for `edgeDecayThreshold`, inspected the configuration merging logic, and verified the presence of the field in the effective runtime config.
+
+**WHAT I DID NOT DO:** execute any code or run tests.
+
+**WHAT I ASSUMED:** none; all conclusions are based on concrete file‑line evidence.
+
+**WHY THIS VERDICT:** The effective configuration passed to `PerformanceAnalyzer` includes `edgeDecayThreshold` from `config/settings.json`. The field is therefore defined, and the comparison `edgeDecay >= this.config.edgeDecayThreshold` can evaluate to true when appropriate. No break is introduced.
+
+**IF INCOMPLETE, WHY:** not incomplete – all relevant paths have been examined and provide conclusive evidence.
