@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "checks": [
+    "base reproduces restored-zero reseed and position erasure",
+    "candidate preserves restored zero/positive balance, position map and original initial balance without startup writes",
+    "absent state still seeds through actual StateManager",
+    "existing explicit backtest initialization preserved",
+    "real trackers accept zero; existing negative/non-finite rejection unchanged"
+  ],
+  "limits": [
+    "Actual isolated StateManager and trackers with exact extracted runner initialization block",
+    "Not a full bot startup, broker operation, historical backtest, or PM2 deployment"
+  ],
+  "source": "90b44cc83d15e4c61fde8b6b2161c07a70b4c90e"
+}

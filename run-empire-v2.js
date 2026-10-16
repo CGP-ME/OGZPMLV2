@@ -1236,9 +1236,6 @@ class OGZPrimeV14Bot {
     // this.activeTrades REMOVED - use stateManager.get('activeTrades') instead
     const initialBalance = resolvedConfig.config.startingBalance;
     this.startTime = Date.now();
-    this.systemState = {
-      currentBalance: initialBalance
-    };
 
     // Backtests do not load persisted state, so replace StateManager's
     // constructor bootstrap balance with the configured INITIAL_BALANCE.
@@ -1252,21 +1249,14 @@ class OGZPrimeV14Bot {
       }
       console.log('Backtest mode: initializing fresh state with balance:', initialBalance);
       stateManager.initializeFreshState(initialBalance, { source: 'OGZPrimeV14Bot.backtestInit' });
-    } else if (!currentState.balance || currentState.balance === 0) {
-      console.log('Initializing fresh state with balance:', initialBalance);
-      stateManager.updateState({
-        balance: initialBalance,
-        totalBalance: initialBalance,
-        initialBalance: initialBalance,   // FIX 2026-03-14: Store for drawdown reference
-        activeTrades: new Map()  // CHANGE 2025-12-13: Centralized active trades
-      }, { action: 'INIT' });
     } else {
+      // StateManager.load owns absent-file seeding and restoration. Zero is a
+      // real balance, not permission to erase positions or reseed the account.
       console.log('Using existing state - Balance:', currentState.balance, 'Trades:', currentState.activeTrades?.size || 0);
-      // FIX 2026-03-14: Ensure initialBalance exists on state restore
-      if (!currentState.initialBalance) {
-        stateManager.updateState({ initialBalance: initialBalance }, { action: 'SET_INITIAL_BALANCE' });
-      }
     }
+    this.systemState = {
+      currentBalance: stateManager.get('balance')
+    };
 
     // FIX 2026-02-26: Initialize RiskManager with balance (was never called, caused Infinity drawdown)
     // Without this, peakBalance=0, drawdown=Infinity, checkRiskLimits() blocks ALL trades

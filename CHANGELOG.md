@@ -1,3 +1,9 @@
+## 2026-10-16 — Preserve restored zero balances and positions during startup
+
+Problem: a local correction had never been delivered; committed startup interpreted balance zero as a fresh account, reseeded its balance and cleared its positions. Removed that duplicate initialization branch and the falsy initialBalance rewrite. StateManager remains the initialization/restoration owner; startup balance projection and risk trackers now accept the actual restored zero balance. No gate, throw, fallback/default or replacement trading enable flag added.
+
+Verification: isolated actual StateManager/trackers and exact runner initialization block reproduce the base defect and pass restored zero/positive balance, position preservation, no startup persistence, absent-file seeding and unchanged explicit backtest-reset checks. Mercury reviewed all three source files: no_break_found, run 2026-10-16T16-33-10-632Z-884dff3a68a6. [Source identities, probe and limitations](ogz-meta/inbox/codex/2026-10-16/restored-balance-delivery/REVIEW.md). This delivers existing local work; unrelated staged reconciliation and runner changes are excluded. Not a full bot startup or broker test. No PM2 restart/reload/resume; runtime activation remains pending.
+
 ## 2026-10-16 — Correct the Opus frontend audit handoff after isTrading cleanup
 
 Replaced the withdrawn handoff with a documentation-only audit correction prompt pinned to delivered source 792e8af4a03a150a837741aea4883eefff4604d7. It separates the historical 78458d48 audit, current committed source and unchanged PM2 runtime; records the actual enable-flag removal and receipt fixes without declaring browser integration complete; retains the requested cache-mutation, script census, concurrency, ownership and archival corrections. It explicitly prohibits reintroducing isTrading or turning unresolved findings into implementation assumptions.

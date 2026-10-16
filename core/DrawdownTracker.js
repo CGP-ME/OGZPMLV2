@@ -6,8 +6,8 @@ class DrawdownTracker {
   }
 
   initialize(balance) {
-    if (!Number.isFinite(balance) || balance <= 0) {
-      console.warn(`[DrawdownTracker] Refusing non-finite or non-positive starting balance: ${balance}`);
+    if (!Number.isFinite(balance) || balance < 0) {
+      console.warn(`[DrawdownTracker] Refusing non-finite or negative starting balance: ${balance}`);
       return false;
     }
     this.state.startingBalance = balance;

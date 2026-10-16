@@ -6,8 +6,8 @@ class PnLTracker {
   }
 
   initialize(balance, sessionId = 'default') {
-    if (!Number.isFinite(balance) || balance <= 0) {
-      console.warn(`[PnLTracker] Refusing non-finite or non-positive starting balance: ${balance}`);
+    if (!Number.isFinite(balance) || balance < 0) {
+      console.warn(`[PnLTracker] Refusing non-finite or negative starting balance: ${balance}`);
       return false;
     }
     this.state.startingBalance = balance;

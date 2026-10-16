@@ -1,0 +1,11 @@
+# Restored balance: verification and review
+
+Committed base startup treated a restored zero balance as an absent account, overwrote its balance with startingBalance and cleared activeTrades. The existing local correction removes that second initialization owner: StateManager owns absent-file initialization and restoration. The startup projection and risk trackers receive the actual state balance, including zero. Existing negative/non-finite rejection remains unchanged. No trading gate, throw, fallback, default or replacement enable flag is introduced.
+
+The isolated native probe reproduces the zero-balance reseed/position erasure on the base, then verifies the candidate preserves restored zero and positive balances, position-map identity and original initialBalance without writing the state file. It checks actual StateManager absent-file initialization, the unchanged explicit backtest initialization block, and both real trackers. An initial fixture failed because a VM-created Map used another realm; the fixture was corrected to use the same Map constructor, with no production workaround. The final run passed.
+
+This executes the exact extracted runner initialization block plus actual StateManager and trackers; it does not boot the complete bot, perform broker operations, run a historical backtest or prove runtime deployment. Reproduce by exporting the source-manifest candidate's StateManager (unchanged from base), DrawdownTracker, PnLTracker and runner to fixtures/<basename>.cjs, and base runner to fixtures/baseline-runner.cjs; supply them and probe.cjs individually with --fixture to python3 scripts/test-isolated.py -- node <probe path>.
+
+Mercury reviewed candidate 90b44cc83d15e4c61fde8b6b2161c07a70b4c90e against 954c286756915ef3e97edab521dcd7640c3d0e3c; run 2026-10-16T16-33-10-632Z-884dff3a68a6 returned no_break_found, examined all three changed files and reported no allegations. Its generic phrase “introduce safe defaults” is not a description of this diff: this correction removes reseeding and introduces no defaults. Mercury did not execute code; behavior evidence is the independent isolated probe. This exact-source review does not establish freshness of the global embedding index.
+
+No PM2 restart, environment reload or trading resume was performed. Other local PnL reconciliation/runner changes are excluded from this commit.
