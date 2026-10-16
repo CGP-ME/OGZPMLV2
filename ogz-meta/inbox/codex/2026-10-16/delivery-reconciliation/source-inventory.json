@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-16",
+  "branch": "codex/archive-legacy-env",
+  "head": "fc7abf312b99ad5461e19180a2b8d18b331ecb54",
+  "files": {
+    "config/settings.json": {
+      "head_blob": "4e9e8d82b3c739593a8c4c19883720a04bcc1e53",
+      "index_blob": "4e9e8d82b3c739593a8c4c19883720a04bcc1e53",
+      "worktree_sha256": "3489011276e0eb7ff440d31a39231869d58cc32eca845d428b6ce22224d4bb9c"
+    },
+    "core/BacktestRunner.js": {
+      "head_blob": "873e3541d51197f3edb07c6c0923683ca611fb8b",
+      "index_blob": "873e3541d51197f3edb07c6c0923683ca611fb8b",
+      "worktree_sha256": "0d187458a6d65b5cc421b55cf554387f262255b5b10b84e3e6ed4e5954dda2a7"
+    },
+    "core/EnhancedPatternRecognition.js": {
+      "head_blob": "fe43419dd138027b574a5a3af6e4a72e8a45e4ff",
+      "index_blob": "fe43419dd138027b574a5a3af6e4a72e8a45e4ff",
+      "worktree_sha256": "a227bd4739dc0ada031fdd7486ec2baabe9041f67c9147c6f23ca062c2814bfa"
+    },
+    "core/ExitContractManager.js": {
+      "head_blob": "36730ce064fbada852fce7013b195155134908ba",
+      "index_blob": "36730ce064fbada852fce7013b195155134908ba",
+      "worktree_sha256": "0aad139c0a69c0f77269cc4a1670f3584b3a02dee980190e2624b16c397773d7"
+    },
+    "core/FeatureExtractor.js": {
+      "head_blob": "8d0e2f6066d93b8983517492420b60e615fd21bf",
+      "index_blob": "8d0e2f6066d93b8983517492420b60e615fd21bf",
+      "worktree_sha256": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4"
+    },
+    "core/OrderExecutor.js": {
+      "head_blob": "3e26444df431c303b2eab6d7960761139458194c",
+      "index_blob": "964f0b30c4f441ab585e889add64716e27361e3b",
+      "worktree_sha256": "b7a31824aec2abd2132cdc8ce9a3e3ef38f6191eee5bad58c5013df4d6a583d0"
+    },
+    "core/PnLTracker.js": {
+      "head_blob": "0d14688b884e6d0c86f879a6293a776592fcbd42",
+      "index_blob": "16481ffd983c830ed194642ed7be9e2986691707",
+      "worktree_sha256": "93d1dbd9d98e2f156e7a0dc65bb54d987cd37518c725a5c58b0fb085f04e407c"
+    },
+    "core/PolicyBuilder.js": {
+      "head_blob": "200b68aff250686b648251b2f10be3a5ce57231b",
+      "index_blob": "200b68aff250686b648251b2f10be3a5ce57231b",
+      "worktree_sha256": "8aec1a3240f4dd94059f94de67e986aeb5119f586d573cbe1cfbbdbf2abcc924"
+    },
+    "core/ProfitExitPlanner.js": {
+      "head_blob": "b1db6c9764eab9a34c6252ee60dd1f81da327689",
+      "index_blob": "b1db6c9764eab9a34c6252ee60dd1f81da327689",
+      "worktree_sha256": "0d51678b5746e5b15811550560a4d6f06834435a94812b70ad25b04fda5f2ef3"
+    },
+    "core/RiskManager.js": {
+      "head_blob": "09c7feecd602bc972de3fcd98710234a69659832",
+      "index_blob": "95ff77ab2973566a4522752dbe184fe5129bac5e",
+      "worktree_sha256": "4b7ba8b85de938eb410e2053764eb92f4799ffea8fd08e571afbaf48c19b23f0"
+    },
+    "core/SessionRouter.js": {
+      "head_blob": "6b02bc305024f30809120d3300053bbed9e71e66",
+      "index_blob": "d0202e3554fa6ee8dde8782797ccd2c6489c9ac4",
+      "worktree_sha256": "e42566743299d46b194906385a05e4a05f43d243c5e8c087437e69b9347a9cb2"
+    },
+    "core/StateManager.js": {
+      "head_blob": "5d3a58782b95a8fed09b17e1eebef0573f996614",
+      "index_blob": "5d3a58782b95a8fed09b17e1eebef0573f996614",
+      "worktree_sha256": "aa63ab13ee02c0044d206942a10cecfaa849fdc528a4d286b657134506d3e060"
+    },
+    "core/StrategyOrchestrator.js": {
+      "head_blob": "ad7072fd6d07453237d5caf932be7847e731a1e8",
+      "index_blob": "ad7072fd6d07453237d5caf932be7847e731a1e8",
+      "worktree_sha256": "f7323d3f5e1bf12ddf7ddec46e885e1950ff70204e2e22aedb90f269f2207167"
+    },
+    "core/TradingLoop.js": {
+      "head_blob": "13a0e8e5118accd3a3b07c26789a5dec45e94514",
+      "index_blob": "13a0e8e5118accd3a3b07c26789a5dec45e94514",
+      "worktree_sha256": "7a5360e287e6ab69a840f5e17cf6a9a772f2e337a0c09c9ba282483009626839"
+    },
+    "core/dto/DecisionLedgerSchema.js": {
+      "head_blob": "88d9d2414616261844143e3ea0553c7efa2a7de9",
+      "index_blob": "88d9d2414616261844143e3ea0553c7efa2a7de9",
+      "worktree_sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3"
+    },
+    "foundation/ConfigLoader.js": {
+      "head_blob": "d452781542348cbe209c072dbbe3a1bd0712d6a4",
+      "index_blob": "d452781542348cbe209c072dbbe3a1bd0712d6a4",
+      "worktree_sha256": "96a73b56b9a931a0d2d4a8b4f84775ecb0d094bc9114c4ef2f028d6a7e18b5a0"
+    },
+    "modules/DonchianBreakout.js": {
+      "head_blob": "4d43a5d3fa916b2086128104cf0097a6f15abc2d",
+      "index_blob": "4d43a5d3fa916b2086128104cf0097a6f15abc2d",
+      "worktree_sha256": "2d8f748f81d3dc8b0e0a4d8ec30efa06fc26853e2f991ffb09e006ed4f3eabde"
+    },
+    "modules/EMATrendRetest.js": {
+      "head_blob": "6f04c4fadda99c2121708fb420f56ad9864c470c",
+      "index_blob": "6f04c4fadda99c2121708fb420f56ad9864c470c",
+      "worktree_sha256": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3"
+    },
+    "modules/PropSafeEMAPullback.js": {
+      "head_blob": "a488fa8777d348fa3cd42ce8a34f70a861db0586",
+      "index_blob": "a488fa8777d348fa3cd42ce8a34f70a861db0586",
+      "worktree_sha256": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1"
+    },
+    "modules/RSI2MeanReversion.js": {
+      "head_blob": "bb1b0fb377d473fe8a6eb103a2c76b0a26eef72c",
+      "index_blob": "bb1b0fb377d473fe8a6eb103a2c76b0a26eef72c",
+      "worktree_sha256": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f"
+    },
+    "modules/TimeSeriesMomentum.js": {
+      "head_blob": "a251cf1bdd53c05b7c7be34af581ed7ba794cf24",
+      "index_blob": "a251cf1bdd53c05b7c7be34af581ed7ba794cf24",
+      "worktree_sha256": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367"
+    },
+    "run-empire-v2.js": {
+      "head_blob": "966f636732ac1e9cb355ff84e4f8f0a5313898ed",
+      "index_blob": "966f636732ac1e9cb355ff84e4f8f0a5313898ed",
+      "worktree_sha256": "68aafa5f12399f61b0941689f3f4112e4163739b26ecb54e5a74f91e117bf4f5"
+    },
+    "test/risk-manager-config.test.js": {
+      "head_blob": "a5f5754c910b998ed7d702a19779e53c93861c41",
+      "index_blob": "0eec7500b6bdaadfd4471d324f340c31815db0a6",
+      "worktree_sha256": "7b881508a1ba584fde3f6a2152546edd79342ddcd36b6df82a134faf0e360b79"
+    }
+  }
+}
