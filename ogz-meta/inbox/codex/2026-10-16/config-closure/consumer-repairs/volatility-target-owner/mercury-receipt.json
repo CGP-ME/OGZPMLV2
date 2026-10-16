@@ -1,0 +1,16 @@
+{
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "reviewCandidate": "6deafa7ea6b50d6e85d4fd92251fd81970e492e5",
+  "reviewBase": "8d0e3d3e937eebbc860b02f14a38dd8e648bd72e",
+  "resolvedBaseTree": "9bea014dba4038598396540b39e03bea585d3a1b",
+  "runId": "2026-10-16T21-53-22-203Z-8ba5b2dd50b9",
+  "verdict": "found_break",
+  "termination": "answer_given",
+  "question": "Mercury, break my fix. Require file:line evidence for any introduced break.",
+  "maxTokens": 7750,
+  "reviewers": [
+    "mercury"
+  ],
+  "iterations": 37,
+  "sourceIdentity": "Pinned candidate tree; no live-worktree or index-memory substitution."
+}

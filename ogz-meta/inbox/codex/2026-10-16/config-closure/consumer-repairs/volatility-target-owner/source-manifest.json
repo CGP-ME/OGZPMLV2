@@ -1,0 +1,25 @@
+{
+  "reviewBase": "8d0e3d3e937eebbc860b02f14a38dd8e648bd72e",
+  "reviewCandidate": "6deafa7ea6b50d6e85d4fd92251fd81970e492e5",
+  "reproductionSources": {
+    "source-baseline": {
+      "config/settings.json": "54bd1e7a1d77b2b3589c9e26249bcc81c2d3d698",
+      "config/internals.json": "87bb1549792a0a7cee26bc0be720db8fad1c57d3",
+      "foundation/ConfigLoader.js": "7d5bc5c33e5297f0b76d8928a547e755ef173e89",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950",
+      "core/ExitContractManager.js": "5f4a8ab2850c2feea91bfea299f8350efd65f421",
+      "core/PolicyBuilder.js": "bf55d178e4faa85d4d2e976d4a5d282241e51c63",
+      "core/dto/FrozenExitPolicy.js": "d9e46ad4525800c9b2df6df5210ec93783eb66e7"
+    },
+    "source-candidate": {
+      "config/settings.json": "a8e3dd2e12787a29e5cfbb22d5fbb1a9149416c2",
+      "config/internals.json": "87bb1549792a0a7cee26bc0be720db8fad1c57d3",
+      "foundation/ConfigLoader.js": "469c9a8a88bcd3a75aebed8478bb598874c8ab8a",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950",
+      "core/ExitContractManager.js": "5f4a8ab2850c2feea91bfea299f8350efd65f421",
+      "core/PolicyBuilder.js": "a076fdcaf01319f57515bc633eab50f964666316",
+      "core/dto/FrozenExitPolicy.js": "d9e46ad4525800c9b2df6df5210ec93783eb66e7"
+    }
+  },
+  "supersededReviewCandidate": "647d7a43022db6a3ae440c0380c4a3218815d2d3"
+}

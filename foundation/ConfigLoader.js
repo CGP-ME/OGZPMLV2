@@ -2660,6 +2660,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     ...['highConfidenceMultiplier', 'lowConfidenceMultiplier'].map(key => ['tieredExit.' + key, { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
     ['volatilityAdjustment.enabled', { type: 'boolean', unit: 'boolean', label: strategyName + ' exit volatility adjustment enabled', effect: 'next_trade_policy_creation' }],
     ...['lowThresholdPercent', 'highThresholdPercent'].map(key => ['volatilityAdjustment.' + key, { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+    ...['lowTargetMultiplier', 'highTargetMultiplier'].map(key => ['volatilityAdjustment.' + key, { type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
     ['volatilityAdjustment.lookbackPeriods', { type: 'number', unit: 'returns', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: strategyName + ' exit volatility return lookback', effect: 'next_trade_policy_creation' }],
   ].map(([leaf, descriptor]) => ['exitContracts.' + strategyName + '.profitManagement.' + leaf, descriptor]))),
   'features.enableLearning': { type: 'boolean', unit: 'boolean', label: 'Enable pattern learning', effect: 'next_pattern_observation; TRAI_memory_requires_restart' },

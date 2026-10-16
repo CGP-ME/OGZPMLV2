@@ -1,0 +1,233 @@
+diff --git a/config/settings.json b/config/settings.json
+index 54bd1e7a..a8e3dd2e 100644
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -1,6 +1,6 @@
+ {
+   "schemaVersion": 1,
+-  "revision": 11,
++  "revision": 12,
+   "confidence": {
+     "minStrategyConfidence": 0.35,
+     "candlePatternMinConfidence": 0.7,
+@@ -1729,7 +1729,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -1812,7 +1814,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -1895,7 +1899,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -1980,7 +1986,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2061,7 +2069,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2144,7 +2154,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2226,7 +2238,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2308,7 +2322,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2388,7 +2404,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2473,7 +2491,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2555,7 +2575,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2638,7 +2660,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2725,7 +2749,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2812,7 +2838,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2898,7 +2926,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -2982,7 +3012,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+@@ -3075,7 +3107,9 @@
+           "enabled": false,
+           "lowThresholdPercent": 0.5,
+           "highThresholdPercent": 2,
+-          "lookbackPeriods": 20
++          "lookbackPeriods": 20,
++          "lowTargetMultiplier": 0.8,
++          "highTargetMultiplier": 1.4
+         },
+         "contractVolatilityAdjustment": {
+           "threshold": 5,
+diff --git a/core/PolicyBuilder.js b/core/PolicyBuilder.js
+index bf55d178..a076fdca 100644
+--- a/core/PolicyBuilder.js
++++ b/core/PolicyBuilder.js
+@@ -277,7 +277,7 @@ function normalizeVolatilityAdjustment(raw, volatility) {
+     return {
+       enabled,
+       volatility: runtimeVolatility,
+-      targetFactor: 0.8,
++      targetFactor: raw.lowTargetMultiplier,
+       volatilityLevel: 'low',
+       adjusted: true,
+     };
+@@ -287,7 +287,7 @@ function normalizeVolatilityAdjustment(raw, volatility) {
+     return {
+       enabled,
+       volatility: runtimeVolatility,
+-      targetFactor: 1.4,
++      targetFactor: raw.highTargetMultiplier,
+       volatilityLevel: 'high',
+       adjusted: true,
+     };
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index 7d5bc5c3..469c9a8a 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2660,6 +2660,7 @@ const EDITABLE_SETTINGS = deepFreeze({
+     ...['highConfidenceMultiplier', 'lowConfidenceMultiplier'].map(key => ['tieredExit.' + key, { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+     ['volatilityAdjustment.enabled', { type: 'boolean', unit: 'boolean', label: strategyName + ' exit volatility adjustment enabled', effect: 'next_trade_policy_creation' }],
+     ...['lowThresholdPercent', 'highThresholdPercent'].map(key => ['volatilityAdjustment.' + key, { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
++    ...['lowTargetMultiplier', 'highTargetMultiplier'].map(key => ['volatilityAdjustment.' + key, { type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, label: strategyName + ' ' + key, effect: 'next_trade_policy_creation' }]),
+     ['volatilityAdjustment.lookbackPeriods', { type: 'number', unit: 'returns', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: strategyName + ' exit volatility return lookback', effect: 'next_trade_policy_creation' }],
+   ].map(([leaf, descriptor]) => ['exitContracts.' + strategyName + '.profitManagement.' + leaf, descriptor]))),
+   'features.enableLearning': { type: 'boolean', unit: 'boolean', label: 'Enable pattern learning', effect: 'next_pattern_observation; TRAI_memory_requires_restart' },

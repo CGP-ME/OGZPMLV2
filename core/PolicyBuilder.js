@@ -277,7 +277,7 @@ function normalizeVolatilityAdjustment(raw, volatility) {
     return {
       enabled,
       volatility: runtimeVolatility,
-      targetFactor: 0.8,
+      targetFactor: raw.lowTargetMultiplier,
       volatilityLevel: 'low',
       adjusted: true,
     };
@@ -287,7 +287,7 @@ function normalizeVolatilityAdjustment(raw, volatility) {
     return {
       enabled,
       volatility: runtimeVolatility,
-      targetFactor: 1.4,
+      targetFactor: raw.highTargetMultiplier,
       volatilityLevel: 'high',
       adjusted: true,
     };

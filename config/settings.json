@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 11,
+  "revision": 12,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -1729,7 +1729,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -1812,7 +1814,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -1895,7 +1899,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -1980,7 +1986,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2061,7 +2069,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2144,7 +2154,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2226,7 +2238,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2308,7 +2322,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2388,7 +2404,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2473,7 +2491,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2555,7 +2575,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2638,7 +2660,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2725,7 +2749,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2812,7 +2838,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2898,7 +2926,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -2982,7 +3012,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,
@@ -3075,7 +3107,9 @@
           "enabled": false,
           "lowThresholdPercent": 0.5,
           "highThresholdPercent": 2,
-          "lookbackPeriods": 20
+          "lookbackPeriods": 20,
+          "lowTargetMultiplier": 0.8,
+          "highTargetMultiplier": 1.4
         },
         "contractVolatilityAdjustment": {
           "threshold": 5,

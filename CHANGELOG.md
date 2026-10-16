@@ -1,3 +1,13 @@
+## 2026-10-16 — Strategy-owned volatility target multipliers
+
+Problem: PolicyBuilder still hardcoded 0.8/1.4 volatility target factors outside the canonical owners. Added those exact initial values to all 17 exit-contract owners, migrated the two reads, and exposed 32 positive numeric settings across the 16 strategies for new policies. Settings revision 11→12. Neutral/disabled factors and existing frozen policies retain their behavior; no new throws, defaults, aliases or trading gates.
+
+Verification: isolated exact-source baseline/candidate runs use real ConfigLoader saves/reconstruction, actual ECM contract construction and actual PolicyBuilder. All 16 distinct strategy edits reach actual first-tier profit target amounts; all 17 original policies preserve 0.8/1.4, disabled/neutral factors stay 1, and retained pre-save frozen policies are unchanged. Reproducer and source identity: `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/volatility-target-owner/`.
+
+Review: Mercury's original and final found_break answers are preserved. Astra identified a real issue in the initial candidate's newly extended run-descriptor admission; that extension was removed, restoring the exact baseline override surface. Astra GO for corrected tree 6deafa7ea6b50d6e85d4fd92251fd81970e492e5 distinguishes hypothetical missing-field claims from the complete canonical producers and existing finite check. No clean-Mercury claim. Generic manual profile-validation limits remain; no broader backtest changes or live exit acceptance claimed.
+
+Activation: source only. No PM2 reload/restart/resume; unrelated dirty changes excluded. This change does not close pending unused-control rulings or certify all of Stop 1.
+
 ## 2026-10-16 — Complete canonical source accounting and current transport proof
 
 - Problem: prior inventory mixed dirty worktree fields, incomplete regex reader coverage, and loader provenance with unproven consumer effects. This packet pins delivered d17aee91 and keeps those claims separate.
