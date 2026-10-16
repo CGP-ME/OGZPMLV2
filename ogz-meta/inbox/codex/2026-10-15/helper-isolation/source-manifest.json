@@ -1,0 +1,7 @@
+{
+  "AGENTS.md": "f3798d9bfdf04b5303f6187eb8a13abf2226c6621484553725c4f086095964ec",
+  "package.json": "eb9038d2fcbf61fc38af4c46346679ff92e0c05bed58f929c17bcdc8b1e62f3d",
+  "scripts/test-isolated.py": "c9687d810c4116ec610d2dd99e04f0a9d853b7892f489e0246c67324484d7915",
+  "test/helpers/require-isolation.cjs": "00d1527890e1658f67d40af562fd7397f7e3dd53fb37d41e08bf7480560672ee",
+  "test/fixtures/helper-isolation-probe.cjs": "43578d6b945c3b8d03fed7ef1ab5aff589bf63031e31a68752840f4b17f6e318"
+}

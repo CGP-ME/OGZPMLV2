@@ -1,0 +1,11 @@
+{
+  "base": "26b846ace002eec4c91cf194d30c8fdad196dcc8",
+  "candidate": "178c41b9f06f27be37dbf60ca5c3ea19d817d728",
+  "files": [
+    "AGENTS.md",
+    "package.json",
+    "scripts/test-isolated.py",
+    "test/helpers/require-isolation.cjs",
+    "test/fixtures/helper-isolation-probe.cjs"
+  ]
+}

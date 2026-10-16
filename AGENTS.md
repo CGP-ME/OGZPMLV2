@@ -107,6 +107,27 @@ does not match current doctrine.
   dashboard/live-report scope, with explicit PM2 env-change approval. Source:
   `ogz-meta/sessions/session-2026-05-31-sessionrouter-finalization-gap-reconciliation.md:161-186`.
 
+## Helper verification isolation
+
+- Tests and native probes must run through `python3 scripts/test-isolated.py -- <command>`.
+  `npm test -- <Jest arguments>` and the module smoke/pattern/regression scripts
+  already use that launcher. Raw Jest is rejected before test imports.
+- The launcher uses a disposable source snapshot, separate filesystem/process/
+  network namespaces, no operator environment or credentials, and read-only
+  dependencies. Real state, journals, learned banks, PM2 sockets and home are
+  not mounted. Missing isolation support stops the helper, never the bot.
+- For an untracked probe, put it beneath a `fixtures/` directory and pass its
+  repo-relative filename with `--fixture <file>` before `--`. Only explicitly
+  supplied fixture files are added beyond the source snapshot. Do not copy
+  real state, credentials or learned banks into fixtures.
+- Never import trading modules with raw `node`, raw Jest, or an ad hoc shell
+  probe on the host. Do not override Jest's isolation setup or add a bypass.
+  Explicitly authorized runtime operations and the read-only public dashboard
+  token HTTP check are separate from offline helper verification.
+- This protects commands inside the sandbox, including child processes. It
+  does not revoke operator access or prevent someone with host permissions
+  from deliberately bypassing the launcher. Do not claim otherwise.
+
 ## Trading-Path Gates
 
 For changes on the trading/backtest execution path:

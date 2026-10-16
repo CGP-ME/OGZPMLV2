@@ -5,12 +5,12 @@
   "main": "run-empire-v2.js",
   "scripts": {
     "start": "bash start-ogzprime.sh start",
-    "test": "jest --runInBand",
-    "test:smoke": "node scripts/smoke-test.js",
+    "test": "python3 scripts/test-isolated.py -- node node_modules/jest/bin/jest.js --runInBand",
+    "test:smoke": "python3 scripts/test-isolated.py -- node scripts/smoke-test.js",
     "test:dashboard-token": "node scripts/check-dashboard-token-containment.js",
-    "test:patterns": "node scripts/test-patterns.js",
-    "test:deterministic": "jest test/rsi-deterministic.test.js",
-    "test:pine-ta": "npx jest pine-transpiler/__tests__/PineTALib.golden.test.js --runInBand",
+    "test:patterns": "python3 scripts/test-isolated.py -- node scripts/test-patterns.js",
+    "test:deterministic": "python3 scripts/test-isolated.py -- node node_modules/jest/bin/jest.js test/rsi-deterministic.test.js --runInBand",
+    "test:pine-ta": "python3 scripts/test-isolated.py -- node node_modules/jest/bin/jest.js pine-transpiler/__tests__/PineTALib.golden.test.js --runInBand",
     "start:prod": "bash start-ogzprime.sh start",
     "telemetry:report": "node scripts/telemetry-report.js",
     "scan:secrets": "node scripts/scan-secrets.js --tracked",
@@ -18,7 +18,7 @@
     "lint:dto": "node scripts/lint-dto.js",
     "scan:dto": "node ogz-meta/ast/scan-dto-violations.js",
     "fix:props": "node ogz-meta/ast/property-to-function.js",
-    "regression": "node test/regression/waterfall.js",
+    "regression": "python3 scripts/test-isolated.py -- node test/regression/waterfall.js",
     "ci": "npm run scan:secrets && npm run lint:dto && npm run scan:dto && npm test"
   },
   "keywords": [
@@ -73,6 +73,7 @@
     "tree-sitter-javascript": "^0.25.0"
   },
   "jest": {
+    "globalSetup": "<rootDir>/test/helpers/require-isolation.cjs",
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/ogz-meta/"
