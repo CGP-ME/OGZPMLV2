@@ -93,6 +93,9 @@ const ExitContractSchema = z.object({
  */
 const DecisionLedgerSkeletonSchema = z.object({
   tradeId: z.string(),
+  decisionConfiguration: z.record(z.string(), z.unknown()).nullable().optional(),
+  entryConfiguration: z.record(z.string(), z.unknown()).nullable().optional(),
+  entryPolicyHash: z.string().nullable().optional(),
   candleTimestamp: z.number().int(),
   symbol: z.string(),
   timeframe: z.string(),
@@ -190,6 +193,9 @@ function createLedgerSkeleton(input = {}) {
 
   const ledger = {
     tradeId: input.tradeId,
+    decisionConfiguration: input.decisionConfiguration ?? null,
+    entryConfiguration: input.entryConfiguration ?? null,
+    entryPolicyHash: input.entryPolicyHash ?? null,
     candleTimestamp: input.candleTimestamp,
     symbol: input.symbol,
     timeframe: input.timeframe,

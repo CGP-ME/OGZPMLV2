@@ -4531,6 +4531,7 @@ const exported = Object.assign(ConfigLoader, {
   getSource,
   hasLoadedSnapshot,
   getCachedSnapshot,
+  getReceipt,
   getSettingsView,
   getEntrySizingInput,
   saveSettings,

@@ -555,6 +555,7 @@ function buildForTrade(options = {}) {
     source: 'PolicyBuilder.buildForTrade',
     strategyName: normalizedStrategyName,
     builtAtMs: nowMs,
+    configuration: options.configuration ?? null,
     contract: normalizeContract(normalizedStrategyName, exitContract),
     mtfConfluenceSnapshot: normalizeMtfConfluenceSnapshot(mtfConfluenceSnapshot, entryDirection),
     profitManagement: {

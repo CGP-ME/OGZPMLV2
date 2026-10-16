@@ -1266,6 +1266,9 @@ class StateManager {
       try {
         trade.decisionLedger = createLedgerSkeleton({
           tradeId,
+          decisionConfiguration: context.ledgerData.decisionConfiguration ?? null,
+          entryConfiguration: stateContext.frozenExitPolicy?.configuration ?? null,
+          entryPolicyHash: stateContext.frozenExitPolicy?.policyHash ?? null,
           candleTimestamp: context.ledgerData.candleTimestamp,
           symbol: tradeScope.symbol,
           timeframe: tradeScope.timeframe,
@@ -4786,6 +4789,7 @@ class StateManager {
         reason: trade.reason || null,
         tradeRevision: trade.tradeRevision,
         operatorStop: trade.operatorStop ? clonePlain(trade.operatorStop) : null,
+        entryConfiguration: trade.frozenExitPolicy?.configuration ?? null,
         entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null
       };
     });

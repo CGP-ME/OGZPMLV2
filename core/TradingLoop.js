@@ -560,6 +560,7 @@ class TradingLoop {
 
       const record = {
         traceId,
+        configuration: ConfigLoader.getReceipt(),
         signalId: decision?.signalId || (traceId ? `${traceId}:signal` : null),
         timestamp: new Date().toISOString(),
         candleTimestamp: marketData?.timestamp ?? Date.now(),
@@ -624,7 +625,11 @@ class TradingLoop {
           riskGates,
           failedRiskGates,
         },
-        exitEvaluations,
+        exitEvaluations: exitEvaluations.map(evaluation => {
+          const trade = activeTrades.find(item => (item.id || item.orderId) === evaluation.tradeId);
+          return { ...evaluation, entryConfiguration: trade?.frozenExitPolicy?.configuration ?? null,
+            entryPolicyHash: trade?.frozenExitPolicy?.policyHash ?? null };
+        }),
         decision: {
           action: decision?.action || 'HOLD',
           direction: decision?.direction || null,
@@ -641,6 +646,7 @@ class TradingLoop {
       emitTrace(this.ctx, 'DECISION_AUTOPSY', {
         traceId,
         symbol,
+        configuration: record.configuration,
         persisted: autopsyWrite.persisted === true,
         skipped: autopsyWrite.skipped === true,
         skipWriteReason: autopsyWrite.reason || null,
@@ -1753,6 +1759,7 @@ class TradingLoop {
         const winnerSignalMetadata = winnerIndex !== null ? this._ledgerSignalMetadata(allResults[winnerIndex], winnerIndex) : {};
         const ledgerScope = this._patternScope(symbol, analysisTimeframe);
         decision.ledgerData = {
+          decisionConfiguration: ConfigLoader.getReceipt(),
           candleTimestamp: marketData?.timestamp || Date.now(),
           symbol,
           brokerId: ledgerScope.brokerId || null,

@@ -1,0 +1,23 @@
+{
+  "base": "f69a01ed151b3de0e553344992d32fdb3996638a",
+  "tree": "abbb234b05c63745489443a39183bb73b20ebce7",
+  "files": [
+    "foundation/ConfigLoader.js",
+    "core/PolicyBuilder.js",
+    "core/OrderExecutor.js",
+    "core/StateManager.js",
+    "core/dto/DecisionLedgerSchema.js",
+    "core/TradingLoop.js"
+  ],
+  "sourceBlobs": {
+    "foundation/ConfigLoader.js": "a090c18fb07087754af4713b3bf743cd5d5784a2",
+    "core/PolicyBuilder.js": "bf55d178e4faa85d4d2e976d4a5d282241e51c63",
+    "core/OrderExecutor.js": "bf3c5bf5ba9887ae5a32ca5276a95f2d2eecc4c7",
+    "core/StateManager.js": "0fcbeeb44e11d09b1241e93bda5968c1676ead9b",
+    "core/dto/DecisionLedgerSchema.js": "9575948578113af3e3e1af721c983afd9a7182dd",
+    "core/TradingLoop.js": "2be96cc92b205ee4b334065bd5001b86f7b3c816"
+  },
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "reviewRun": "2026-10-16T20-53-33-523Z-43be9dbe7ae4",
+  "reviewVerdict": "no_break_found"
+}

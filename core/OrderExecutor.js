@@ -2350,6 +2350,7 @@ class OrderExecutor {
     );
     const frozenExitPolicy = PolicyBuilder.buildForTrade({
       strategyName: entryStrategy,
+      configuration: ConfigLoader.getReceipt(),
       exitContract,
       nowMs: Date.now(),
       volatility: policyVolatility,
@@ -3134,6 +3135,7 @@ class OrderExecutor {
         quantityUnit: entryPlan.quantityUnit,
         stockShareRange: entryPlan.stockShareRange,
         entryStrategy: entryPlan.entryStrategy,
+        configuration: entryPlan.frozenExitPolicy.configuration,
         riskGates: [],
       });
       const gateResult = await this._runPreOrderEntryGate(entryPlan);
