@@ -1,0 +1,10 @@
+{
+  "ref": "d17aee91e7e531f8145be693394b884fd3525853",
+  "files": {
+    "foundation/ConfigLoader.js": "7d5bc5c33e5297f0b76d8928a547e755ef173e89",
+    "config/settings.json": "54bd1e7a1d77b2b3589c9e26249bcc81c2d3d698",
+    "config/internals.json": "87bb1549792a0a7cee26bc0be720db8fad1c57d3",
+    "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950"
+  },
+  "scope": "Current owner/transport revision including signed lower threshold descriptor and explicit historical proof broker. No activation claim."
+}

@@ -1,3 +1,12 @@
+## 2026-10-16 — Complete canonical source accounting and current transport proof
+
+- Problem: prior inventory mixed dirty worktree fields, incomplete regex reader coverage, and loader provenance with unproven consumer effects. This packet pins delivered d17aee91 and keeps those claims separate.
+- Source accounting: all 3,958 canonical leaves/empty containers accounted for (2,265 actual role-source joins; 1,693 conditional profile/tool/deployment entries). No duplicate JSON properties; only revision/schemaVersion metadata shares a canonical path across the files. All 184 archived env names have evidence/dispositions; original 206 assignments were 22 credentials plus 184 archived names, not a deletion of JSON settings. No credential values included.
+- Actual verification: six role snapshots across five supported roles have zero missing source rows; bot/paper and production repeat reconstruction, bot/paper cache identity/forced reload, canonical accessor equality, and all-184 env sentinel noninterference pass. All 1,373 current editable fields pass actual changed save, persistence, loader reconstruction, side-effect-free repeated save and restoration. None of these counts proves all downstream trading effects.
+- Trace/review: corrected AST covers static path-built imports, injected loader parameters, public accessors and computed wrappers. Root enumerates the three-key smoke loop. Three parse-error files/general static limits remain explicit. Astra confirmed the 17 formerly missed getter calls; Terra independently validated full key-set/env accounting. Root corrected Terra's false matrix-reader absence using actual callers. No production code changed in this evidence commit.
+- Remaining limitations: 12 concrete gap/repair records retain pending behavior decisions, inert/deferred consumers and explicit PID/legacy-bank deferrals. Stop 1 remains OPEN. PM2 reload/resume is held; this packet does not certify runtime activation or every consumer.
+- Authoritative index and reproducible receipts: ogz-meta/inbox/codex/2026-10-16/config-closure/README.md and AUDIT-INDEX.md. Preliminary local inventories are labeled superseded rather than promoted to acceptance.
+
 ## 2026-10-16 — Explicit proof-publication broker ownership
 
 - Problem: the publication account reader requested nonexistent `broker.id`, so historical broker provenance had no canonical owner.

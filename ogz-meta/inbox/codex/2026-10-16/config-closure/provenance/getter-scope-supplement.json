@@ -1,0 +1,41 @@
+{
+  "candidate": "d17aee91e7e531f8145be693394b884fd3525853",
+  "computedRouteResolutions": [
+    {
+      "file": "scripts/smoke-test.js",
+      "line": 160,
+      "expression": "configPath",
+      "producer": "scripts/smoke-test.js:153-159 Object.entries(configs)",
+      "exactPaths": [
+        "strategies.EMASMACrossover",
+        "strategies.MADynamicSR",
+        "strategies.LiquiditySweep"
+      ],
+      "canonicalPathsExist": true,
+      "scope": "Diagnostic validation only. Does not execute strategy behavior."
+    }
+  ],
+  "parseErrorDispositions": [
+    {
+      "file": "ogz-meta/ogz-run.js",
+      "parserError": "Unexpected token (199:0); module retry: Unexpected token (199:0)",
+      "configLoaderTextPresent": false,
+      "classification": "historical agent proposal tool with syntax error; not an active bot entry point",
+      "acceptance": "not parsed; no global runtime absence claim"
+    },
+    {
+      "file": "ogz-meta/replacements/MISSION-1773135593547.js",
+      "parserError": "Unexpected token (8:21); module retry: Unexpected token (8:21)",
+      "configLoaderTextPresent": false,
+      "classification": "replacement fragment, not executable standalone module",
+      "acceptance": "not parsed; no global runtime absence claim"
+    },
+    {
+      "file": "ogz-meta/replacements/MISSION-1773136513814.js",
+      "parserError": "Unexpected token (8:21); module retry: Unexpected token (8:21)",
+      "configLoaderTextPresent": false,
+      "classification": "replacement fragment, not executable standalone module",
+      "acceptance": "not parsed; no global runtime absence claim"
+    }
+  ]
+}

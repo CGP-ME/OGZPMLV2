@@ -1,0 +1,10 @@
+{
+  "ref": "86e45d6ff451623b5f6591e1048f0ba48c4b9f87",
+  "files": {
+    "foundation/ConfigLoader.js": "a090c18fb07087754af4713b3bf743cd5d5784a2",
+    "config/settings.json": "4e9e8d82b3c739593a8c4c19883720a04bcc1e53",
+    "config/internals.json": "87bb1549792a0a7cee26bc0be720db8fad1c57d3",
+    "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950"
+  },
+  "scope": "Configuration owner/transport and unchanged-save behavior. Does not certify every downstream algorithm or runtime deployment."
+}

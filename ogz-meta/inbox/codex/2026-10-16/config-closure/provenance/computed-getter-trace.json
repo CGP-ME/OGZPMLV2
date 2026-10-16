@@ -1,0 +1,530 @@
+{
+  "candidate": "e93b21629faa72717e14676b4f13acd47d446b3e",
+  "head": "e93b21629faa72717e14676b4f13acd47d446b3e",
+  "sourceMapRoles": [
+    "bot/paper",
+    "bot/production",
+    "supervisor/paper",
+    "dashboard/paper",
+    "checkout/paper",
+    "market-data-tool/paper"
+  ],
+  "traces": [
+    {
+      "file": "core/CandleProcessor.js",
+      "line": 149,
+      "getter": "get",
+      "wrapper": "_resolveDashboardInt(path, options)",
+      "callers": [
+        {
+          "line": 133,
+          "path": "dashboard.brokerStatusDedupeMaxKeys"
+        },
+        {
+          "line": 134,
+          "path": "dashboard.errorEventDedupeMs"
+        },
+        {
+          "line": 135,
+          "path": "dashboard.errorEventMessageMaxLength"
+        },
+        {
+          "line": 136,
+          "path": "dashboard.errorEventDedupeMaxKeys"
+        }
+      ],
+      "routes": {
+        "dashboard.brokerStatusDedupeMaxKeys": "config:internals.json:dashboard",
+        "dashboard.errorEventDedupeMs": "config:internals.json:dashboard",
+        "dashboard.errorEventMessageMaxLength": "config:internals.json:dashboard",
+        "dashboard.errorEventDedupeMaxKeys": "config:internals.json:dashboard"
+      },
+      "effect": "constructor initialization; Number conversion, finite/nonnegative/nonzero validation, floor; missing or invalid throws at lines 150-152",
+      "init": "CandleProcessor constructor"
+    },
+    {
+      "file": "core/ExitContractManager.js",
+      "line": 159,
+      "getter": "get",
+      "wrapper": "readRuntimeContractValue(path)",
+      "callers": [
+        {
+          "line": 165,
+          "pattern": "exitContracts.${strategyName}.${field}"
+        },
+        {
+          "line": 168,
+          "pattern": "exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${field}"
+        },
+        {
+          "line": 178,
+          "pattern": "exitContracts.${strategyName}.${field}"
+        },
+        {
+          "line": 186,
+          "pattern": "exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${field}"
+        }
+      ],
+      "fieldSet": [
+        "strategyName",
+        "stopLossPercent",
+        "takeProfitPercent",
+        "trailingStopPercent",
+        "trailingActivation",
+        "maxHoldTimeMinutes",
+        "stopType",
+        "atrStopMult",
+        "atrPeriod",
+        "trailType",
+        "trailAtrMult",
+        "trailChannelBars",
+        "tpMode",
+        "tpAtrMultiple",
+        "maxHoldMode",
+        "partialExit",
+        "useStructuralExits",
+        "maxConcurrentEntries",
+        "scaleIn",
+        "invalidationConditions",
+        "minConfidence",
+        "atrMinPercent",
+        "donchianChannelUpper",
+        "donchianChannelLower",
+        "tsmLookback",
+        "tsmEntryTrailingReturn",
+        "profitManagement"
+      ],
+      "strategySet": [
+        "MADynamicSR",
+        "EMASMACrossover",
+        "LiquiditySweep",
+        "RSI",
+        "VolumeProfile",
+        "BreakRetest",
+        "CandlePattern",
+        "MarketRegime",
+        "SmartMoneySweep",
+        "OpeningRangeBreakout",
+        "DonchianBreakout",
+        "OGZTPO",
+        "NoWickImbalance",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "RSI2MeanReversion",
+        "TimeSeriesMomentum"
+      ],
+      "routes": {
+        "exitContracts.EMASMACrossover.stopLossPercent": "config:settings.json:exitContracts",
+        "exitContracts.default.stopLossPercent": "config:settings.json:exitContracts"
+      },
+      "effect": "sentinel distinguishes absent override; strategy values then timeframe values overwrite normalized contract; applied by resolve path at line 220",
+      "init": "runtime exit-contract resolution",
+      "strategySetEvidence": "config/settings.json strategies object; built-in registry in StrategyOrchestrator. registerStrategy supports additional validated custom names, not a closed runtime universe.",
+      "optionalUnconfiguredBranches": [
+        "exitContracts.*.timeframes.*.* (no resolved timeframe leaves in pinned snapshots)"
+      ]
+    },
+    {
+      "file": "core/OrderExecutor.js",
+      "line": 2169,
+      "getter": "get",
+      "wrapper": "_positiveConfigNumber(path)",
+      "callers": [
+        {
+          "line": 2242,
+          "path": "evalRules.ttp.consistency.profitTargetDollars"
+        },
+        {
+          "line": 2243,
+          "path": "evalRules.ttp.consistency.maxPositionProfitRatio"
+        },
+        {
+          "line": 2260,
+          "path": "evalRules.ttp.accountLimits.dailyLossDollars"
+        }
+      ],
+      "routes": {
+        "evalRules.ttp.consistency.profitTargetDollars": "config:settings.json:launchProfiles.paper.venueGuards.ttp",
+        "evalRules.ttp.consistency.maxPositionProfitRatio": "config:settings.json:launchProfiles.paper.venueGuards.ttp",
+        "evalRules.ttp.accountLimits.dailyLossDollars": "config:settings.json:launchProfiles.paper.venueGuards.ttp"
+      },
+      "effect": "Number conversion; nonfinite or nonpositive becomes null, consumed by TTP consistency/account-limit guards",
+      "init": "entry-policy evaluation during executor flow"
+    },
+    {
+      "file": "core/RuntimeConfigProof.js",
+      "line": 47,
+      "getter": "get",
+      "wrapper": "tradingConfigValue(ConfigLoader, path)",
+      "callers": [
+        {
+          "line": 150,
+          "path": "confidence.minTradeConfidence"
+        },
+        {
+          "line": 151,
+          "path": "confidence.minStrategyConfidence"
+        },
+        {
+          "line": 154,
+          "path": "filters.atrEnabled"
+        },
+        {
+          "line": 155,
+          "path": "filters.atrMinPercent"
+        },
+        {
+          "line": 158,
+          "path": "positionSizing.basePositionSize"
+        },
+        {
+          "line": 159,
+          "path": "positionSizing.maxPositionSize"
+        },
+        {
+          "line": 160,
+          "path": "entryLogic.sizing.absoluteCapPercent"
+        },
+        {
+          "line": 164,
+          "path": "fees.model"
+        },
+        {
+          "line": 165,
+          "path": "fees.makerFee"
+        },
+        {
+          "line": 166,
+          "path": "fees.takerFee"
+        },
+        {
+          "line": 167,
+          "path": "fees.slippage"
+        },
+        {
+          "line": 168,
+          "path": "fees.totalRoundTrip"
+        },
+        {
+          "line": 169,
+          "path": "fees.perShare"
+        },
+        {
+          "line": 170,
+          "path": "fees.minOrderFee"
+        },
+        {
+          "line": 173,
+          "path": "features.enableDynamicSizing"
+        }
+      ],
+      "routes": {
+        "confidence.minTradeConfidence": "config:settings.json:launchProfiles.paper.confidence.minTradeConfidence",
+        "confidence.minStrategyConfidence": "config:settings.json:confidence",
+        "filters.atrEnabled": "config:settings.json:filters",
+        "filters.atrMinPercent": "config:settings.json:filters",
+        "positionSizing.basePositionSize": "config:settings.json:positionSizing",
+        "positionSizing.maxPositionSize": "config:settings.json:positionSizing",
+        "entryLogic.sizing.absoluteCapPercent": "config:settings.json:entryLogic",
+        "fees.model": "config:settings.json:fees",
+        "fees.makerFee": "config:settings.json:fees",
+        "fees.takerFee": "config:settings.json:fees",
+        "fees.slippage": "config:settings.json:fees",
+        "fees.totalRoundTrip": "config:settings.json:fees",
+        "fees.perShare": "config:settings.json:fees",
+        "fees.minOrderFee": "config:settings.json:fees",
+        "features.enableDynamicSizing": "config:settings.json:features"
+      },
+      "effect": "undefined becomes null; values are emitted into runtime config proof tradingConfig",
+      "init": "buildRuntimeConfigProof at line 70, logged at line 180"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 610,
+      "getter": "get",
+      "wrapper": "getEffectiveExitContractValue",
+      "pattern": "exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${key}",
+      "strategySet": [
+        "MADynamicSR",
+        "EMASMACrossover",
+        "LiquiditySweep",
+        "RSI",
+        "VolumeProfile",
+        "BreakRetest",
+        "CandlePattern",
+        "MarketRegime",
+        "SmartMoneySweep",
+        "OpeningRangeBreakout",
+        "DonchianBreakout",
+        "OGZTPO",
+        "NoWickImbalance",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "RSI2MeanReversion",
+        "TimeSeriesMomentum"
+      ],
+      "effect": "timeframe override first; absent sentinel falls through to strategy/default contract",
+      "init": "exit-contract consumers at lines 637 and 646",
+      "strategySetEvidence": "config/settings.json strategies object; built-in registry in StrategyOrchestrator. registerStrategy supports additional validated custom names, not a closed runtime universe.",
+      "requestedKeys": [
+        "minConfidence",
+        "atrMinPercent"
+      ],
+      "callerEvidence": "core/StrategyOrchestrator.js getContractMinConfidence:637 / getContractAtrMinPercent:646; invoked by strategy evaluation at2457 and2654; consumer-repairs/effective-exit-contract-trace.md",
+      "optionalUnconfiguredBranches": [
+        "exitContracts.*.timeframes.*.*"
+      ]
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 615,
+      "getter": "get",
+      "wrapper": "getEffectiveExitContractValue",
+      "pattern": "exitContracts.${strategyName}.${key}",
+      "strategySet": [
+        "MADynamicSR",
+        "EMASMACrossover",
+        "LiquiditySweep",
+        "RSI",
+        "VolumeProfile",
+        "BreakRetest",
+        "CandlePattern",
+        "MarketRegime",
+        "SmartMoneySweep",
+        "OpeningRangeBreakout",
+        "DonchianBreakout",
+        "OGZTPO",
+        "NoWickImbalance",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "RSI2MeanReversion",
+        "TimeSeriesMomentum"
+      ],
+      "effect": "strategy-level effective exit value before default fallback",
+      "routes": {
+        "exitContracts.EMASMACrossover.stopLossPercent": "config:settings.json:exitContracts",
+        "exitContracts.default.stopLossPercent": "config:settings.json:exitContracts"
+      },
+      "strategySetEvidence": "config/settings.json strategies object; built-in registry in StrategyOrchestrator. registerStrategy supports additional validated custom names, not a closed runtime universe.",
+      "requestedKeys": [
+        "minConfidence",
+        "atrMinPercent"
+      ],
+      "callerEvidence": "core/StrategyOrchestrator.js getContractMinConfidence:637 / getContractAtrMinPercent:646; invoked by strategy evaluation at2457 and2654; consumer-repairs/effective-exit-contract-trace.md"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 619,
+      "getter": "get",
+      "wrapper": "getEffectiveExitContractValue",
+      "pattern": "exitContracts.${strategyName}",
+      "strategySet": [
+        "MADynamicSR",
+        "EMASMACrossover",
+        "LiquiditySweep",
+        "RSI",
+        "VolumeProfile",
+        "BreakRetest",
+        "CandlePattern",
+        "MarketRegime",
+        "SmartMoneySweep",
+        "OpeningRangeBreakout",
+        "DonchianBreakout",
+        "OGZTPO",
+        "NoWickImbalance",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "RSI2MeanReversion",
+        "TimeSeriesMomentum"
+      ],
+      "effect": "parent contract existence check; missing parent throws internal invariant at line 621",
+      "routes": {
+        "exitContracts.EMASMACrossover": "config:settings.json:exitContracts",
+        "exitContracts.default": "config:settings.json:exitContracts"
+      },
+      "strategySetEvidence": "config/settings.json strategies object; built-in registry in StrategyOrchestrator. registerStrategy supports additional validated custom names, not a closed runtime universe.",
+      "requestedKeys": [
+        "minConfidence",
+        "atrMinPercent"
+      ],
+      "callerEvidence": "core/StrategyOrchestrator.js getContractMinConfidence:637 / getContractAtrMinPercent:646; invoked by strategy evaluation at2457 and2654; consumer-repairs/effective-exit-contract-trace.md"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 624,
+      "getter": "get",
+      "wrapper": "getEffectiveExitContractValue",
+      "pattern": "exitContracts.default.timeframes.${normalizedTimeframe}.${key}",
+      "effect": "default timeframe fallback after strategy miss",
+      "requestedKeys": [
+        "minConfidence",
+        "atrMinPercent"
+      ],
+      "callerEvidence": "core/StrategyOrchestrator.js getContractMinConfidence:637 / getContractAtrMinPercent:646; invoked by strategy evaluation at2457 and2654; consumer-repairs/effective-exit-contract-trace.md",
+      "optionalUnconfiguredBranches": [
+        "exitContracts.default.timeframes.*.*"
+      ]
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 630,
+      "getter": "get",
+      "wrapper": "getEffectiveExitContractValue",
+      "pattern": "exitContracts.default.${key}",
+      "effect": "final default exit value; null is allowed when no default field",
+      "routes": {
+        "exitContracts.default.stopLossPercent": "config:settings.json:exitContracts"
+      },
+      "requestedKeys": [
+        "minConfidence",
+        "atrMinPercent"
+      ],
+      "callerEvidence": "core/StrategyOrchestrator.js getContractMinConfidence:637 / getContractAtrMinPercent:646; invoked by strategy evaluation at2457 and2654; consumer-repairs/effective-exit-contract-trace.md"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1321,
+      "getter": "get",
+      "wrapper": "Mtf confluence loop",
+      "pattern": "strategies.${result.strategyName}",
+      "strategySet": [
+        "MADynamicSR",
+        "EMASMACrossover",
+        "LiquiditySweep",
+        "RSI",
+        "VolumeProfile",
+        "BreakRetest",
+        "CandlePattern",
+        "MarketRegime",
+        "SmartMoneySweep",
+        "OpeningRangeBreakout",
+        "DonchianBreakout",
+        "OGZTPO",
+        "NoWickImbalance",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "RSI2MeanReversion",
+        "TimeSeriesMomentum"
+      ],
+      "effect": "loads strategy confluenceBoost config for each produced result; dereferenced at lines 1322-1323",
+      "routes": {
+        "strategies.EMASMACrossover": "config:settings.json:strategies",
+        "strategies.MADynamicSR": "config:settings.json:strategies",
+        "strategies.LiquiditySweep": "config:settings.json:strategies",
+        "strategies.RSI": "config:settings.json:strategies",
+        "strategies.VolumeProfile": "config:settings.json:strategies"
+      },
+      "strategySetEvidence": "config/settings.json strategies object; built-in registry in StrategyOrchestrator. registerStrategy supports additional validated custom names, not a closed runtime universe."
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "line": 4573,
+      "getter": "getSection",
+      "wrapper": "compatibility export getter",
+      "callers": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 126,
+          "path": "patternMemory"
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 150,
+          "path": "patternMemory"
+        }
+      ],
+      "effect": "Each compatibility property getter delegates to getSection(section), returning a clone of the cached named section. The two listed memory consumers are examples, not exhaustive callers.",
+      "routes": {
+        "patternMemory": "config:settings.json:patternMemory"
+      },
+      "exportedSections": [
+        "authFailureGuard",
+        "confidence",
+        "entryLogic",
+        "execution",
+        "exitContracts",
+        "featureCatalog",
+        "features",
+        "featureExtraction",
+        "fees",
+        "fibonacci",
+        "filters",
+        "fundTarget",
+        "indicators",
+        "misc",
+        "orchestrator",
+        "patternMemory",
+        "patternRecognition",
+        "performanceAnalysis",
+        "pid",
+        "pipeline",
+        "positionSizing",
+        "proofPublication",
+        "regimeBoosts",
+        "risk",
+        "services",
+        "startingBalance",
+        "regimeDetection",
+        "strategies",
+        "strategyBehavior",
+        "tierPolicy",
+        "timeframeConfig",
+        "trai",
+        "volumeProfileBoosts",
+        "broker",
+        "backtest",
+        "paths",
+        "monitoring",
+        "observability",
+        "dataFeed",
+        "dashboard",
+        "webhookOrders",
+        "sessionRouter",
+        "evalRules",
+        "internals"
+      ]
+    },
+    {
+      "file": "scripts/smoke-test.js",
+      "line": 160,
+      "getter": "get",
+      "wrapper": "strategy config smoke loop",
+      "keySet": [
+        "strategies.EMASMACrossover",
+        "strategies.MADynamicSR",
+        "strategies.LiquiditySweep"
+      ],
+      "effect": "each key is checked for object presence and required child keys at lines 161-166",
+      "routes": {
+        "strategies.EMASMACrossover": "config:settings.json:strategies",
+        "strategies.MADynamicSR": "config:settings.json:strategies",
+        "strategies.LiquiditySweep": "config:settings.json:strategies"
+      },
+      "repair": "d892f5e1 replaces retired exits.* readers with exitContracts.EMASMACrossover.stopLossPercent/takeProfitPercent at173-175."
+    },
+    {
+      "file": "tools/run-audit-revised-part2.js",
+      "line": 73,
+      "getter": "text occurrence",
+      "wrapper": "diagnostic question string, not an invocation",
+      "expression": "ConfigLoader.get(key)",
+      "effect": "no runtime getter call; excluded from execution census",
+      "routes": {}
+    }
+  ],
+  "dynamicBranchesWithoutPinnedLeaves": [
+    "exitContracts.*.timeframes.*.*",
+    "exitContracts.default.timeframes.*.*"
+  ],
+  "dirtyOverlay": [
+    "core/OrderExecutor.js:2379 positionSizing.maxTotalExposure (worktree-only unapproved sizing reader; excluded from HEAD trace)"
+  ],
+  "scope": "Expanded traces for initial census; superseded in completeness by getter-ast-inventory.json. Does not claim all getter call sites.",
+  "historicalMissingPathsRepaired": {
+    "commit": "d892f5e1",
+    "paths": [
+      "scripts/smoke-test.js:173 exits.stopLossPercent",
+      "scripts/smoke-test.js:174 exits.takeProfitPercent"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "candidate": "d17aee91e7e531f8145be693394b884fd3525853",
+  "canonicalLeavesAndEmptyContainers": 3958,
+  "roleSourceJoined": 2265,
+  "conditionalProfileToolDeploymentRows": 1693,
+  "unaccountedCanonicalPaths": 0,
+  "duplicateJsonProperties": 0,
+  "sharedCanonicalPaths": [
+    "revision",
+    "schemaVersion"
+  ],
+  "archivedEnvNamesAccounted": 184,
+  "boundary": "Complete owner/source accounting, not full consumer behavior or runtime activation acceptance."
+}
