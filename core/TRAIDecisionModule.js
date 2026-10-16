@@ -658,9 +658,9 @@ class TRAIDecisionModule extends EventEmitter {
 
       case 'advisory':
         // Change 615: Restore Change 586 - TRAI learning caution
-        // When TRAI confidence < 10%, it hasn't learned the pattern yet
-        if (traiConfidence < 0.1) {
-          return originalConfidence * 0.9; // Slight caution penalty
+        // When TRAI confidence is below the configured advisory threshold, it hasn't learned the pattern yet
+        if (traiConfidence < ConfigLoader.get('trai.advisoryUnknownPatternThreshold')) {
+          return originalConfidence * ConfigLoader.get('trai.advisoryUnknownPatternPenaltyMultiplier'); // Slight caution penalty
         }
 
         // Change 599: TRAI BOOSTS confidence (additive), not blend (weighted average)
@@ -677,7 +677,8 @@ class TRAIDecisionModule extends EventEmitter {
 
       case 'autonomous':
         // TRAI has primary control - use blend for this mode only
-        return traiConfidence * 0.7 + originalConfidence * 0.3;
+        const autonomousTraiWeight = ConfigLoader.get('trai.autonomousTraiWeight');
+        return traiConfidence * autonomousTraiWeight + originalConfidence * (1 - autonomousTraiWeight);
 
       default:
         return originalConfidence;

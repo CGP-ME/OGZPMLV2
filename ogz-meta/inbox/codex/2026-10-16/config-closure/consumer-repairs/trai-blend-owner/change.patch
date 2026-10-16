@@ -1,0 +1,36 @@
+diff --git a/config/settings.json b/config/settings.json
+index a8e3dd2e..d29e2006 100644
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -3 +3 @@
+-  "revision": 12,
++  "revision": 13,
+@@ -3822,0 +3823,3 @@
++      "advisoryUnknownPatternThreshold": 0.1,
++      "advisoryUnknownPatternPenaltyMultiplier": 0.9,
++      "autonomousTraiWeight": 0.7,
+diff --git a/core/TRAIDecisionModule.js b/core/TRAIDecisionModule.js
+index d7221f6a..7c63d4b2 100644
+--- a/core/TRAIDecisionModule.js
++++ b/core/TRAIDecisionModule.js
+@@ -661,3 +661,3 @@ class TRAIDecisionModule extends EventEmitter {
+-        // When TRAI confidence < 10%, it hasn't learned the pattern yet
+-        if (traiConfidence < 0.1) {
+-          return originalConfidence * 0.9; // Slight caution penalty
++        // When TRAI confidence is below the configured advisory threshold, it hasn't learned the pattern yet
++        if (traiConfidence < ConfigLoader.get('trai.advisoryUnknownPatternThreshold')) {
++          return originalConfidence * ConfigLoader.get('trai.advisoryUnknownPatternPenaltyMultiplier'); // Slight caution penalty
+@@ -680 +680,2 @@ class TRAIDecisionModule extends EventEmitter {
+-        return traiConfidence * 0.7 + originalConfidence * 0.3;
++        const autonomousTraiWeight = ConfigLoader.get('trai.autonomousTraiWeight');
++        return traiConfidence * autonomousTraiWeight + originalConfidence * (1 - autonomousTraiWeight);
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index 469c9a8a..25f64c70 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2765,0 +2766,5 @@ const EDITABLE_SETTINGS = deepFreeze({
++  ...Object.fromEntries([
++    ['advisoryUnknownPatternThreshold', { type: 'number', unit: 'confidence fraction', min: 0, max: 1, label: 'TRAI advisory unknown-pattern confidence threshold', effect: 'next_trai_confidence_blend' }],
++    ['advisoryUnknownPatternPenaltyMultiplier', { type: 'number', unit: 'multiplier', min: 0, max: 1, label: 'TRAI advisory unknown-pattern penalty multiplier', effect: 'next_trai_confidence_blend' }],
++    ['autonomousTraiWeight', { type: 'number', unit: 'confidence fraction', min: 0, max: 1, label: 'TRAI autonomous confidence weight', effect: 'next_trai_confidence_blend' }],
++  ].map(([key, descriptor]) => [`trai.${key}`, descriptor])),

@@ -2763,6 +2763,11 @@ const EDITABLE_SETTINGS = deepFreeze({
   ].map(([key, label, domain]) => [`trai.${key}`, {
     type: 'number', ...domain, label, effect: 'next_bot_initialization_restart_required',
   }])),
+  ...Object.fromEntries([
+    ['advisoryUnknownPatternThreshold', { type: 'number', unit: 'confidence fraction', min: 0, max: 1, label: 'TRAI advisory unknown-pattern confidence threshold', effect: 'next_trai_confidence_blend' }],
+    ['advisoryUnknownPatternPenaltyMultiplier', { type: 'number', unit: 'multiplier', min: 0, max: 1, label: 'TRAI advisory unknown-pattern penalty multiplier', effect: 'next_trai_confidence_blend' }],
+    ['autonomousTraiWeight', { type: 'number', unit: 'confidence fraction', min: 0, max: 1, label: 'TRAI autonomous confidence weight', effect: 'next_trai_confidence_blend' }],
+  ].map(([key, descriptor]) => [`trai.${key}`, descriptor])),
   ...Object.fromEntries(["EMASMACrossover", "LiquiditySweep", "BreakRetest", "RSI", "MADynamicSR", "CandlePattern", "MarketRegime", "OGZTPO", "OpeningRangeBreakout", "SmartMoneySweep", "DonchianBreakout", "PropSafeEMAPullback", "EMATrendRetest", "RSI2MeanReversion", "TimeSeriesMomentum", "NoWickImbalance"].flatMap(strategyName => [
     ['threshold', { unit: 'ATR percent of price', min: 0, exclusiveMin: false, label: 'Exit volatility adjustment threshold' }],
     ['stopMultiplier', { unit: 'multiplier', min: 0, exclusiveMin: true, label: 'High-volatility stop-loss multiplier' }],

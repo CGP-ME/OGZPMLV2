@@ -1,3 +1,11 @@
+## 2026-10-16 — Canonical TRAI confidence-blend controls
+
+Problem: advisory unknown-pattern caution and autonomous confidence weighting still used hardcoded values. Migrated the existing 0.1 threshold, 0.9 penalty multiplier and 0.7 autonomous share into three explicit settings owners, consumed by the actual blend method per decision. Added truthful next-blend descriptors; settings revision 12→13. Existing advisory/hybrid `trai.weight` and current passive mode remain intact. Original-confidence contribution is the complementary share, with no duplicate owner.
+
+Verification: actual loader saves and actual extracted class method in isolated baseline/candidate runs; 121 default confidence pairs agree within Number.EPSILON (largest difference 1.1102230246251565e-16 from complementary-weight arithmetic). Same-subject edits, threshold boundaries, zero penalty on reachable inputs and zero/one shares affect their intended calculations. Passive/hybrid behavior remains unchanged. Evidence and review: `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/trai-blend-owner/`.
+
+Mercury returned no_break_found for candidate c4f0af43c55cd310385fb2983db230e9501ca77c; its source-only review and source identity are retained. No new throws, trading gates, fallbacks, risk authority or mode changes. Source delivery only; no PM2 operation or provider invocation. Pending unused-control rulings remain open.
+
 ## 2026-10-16 — Retire the nonexistent performance update interval
 
 Problem: `internals.performanceAnalysis.updateIntervalMs=60000` only appeared in an initialization log; PerformanceAnalyzer processes completed trades and has no interval scheduler. Removed that one canonical property and its misleading log, retaining every real performance setting and event-driven consumer. Internals revision 4→5. Original value and source evidence are preserved in `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/performance-interval-retirement/`.

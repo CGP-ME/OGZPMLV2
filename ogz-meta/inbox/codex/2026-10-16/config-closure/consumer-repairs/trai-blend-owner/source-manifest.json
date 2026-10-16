@@ -1,0 +1,20 @@
+{
+  "reviewBase": "9545c26ae3dd3eba46b705ea025c377f1c5727a3",
+  "reviewCandidate": "c4f0af43c55cd310385fb2983db230e9501ca77c",
+  "reproductionSources": {
+    "source-baseline": {
+      "config/settings.json": "a8e3dd2e12787a29e5cfbb22d5fbb1a9149416c2",
+      "config/internals.json": "e71b889f6a67d3ef74fed1a062a69bb2b9475fcb",
+      "foundation/ConfigLoader.js": "469c9a8a88bcd3a75aebed8478bb598874c8ab8a",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950",
+      "core/TRAIDecisionModule.js": "d7221f6ad794af80b0e94b664df51c33a02e58a6"
+    },
+    "source-candidate": {
+      "config/settings.json": "d29e200616b7d06a0e0257a1a506eb594fbb599a",
+      "config/internals.json": "e71b889f6a67d3ef74fed1a062a69bb2b9475fcb",
+      "foundation/ConfigLoader.js": "25f64c708d244b4039a14c4aa236228dcff747f9",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950",
+      "core/TRAIDecisionModule.js": "7c63d4b2cb7d50350f2dd1aa3b22b66beba547b4"
+    }
+  }
+}

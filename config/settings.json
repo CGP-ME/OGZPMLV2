@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 12,
+  "revision": 13,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -3820,6 +3820,9 @@
       "enabled": true,
       "mode": "passive",
       "weight": 0.2,
+      "advisoryUnknownPatternThreshold": 0.1,
+      "advisoryUnknownPatternPenaltyMultiplier": 0.9,
+      "autonomousTraiWeight": 0.7,
       "maxRisk": 0.03,
       "emergencyStopLoss": 0.05,
       "minConf": 0.08,
