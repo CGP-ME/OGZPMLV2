@@ -1,0 +1,16 @@
+{
+  "reviewBase": "89affa44bda62f93158c1a125429adec6d34073b",
+  "reviewCandidate": "5850803d2a76bae76d11c2ed65de14178d4b9bdf",
+  "reproductionSources": {
+    "baseline": {
+      "config/settings.json": "d29e200616b7d06a0e0257a1a506eb594fbb599a",
+      "core/StrategyOrchestrator.js": "13b8f4965ecdffe6b715404c8c1b226b7a226703",
+      "core/TwoPoleOscillator.js": "8ceb0078493cf16f638df6abda3caf15e9a174c1"
+    },
+    "candidate": {
+      "config/settings.json": "3cda663277a590aba2501affa1c2a19f8f63e362",
+      "core/StrategyOrchestrator.js": "1f37d438ce28fba9c465464e568fd84619fa71b5",
+      "core/TwoPoleOscillator.js": "a64b461d41e8b8c358ef9336de66fb65e0051b03"
+    }
+  }
+}

@@ -1,3 +1,12 @@
+## 2026-10-16 — Archive three obsolete confidence controls
+
+- Problem: regimeMinConfidence and confluenceMinScore had unused Orchestrator assignments; TwoPole confidenceBase was overwritten by every oscillator-zone branch. Their configuration values falsely implied control over trading.
+- Ruling/change: Trey explicitly authorized archiving all three. Remove only those canonical declarations and dead assignments; preserve old values 0.3, 0.3 and 40 in the receipt. Settings revision 13→14. Active regime/confluence boosts, zone scoring and other strategies’ confidenceBase controls remain intact.
+- Verification: exact-source isolated TwoPole checks assert all seven positive/negative/mid/neutral zone outputs are identical; candidate fields absent. Actual Orchestrator.evaluate retains winner confidence and minimum threshold in a collaborator-stubbed fixture. This is confidence-selection proof, not sizing/execution acceptance.
+- Review: Mercury found_break alleged unchanged MTF behavior and absent producers. Independent authorized Astra adversarial review traced the real Loader/profile producers and found no introduced defect; GO. Both reviews preserved, no unrelated guards added.
+- Limits/activation: no PM2 reload or runtime activation. No whole-Stop1 completion claim.
+- Evidence: [retirement receipt](ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/obsolete-confidence-retirement/receipt.md).
+
 ## 2026-10-16 — Correct role configuration provenance labels
 
 - Problem: source accounting accepted 18 nonexistent canonical paths across the two bot snapshots and market-data role; supervisor schema/revision labels named the wrong owner. Webhook sources also retained keys absent from the resolved config.

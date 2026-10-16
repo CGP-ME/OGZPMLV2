@@ -1,0 +1,32 @@
+diff --git a/config/settings.json b/config/settings.json
+index d29e2006..3cda6632 100644
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -3 +3 @@
+-  "revision": 13,
++  "revision": 14,
+@@ -6,3 +6 @@
+-    "candlePatternMinConfidence": 0.7,
+-    "regimeMinConfidence": 0.3,
+-    "confluenceMinScore": 0.3
++    "candlePatternMinConfidence": 0.7
+@@ -87 +84,0 @@
+-        "confidenceBase": 40,
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index 13b8f496..1f37d438 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -822,4 +821,0 @@ class StrategyOrchestrator {
+-    // FIX 2026-03-19: Extracted hardcoded thresholds to config
+-    this.regimeMinConfidence = ConfigLoader.get('confidence.regimeMinConfidence');
+-    this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore');
+-
+diff --git a/core/TwoPoleOscillator.js b/core/TwoPoleOscillator.js
+index 8ceb0078..a64b461d 100644
+--- a/core/TwoPoleOscillator.js
++++ b/core/TwoPoleOscillator.js
+@@ -24 +23,0 @@ class TwoPoleOscillator {
+-        this.confidenceBase = config.confidenceBase;
+@@ -251 +250 @@ class TwoPoleOscillator {
+-        let confidence = this.confidenceBase;
++        let confidence;

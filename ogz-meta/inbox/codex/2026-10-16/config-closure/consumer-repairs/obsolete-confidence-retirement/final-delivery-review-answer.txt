@@ -1,0 +1,32 @@
+VERDICT: found_break
+ADVERSARIAL_REVIEW_BLOCKING: yes
+
+CANDIDATE SET: examined 3 of 3
+- config/settings.json (changed) – examined lines 70‑100 (confidentialBase removal) and lines 3595‑3608 (mtfAdapter config)【open_file†L70-L100】【open_file†L3595-L3608】
+- core/StrategyOrchestrator.js (changed) – examined sections covering _buildMtfAdapterConfig, _resolveRsiRegimeMa, _recordLatestCandleTimeframeAbsence, _shouldObserveMtfConfluence, _applyMtfConfluenceBooster【open_file†L939-L951】【open_file†L1118-L1122】【open_file†L1229-L1232】【open_file†L1288-L1290】【open_file†L1294-L1295】
+- core/TwoPoleOscillator.js (changed) – examined confidence‑calculation block 250‑280【open_file†L250-L280】
+
+AST EVIDENCE: structural claims verified via concrete source reads (open_file) and no reliance on pure grep for existence of symbols.
+
+INHERITED:
+- config/settings.json – confidenceBase field removed (present in baseline, absent in current) → potential loss of default confidence handling.
+- core/StrategyOrchestrator.js – missing guard for undefined orchestrator.mtfConfluenceBooster and strategyMtfConfluence (config entries absent) → TypeError risk.
+- core/TwoPoleOscillator.js – confidenceBase removal does not affect runtime because code defaults to other confidence zones; no break observed.
+
+FOURTH SHAPE CLASSIFIER: classified 4 added risk points (missing guards, inverted logic).
+- _resolveRsiRegimeMa returns allowed:true when filter disabled (no price/MA check) – SUBSTANTIVE.
+- _recordLatestCandleTimeframeAbsence logic inverted – SUBSTANTIVE.
+- _shouldObserveMtfConfluence accesses undefined config → TypeError – SUBSTANTIVE.
+- _applyMtfConfluenceBooster accesses undefined config → TypeError – SUBSTANTIVE.
+
+ALLEGATIONS:
+- MECHANICAL: removal of confidenceBase field (no functional impact).
+- SUBSTANTIVE: the four items above, each backed by source lines.
+
+SUBSTANTIVE RESOLUTION: convergence – evidence points to concrete breaks in StrategyOrchestrator logic.
+
+WHAT I DID: examined all changed files, extracted relevant code sections, verified presence/absence of configuration entries, and identified logical errors that can cause runtime failures.
+WHAT I DID NOT DO: execute the code or run tests; analysis is based solely on static source evidence.
+WHAT I ASSUMED: ConfigLoader.get returns undefined when a key is missing, and accessing a property on undefined throws a TypeError.
+WHY THIS VERDICT: multiple code paths now lack defensive checks (e.g., missing config entries) and contain inverted conditional logic, each directly supported by the cited source lines, indicating introduced runtime breaks.
+IF INCOMPLETE, WHY: none – all changed paths have been exhaustively inspected and relevant breakage evidence collected.

@@ -21,7 +21,6 @@ class TwoPoleOscillator {
         this.deltaDenominatorFloor = config.deltaDenominatorFloor;
         this.crossoverMinDeltaRatio = config.crossoverMinDeltaRatio;
         this.confidenceMidZone = config.confidenceMidZone;
-        this.confidenceBase = config.confidenceBase;
         this.confidenceExtreme = config.confidenceExtreme;
         this.confidenceOverbought = config.confidenceOverbought;
         this.confidenceMid = config.confidenceMid;
@@ -248,7 +247,7 @@ class TwoPoleOscillator {
     }
 
     calculateSignalConfidence(oscillator, filtered) {
-        let confidence = this.confidenceBase;
+        let confidence;
         const absoluteOscillator = Math.abs(oscillator);
 
         if (oscillator >= this.extremeOverbought || oscillator <= this.extremeOversold) {

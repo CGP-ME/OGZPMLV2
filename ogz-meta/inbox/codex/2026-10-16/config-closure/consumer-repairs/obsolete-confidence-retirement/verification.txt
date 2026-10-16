@@ -1,0 +1,30 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+[TwoPoleOscillator] initialized [BigBeluga]
+   SMA Length: 25
+   Filter Length: 20
+   Thresholds: -0.5 to 0.5
+[TwoPoleOscillator] EXTREME ZONE: 1 - reversal imminent
+[TwoPoleOscillator] EXTREME ZONE: -1 - reversal imminent
+[ORCH] 1 strategies returned signals:
+   - fixture: 50.0% long
+[EXIT-DEBUG] Winner "fixture" keys: direction, confidence, action, timeframe, overrideLevels, rankingScore, strategyName, decisionAttribution, learningSnapshot
+[EXIT-DEBUG] Winner overrideLevels type: object, value: {"stopLossPercent":1,"takeProfitPercent":2}
+[EXIT-DEBUG] fixture NO overrideLevels — will use ConfigLoader defaults
+
+[ORCHESTRATOR] HOLD | fixture @ 50% | Confluence: 1x (sizing: NaNx)
+{"mode":"baseline","revision":13,"zoneOutputs":[85,85,65,65,50,50,35],"confidenceBaseOwnProperty":true,"orchestratorDecision":{"action":"HOLD","direction":"long","confidence":50,"minStrategyConfidence":0.35}}
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+[TwoPoleOscillator] initialized [BigBeluga]
+   SMA Length: 25
+   Filter Length: 20
+   Thresholds: -0.5 to 0.5
+[TwoPoleOscillator] EXTREME ZONE: 1 - reversal imminent
+[TwoPoleOscillator] EXTREME ZONE: -1 - reversal imminent
+[ORCH] 1 strategies returned signals:
+   - fixture: 50.0% long
+[EXIT-DEBUG] Winner "fixture" keys: direction, confidence, action, timeframe, overrideLevels, rankingScore, strategyName, decisionAttribution, learningSnapshot
+[EXIT-DEBUG] Winner overrideLevels type: object, value: {"stopLossPercent":1,"takeProfitPercent":2}
+[EXIT-DEBUG] fixture NO overrideLevels — will use ConfigLoader defaults
+
+[ORCHESTRATOR] HOLD | fixture @ 50% | Confluence: 1x (sizing: NaNx)
+{"mode":"candidate","revision":14,"zoneOutputs":[85,85,65,65,50,50,35],"confidenceBaseOwnProperty":false,"orchestratorDecision":{"action":"HOLD","direction":"long","confidence":50,"minStrategyConfidence":0.35}}

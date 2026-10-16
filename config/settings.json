@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 13,
+  "revision": 14,
   "confidence": {
     "minStrategyConfidence": 0.35,
-    "candlePatternMinConfidence": 0.7,
-    "regimeMinConfidence": 0.3,
-    "confluenceMinScore": 0.3
+    "candlePatternMinConfidence": 0.7
   },
   "regimeDetection": {
     "minimumCandles": 10,
@@ -84,7 +82,6 @@
         "deltaDenominatorFloor": 0.001,
         "crossoverMinDeltaRatio": 0.2,
         "confidenceMidZone": 0.25,
-        "confidenceBase": 40,
         "confidenceExtreme": 90,
         "confidenceOverbought": 70,
         "confidenceMid": 55,

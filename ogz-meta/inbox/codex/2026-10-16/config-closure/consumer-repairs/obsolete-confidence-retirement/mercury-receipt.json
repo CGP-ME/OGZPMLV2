@@ -1,0 +1,15 @@
+{
+  "reviewBase": "89affa44bda62f93158c1a125429adec6d34073b",
+  "reviewCandidate": "5850803d2a76bae76d11c2ed65de14178d4b9bdf",
+  "resolvedBaseTree": "d7e7e4c73bf024a47ab9b8245fb63f855a6d29e2",
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "runId": "2026-10-16T22-17-06-267Z-694d8d55cd1a",
+  "verdict": "found_break",
+  "termination": "answer_given",
+  "maxTokens": 7750,
+  "question": "Mercury, break my fix. Require file:line evidence for any introduced break.",
+  "reviewers": [
+    "mercury"
+  ],
+  "resolution": "Astra exact-source GO; alleged MTF producers exist and the cited behavior is unchanged. Original blocking Mercury verdict preserved."
+}

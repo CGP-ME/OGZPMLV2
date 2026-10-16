@@ -819,10 +819,6 @@ class StrategyOrchestrator {
     // This is PER-STRATEGY, not aggregate — much more meaningful
     // TUNE 2026-02-27: Raised from 0.25 to filter garbage signals
 
-    // FIX 2026-03-19: Extracted hardcoded thresholds to config
-    this.regimeMinConfidence = ConfigLoader.get('confidence.regimeMinConfidence');
-    this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore');
-
     this.mtfBaseTimeframe = typeof config.mtfBaseTimeframe === 'string' && config.mtfBaseTimeframe.trim()
       ? config.mtfBaseTimeframe.trim()
       : null;
