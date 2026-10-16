@@ -151,6 +151,7 @@ class DonchianBreakout {
         stopLossPercent: -Math.abs(stopPct),
         stopType: this.exit.stopType,
         atrStopMult: this.atrStopMult,
+        atrPeriod: this.atrPeriod,
         takeProfitPercent: null,
         tpMode: this.exit.tpMode,
         trailingStopPercent: null,

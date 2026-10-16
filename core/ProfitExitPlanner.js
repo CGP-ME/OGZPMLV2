@@ -182,6 +182,8 @@ function planBeScaleOut(snapshot, profitPercent) {
   if (!config || config.enabled !== true) {
     return null;
   }
+  const exitFraction = usesContractPartial ? config.fraction : config.scaleOutFraction;
+  if (exitFraction === 0) return null;
   const status = currentStateStatus(snapshot.beScaleOutState, 'snapshot.beScaleOutState');
   if (status !== 'idle') {
     return null;
@@ -209,7 +211,7 @@ function planBeScaleOut(snapshot, profitPercent) {
     exitRole: 'profit',
     stateKey: 'beScaleOutState',
     exitFraction: requireFraction(
-      usesContractPartial ? config.fraction : config.scaleOutFraction,
+      exitFraction,
       usesContractPartial ? 'policy.contract.partialExit.fraction' : 'policy.profitManagement.beScaleOut.scaleOutFraction'
     ),
     evidence: {
@@ -236,7 +238,8 @@ function tierExitFraction(snapshot, tier, tierState) {
       if (!state || currentStateStatus(state, `snapshot.tierStates[${index}]`) !== 'idle') {
         return sum;
       }
-      return sum + requireFraction(candidate.exitFraction, `tier.${candidate.name || index}.exitFraction`);
+      return candidate.exitFraction === 0 ? sum
+        : sum + requireFraction(candidate.exitFraction, `tier.${candidate.name || index}.exitFraction`);
     }, 0);
     if (openWeight <= 0) {
       throw new Error('[ProfitExitPlanner] open tier weights must sum above zero');
@@ -273,7 +276,7 @@ function planTier(snapshot, profitPercent) {
       throw new Error(`[ProfitExitPlanner] snapshot.tierStates[${index}] is required`);
     }
     const status = currentStateStatus(tierStates[index], `snapshot.tierStates[${index}]`);
-    if (status !== 'idle') {
+    if (status !== 'idle' || tier.exitFraction === 0) {
       continue;
     }
     const targetProfitMove = requireFiniteNumber(tier.targetProfitMove, `tier.${index}.targetProfitMove`);

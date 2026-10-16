@@ -1,3 +1,15 @@
+## 2026-10-16 — Preserve valid strategy exit values through consumers
+
+Problem: editable zero allocations reached strict positive-fraction exit checks; zero trailing distance and explicitly absent TP/time limits could be rejected in transport/records, and Donchian omitted its ATR period from its signal contract.
+
+Change: zero allocations produce no scale-out/tier intent, mixed tiers retain their positive weights, zero trailing distance survives existing hint normalization, nullable producer fields remain null in decision records, and Donchian carries its actual configured ATR period. Strategy-owned exit numbers are unchanged. No new throw, default, fallback or trading authority was added.
+
+Verification: isolated actual planner reproduces the old zero-allocation exception and verifies zero/mixed/all-zero behavior; actual Donchian signal and extracted normalization preserve ATR period and zero trailing; actual ledger schema accepts intentional nulls. Source identities and fixture scope are recorded in the linked review. This is focused consumer verification, not a broker replay.
+
+Review: Mercury reported found_break, alleging nullable TP formatting changed execution. Astra traced the local formatted value only to console.log and the untouched contract to its consumer; TakeProfitChecker explicitly skips null/off TP. Qualified GO under Trey's standing Astra adjudication instruction; the Mercury verdict is preserved. The inherited misleading TP log remains separately noted, not hidden as an execution fix.
+
+Evidence: `ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/exit-transport/` and shared `fixtures/verify.cjs`, `verification.log`. No PM2 restart, env reload or runtime activation.
+
 ## 2026-10-16 — Carry actual configuration identity through trade receipts
 
 Problem: current config provenance existed in ConfigLoader but was absent from entry-frozen policy and downstream trade records. Export the existing receipt and carry it through PolicyBuilder, the actual order-plan producer/trace, decision ledger/schema, decision autopsy and dashboard position projection. Preserve unknown identity on old records; do not attach today's configuration to historical trades. No sizing/exit policy, settings value, trading gate, throw, fallback/default or new config store added.

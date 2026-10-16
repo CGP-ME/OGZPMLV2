@@ -79,10 +79,10 @@ const PositionSizingSchema = z.object({
 const ExitContractSchema = z.object({
   strategyName: z.string(),
   stopLossPercent: z.number(),
-  takeProfitPercent: z.number(),
+  takeProfitPercent: z.number().nullable(),
   trailingStopPercent: z.number().nullable().optional(),
   trailingActivation: z.number().nullable().optional(),
-  maxHoldTimeMinutes: z.number().optional(),
+  maxHoldTimeMinutes: z.number().nullable().optional(),
   _validated: z.string().nullable().optional(),
 }).passthrough();
 

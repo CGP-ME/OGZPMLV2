@@ -744,8 +744,8 @@ function normalizeExitContractHint(hint, strategyName) {
   if (explicitTpMode !== null) normalized.tpMode = explicitTpMode;
   if (maxHoldMode !== null) normalized.maxHoldMode = maxHoldMode;
 
-  const optionalPositiveFields = new Set(['trailingStopPercent', 'maxHoldTimeMinutes']);
-  const optionalNonNegativeFields = new Set(['trailingActivation']);
+  const optionalPositiveFields = new Set(['maxHoldTimeMinutes']);
+  const optionalNonNegativeFields = new Set(['trailingStopPercent', 'trailingActivation']);
   for (const key of [...optionalPositiveFields, ...optionalNonNegativeFields]) {
     if (hint[key] === undefined) continue;
     // Channel/ATR trailing has no percent distance or activation to transport.

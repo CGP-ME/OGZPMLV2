@@ -1,0 +1,54 @@
+**VERDICT:** found_break
+
+**ADVERSARIAL_REVIEW_BLOCKING:** yes
+
+**CANDIDATE SET:** examined 4 of 4
+- `core/dto/DecisionLedgerSchema.js` – diff shows `takeProfitPercent` and `maxHoldTimeMinutes` changed to `nullable()`【git_diff†L79-L84】
+- `core/ProfitExitPlanner.js` – diff adds early‑return on zero `exitFraction` and skips tiers with `exitFraction === 0`【git_diff†L182-L211】【git_diff†L236-L239】
+- `core/StrategyOrchestrator.js` – diff moves `trailingStopPercent` from *positive* to *non‑negative* optional fields【git_diff†L744-L749】
+- `modules/DonchianBreakout.js` – diff adds `atrPeriod` to the exit contract payload【git_diff†L151-L156】
+
+**AST EVIDENCE:** none required beyond the diff listings (structural changes are fully captured by the diff tool).
+
+**INHERITED:** each changed path is read in full; no additional hidden files were left unread.
+
+**FOURTH SHAPE CLASSIFIER:** 0 of 0 – no new throws, guards, or fallbacks were introduced beyond the schema changes.
+
+**ALLEGATIONS:**
+- **MECHANICAL** – the schema now permits `null` for `takeProfitPercent` and `maxHoldTimeMinutes`.
+- **SUBSTANTIVE** – `core/ExitContractManager.js` treats a `null` `takeProfitPercent` as the numeric value `0` when logging the final contract:
+
+  ```js
+  const finalTp = Number.isFinite(Number(normalizedContract.takeProfitPercent))
+      ? Number(normalizedContract.takeProfitPercent).toFixed(2)
+      : String(normalizedContract.takeProfitPercent);
+  ```
+
+  (lines 1069‑1070)【open_file†L1069-L1070】
+
+  This conversion silently changes a “no‑take‑profit” (`null`) contract into a `0 %` take‑profit, which can alter downstream risk calculations and violates the intended semantics of the nullable field.
+
+- **MECHANICAL** – the change in `StrategyOrchestrator` allowing `trailingStopPercent` to be zero (`non‑negative`) may permit a zero‑distance trailing stop, but the existing `ExitContractManager` logic already handles a zero `trailingStopPercent` without error, so no immediate break is observed.
+
+- **MECHANICAL** – the addition of `atrPeriod` to `DonchianBreakout` contracts is harmless because `ExitContractManager` only reads `atrPeriod` when `trailType === 'atr'`; `DonchianBreakout` never sets `trailType` to `'atr'`.
+
+**SUBSTANTIVE RESOLUTION:** convergence – the only substantive break is the mis‑handling of a nullable `takeProfitPercent` in `ExitContractManager`.
+
+**WHAT I DID:**
+- Retrieved diffs for all four changed files using `git_diff`.
+- Searched for related fields (`takeProfitPercent`, `maxHoldTimeMinutes`, `trailingStopPercent`, `atrPeriod`).
+- Opened the relevant sections of `ExitContractManager.js` to verify how `null` values are processed.
+
+**WHAT I DID NOT DO:**
+- Execute any runtime code or tests; analysis is limited to static source evidence.
+
+**WHAT I ASSUMED:**
+- The repository state reflected by the provided diffs is the current working tree.
+- No other hidden branches or untracked files affect the examined code.
+
+**WHY THIS VERDICT:**
+- The diff for `DecisionLedgerSchema.js` explicitly makes `takeProfitPercent` nullable.
+- `ExitContractManager.js` later coerces this field with `Number(null) → 0` and treats it as a finite number, producing a final logged value of `"0.00"` instead of preserving `null`.
+- This semantic shift can cause downstream components that rely on the presence/absence of a take‑profit target to behave incorrectly (e.g., triggering a take‑profit condition at 0 % profit).
+
+**IF INCOMPLETE, WHY:** Not incomplete – all changed files have been examined and the break is fully supported by line‑level evidence.

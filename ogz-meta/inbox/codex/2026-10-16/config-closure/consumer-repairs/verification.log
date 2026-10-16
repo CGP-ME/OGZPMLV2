@@ -1,0 +1,3 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{"pass":true,"source":"fixtures/source-baseline and fixtures/source-candidate pinned to HEAD 101399e1","actualConsumers":["FeatureExtractor","EnhancedPatternRecognition.FeatureExtractor","ProfitExitPlanner.plan","DonchianBreakout._signal","StrategyOrchestrator.normalizeExitContractHint"],"limits":["TradingLoop constructor not loaded; candidate producer AST-extracted","No credentials/network/state/PM2"]}
+{"activatedFeatureConsumers":true,"optimizedAndProvidedBranches":true,"traiDecisionAndCore":true}

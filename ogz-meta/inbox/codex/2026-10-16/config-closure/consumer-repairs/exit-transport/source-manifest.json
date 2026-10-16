@@ -1,0 +1,11 @@
+{
+  "base": "86e45d6ff451623b5f6591e1048f0ba48c4b9f87",
+  "candidate": "0665923646d05e9b802abab9134f392bc395e528",
+  "harness": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "files": {
+    "core/ProfitExitPlanner.js": "45266da6c09ddea7a5e05b3630cf5970c6513cbb",
+    "core/StrategyOrchestrator.js": "13b8f4965ecdffe6b715404c8c1b226b7a226703",
+    "core/dto/DecisionLedgerSchema.js": "7196e9d38040b3b57d1e31539ec5efedfd861afc",
+    "modules/DonchianBreakout.js": "e34f90a4aaf85005414bd0c29782a51f8c3761df"
+  }
+}
