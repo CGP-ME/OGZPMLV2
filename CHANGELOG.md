@@ -1,3 +1,9 @@
+## 2026-10-16 — Make pause/resume receipts reflect actual state mutation
+
+Problem: StateManager discarded failed updateState results and returned success; WebSocketManager also confirmed before awaiting the update. Propagate existing failures, await pause/resume in the bot handler, return rejection on failed persistence, and include the actual pause record in receipts and state_update.state. No new trading gate, throw, default, fallback, or enable flag was introduced.
+
+Verification: exact source passed isolated native tests for held-lock receipt timing, successful persistence, failed-pause and failed-resume rollback/rejection, projected pause metadata, and absence of isTrading. Mercury no_break_found (`2026-10-16T03-17-30-901Z-c197923e2e48`); independent Astra GO. [Review, source identities and limits](ogz-meta/inbox/codex/2026-10-16/pause-receipt-truth/REVIEW.md). Browser/relay routing, owner targeting and overlapping-pause behavior are not established by these backend tests. No PM2 restart or trading resume; running code remains separate.
+
 ## 2026-10-16 — Remove phantom global-halt methods and callers
 
 Removed StateManager.isHalted/getHaltReason, which returned constant false/null, and their unreachable runner/TradingLoop/OrderExecutor branches. Reconciled the direct test mocks/assertion. Manual pause and real symbol reconciliation remain; no gate, throw, default, fallback, or replacement enable flag was added.

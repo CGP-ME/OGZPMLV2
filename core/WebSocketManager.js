@@ -67,18 +67,26 @@ class WebSocketManager {
     return false;
   }
 
-  pauseTradingFromDashboard(reason) {
+  async pauseTradingFromDashboard(reason) {
     const normalizedReason = typeof reason === 'string' && reason.trim()
       ? reason.trim()
       : 'Manual pause from dashboard';
     console.log('[Dashboard] Pause command received:', normalizedReason);
-    const result = stateManager.pauseTrading(normalizedReason, {
+    const result = await stateManager.pauseTrading(normalizedReason, {
       source: 'dashboard_manual',
       recoverable: false
     });
     if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
       this.ctx.dashboardWs.send(JSON.stringify({
-        type: 'pause_confirmed',
+        type: result.success ? 'pause_confirmed' : 'command_rejected',
+        command: 'pause_trading',
+        success: result.success,
+        error: result.error,
+        code: result.code,
+        pauseReason: stateManager.get('pauseReason'),
+        pauseSource: stateManager.get('pauseSource'),
+        pausedAt: stateManager.get('pausedAt'),
+        resumedAt: stateManager.get('resumedAt'),
         reason: normalizedReason,
         source: 'dashboard_manual',
         timestamp: Date.now()
@@ -87,14 +95,22 @@ class WebSocketManager {
     return result;
   }
 
-  resumeTradingFromDashboard() {
+  async resumeTradingFromDashboard() {
     console.log('[Dashboard] Resume command received');
-    const result = stateManager.resumeTrading({
+    const result = await stateManager.resumeTrading({
       source: 'dashboard_manual'
     });
     if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
       this.ctx.dashboardWs.send(JSON.stringify({
-        type: 'resume_confirmed',
+        type: result.success ? 'resume_confirmed' : 'command_rejected',
+        command: 'resume_trading',
+        success: result.success,
+        error: result.error,
+        code: result.code,
+        pauseReason: stateManager.get('pauseReason'),
+        pauseSource: stateManager.get('pauseSource'),
+        pausedAt: stateManager.get('pausedAt'),
+        resumedAt: stateManager.get('resumedAt'),
         source: 'dashboard_manual',
         timestamp: Date.now()
       }));
@@ -342,12 +358,12 @@ class WebSocketManager {
             // PAUSE TRADING - Manual safety stop from dashboard
             else if (msg.command === 'pause_trading') {
               const reason = msg.reason || 'Manual pause from dashboard';
-              this.pauseTradingFromDashboard(reason);
+              await this.pauseTradingFromDashboard(reason);
             }
 
             // RESUME TRADING - Manual resume from dashboard
             else if (msg.command === 'resume_trading') {
-              this.resumeTradingFromDashboard();
+              await this.resumeTradingFromDashboard();
             }
           }
 

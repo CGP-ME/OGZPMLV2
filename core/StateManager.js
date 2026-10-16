@@ -2506,7 +2506,8 @@ class StateManager {
       pauseScope: scope
     };
 
-    await this.updateState(updates, { action: 'PAUSE_TRADING', reason, source, scope });
+    const result = await this.updateState(updates, { action: 'PAUSE_TRADING', reason, source, scope });
+    if (!result.success) return result;
 
     // Log to console with visible warning
     console.log('═══════════════════════════════════════════════════════');
@@ -2535,7 +2536,8 @@ class StateManager {
       resumedAt: Date.now()
     };
 
-    await this.updateState(updates, { action: 'RESUME_TRADING', ...context });
+    const result = await this.updateState(updates, { action: 'RESUME_TRADING', ...context });
+    if (!result.success) return result;
 
     console.log('═══════════════════════════════════════════════════════');
     console.log('TRADING RESUMED');
@@ -4857,6 +4859,12 @@ class StateManager {
       const losingTrades = closedTrades.filter(t => Number(t && t.pnl) < 0).length;
 
       const dashboardState = {
+        pauseReason: state.pauseReason,
+        pauseSource: state.pauseSource,
+        pauseRecoverable: state.pauseRecoverable,
+        pauseScope: state.pauseScope,
+        pausedAt: state.pausedAt,
+        resumedAt: state.resumedAt,
         position: state.position,
         balance: state.balance,
         totalBalance: state.totalBalance,

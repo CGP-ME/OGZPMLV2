@@ -1,0 +1,12 @@
+[
+  {
+    "path": "core/StateManager.js",
+    "blob": "5d3a58782b95a8fed09b17e1eebef0573f996614",
+    "sha256": "b28365b919e77c40514a62ed4b38fe90a4b18b87e376a86cde48ca20768e7cf0"
+  },
+  {
+    "path": "core/WebSocketManager.js",
+    "blob": "2e9a5b02841869f0746b6c3f2fb343e3ebaec6aa",
+    "sha256": "3a4097d7c24172c173dca2b5bc021e2f5d03f7aded45e56f63a99d80e086ea76"
+  }
+]

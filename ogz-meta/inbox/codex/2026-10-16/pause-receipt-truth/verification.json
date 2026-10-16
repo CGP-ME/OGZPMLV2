@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "checks": [
+    "pause receipt waits for actual locked mutation, persistence and state broadcast",
+    "resume receipt waits for actual mutation and clears displayed pause metadata",
+    "failed pause persistence rolls back and emits rejection, never success",
+    "failed resume persistence preserves pause and emits rejection",
+    "no independent enable flag is created or emitted"
+  ],
+  "limits": [
+    "Actual pinned StateManager and WebSocketManager, fake socket inside isolated filesystem/network",
+    "No browser, relay delivery, broker orders, PM2 restart or resume"
+  ],
+  "source": "a2cd0abfc721b4f1fcbb06ce3019e273b8085fe9"
+}

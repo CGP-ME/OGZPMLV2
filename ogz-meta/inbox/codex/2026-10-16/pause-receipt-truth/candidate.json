@@ -1,0 +1,8 @@
+{
+  "tree": "a2cd0abfc721b4f1fcbb06ce3019e273b8085fe9",
+  "base": "56ecbc4150189caaf71d9034f6de9bf4393b8dec",
+  "files": [
+    "core/StateManager.js",
+    "core/WebSocketManager.js"
+  ]
+}
