@@ -1,0 +1,9 @@
+{
+  "reviewBase": "227b2922dd9812799626b383d9bff3903d7a2bd1",
+  "reviewCandidate": "531e98801caec33c428b0e9b18588e4f83e3e8d9",
+  "files": {
+    "ogz-meta/claudito-logger.js": "58104b5b970fad6a25d270820a8786c53510e299",
+    "config/settings.json": "54bd1e7a1d77b2b3589c9e26249bcc81c2d3d698"
+  },
+  "baselineLogger": "606ab95747e083f01e3a19b3de9665c1f23ce700"
+}

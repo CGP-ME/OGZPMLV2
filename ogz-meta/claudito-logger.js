@@ -380,7 +380,7 @@ function _trackRecordAccountInput() {
     OGZ_ACCOUNT_LABEL: account.label,
     OGZ_ACCOUNT_STAGE: account.stage,
     OGZ_ACCOUNT_STATUS: account.status,
-    BROKER: ConfigLoader.get('broker.id'),
+    BROKER: account.broker,
     OGZ_PROFIT_TARGET: account.profitTarget,
     OGZ_MAX_DRAWDOWN: account.maxDrawdown,
     OGZ_MIN_TRADES_REQUIRED: account.minTradesRequired,

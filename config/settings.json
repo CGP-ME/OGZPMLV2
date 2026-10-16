@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 10,
+  "revision": 11,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -3881,6 +3881,7 @@
       "label": "",
       "stage": "",
       "status": "",
+      "broker": "",
       "profitTarget": null,
       "maxDrawdown": null,
       "minTradesRequired": null,

@@ -1,0 +1,5 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{"source":"source-baseline","inputBroker":"current-broker","resolvedBroker":"current-broker","currentBroker":"current-broker"}
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{"source":"source-candidate","inputBroker":"historical-broker","resolvedBroker":"historical-broker","currentBroker":"current-broker"}
+{"historicalMetadataIndependent":true,"emptyBrokerExistingValidation":true}

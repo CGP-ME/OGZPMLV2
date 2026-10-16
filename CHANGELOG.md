@@ -1,3 +1,11 @@
+## 2026-10-16 — Explicit proof-publication broker ownership
+
+- Problem: the publication account reader requested nonexistent `broker.id`, so historical broker provenance had no canonical owner.
+- Change: add `proofPublication.account.broker` beside existing historical metadata and read it directly. Keep it blank with publication disabled, preserve existing required-BROKER validation, advance settings revision 10 to 11. No execution broker is inferred.
+- Verification: actual AST-extracted input/validation functions run in helper isolation. Historical broker differs from the current broker and remains unchanged when the current broker is absent; blank metadata is rejected by the existing validator. No real journal or publication operation.
+- Review: candidate 531e98801caec33c428b0e9b18588e4f83e3e8d9 against 227b2922dd9812799626b383d9bff3903d7a2bd1. Mercury no_break_found, but its reasoning incorrectly substitutes execution broker for account metadata. Astra GO corrects that reasoning and limits acceptance to this owner repair.
+- Evidence: ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/proof-broker/evidence.md. Does not certify publication readiness or underlying record partitioning. No runtime activation.
+
 ## 2026-10-16 — TwoPole lower-extreme configuration consumer
 
 - Problem: extremeOversold was owned in dynamic config but ignored by the confidence calculation and omitted from editable descriptors.
