@@ -1,0 +1,40 @@
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index 25f64c70..c932dceb 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -531 +531 @@ function buildRoleConfig(role) {
+-  const cloneSetting = (pathName) => {
++  const cloneSetting = (pathName, runtimePath = pathName) => {
+@@ -535 +535 @@ function buildRoleConfig(role) {
+-    recordTreeSources(sources, pathName, cloned, `config:settings.json:${pathName}`);
++    recordTreeSources(sources, runtimePath, cloned, `config:settings.json:${pathName}`);
+@@ -613,0 +614,2 @@ function buildRoleConfig(role) {
++    sources.schemaVersion = 'config:internals.json:schemaVersion';
++    sources.revision = 'config:internals.json:revision';
+@@ -625 +627,4 @@ function buildRoleConfig(role) {
+-    const stockData = cloneSetting('services.dashboard.stockData');
++    const stockData = cloneSetting('services.dashboard.stockData', 'services.marketData.alpaca');
++    sources.services = 'derived:market-data-tool-role-projection';
++    sources['services.marketData'] = 'derived:market-data-tool-role-projection';
++    sources['services.marketData.polygon'] = 'derived:market-data-tool-role-projection';
+@@ -1010 +1015 @@ function buildConfig() {
+-  function setting(pathName) {
++  function setting(pathName, runtimePath = pathName) {
+@@ -1015 +1020 @@ function buildConfig() {
+-    return rememberTree(pathName, value, `config:settings.json:${pathName}`);
++    return rememberTree(runtimePath, value, `config:settings.json:${pathName}`);
+@@ -1018 +1023 @@ function buildConfig() {
+-  function internal(pathName) {
++  function internal(pathName, runtimePath = pathName) {
+@@ -1023 +1028 @@ function buildConfig() {
+-    return rememberTree(pathName, value, `config:internals.json:${pathName}`);
++    return rememberTree(runtimePath, value, `config:internals.json:${pathName}`);
+@@ -1138 +1143 @@ function buildConfig() {
+-  const webhookSettings = setting('services.webhookOrders');
++  const webhookSettings = setting('services.webhookOrders', 'webhookOrders');
+@@ -1202 +1207 @@ function buildConfig() {
+-          maxReferenceAgeLimitMs: internal('dataFeed.volumeCapMaxReferenceAgeLimitMs'),
++          maxReferenceAgeLimitMs: internal('dataFeed.volumeCapMaxReferenceAgeLimitMs', 'evalRules.ttp.volumeCap.maxReferenceAgeLimitMs'),
+@@ -1211 +1216 @@ function buildConfig() {
+-      tradingInterval: internal('broker.tradingIntervalMs'),
++      tradingInterval: internal('broker.tradingIntervalMs', 'broker.tradingInterval'),

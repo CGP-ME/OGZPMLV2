@@ -1,0 +1,19 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{
+  "result": "pass",
+  "baselineInvalidCanonicalLabels": {
+    "bot/paper": 1,
+    "bot/production": 1,
+    "market-data-tool/paper": 16
+  },
+  "candidateInvalidCanonicalLabels": 0,
+  "candidateSourceKeysAllReachRoleConfig": true,
+  "candidateUnusedSourceKeys": 0,
+  "supervisorRevisionSource": "config:internals.json:revision",
+  "marketDataCanonicalSource": "config:settings.json:services.dashboard.stockData",
+  "botProjectionSources": {
+    "tradingInterval": "config:internals.json:broker.tradingIntervalMs",
+    "volumeCap": "config:internals.json:dataFeed.volumeCapMaxReferenceAgeLimitMs"
+  },
+  "limitation": "Isolated copied-loader proof only; no process, broker, or runtime activation was exercised."
+}

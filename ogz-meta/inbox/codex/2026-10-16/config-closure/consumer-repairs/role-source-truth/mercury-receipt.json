@@ -1,0 +1,15 @@
+{
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "reviewCandidate": "ee46b4a51723f1d712876de0bee883ec66461678",
+  "reviewBase": "097ef8c3ff3fa2af3c7c90795e215d094003f206",
+  "resolvedBaseTree": "06d4388b5c6c4f065d845955f7eb4370d7e1c67c",
+  "runId": "2026-10-16T22-09-45-665Z-46c104ad0d34",
+  "verdict": "no_break_found",
+  "termination": "answer_given",
+  "question": "Mercury, break my fix. Require file:line evidence for any introduced break.",
+  "maxTokens": 7750,
+  "reviewers": [
+    "mercury"
+  ],
+  "qualification": "Rationale refers to previous TRAI change, not this diff; not a clean relevant review. Authorized Astra adjudication GO in REVIEW-ASTRA.md."
+}

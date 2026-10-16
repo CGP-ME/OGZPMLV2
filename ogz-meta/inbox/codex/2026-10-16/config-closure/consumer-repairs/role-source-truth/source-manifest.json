@@ -1,0 +1,18 @@
+{
+  "reviewBase": "097ef8c3ff3fa2af3c7c90795e215d094003f206",
+  "reviewCandidate": "ee46b4a51723f1d712876de0bee883ec66461678",
+  "reproductionSources": {
+    "baseline": {
+      "config/settings.json": "d29e200616b7d06a0e0257a1a506eb594fbb599a",
+      "config/internals.json": "e71b889f6a67d3ef74fed1a062a69bb2b9475fcb",
+      "foundation/ConfigLoader.js": "25f64c708d244b4039a14c4aa236228dcff747f9",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950"
+    },
+    "candidate": {
+      "config/settings.json": "d29e200616b7d06a0e0257a1a506eb594fbb599a",
+      "config/internals.json": "e71b889f6a67d3ef74fed1a062a69bb2b9475fcb",
+      "foundation/ConfigLoader.js": "c932dcebb2c6e9396cdffe8edb0d9e07e6150550",
+      "core/AtomicWrite.js": "0b6703368ccd36c0bea6b8e221309ef7cc856950"
+    }
+  }
+}

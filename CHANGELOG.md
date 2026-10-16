@@ -1,3 +1,12 @@
+## 2026-10-16 — Correct role configuration provenance labels
+
+- Problem: source accounting accepted 18 nonexistent canonical paths across the two bot snapshots and market-data role; supervisor schema/revision labels named the wrong owner. Webhook sources also retained keys absent from the resolved config.
+- Change: retain real canonical owner paths while recording their actual runtime projection destinations. Explicitly label composed market-data containers. No resolved configuration values or trading decisions changed; source-bearing fingerprints intentionally change.
+- Verification: isolated actual baseline/candidate Loader across six role/profile snapshots; full config equality, every canonical label resolves, scalar owner/value equality, and zero source keys absent from runtime config. Baseline 18 invalid labels, candidate zero. Source blobs and reproduction are in the linked packet.
+- Review: Mercury no_break_found described the preceding TRAI change, so it is not represented as a relevant clean review. Independent Astra exact-tree adversarial review GO under Trey's existing adjudication authorization. Corrected stale verification SHA before delivery.
+- Limits/activation: no PM2 reload, live broker test, or index freshness claim. This is source provenance repair, not a claim that Stop 1 is complete.
+- Evidence: [role-source-truth](ogz-meta/inbox/codex/2026-10-16/config-closure/consumer-repairs/role-source-truth/README.md).
+
 ## 2026-10-16 — Canonical TRAI confidence-blend controls
 
 Problem: advisory unknown-pattern caution and autonomous confidence weighting still used hardcoded values. Migrated the existing 0.1 threshold, 0.9 penalty multiplier and 0.7 autonomous share into three explicit settings owners, consumed by the actual blend method per decision. Added truthful next-blend descriptors; settings revision 12→13. Existing advisory/hybrid `trai.weight` and current passive mode remain intact. Original-confidence contribution is the complementary share, with no duplicate owner.

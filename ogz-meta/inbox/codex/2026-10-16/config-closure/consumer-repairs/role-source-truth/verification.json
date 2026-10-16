@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "097ef8c3ff3fa2af3c7c90795e215d094003f206",
+  "result": "pass",
+  "execution": "python3 scripts/test-isolated.py with the packet fixture and copied baseline/candidate ConfigLoader, canonical JSON, and AtomicWrite files",
+  "baselineInvalidCanonicalLabels": {
+    "bot/paper": 1,
+    "bot/production": 1,
+    "market-data-tool/paper": 16,
+    "total": 18
+  },
+  "candidate": {
+    "invalidCanonicalLabels": 0,
+    "unusedSourceKeys": 0,
+    "supervisorRevisionSource": "config:internals.json:revision",
+    "marketDataAlpacaSource": "config:settings.json:services.dashboard.stockData",
+    "botTradingIntervalSource": "config:internals.json:broker.tradingIntervalMs",
+    "botVolumeCapSource": "config:internals.json:dataFeed.volumeCapMaxReferenceAgeLimitMs",
+    "wholeRoleConfigEquality": true,
+    "canonicalScalarValueEquality": true
+  },
+  "limits": [
+    "Copied source and fixture credentials only.",
+    "No live process, broker, PM2, or network inspection.",
+    "Affected fingerprints intentionally change because fingerprint includes corrected source metadata."
+  ],
+  "candidateTree": "ee46b4a51723f1d712876de0bee883ec66461678"
+}

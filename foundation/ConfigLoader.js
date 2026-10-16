@@ -528,11 +528,11 @@ function recordTreeSources(sources, pathName, value, source) {
 
 function buildRoleConfig(role) {
   const sources = {};
-  const cloneSetting = (pathName) => {
+  const cloneSetting = (pathName, runtimePath = pathName) => {
     const value = readConfiguredPath(settingsConfigFile, pathName);
     if (value === undefined) throw new Error(`[ConfigLoader] config/settings.json ${pathName} is required`);
     const cloned = cloneConfiguredObject(value);
-    recordTreeSources(sources, pathName, cloned, `config:settings.json:${pathName}`);
+    recordTreeSources(sources, runtimePath, cloned, `config:settings.json:${pathName}`);
     return cloned;
   };
   const cloneInternal = (pathName) => {
@@ -611,6 +611,8 @@ function buildRoleConfig(role) {
   if (role === 'supervisor') {
     const supervisor = cloneInternal('services.supervisor');
     supervisor.deadmanUrl = credentialForRole(role, 'SUPERVISOR_DEADMAN_URL', sources, 'services.supervisor.deadmanUrl');
+    sources.schemaVersion = 'config:internals.json:schemaVersion';
+    sources.revision = 'config:internals.json:revision';
     return {
       config: {
         schemaVersion: internalsConfigFile.schemaVersion,
@@ -622,7 +624,10 @@ function buildRoleConfig(role) {
   }
 
   if (role === 'market-data-tool') {
-    const stockData = cloneSetting('services.dashboard.stockData');
+    const stockData = cloneSetting('services.dashboard.stockData', 'services.marketData.alpaca');
+    sources.services = 'derived:market-data-tool-role-projection';
+    sources['services.marketData'] = 'derived:market-data-tool-role-projection';
+    sources['services.marketData.polygon'] = 'derived:market-data-tool-role-projection';
     stockData.apiKey = credentialForRole(role, 'ALPACA_API_KEY', sources, 'services.marketData.alpaca.apiKey');
     stockData.apiSecret = credentialForRole(role, 'ALPACA_API_SECRET', sources, 'services.marketData.alpaca.apiSecret');
     return {
@@ -1007,20 +1012,20 @@ function buildConfig() {
     return cloned;
   }
 
-  function setting(pathName) {
+  function setting(pathName, runtimePath = pathName) {
     const value = readConfiguredPath(settingsConfigFile, pathName);
     if (value === undefined) {
       throw new Error(`[ConfigLoader] config/settings.json ${pathName} is required`);
     }
-    return rememberTree(pathName, value, `config:settings.json:${pathName}`);
+    return rememberTree(runtimePath, value, `config:settings.json:${pathName}`);
   }
 
-  function internal(pathName) {
+  function internal(pathName, runtimePath = pathName) {
     const value = readConfiguredPath(internalsConfigFile, pathName);
     if (value === undefined) {
       throw new Error(`[ConfigLoader] config/internals.json ${pathName} is required`);
     }
-    return rememberTree(pathName, value, `config:internals.json:${pathName}`);
+    return rememberTree(runtimePath, value, `config:internals.json:${pathName}`);
   }
 
   function credential(pathName, envKey) {
@@ -1135,7 +1140,7 @@ function buildConfig() {
   const notificationService = setting('services.notifications');
   const voiceService = setting('services.voice');
   const narratorService = setting('services.narrator');
-  const webhookSettings = setting('services.webhookOrders');
+  const webhookSettings = setting('services.webhookOrders', 'webhookOrders');
 
   const runtimeSettings = cloneConfiguredObject(settingsConfigFile);
   delete runtimeSettings.launchProfiles;
@@ -1199,7 +1204,7 @@ function buildConfig() {
         ...venueGuards,
         volumeCap: {
           ...venueGuards.volumeCap,
-          maxReferenceAgeLimitMs: internal('dataFeed.volumeCapMaxReferenceAgeLimitMs'),
+          maxReferenceAgeLimitMs: internal('dataFeed.volumeCapMaxReferenceAgeLimitMs', 'evalRules.ttp.volumeCap.maxReferenceAgeLimitMs'),
         },
       },
     },
@@ -1208,7 +1213,7 @@ function buildConfig() {
       apiSecret: credential('broker.apiSecret', 'KRAKEN_API_SECRET'),
       alpacaApiKey: credential('broker.alpacaApiKey', 'ALPACA_API_KEY'),
       alpacaApiSecret: credential('broker.alpacaApiSecret', 'ALPACA_API_SECRET'),
-      tradingInterval: internal('broker.tradingIntervalMs'),
+      tradingInterval: internal('broker.tradingIntervalMs', 'broker.tradingInterval'),
       alpacaWebSocket: internal('broker.alpacaWebSocket'),
       accountId: credential('broker.accountId', 'BROKER_ACCOUNT_ID'),
     },
