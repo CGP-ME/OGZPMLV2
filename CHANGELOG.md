@@ -1,3 +1,9 @@
+## 2026-10-16 — Correct the Opus frontend audit handoff after isTrading cleanup
+
+Replaced the withdrawn handoff with a documentation-only audit correction prompt pinned to delivered source 792e8af4a03a150a837741aea4883eefff4604d7. It separates the historical 78458d48 audit, current committed source and unchanged PM2 runtime; records the actual enable-flag removal and receipt fixes without declaring browser integration complete; retains the requested cache-mutation, script census, concurrency, ownership and archival corrections. It explicitly prohibits reintroducing isTrading or turning unresolved findings into implementation assumptions.
+
+Verified both source SHAs, the 45 repository/one external script count, absence of configuration-settings/chart.js in v2's script list, historical conditional candle-cache write, and delivered fix/verification receipts. Reviewed the prompt against Trey's task and supplied audit corrections. Prose only; no Mercury required and no runtime change. [Copy/paste prompt](ogz-meta/inbox/codex/2026-10-16/opus-audit-correction/OPUS-PROMPT.md).
+
 ## 2026-10-16 — Make pause/resume receipts reflect actual state mutation
 
 Problem: StateManager discarded failed updateState results and returned success; WebSocketManager also confirmed before awaiting the update. Propagate existing failures, await pause/resume in the bot handler, return rejection on failed persistence, and include the actual pause record in receipts and state_update.state. No new trading gate, throw, default, fallback, or enable flag was introduced.
