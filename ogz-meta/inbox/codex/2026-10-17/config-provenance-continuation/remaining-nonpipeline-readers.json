@@ -1,0 +1,813 @@
+{
+  "sourceCommit": "8d1cf539aecda1de145bd8d7d7924ef74a53643a",
+  "scope": "Pinned committed source only; leafCount treats arrays as one configured leaf and excludes unrelated settings families.",
+  "families": {
+    "services": {
+      "leafCount": 31,
+      "producer": "foundation/ConfigLoader.js:1138-1143 reads the canonical services families; :1220-1225 emits the runtime webhook projection.",
+      "callbackInit": "run-empire-v2.js runtime bootstrap; dashboard/checkout/news/notification/voice/narrator/webhook components consume their respective projections.",
+      "groups": [
+        {
+          "leaves": [
+            "dashboard.enabled",
+            "dashboard.host",
+            "dashboard.port",
+            "dashboard.secureCookies",
+            "dashboard.cryptoSymbols",
+            "dashboard.stockData.baseUrl",
+            "dashboard.stockData.feed",
+            "dashboard.stockData.adjustment",
+            "dashboard.stockData.symbols",
+            "dashboard.stockData.tickerMaxAgeMs",
+            "dashboard.stockData.streamEnabled",
+            "dashboard.stockData.streamUrl",
+            "dashboard.stockData.streamFeed"
+          ],
+          "readers": [
+            "foundation/ConfigLoader.js:547-587,1138,1238-1248",
+            "run-empire-v2.js:1141-1143,1463-1467",
+            "ogzprime-ssl-server.js:81,103,1184-1193,2498-2499",
+            "server/dashboard-stock-stream-config.js:14-65",
+            "server/stock-data-adapter.js:85-99,165-175,211-217",
+            "ogzprime-ssl-server.js:1422,1441,1482-1502,1526,1606-1609"
+          ],
+          "status": "active_conditional",
+          "reach": "dashboard server/feed initialization; stream and enabled flags gate optional paths",
+          "effects": {
+            "enabled": "runner dashboard connection and broadcaster initialization",
+            "host/port": "relay listen address",
+            "secureCookies": "session cookie options",
+            "cryptoSymbols": "relay subscription symbols",
+            "stockData.baseUrl/feed/adjustment": "REST request URL and query parameters",
+            "stockData.symbols": "REST permitted symbols and stream subscription",
+            "stockData.tickerMaxAgeMs": "REST snapshot age rejection",
+            "stockData.streamEnabled/streamUrl": "stream start and socket URL",
+            "stockData.streamFeed": "feed identity in emitted price frames, not a URL selector"
+          }
+        },
+        {
+          "leaves": [
+            "checkout.port",
+            "checkout.trialPeriodDays",
+            "checkout.successUrl",
+            "checkout.cancelUrl",
+            "checkout.priceMap.core",
+            "checkout.priceMap.pro"
+          ],
+          "readers": [
+            "foundation/ConfigLoader.js:599-605",
+            "public/stripe-checkout.js:51,63,88-91,121-123"
+          ],
+          "status": "active_conditional",
+          "reach": "checkout process initialization"
+        },
+        {
+          "leaves": [
+            "news.provider",
+            "news.edgarUserAgent",
+            "news.brightDataZone"
+          ],
+          "readers": [
+            "core/NewsSearchProvider.js:69-105,177,427,561",
+            "ogzprime-ssl-server.js:303"
+          ],
+          "status": "active_conditional",
+          "reach": "news provider construction/request path"
+        },
+        {
+          "leaves": [
+            "notifications.enabled"
+          ],
+          "readers": [
+            "run-empire-v2.js:1127-1134",
+            "core/NtfyTraceNotifier.js:196-205",
+            "utils/telegramNotifier.js:47-56,70-71"
+          ],
+          "status": "active_conditional",
+          "reach": "notification constructors gate emission"
+        },
+        {
+          "leaves": [
+            "voice.audioEnabled",
+            "voice.videoEnabled"
+          ],
+          "readers": [
+            "run-empire-v2.js:813-814,3544-3559",
+            "core/TRAIDecisionModule.js:110-128",
+            "core/trai_core.js:258-267,401-405,580-589"
+          ],
+          "status": "deferred_placeholder_feature",
+          "reach": "Toggles reach chat response generation, but generators return placeholder URLs; runner sends text only. This is not working audio/video output.",
+          "disposition": "Preserve under the October 13 deferred TRAI/intelligence build; do not enable or advertise as implemented."
+        },
+        {
+          "leaves": [
+            "narrator.architectEnabled",
+            "narrator.userEnabled",
+            "narrator.labelSeed"
+          ],
+          "readers": [
+            "core/TradeNarrator.js:275-293,418-423,820-842",
+            "core/StateManager.js:87",
+            "core/WebSocketManager.js:275"
+          ],
+          "status": "active_conditional",
+          "reach": "Architect flag selects stdout, user flag selects user narration/socket output, seed selects anonymized labels. Empty seed intentionally selects a random per-process seed at291-293; not a second configuration owner."
+        },
+        {
+          "leaves": [
+            "webhookOrders.enabled",
+            "webhookOrders.dryRun",
+            "webhookOrders.entryThrottleMs"
+          ],
+          "readers": [
+            "foundation/ConfigLoader.js:1220-1225",
+            "run-empire-v2.js:1342-1352"
+          ],
+          "status": "active_conditional",
+          "reach": "webhook-order boundary; enabled/dry-run/throttle gate that path"
+        }
+      ],
+      "unusedPaths": []
+    },
+    "misc": {
+      "leafCount": 3,
+      "producer": "foundation/ConfigLoader.js canonical settings load.",
+      "callbackInit": "runner startup and backtest runner initialization.",
+      "leaves": {
+        "botTier": {
+          "readers": [
+            "core/FeatureFlagManager.js:66,212-218,233-234,313-318",
+            "run-empire-v2.js:641-644"
+          ],
+          "status": "active",
+          "reach": "Tier selection/summary and preserved tier helpers; no claim of active trading enforcement."
+        },
+        "subscriptionTier": {
+          "readers": [
+            "core/BacktestRunner.js:471"
+          ],
+          "status": "active_metadata",
+          "reach": "backtest/report metadata; no live execution authority"
+        },
+        "tradeIntelligenceShadow": {
+          "readers": [
+            "run-empire-v2.js:748-749"
+          ],
+          "status": "deferred_log_only",
+          "reach": "Assigned to runner field and used only in startup log. False prints ACTIVE but does not establish evaluator execution.",
+          "disposition": "Preserved intelligence activation under October 13 ruling; not an active behavior switch."
+        }
+      },
+      "unusedPaths": []
+    },
+    "proofPublication": {
+      "leafCount": 10,
+      "producer": "foundation/ConfigLoader.js:1236 reads the canonical proofPublication setting; :4580-4585 defines the compatibility getter.",
+      "callbackInit": "ogz-meta/claudito-logger.js:643-646 invokes the enabled publication writers; :654-655 and :734-745 implement the gated immediate/debounced paths. Disabled by the committed flag, not unwired.",
+      "leaves": {
+        "enabled": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:391-392",
+            "ogz-meta/claudito-logger.js:643-646,654,734"
+          ],
+          "status": "active_conditional",
+          "reach": "proof writers are gated by this flag; committed value false"
+        },
+        "account.id": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "track-record account input/writer"
+        },
+        "account.label": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:395-405,436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "account label validation and writer input"
+        },
+        "account.stage": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "track-record account input/writer"
+        },
+        "account.status": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "track-record account input/writer"
+        },
+        "account.broker": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "track-record account input/writer"
+        },
+        "account.profitTarget": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:408-424,436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "proof contract validation/writer input"
+        },
+        "account.maxDrawdown": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:408-424,436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "proof contract validation/writer input"
+        },
+        "account.minTradesRequired": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:408-424,436-452"
+          ],
+          "status": "active_conditional",
+          "reach": "proof contract validation/writer input"
+        },
+        "account.trackRecordStartAt": {
+          "readers": [
+            "ogz-meta/claudito-logger.js:375-388",
+            "ogz-meta/claudito-logger.js:427-456"
+          ],
+          "status": "active_conditional",
+          "reach": "track-record filtering/writer input"
+        }
+      },
+      "unusedPaths": [],
+      "disposition": "active conditional proof metadata; publication is intentionally disabled by the committed false flag"
+    },
+    "authFailureGuard": {
+      "leafCount": 2,
+      "producer": "foundation/ConfigLoader.js canonical settings load.",
+      "callbackInit": "Broker adapter auth-failure callbacks invoke the shared diagnostic guard; e.g. brokers/AlpacaAdapter.js:149,166,185,806.",
+      "leaves": {
+        "thresholdCount": {
+          "readers": [
+            "core/AuthFailureGuard.js:38-54,59-61,98-111"
+          ],
+          "status": "diagnostic_only",
+          "reach": "threshold trace alarm; source explicitly says it never changes trading state"
+        },
+        "windowMs": {
+          "readers": [
+            "core/AuthFailureGuard.js:38-54,59-61,86-91,98-111"
+          ],
+          "status": "diagnostic_only",
+          "reach": "failure timestamp window for trace alarm; no trading block"
+        }
+      },
+      "unusedPaths": []
+    },
+    "execution": {
+      "leafCount": 6,
+      "producer": "foundation/ConfigLoader.js:1071-1077 clones config/settings.json:151-164 into execution, derives brokerMode, and forces candleSource=file only for a backtest launch profile; :1158-1171 exposes the same candle source as mode.candleSource. A file-backed backtest descriptor intentionally replaces broker, assetClass, tradingPair, symbols, and candleTimeframe at :893-921, then projects its symbols into the static session route at :924-944.",
+      "callbackInit": "run-empire-v2.js:691-695 installs candleTimeframe; :852-902 validates the primary pair, creates routable stock contexts from execution symbols, and gives the resulting symbol list to the Alpaca adapter. It retains file source as a separate backtest boundary at :771-775, :1169-1173, and :1663-1669.",
+      "leaves": {
+        "broker": {
+          "readers": [
+            "foundation/ConfigLoader.js:893-921",
+            "run-empire-v2.js:1318-1329,1911-1915",
+            "core/CandleProcessor.js:60-78",
+            "core/BacktestRunner.js:177-185"
+          ],
+          "status": "active_with_intentional_descriptor_override",
+          "reach": "provides the broker ID to the runner's runtime scope and MultiAssetManager, decides whether execution.tradingPair is included in the configured-stock guard, and stamps the backtest candle scope. A file-backed descriptor supplies its validated broker identity instead of the root value."
+        },
+        "assetClass": {
+          "readers": [
+            "foundation/ConfigLoader.js:893-921",
+            "run-empire-v2.js:1320-1329",
+            "core/CandleProcessor.js:60-78",
+            "core/UnifiedPatternMemory.js:176-189",
+            "core/BacktestRunner.js:177-185"
+          ],
+          "status": "active_with_intentional_descriptor_override",
+          "reach": "sets the runtime and backtest candle asset scope, participates in the configured-stock guard, and selects the non-backtest unified-pattern storage bucket. A file-backed descriptor supplies its validated asset class instead of the root value."
+        },
+        "tradingPair": {
+          "readers": [
+            "foundation/ConfigLoader.js:893-921",
+            "run-empire-v2.js:418-427,852-855,1911-1915",
+            "core/CandleProcessor.js:60-78",
+            "core/UnifiedPatternMemory.js:176-189"
+          ],
+          "status": "active_with_intentional_descriptor_override",
+          "reach": "becomes the IndicatorEngine symbol and validated primary runner symbol, is supplied to MultiAssetManager, participates in the stock guard, and names the backtest unified-pattern bucket. A file-backed descriptor supplies its own primary pair."
+        },
+        "symbols": {
+          "readers": [
+            "foundation/ConfigLoader.js:893-944",
+            "run-empire-v2.js:863-902",
+            "core/CandleProcessor.js:60-78"
+          ],
+          "status": "active_with_intentional_descriptor_override",
+          "reach": "is resolved into routable stock symbol contexts and the Alpaca adapter symbol list, and supplies the configured-stock guard. A file-backed descriptor replaces this list and projects it into the matching static stock or crypto session route."
+        },
+        "candleTimeframe": {
+          "readers": [
+            "foundation/ConfigLoader.js:893-921",
+            "run-empire-v2.js:418-427,691-695,863-882,1320-1329",
+            "core/BacktestRunner.js:177-200"
+          ],
+          "status": "active_with_intentional_descriptor_override",
+          "reach": "sets the IndicatorEngine time base, the runner's active timeframe, each routable symbol context, and the backtest data-file coverage checks. A file-backed descriptor supplies its own candle timeframe."
+        },
+        "candleSource": {
+          "readers": [
+            "foundation/ConfigLoader.js:1071-1077",
+            "foundation/ConfigLoader.js:1158-1171",
+            "run-empire-v2.js:771-775,1169-1173,1663-1669"
+          ],
+          "status": "active_with_intentional_backtest_derivation",
+          "reach": "is projected to mode.candleSource. file creates the BacktestRecorder path and suppresses saved-candle loading and REST boot hydration. The root live value is deliberately replaced with derived file only for a backtest launch profile."
+        }
+      },
+      "unusedPaths": []
+    },
+    "startingBalance": {
+      "leafCount": 1,
+      "producer": "foundation/ConfigLoader.js:1175 reads settings.startingBalance; descriptor state can explicitly supply a backtest balance.",
+      "callbackInit": "runner initializes simulated state and journals; live broker balance remains broker/state sourced.",
+      "leaves": {
+        "startingBalance": {
+          "readers": [
+            "run-empire-v2.js:1235",
+            "core/TradeJournalBridge.js:533-535,565-571",
+            "core/TradeJournal.js:196-200,1094-1096,1166"
+          ],
+          "status": "active_backtest_journal",
+          "reach": "Starting simulated balance and journal accounting baseline; live account truth remains broker/state sourced."
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.paths": {
+      "leafCount": 5,
+      "producer": "foundation/ConfigLoader.js:1079-1091 reads paths and resolves journal directory. Backtests deliberately derive isolated state/data paths with explicit source labels; descriptor path application is a separate recorded owner.",
+      "callbackInit": "State, journal, backtest-output, and worker path consumers initialize from resolved config.",
+      "leaves": {
+        "stateFile": {
+          "readers": [
+            "core/StateManager.js:4100-4136,4198-4202"
+          ],
+          "status": "active",
+          "reach": "state persistence"
+        },
+        "dataDir": {
+          "readers": [
+            "core/StateManager.js:4100-4105,4198"
+          ],
+          "status": "active",
+          "reach": "state/data initialization"
+        },
+        "journalDataDir": {
+          "readers": [
+            "run-empire-v2.js:1918-1921",
+            "core/TradeJournalBridge.js:566-583"
+          ],
+          "status": "active",
+          "reach": "journal bridge"
+        },
+        "backtestOutputDir": {
+          "readers": [
+            "core/OutputPaths.js:7-25,39-48",
+            "core/BacktestRunner.js:410"
+          ],
+          "status": "active_conditional",
+          "reach": "backtest output"
+        },
+        "logDirectory": {
+          "readers": [
+            "scripts/telemetry-report.js:12-16"
+          ],
+          "status": "active_metadata",
+          "evidence": "telemetry report resolves this directory for telemetry.jsonl and metrics.json",
+          "reach": "telemetry report initialization"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.journal": {
+      "leafCount": 8,
+      "producer": "foundation/ConfigLoader.js:1150-1156 clones canonical internals; :1272 publishes retained internals to runtime config.",
+      "callbackInit": "TradeJournalBridge constructor core/TradeJournalBridge.js:520-571 stores options, creates TradeJournal and TradeReplayCapture, then wires event/dashboard/broadcast callbacks at :555-558.",
+      "leaves": {
+        "maxInMemoryTrades": {
+          "readers": [
+            "run-empire-v2.js:1918-1921",
+            "core/TradeJournalBridge.js:565-571",
+            "core/TradeJournal.js:202-204,486-487,1509-1510"
+          ],
+          "status": "active",
+          "effect": "bounds retained trade records"
+        },
+        "maxEquityPoints": {
+          "readers": [
+            "run-empire-v2.js:1918-1921",
+            "core/TradeJournalBridge.js:565-571",
+            "core/TradeJournal.js:202-204,1291,1522-1523"
+          ],
+          "status": "active",
+          "effect": "bounds retained equity points"
+        },
+        "autoSaveIntervalMs": {
+          "readers": [
+            "run-empire-v2.js:1918-1921",
+            "core/TradeJournalBridge.js:565-571",
+            "core/TradeJournal.js:202-204,222-224"
+          ],
+          "status": "active",
+          "effect": "sets journal autosave interval"
+        },
+        "replayCandlesBefore": {
+          "readers": [
+            "core/TradeJournalBridge.js:572-575",
+            "core/TradeReplayCapture.js:81,108,186"
+          ],
+          "status": "active",
+          "effect": "sets replay context candles before entry"
+        },
+        "replayCandlesAfter": {
+          "readers": [
+            "core/TradeJournalBridge.js:575",
+            "core/TradeReplayCapture.js:82,186,233"
+          ],
+          "status": "unimplemented_pending_operator_intent",
+          "effect": "Assigned but never read. captureExit takes pre-exit history using candlesBefore and writes immediately, without collecting post-exit candles."
+        },
+        "maxPendingVisibilityErrors": {
+          "readers": [
+            "run-empire-v2.js:1918-1921",
+            "core/TradeJournalBridge.js:543-545,1363-1374"
+          ],
+          "status": "active",
+          "effect": "bounds pending visibility-error queue and overflow handling"
+        },
+        "dashboardHookIntervalMs": {
+          "readers": [
+            "run-empire-v2.js:1918-1921",
+            "core/TradeJournalBridge.js:1602-1603,1621"
+          ],
+          "status": "active",
+          "effect": "schedules dashboard socket hook attempts"
+        },
+        "broadcastIntervalMs": {
+          "readers": [
+            "run-empire-v2.js:1918-1921",
+            "core/TradeJournalBridge.js:1644-1647"
+          ],
+          "status": "active",
+          "effect": "schedules journal snapshot/visibility-error broadcasts"
+        }
+      },
+      "unusedPaths": [
+        "replayCandlesAfter"
+      ]
+    },
+    "internals.marketCalendar": {
+      "leafCount": 7,
+      "producer": "foundation/ConfigLoader.js:1150-1156 clones canonical internals; :1272 publishes retained internals to runtime config.",
+      "callbackInit": "run-empire-v2.js:1229 calls getMarketCalendar; foundation/MarketCalendar.js:520-523 constructs singleton from canonical options.",
+      "leaves": {
+        "timezone": {
+          "readers": [
+            "foundation/MarketCalendar.js:41-53,520-523",
+            "foundation/MarketCalendar.js:65,367,383"
+          ],
+          "status": "active"
+        },
+        "premarketStartMinute": {
+          "readers": [
+            "foundation/MarketCalendar.js:41-53,520-523",
+            "foundation/MarketCalendar.js:243-259,312-313,418-426"
+          ],
+          "status": "active"
+        },
+        "regularStartMinute": {
+          "readers": [
+            "foundation/MarketCalendar.js:41-53,520-523",
+            "foundation/MarketCalendar.js:243-259,312-313,418-426"
+          ],
+          "status": "active"
+        },
+        "regularEndMinute": {
+          "readers": [
+            "foundation/MarketCalendar.js:41-53,520-523",
+            "foundation/MarketCalendar.js:243-259,312-313,418-426"
+          ],
+          "status": "active"
+        },
+        "afterhoursEndMinute": {
+          "readers": [
+            "foundation/MarketCalendar.js:41-53,520-523",
+            "foundation/MarketCalendar.js:243-259,312-313,418-426"
+          ],
+          "status": "active"
+        },
+        "halfDayCloseMinute": {
+          "readers": [
+            "foundation/MarketCalendar.js:41-53,520-523",
+            "foundation/MarketCalendar.js:246,418"
+          ],
+          "status": "active"
+        },
+        "maxOpenSearchDays": {
+          "readers": [
+            "foundation/MarketCalendar.js:41-53,520-523",
+            "foundation/MarketCalendar.js:308-313"
+          ],
+          "status": "active"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.pipelineSnapshot": {
+      "leafCount": 3,
+      "producer": "foundation/ConfigLoader.js:1150-1156 clones canonical internals; :1272 publishes retained internals to runtime config.",
+      "callbackInit": "run-empire-v2.js:1923-1924 constructs PipelineSnapshot; core/PipelineSnapshot.js:41-61 consumes intervalMs, initialCaptureDelayMs, outputFile and schedules capture.",
+      "leaves": {
+        "intervalMs": {
+          "readers": [
+            "run-empire-v2.js:1924",
+            "core/PipelineSnapshot.js:41-56"
+          ],
+          "status": "active"
+        },
+        "initialCaptureDelayMs": {
+          "readers": [
+            "run-empire-v2.js:1924",
+            "core/PipelineSnapshot.js:41-61"
+          ],
+          "status": "active"
+        },
+        "outputFile": {
+          "readers": [
+            "run-empire-v2.js:1924",
+            "core/PipelineSnapshot.js:41-45,68-74"
+          ],
+          "status": "active"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.monitoring": {
+      "leafCount": 4,
+      "producer": "foundation/ConfigLoader.js:1177-1180 projects canonical monitoring plus separately sourced credential; instrument.js:39 loads bot role.",
+      "callbackInit": "instrument.js:37-63 loads config before Sentry initialization.",
+      "leaves": {
+        "sentryEnabled": {
+          "readers": [
+            "instrument.js:40-46"
+          ],
+          "status": "active_conditional"
+        },
+        "sentrySendDefaultPii": {
+          "readers": [
+            "instrument.js:50-55"
+          ],
+          "status": "active_conditional"
+        },
+        "sentryRelease": {
+          "readers": [
+            "instrument.js:50-60"
+          ],
+          "status": "active_conditional"
+        },
+        "sentryTracesSampleRate": {
+          "readers": [
+            "instrument.js:50-63"
+          ],
+          "status": "active_conditional"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.observability": {
+      "leafCount": 6,
+      "producer": "foundation/ConfigLoader.js:1182 projects canonical observability; run-empire-v2.js:1330-1332 publishes trace settings to runner context.",
+      "callbackInit": "StrategyOrchestrator and TradingLoop read diagnostics during strategy evaluation; TraceSpine reads trace flags and buffer limit from runner config.",
+      "leaves": {
+        "evalTraceEnabled": {
+          "readers": [
+            "run-empire-v2.js:1330-1332",
+            "core/TraceSpine.js:18-27"
+          ],
+          "status": "active_conditional",
+          "effect": "enables evaluation trace emission"
+        },
+        "evalTraceBacktest": {
+          "readers": [
+            "run-empire-v2.js:1330-1332",
+            "core/TraceSpine.js:22-27"
+          ],
+          "status": "active_conditional",
+          "effect": "permits trace emission in backtest mode"
+        },
+        "traceEventMaxBufferedBytes": {
+          "readers": [
+            "run-empire-v2.js:1330-1332",
+            "core/TraceSpine.js:207-217"
+          ],
+          "status": "active_conditional",
+          "effect": "bounds trace dashboard payload buffering and skips invalid backpressure settings"
+        },
+        "strategyDiagnostics": {
+          "readers": [
+            "core/TradingLoop.js:76",
+            "core/StrategyOrchestrator.js:817,1032-1070"
+          ],
+          "status": "active_conditional",
+          "effect": "enables diagnostic strategy evaluation output"
+        },
+        "backtestVerbose": {
+          "readers": [
+            "run-empire-v2.js:779",
+            "core/StrategyOrchestrator.js:856",
+            "core/MarketRegimeDetector.js:279"
+          ],
+          "status": "active_conditional",
+          "effect": "controls verbose backtest/regime diagnostic output"
+        },
+        "smartMoneyDebug": {
+          "readers": [
+            "core/StrategyOrchestrator.js:874",
+            "core/StrategyOrchestrator.js:2389-2476"
+          ],
+          "status": "active_conditional",
+          "effect": "passes debug flag into SmartMoneySweep evaluation"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.decisionRecords": {
+      "leafCount": 4,
+      "producer": "foundation/ConfigLoader.js:1150-1156 clones canonical internals; :1272 publishes retained internals to runtime config.",
+      "callbackInit": "Core loggers read canonical internals at module initialization. StateManager full-close paths call writeOnClose at1712/3749; TradingLoop calls writeAutopsy at645.",
+      "leaves": {
+        "ledgerBufferSize": {
+          "readers": [
+            "core/DecisionLedgerLogger.js:10,79-87",
+            "core/StateManager.js:1712,3749"
+          ],
+          "status": "active"
+        },
+        "ledgerValidate": {
+          "readers": [
+            "core/DecisionLedgerLogger.js:11,41-69",
+            "core/StateManager.js:1712,3749"
+          ],
+          "status": "active"
+        },
+        "autopsyEnabled": {
+          "readers": [
+            "core/DecisionAutopsyLogger.js:9,34-36",
+            "core/TradingLoop.js:645"
+          ],
+          "status": "active_conditional"
+        },
+        "autopsyFallbackDirectory": {
+          "readers": [
+            "core/DecisionAutopsyLogger.js:16-21,58-64",
+            "core/TradingLoop.js:645"
+          ],
+          "status": "active_conditional"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.singleton": {
+      "leafCount": 2,
+      "producer": "foundation/ConfigLoader.js:1150-1156 clones canonical internals; :1272 publishes retained internals to runtime config.",
+      "callbackInit": "run-empire-v2.js:479-507 constructs OGZSingletonLock, acquires the lock, and installs monitor callbacks.",
+      "leaves": {
+        "lockDir": {
+          "readers": [
+            "run-empire-v2.js:479-484",
+            "core/SingletonLock.js:13-19"
+          ],
+          "status": "active",
+          "effect": "selects singleton lock-file directory"
+        },
+        "monitorIntervalMs": {
+          "readers": [
+            "run-empire-v2.js:479-484",
+            "core/SingletonLock.js:31-34,338-345"
+          ],
+          "status": "active",
+          "effect": "schedules lock-integrity checks"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.webhookOrders": {
+      "leafCount": 2,
+      "producer": "foundation/ConfigLoader.js:1220-1225 emits webhook settings plus internal adapter options.",
+      "callbackInit": "run-empire-v2.js:1342-1352 constructs WebhookOrderAdapter with timeout and order-log options.",
+      "leaves": {
+        "timeoutMs": {
+          "readers": [
+            "run-empire-v2.js:1344-1352",
+            "core/WebhookOrderAdapter.js:41-48,178-206"
+          ],
+          "status": "active_conditional",
+          "effect": "sets outbound request timeout"
+        },
+        "orderLogCap": {
+          "readers": [
+            "run-empire-v2.js:1344-1352",
+            "core/WebhookOrderAdapter.js:41-48,178-190"
+          ],
+          "status": "active_conditional",
+          "effect": "bounds retained webhook order log"
+        }
+      },
+      "unusedPaths": []
+    },
+    "internals.queues.message": {
+      "leafCount": 3,
+      "producer": "foundation/ConfigLoader.js:1150-1156 clones canonical internals; :1272 publishes retained internals to runtime config.",
+      "callbackInit": "run-empire-v2.js:1283-1290 constructs MessageQueue and connects onProcess to handleMarketData.",
+      "leaves": {
+        "maxQueueSize": {
+          "readers": [
+            "run-empire-v2.js:1284-1289",
+            "core/MessageQueue.js:27-31,45-55"
+          ],
+          "status": "active",
+          "effect": "drops oldest queued message when full"
+        },
+        "minProcessingGapMs": {
+          "readers": [
+            "run-empire-v2.js:1284-1289",
+            "core/MessageQueue.js:27-31,80-83"
+          ],
+          "status": "active",
+          "effect": "enforces minimum processing gap"
+        },
+        "staleThresholdMs": {
+          "readers": [
+            "run-empire-v2.js:1284-1289",
+            "core/MessageQueue.js:27-31,66-70"
+          ],
+          "status": "active",
+          "effect": "drops messages older than configured threshold"
+        }
+      },
+      "unusedPaths": []
+    }
+  },
+  "remainingConcreteGaps": [
+    {
+      "path": "internals.journal.replayCandlesAfter",
+      "status": "pending_operator_intent",
+      "decision": "Collect configured post-exit candles or archive/remove inert field; question sent. Do not substitute older candles."
+    },
+    {
+      "path": "services.voice.audioEnabled/videoEnabled",
+      "status": "deferred_placeholder_feature",
+      "decision": "Existing October 13 TRAI deferral; preserve, do not represent as active."
+    },
+    {
+      "path": "misc.tradeIntelligenceShadow",
+      "status": "deferred_log_only",
+      "decision": "Existing October 13 intelligence deferral; preserve, do not represent log as behavior."
+    }
+  ],
+  "exclusions": [
+    "No claims are made for working-tree-only readers, historical inventory rows outside this scope, or runtime activation/PM2 state."
+  ],
+  "rootReview": {
+    "source": "8d1cf539aecda1de145bd8d7d7924ef74a53643a",
+    "exactAssignedLeafSetMatch": true,
+    "assignedLeavesArraysAsSingleValues": 97,
+    "missingAssignedLeaves": 0,
+    "extraAssignedLeaves": 0,
+    "corrections": [
+      "proofPublication reads and writers verified in production ogz-meta/claudito-logger.js; historical directory exclusion was wrong",
+      "paths.logDirectory is read via getInternalsFileValue by scripts/telemetry-report.js",
+      "AuthFailureGuard threshold is trace diagnostics, not trading authority",
+      "voice/video generators are placeholders, not implemented output",
+      "tradeIntelligenceShadow controls only a log label, not the evaluator",
+      "replayCandlesAfter is assigned but never consumed; awaiting intended behavior"
+    ],
+    "scopeLimit": "Source initialization/reader trace only; preserves intentional disabled features and operator-owned in-progress changes. This does not attest current process settings.",
+    "independentReview": {
+      "reviewer": "env_dispositions (Terra)",
+      "result": "97 unique canonical paths resolve; corrected deferred/unimplemented labels and bootstrap claims supported. Compatibility getter citation corrected to4580-4585. Source evidence only, not Stop1 completion approval."
+    }
+  }
+}
