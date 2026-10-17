@@ -2239,8 +2239,12 @@ class OrderExecutor {
       reasons.push('config_max_notional');
     }
 
-    const profitTargetDollars = this._positiveConfigNumber('evalRules.ttp.consistency.profitTargetDollars');
-    const maxPositionProfitRatio = this._positiveConfigNumber('evalRules.ttp.consistency.maxPositionProfitRatio');
+    const consistencyEnabled = ConfigLoader.get('evalRules.enabled') === true
+      && ConfigLoader.get('evalRules.ttp.consistency.enabled') === true;
+    const profitTargetDollars = consistencyEnabled
+      ? this._positiveConfigNumber('evalRules.ttp.consistency.profitTargetDollars') : null;
+    const maxPositionProfitRatio = consistencyEnabled
+      ? this._positiveConfigNumber('evalRules.ttp.consistency.maxPositionProfitRatio') : null;
     const consistencyCapBuffer = Number(range.consistencyCapBuffer);
     if (profitTargetDollars !== null || maxPositionProfitRatio !== null) {
       if (profitTargetDollars === null || maxPositionProfitRatio === null) {
@@ -2257,7 +2261,10 @@ class OrderExecutor {
       }
     }
 
-    const dailyLossDollars = this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars');
+    const accountLimitsEnabled = ConfigLoader.get('evalRules.enabled') === true
+      && ConfigLoader.get('evalRules.ttp.accountLimits.enabled') === true;
+    const dailyLossDollars = accountLimitsEnabled
+      ? this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars') : null;
     const dailyLossRiskFraction = Number(range.dailyLossRiskFraction);
     const stopDistance = this._entryStopDistanceDecimal(exitContract);
     if (dailyLossDollars !== null && stopDistance !== null) {

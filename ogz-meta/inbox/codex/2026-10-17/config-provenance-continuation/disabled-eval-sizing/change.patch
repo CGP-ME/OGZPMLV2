@@ -1,0 +1,17 @@
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -2242,2 +2242,6 @@
+-    const profitTargetDollars = this._positiveConfigNumber('evalRules.ttp.consistency.profitTargetDollars');
+-    const maxPositionProfitRatio = this._positiveConfigNumber('evalRules.ttp.consistency.maxPositionProfitRatio');
++    const consistencyEnabled = ConfigLoader.get('evalRules.enabled') === true
++      && ConfigLoader.get('evalRules.ttp.consistency.enabled') === true;
++    const profitTargetDollars = consistencyEnabled
++      ? this._positiveConfigNumber('evalRules.ttp.consistency.profitTargetDollars') : null;
++    const maxPositionProfitRatio = consistencyEnabled
++      ? this._positiveConfigNumber('evalRules.ttp.consistency.maxPositionProfitRatio') : null;
+@@ -2260 +2264,4 @@
+-    const dailyLossDollars = this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars');
++    const accountLimitsEnabled = ConfigLoader.get('evalRules.enabled') === true
++      && ConfigLoader.get('evalRules.ttp.accountLimits.enabled') === true;
++    const dailyLossDollars = accountLimitsEnabled
++      ? this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars') : null;

@@ -1,0 +1,62 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{
+  "pass": true,
+  "rows": [
+    {
+      "enabled": false,
+      "consistency": false,
+      "accountLimits": false,
+      "baseline": 5,
+      "candidate": 40
+    },
+    {
+      "enabled": false,
+      "consistency": false,
+      "accountLimits": true,
+      "baseline": 5,
+      "candidate": 40
+    },
+    {
+      "enabled": false,
+      "consistency": true,
+      "accountLimits": false,
+      "baseline": 5,
+      "candidate": 40
+    },
+    {
+      "enabled": false,
+      "consistency": true,
+      "accountLimits": true,
+      "baseline": 5,
+      "candidate": 40
+    },
+    {
+      "enabled": true,
+      "consistency": false,
+      "accountLimits": false,
+      "unchangedLoaderRejection": true
+    },
+    {
+      "enabled": true,
+      "consistency": false,
+      "accountLimits": true,
+      "unchangedLoaderRejection": true
+    },
+    {
+      "enabled": true,
+      "consistency": true,
+      "accountLimits": false,
+      "unchangedLoaderRejection": true
+    },
+    {
+      "enabled": true,
+      "consistency": true,
+      "accountLimits": true,
+      "baseline": 5,
+      "candidate": 5
+    }
+  ],
+  "configuredShareLimitPreserved": true,
+  "disabledShareRangePreserved": true,
+  "limitation": "Actual copied ConfigLoader and AST-extracted native share-sizing methods; synthetic trade inputs, no order submission or runtime activation."
+}

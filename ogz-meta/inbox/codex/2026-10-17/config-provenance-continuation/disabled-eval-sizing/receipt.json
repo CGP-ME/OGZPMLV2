@@ -1,0 +1,25 @@
+{
+  "base": "1f44be074cccf5d7205579a8ec9411b9932527d3",
+  "candidateTree": "80670282af510d8a0b00aa07dbaad5e57c54af8d",
+  "files": [
+    "core/OrderExecutor.js"
+  ],
+  "baseTree": "721eed8a7e101ef56ff1b70648d432dee1f5b47c",
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "reviewRun": "2026-10-17T05-12-46-365Z-fd2b687d7fb5",
+  "verdict": "no_break_found",
+  "sourceManifestSHA256": "9476ad52a88a58f81650863f92c09ed998a1ef6b7279bb42e0387ebeeb64bff2",
+  "sourceManifestLocalPath": "ogz-meta/inbox/codex/2026-10-17/config-provenance-continuation/disabled-eval-sizing/private/final-ledger/2026-10-17T05-11-51-569Z-3490379-ba4700b02e0f/source-idFYyJ.json",
+  "changedSource": [
+    {
+      "file": "core/OrderExecutor.js",
+      "object": "200b7cf288909a890523c552fed9743121ecde78",
+      "sha256": "4ae4045186c584c4756d595f4d8537b27a6886831ad4f29954fc3c227c1bba42",
+      "bytes": 245738
+    }
+  ],
+  "verification": "verification.txt",
+  "runtimeActivated": false,
+  "rawAnswerSHA256": "4eb4b21ac4c9bf3d7d8ae19f81720fb347d04df3dffb85f94ad5f2665f30d43a",
+  "publishedAnswerNormalization": "Trailing whitespace removed; unchanged wording/verdict; raw answer retained in private review JSON."
+}
