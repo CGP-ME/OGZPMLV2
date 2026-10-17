@@ -1,3 +1,10 @@
+## 2026-10-17 — Record bounded configuration override review
+
+- Scope: pinned 547a375a; two independent read-only reviews examined frozen Loader snapshots/profile projections and active constructor/entry/exit precedence. Root verified the reports and corrected wording that falsely implied competing root canonical declarations; all six nominated root paths are absent.
+- Verification: isolated AST expansion of EDITABLE_SETTINGS gives 1,392 unique keys and zero duplicate definitions, including generated spreads. No further concrete silent override or zero/false drop was established in the inspected routes. The unused sizing initialization found by root is separately delivered in acbdef80.
+- Limits: these are bounded consumer checks, not a new complete downstream-behavior proof. The existing complete key inventory and save/reload transport evidence remain authoritative. Inherited dirty values/consumer changes are excluded; PM2/env reload and controlled paper acceptance remain held. Stop 1 end-to-end remains OPEN.
+- Evidence: [continuation index](ogz-meta/inbox/codex/2026-10-17/config-provenance-continuation/README.md). No production changes in this documentation commit; Mercury is not required for prose/evidence-only delivery.
+
 ## 2026-10-17 — Remove unused sizing initialization from the runner
 
 - Problem: the runner imported and constructed PositionSizer, but no production reader used that instance. Its startup configuration validation/log suggested a sizing path that orders never called.
