@@ -1,0 +1,441 @@
+{
+  "provenance-probe": {
+    "candidate": "fabe26e7407217cdef38b310284fb06bed6c1370",
+    "roles": [
+      {
+        "role": "bot",
+        "profile": "paper",
+        "fingerprint": "7a3c2b7eb12d295ed08a8735f14da097df2fbf58205be7b3b18d4d28587afe8b",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 2168,
+        "sourceCount": 2624,
+        "missingSources": []
+      },
+      {
+        "role": "bot",
+        "profile": "production",
+        "fingerprint": "8e63a7143fc3acf78c01f08c8880464594a6e35d3ede727f8bb2f10c9e6b921c",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 2168,
+        "sourceCount": 2624,
+        "missingSources": []
+      },
+      {
+        "role": "supervisor",
+        "profile": "paper",
+        "fingerprint": "639ab4905c3cf032f36649d71901965e7090604da4a6f407f4e7d4828407ccb5",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 25,
+        "sourceCount": 27,
+        "missingSources": []
+      },
+      {
+        "role": "dashboard",
+        "profile": "paper",
+        "fingerprint": "4c06340d69528de3e27ad13514717a559fc1c47bd0fd0cc1a36304a790c8b9ca",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 88,
+        "sourceCount": 122,
+        "missingSources": []
+      },
+      {
+        "role": "checkout",
+        "profile": "paper",
+        "fingerprint": "0e44d8d0e27c986270ba69e1f762ad38bf5eaf3ee15b107db4a8b61e6d9fe400",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 9,
+        "sourceCount": 12,
+        "missingSources": []
+      },
+      {
+        "role": "market-data-tool",
+        "profile": "paper",
+        "fingerprint": "2c9a4749b8a3909c6c589911b15d2bd02da2942e3ddac8d83d66f29fa7755da0",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 32,
+        "sourceCount": 44,
+        "missingSources": []
+      }
+    ],
+    "checks": [
+      "bot/paper deterministic fingerprint and revision receipt",
+      "bot/production deterministic fingerprint and revision receipt",
+      "same-process cache reuse preserves object and forced reload preserves values and receipt",
+      "supervisor source ownership complete",
+      "dashboard source ownership complete",
+      "checkout source ownership complete",
+      "market-data-tool source ownership and stockDownload consumer route complete",
+      "legacy environment sentinel names do not override canonical settings",
+      "parallel, matrix, tuning-profile and fee-profile accessors resolve canonical fixture values",
+      "every source key exists, every canonical source label resolves, and scalar source/value pairs match in every tested snapshot"
+    ],
+    "failures": [],
+    "marketDataConsumer": {
+      "source": "scripts/fetch-stock-data.js:13-22",
+      "configPath": "config.tooling.stockDownload",
+      "consumers": [
+        "fetchBars:77-105",
+        "resolveDownloadRange:65-74",
+        "write output:162-180"
+      ],
+      "canonicalMatch": true
+    },
+    "accessors": {
+      "tuningProfiles": [
+        "current-eval",
+        "backtest-masr",
+        "backtest-rsi",
+        "ttp-5k-max",
+        "trey-spec",
+        "legacy-wide"
+      ],
+      "feeProfiles": [
+        "ttp_real",
+        "zero"
+      ],
+      "parallelMatchesCanonical": true,
+      "matrixMatchesCanonical": true
+    }
+  },
+  "all-env-probe": {
+    "candidate": "fabe26e7407217cdef38b310284fb06bed6c1370",
+    "roles": [
+      {
+        "role": "bot",
+        "profile": "paper",
+        "fingerprint": "7a3c2b7eb12d295ed08a8735f14da097df2fbf58205be7b3b18d4d28587afe8b",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 2168,
+        "sourceCount": 2624,
+        "missingSources": []
+      },
+      {
+        "role": "bot",
+        "profile": "production",
+        "fingerprint": "8e63a7143fc3acf78c01f08c8880464594a6e35d3ede727f8bb2f10c9e6b921c",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 2168,
+        "sourceCount": 2624,
+        "missingSources": []
+      },
+      {
+        "role": "supervisor",
+        "profile": "paper",
+        "fingerprint": "639ab4905c3cf032f36649d71901965e7090604da4a6f407f4e7d4828407ccb5",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 25,
+        "sourceCount": 27,
+        "missingSources": []
+      },
+      {
+        "role": "dashboard",
+        "profile": "paper",
+        "fingerprint": "4c06340d69528de3e27ad13514717a559fc1c47bd0fd0cc1a36304a790c8b9ca",
+        "revisions": {
+          "settings": 15,
+          "internals": 6,
+          "settingsHash": "ede91996c0be13345051a62f0a87c7a77aeec3174149279f265b6d8ba7955120",
+          "internalsHash": "b0fce102102d03fb8bd7174dcc710b8aad287253463d906bb3c0a186d62d963b"
+        },
+        "leafCount": 88,
+        "sourceCount": 122,
+        "missingSources": []
+      }
+    ],
+    "checks": [
+      "bot/paper deterministic fingerprint and revision receipt",
+      "bot/production deterministic fingerprint and revision receipt",
+      "same-process cache reuse preserves object and forced reload preserves values and receipt",
+      "supervisor source ownership complete",
+      "dashboard source ownership complete",
+      "all 184 archived environment names together leave values, fingerprints, revisions and source maps unchanged in six role/profile snapshots",
+      "parallel, matrix, tuning-profile and fee-profile accessors resolve canonical fixture values"
+    ],
+    "failures": [],
+    "archivedNamesExercised": [
+      "ACCOUNT_BALANCE",
+      "ACCOUNT_DRAWDOWN_BYPASS",
+      "ALPACA_MODE",
+      "ALPACA_SYMBOLS",
+      "API_EXTERNAL_URL",
+      "API_PASSWORD",
+      "API_PORT",
+      "API_USERNAME",
+      "ARCHON_API_KEY",
+      "ASSET_CLASS",
+      "ATR_FILTER_ENABLED",
+      "ATR_MIN_PERCENT",
+      "AVATAR_ENABLED",
+      "AVATAR_IMAGE_URL",
+      "BACKTEST_FAST",
+      "BACKTEST_MODE",
+      "BASE_POSITION_SIZE",
+      "BOT_WS_URL",
+      "BREAKEVEN_EXIT_PERCENT",
+      "BREAKEVEN_TRIGGER",
+      "BRIGHTDATA_SERP_ZONE",
+      "BROKER",
+      "BTC_WALLET_ADDRESS",
+      "CANDLE_PATTERN_MIN_CONFIDENCE",
+      "CANDLE_TIMEFRAME",
+      "CLAUDE_CODE_API_KEY",
+      "COINBASE_API_KEY_NAME",
+      "COINBASE_PRIVATE_KEY",
+      "CONFIDENCE_BOOST",
+      "CONFIDENCE_PENALTY",
+      "CONFIRM_LIVE_TRADING",
+      "CONTROL_WEBSOCKET_PORT",
+      "DATABASE_URL",
+      "DATA_FRESHNESS_WINDOW",
+      "DATA_WEBSOCKET_PORT",
+      "DID_AVATAR_ID",
+      "DIRECTION_FILTER",
+      "EDGAR_USER_AGENT",
+      "ELEVENLABS_VOICE_ID",
+      "EMERGENCY_CONFIDENCE",
+      "ENABLE_ARBITRAGE",
+      "ENABLE_DYNAMIC_SIZING",
+      "ENABLE_HEDGING",
+      "ENABLE_LEARNING",
+      "ENABLE_PRICE_BROADCAST",
+      "ENABLE_SHORTS",
+      "ENABLE_TRAI",
+      "ENABLE_VOLATILITY_SCALING",
+      "EVAL_RULES_ENABLED",
+      "EXECUTION_MODE",
+      "EXIT_SYSTEM",
+      "FEATURE_FLAG",
+      "FEE_MAKER",
+      "FEE_SAFETY_BUFFER",
+      "FEE_SLIPPAGE",
+      "FEE_TAKER",
+      "FEE_TOTAL_ROUNDTRIP",
+      "FIB_PROXIMITY",
+      "FINAL_TARGET",
+      "FUND_TARGET",
+      "GEMINI_API_KEY",
+      "GEMINI_EXCHANGE_API_KEY",
+      "GEMINI_EXCHANGE_API_SECRET",
+      "GEMINI_SANDBOX",
+      "GOOGLE_API_KEY",
+      "GRAFANA_PASSWORD",
+      "GUI_WEBSOCKET_PORT",
+      "HIGH_VOL_MULTIPLIER",
+      "HIGH_VOL_THRESHOLD",
+      "HOUSTON_TARGET",
+      "JWT_SECRET",
+      "LICENSE_ENCRYPTION_KEY",
+      "LICENSE_PRIVATE_KEY",
+      "LICENSE_PUBLIC_KEY",
+      "LIVE_TRADING",
+      "LOG_DIRECTORY",
+      "LOG_LEVEL",
+      "LOW_VOL_MULTIPLIER",
+      "LOW_VOL_THRESHOLD",
+      "MAX_CONFIDENCE",
+      "MAX_DAILY_LOSS",
+      "MAX_DRAWDOWN",
+      "MAX_POSITION_SIZE",
+      "MAX_POSITION_SIZE_PCT",
+      "MAX_RISK_PER_TRADE",
+      "MEMORY_DIR",
+      "MIN_HOLD_TIME_MINUTES",
+      "MIN_PROFIT_TRAIL",
+      "MIN_TRADE_CONFIDENCE",
+      "MOBILE_PASSWORD",
+      "MOBILE_SECRET",
+      "MODULE_AUTOLOADER_PATH",
+      "MOVER_API_KEY",
+      "MOVER_HTTP_PORT",
+      "MOVER_PERSONALITY",
+      "MOVER_VOICE_API_KEY",
+      "MOVER_VPS_MODE",
+      "MOVER_WS_PORT",
+      "MPM_BREAKEVEN_THRESHOLD",
+      "NARRATOR_LABEL_SEED",
+      "NEWS_SEARCH_PROVIDER",
+      "NODE_ENV",
+      "OGZ_API_URL",
+      "OGZ_PUBLIC_HOST",
+      "OGZ_SSL_SERVER",
+      "OGZ_WS_URL",
+      "OLLAMA_API_KEY",
+      "OLLAMA_CLOUD_URL",
+      "OLLAMA_ENABLED",
+      "OLLAMA_URL",
+      "PAPER_TRADING",
+      "PATTERN_CONFIDENCE",
+      "PATTERN_DOMINANCE",
+      "PATTERN_UPDATE",
+      "PORT",
+      "POSTGRES_PASSWORD",
+      "POST_BREAKEVEN_TRAIL",
+      "PRIMARY_ASSET",
+      "PROFIT_PROTECTION",
+      "REDIS_PASSWORD",
+      "REDIS_URL",
+      "RISK_CHECK",
+      "RISK_MANAGER_BYPASS",
+      "RISK_PER_TRADE",
+      "SCALPER_MAX_HOLD_TIME",
+      "SCALPER_MICRO_PROFIT",
+      "SCALPER_MOMENTUM_SHIFT",
+      "SCALPER_QUICK_PROFIT",
+      "SCALPER_STOP_MULTIPLIER",
+      "SESSION_ROUTER_ENABLED",
+      "SITE_URL",
+      "SONAR_TOKEN",
+      "SONAR_USER_TOKEN",
+      "SOURCEGRAPH_API_KEY",
+      "SOURCEGRAPH_INSTANCE_URL",
+      "SR_MAX_LEVELS",
+      "SR_MIN_STRENGTH",
+      "SR_PROXIMITY",
+      "SSL_ENABLED",
+      "SSL_SERVER_HOST",
+      "SSL_SERVER_PORT",
+      "STARTING_BALANCE",
+      "STOP_LOSS_PERCENT",
+      "SUBSCRIPTION_TIER",
+      "SUPABASE_ANON_KEY",
+      "SUPABASE_SERVICE_KEY",
+      "SUPABASE_URL",
+      "TAKE_PROFIT_PERCENT",
+      "TESTING",
+      "TEST_MODE",
+      "TIER1_TARGET",
+      "TIER2_TARGET",
+      "TIER3_TARGET",
+      "TIGHT_TRAIL_DISTANCE",
+      "TRADE_INTERVAL",
+      "TRADING_MODE",
+      "TRADING_PAIR",
+      "TRAILING_ACTIVATION",
+      "TRAILING_STOP_PERCENT",
+      "TRAIL_DISTANCE",
+      "TRAI_AUTO_HARVEST",
+      "TRAI_BACKTEST_MODE",
+      "TRAI_ENABLE_BACKTEST",
+      "TRAI_ENABLE_LLM",
+      "TRAI_HARVEST_BOOST_WR",
+      "TRAI_HARVEST_MIN_TRADES",
+      "TRAI_HARVEST_PENALTY_WR",
+      "TRAI_MAX_CONF",
+      "TRAI_MAX_RISK",
+      "TRAI_MIN_CONF",
+      "TRAI_MODE",
+      "TRAI_VETO",
+      "TRAI_WEIGHT",
+      "TTP_RULES_ENABLED",
+      "USER_NARRATOR",
+      "USE_MODULE_AUTOLOADER",
+      "USE_SSL",
+      "VOICE_ENABLED",
+      "WEBHOOK_DRY_RUN",
+      "WEBHOOK_ORDERS_ENABLED",
+      "WEBSOCKET_DOMAIN",
+      "WS_HOST",
+      "WS_PORT",
+      "WS_URL"
+    ],
+    "archivedEnvironmentRoleChecks": [
+      {
+        "role": "bot",
+        "profile": "paper",
+        "archivedNames": 184,
+        "unchanged": true
+      },
+      {
+        "role": "bot",
+        "profile": "production",
+        "archivedNames": 184,
+        "unchanged": true
+      },
+      {
+        "role": "supervisor",
+        "profile": "paper",
+        "archivedNames": 184,
+        "unchanged": true
+      },
+      {
+        "role": "dashboard",
+        "profile": "paper",
+        "archivedNames": 184,
+        "unchanged": true
+      },
+      {
+        "role": "checkout",
+        "profile": "paper",
+        "archivedNames": 184,
+        "unchanged": true
+      },
+      {
+        "role": "market-data-tool",
+        "profile": "paper",
+        "archivedNames": 184,
+        "unchanged": true
+      }
+    ],
+    "accessors": {
+      "tuningProfiles": [
+        "current-eval",
+        "backtest-masr",
+        "backtest-rsi",
+        "ttp-5k-max",
+        "trey-spec",
+        "legacy-wide"
+      ],
+      "feeProfiles": [
+        "ttp_real",
+        "zero"
+      ],
+      "parallelMatchesCanonical": true,
+      "matrixMatchesCanonical": true
+    }
+  }
+}

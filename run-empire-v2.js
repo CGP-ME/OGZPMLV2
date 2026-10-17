@@ -1214,8 +1214,6 @@ class OGZPrimeV14Bot {
     this.dashboardTimeframe = '1m';  // Track what timeframe dashboard wants
 
     // Stale data tracking
-    this.staleFeedPaused = false;
-    this.feedRecoveryCandles = 0;
     // CHANGE 2026-01-16: Liveness watchdog - tracks last data arrival
     this.lastDataReceived = null;  // Set when handleMarketData receives data
     this.lastBrokerDataReceived = null;
@@ -2816,8 +2814,6 @@ class OGZPrimeV14Bot {
     });
 
     if (result?.resumed) {
-      this.staleFeedPaused = false;
-      this.feedRecoveryCandles = 0;
       console.log(`[WATCHDOG] data-feed pause recovered after fresh candle | symbol=${symbol} timeframe=${timeframe}`);
     }
   }
@@ -2967,7 +2963,7 @@ class OGZPrimeV14Bot {
       const brokerSilent = brokerSilenceDuration > feed.maxDataSilenceMs;
       const activeTimeframeSilent = activeSilenceDuration > activeLimitMs;
 
-      if ((brokerSilent || activeTimeframeSilent) && !this.staleFeedPaused) {
+      if (brokerSilent || activeTimeframeSilent) {
         if (!symbol || !timeframe) {
           console.error(`[WATCHDOG] LIVENESS: missing symbol/timeframe (symbol=${symbol || '(missing)'} timeframe=${timeframe || '(missing)'}) - not pausing trading`);
           return;

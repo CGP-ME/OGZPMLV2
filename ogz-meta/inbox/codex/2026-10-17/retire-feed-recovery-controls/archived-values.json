@@ -1,0 +1,8 @@
+{
+  "source": "595d981f8a67662ed0dd57741b583c91948539d0",
+  "reason": "Removed feed-halting mechanism has no true producer for staleFeedPaused; these recovery controls are unreachable. Active REST recovery remains.",
+  "values": {
+    "staleDataRecoveryAgeMs": 30000,
+    "gapRecoveryCleanCandlesRequired": 3
+  }
+}

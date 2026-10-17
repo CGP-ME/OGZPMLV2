@@ -1,0 +1,44 @@
+VERDICT: cannot_verify
+ADVERSARIAL_REVIEW_BLOCKING: no
+
+CANDIDATE SET: examined 3 of 3
+- **config/internals.json** – contains definitions for `staleDataRecoveryAgeMs` (line 89) and `gapRecoveryCleanCandlesRequired` (line 92). No usage that sets `staleFeedPaused` or calls `_resumeDataFeedPause` is present.【open_file†L89-L92】
+- **core/CandleProcessor.js** – core logic that reads the above config values, guards on `this.ctx.staleFeedPaused`, and defines the helper `_resumeDataFeedPause`. The helper is only invoked from within this file (lines 1006‑1007 and 1107‑1108). No code in the repository sets `this.ctx.staleFeedPaused = true`. The flag is only ever assigned `false` (lines 333, 1217, 2819).【open_file†L321-L340】【open_file†L1000-L1014】【open_file†L1102-L1114】
+- **run-empire-v2.js** – references `this.staleFeedPaused` (assignments to `false` at lines 1217, 2819 and a guard at 2970) but never sets it to `true`. No calls to `_resumeDataFeedPause`.【grep†L1217,2819,2970】
+
+AST EVIDENCE:
+- **serena_method_callers** for `_resumeDataFeedPause` returns only the two internal calls shown above. No external callers detected.
+- **serena_property_refs** for `staleFeedPaused` shows only reads and writes to `false` within the two files; no write of `true`.
+
+INHERITED:
+- `config/internals.json` – present, unchanged.
+- `core/CandleProcessor.js` – contains the only definitions and usages of the obsolete controls.
+- `run-empire-v2.js` – references the flag but does not set it true.
+
+FOURTH SHAPE CLASSIFIER: 2 of 2
+- Added guard `if (this.ctx.staleFeedPaused && ...)` in `CandleProcessor` (producer evidence: lines 1004‑1005).
+- Added helper `_resumeDataFeedPause` (producer evidence: lines 321‑340).
+
+ALLEGATIONS:
+- **MECHANICAL** – evidence of no true assignments to `staleFeedPaused` (grep results).
+- **SUBSTANTIVE** – evidence of internal dependency on the flag and helper for recovery logic (CandleProcessor code).
+
+SUBSTANTIVE RESOLUTION: UNRESOLVED‑FOR‑TREY
+- The controls are referenced internally; removing them would break the recovery path within `CandleProcessor`. However, no external code sets the flag true, and the helper is only used internally. The repository does not contain any other producer that would be impacted.
+
+WHAT I DID:
+- Searched the entire repository for the symbols `staleFeedPaused`, `_resumeDataFeedPause`, `staleDataRecoveryAgeMs`, and `gapRecoveryCleanCandlesRequired`.
+- Opened the relevant source sections to verify definitions, assignments, and call sites.
+- Used AST‑backed tools to confirm call‑site and property‑reference counts.
+
+WHAT I DID NOT DO:
+- Execute any code or run tests; relied solely on static source analysis.
+
+WHAT I ASSUMED:
+- The repository snapshot at ref `1dec20fdebca5a2f04302c53c1a6c5510abef52e` is the complete source for this review.
+
+WHY THIS VERDICT:
+- No evidence of any external producer setting `staleFeedPaused` true, nor any external caller of `_resumeDataFeedPause`. The only usages are internal to `CandleProcessor`, which would be directly affected by removal. Because the question asks to “trace the AST blast radius” and we have identified the exact internal dependencies, we can verify the claim that removal would break internal recovery logic but would not affect external callers. Hence we cannot declare a definitive break or safe removal without further context, leading to a `cannot_verify` verdict.
+
+IF INCOMPLETE, WHY:
+- The analysis is limited to the current repository snapshot; any external modules not present in the repo could still interact with these controls, which we cannot attest to.

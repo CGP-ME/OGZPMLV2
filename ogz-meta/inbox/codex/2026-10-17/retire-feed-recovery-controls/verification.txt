@@ -1,0 +1,31 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{
+  "pass": true,
+  "cases": [
+    "fresh candle",
+    "stale candle still accepted and reported",
+    "gap retries remain scheduled",
+    "successful gap backfill still replayed",
+    "watchdog no recovery",
+    "watchdog successful REST recovery"
+  ],
+  "observedCandles": 5,
+  "watchdogActions": [
+    [
+      "fetch",
+      "BTC-USD",
+      "1m"
+    ],
+    [
+      "fetch",
+      "BTC-USD",
+      "1m"
+    ],
+    [
+      "legacy-recovery",
+      "BTC-USD",
+      "1m"
+    ]
+  ],
+  "scope": "actual parsed methods with explicit collaborators; no broker/full runtime activation"
+}

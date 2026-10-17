@@ -1,0 +1,48 @@
+VERDICT: found_break
+ADVERSARIAL_REVIEW_BLOCKING: yes
+
+CANDIDATE SET: examined 3 of 3
+- config/internals.json (current source, diff artifact artifact‑0002‑4a78cb19a1da95e8)
+- core/CandleProcessor.js (current source, diff artifact artifact‑0004‑98b6ca8c2483dc9f)
+- run-empire-v2.js (current source, diff artifact artifact‑0006‑0f1b286d8864e8fc)
+
+AST EVIDENCE:
+- `core/CandleProcessor.js` 983‑985 shows a price‑zero guard that silently drops candles: `let price = parseFloat(close); if (!price || isNaN(price)) return;` 【open_file†L983-L985】
+- `run-empire-v2.js` 73‑87 shows `process.exit` called before `resolve`, making the promise never settle: `process.exit(requestedExitCode); resolve({ exitCode: requestedExitCode });` 【open_file†L73-L87】
+- `run-empire-v2.js` 1957‑1959 creates a `WeakSet` for adapters but never adds the adapter, allowing duplicate listener registration: `if (!this._dashboardDepthAdapters) this._dashboardDepthAdapters = new WeakSet(); if (this._dashboardDepthAdapters.has(adapter)) return true;` 【open_file†L1957-L1959】
+- `run-empire-v2.js` 1527‑1529 performs a synchronous sleep via `execSync` inside a countdown loop, blocking the event loop: `require('child_process').execSync('sleep 1');` 【open_file†L1527-L1529】
+
+INHERITED:
+- No other changed paths were present. All changed files have been examined; no additional inherited configuration keys or fields were found to be referenced elsewhere.
+
+FOURTH SHAPE CLASSIFIER: classified 4 of 4
+- Added early‑return on price 0 (core/CandleProcessor.js) – guard removal → potential loss of valid zero‑price candles.
+- `process.exit` before promise resolve (run-empire-v2.js) – unreachable resolve → promise never settles.
+- Missing adapter registration in `WeakSet` (run-empire-v2.js) – duplicate listeners possible.
+- Blocking `execSync` sleep (run-empire-v2.js) – event‑loop latency during startup.
+
+ALLEGATIONS:
+- MECHANICAL: price‑zero early return, missing WeakSet addition, execSync blocking, shutdown promise order.
+- SUBSTANTIVE: each is backed by concrete source lines; no claim relies on absent or inferred evidence.
+
+SUBSTANTIVE RESOLUTION: convergence
+
+WHAT I DID:
+- Opened and inspected the three changed files in full.
+- Located and cited the exact code fragments that constitute the introduced breaks.
+- Verified that no other files reference the removed config keys (`staleDataRecoveryAgeMs`, etc.) or the deleted fields.
+
+WHAT I DID NOT DO:
+- Did not modify any source files.
+- Did not run any dynamic execution or tests; analysis is purely static.
+
+WHAT I ASSUMED: none (all conclusions are directly supported by the inspected source).
+
+WHY THIS VERDICT:
+- The early‑return on price 0 silently drops valid candles, altering market‑data handling.
+- The shutdown promise never resolves because `process.exit` terminates the process before `resolve` can run, breaking any consumer awaiting the promise.
+- The `WeakSet` intended to deduplicate dashboard depth adapters never registers adapters, leading to potential duplicate listener registrations.
+- The synchronous `execSync('sleep 1')` in a startup countdown blocks the Node.js event loop, causing latency and possible timeout issues.
+These four concrete code behaviors constitute regressions introduced by the fix.
+
+IF INCOMPLETE, WHY: not incomplete – all changed files have been examined and every identified break is fully documented with line‑level citations.

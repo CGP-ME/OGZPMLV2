@@ -1,3 +1,11 @@
+## 2026-10-17 — Fixed obsolete feed-recovery config and phantom pause fields
+
+- Problem: `dataFeed.staleDataRecoveryAgeMs` and `gapRecoveryCleanCandlesRequired` owned values but their processor branches required a pause flag with no true producer. This left misleading controls after data-feed trading pauses were removed.
+- Change: archive both values, remove those two internals leaves, unused processor helper/counters and runner flag assignments/check; increment internals revision to 6 and remove the same obsolete test-fixture literals. Preserve actual stale reporting, gap detection/backfill/retry, watchdog and legacy persisted-pause recovery.
+- Verification: isolated actual-source baseline/candidate comparisons passed six fresh/stale/backfill/watchdog cases. Six role/profile provenance snapshots have no missing sources; injecting all 184 archived environment names leaves values, sources, revisions and fingerprints unchanged. This is focused behavior/provenance evidence, not live runtime acceptance.
+- Review: Mercury blast tracing `cannot_verify`; final candidate `found_break`. Astra exact-tree adjudication GO: all four alleged regressions cite unchanged code, and the claimed missing WeakSet registration is present. Preserve both verdicts under Trey's authorized Mercury/Astra disagreement handling. Evidence: `ogz-meta/inbox/codex/2026-10-17/retire-feed-recovery-controls/receipt.json` and `adjudication.md`.
+- Runtime: no PM2 restart, env reload or activation; unrelated dirty strategy/dashboard/harness work excluded.
+
 ## 2026-10-16 — Reconcile remaining service, journal and startup configuration traces
 
 - Source: 8d1cf539aecda1de145bd8d7d7924ef74a53643a. This supplements the complete canonical owner inventory with 97 explicitly enumerated service/execution/path/journal/diagnostic leaves and bounded bootstrap/env-reader evidence. Exact assigned canonical leaf sets match, with no extra or missing entries.

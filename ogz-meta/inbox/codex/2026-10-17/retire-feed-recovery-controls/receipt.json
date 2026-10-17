@@ -1,0 +1,40 @@
+{
+  "baseCommit": "595d981f8a67662ed0dd57741b583c91948539d0",
+  "baseTree": "1dec20fdebca5a2f04302c53c1a6c5510abef52e",
+  "candidateTree": "fabe26e7407217cdef38b310284fb06bed6c1370",
+  "mercuryHarnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "mercuryRun": "2026-10-17T11-19-57-868Z-e74a9d70db14",
+  "mercuryVerdict": "found_break",
+  "mercurySourceManifest": "ogz-meta/inbox/codex/2026-10-17/retire-feed-recovery-controls/private/final-ledger/2026-10-17T11-18-31-406Z-3544297-dc437559a5a5/source-FfJKps.json",
+  "mercurySourceManifestSha256": "886f3779ceb2d958bb2b406a3752c19d7fe937d6eed8f054e0d574a4045ae7bb",
+  "mercuryProductionFiles": [
+    "config/internals.json",
+    "core/CandleProcessor.js",
+    "run-empire-v2.js"
+  ],
+  "candidatePaths": [
+    "config/internals.json",
+    "core/CandleProcessor.js",
+    "run-empire-v2.js",
+    "test/config-loader-live-guard.test.js",
+    "test/dashboard-equity-source-contract.test.js",
+    "test/symbol-routing.test.js"
+  ],
+  "adjudication": "Astra GO; unchanged-code allegations and false WeakSet claim; original Mercury verdict preserved",
+  "verification": "six baseline/candidate behavior cases and six role/profile provenance snapshots; all 184 archived env names do not override them",
+  "activation": "not restarted, reloaded or deployed",
+  "filesSha256": {
+    "change.patch": "40affa55617ad225f37e258089c0193bc328783d1c6afe284813828c4ee1e3e3",
+    "verification.txt": "cc87950b0c2ed2615c33945a5a255345297bf977e2484effcc42f7557b3840b2",
+    "provenance-results.json": "f12423fca7c35d5a5440ca23552e5120299a826e93d597119cbe82b3ab9dc2c9",
+    "blast-review-answer.txt": "6e1cefc9ea61f12464db9a254926a864799be4f66cd1802bb25cac12288a3d80",
+    "final-delivery-review-answer.txt": "663eea93463916c83815caf708cbdc6f2470ef5044de8c119c21e0ee2df5830c",
+    "adjudication.md": "2d1f600c921ae4fab182b49746a93724db35d70aad1c420d2ad56a8bcfc6a826",
+    "fixtures/verify.cjs": "10faf65e8dd223ec51069bde88607fec1945f57aa64150e15de839e7a8d4ea6c"
+  },
+  "originalAnswerSha256": {
+    "blast-review-answer.txt": "82f4b4a36a8bf52b5b84b1423143463bcc942ba0718fa2dead2923b4578e71d7",
+    "final-delivery-review-answer.txt": "e825e1b668d2318e71c25ea79e69f0fdbbb6a19b24243cbd9edd04ef328825df"
+  },
+  "answerNormalization": "trailing whitespace only; original provider JSON preserved locally"
+}

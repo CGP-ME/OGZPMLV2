@@ -689,10 +689,8 @@ describe('ConfigLoader live trading safety guard', () => {
       maxBackfillAgeMultiplier: 2,
       maxBackfillAgeSlackMs: 60000,
       staleDataMaxAgeMs: 120000,
-      staleDataRecoveryAgeMs: 30000,
       gapThresholdMultiplier: 1.5,
       gapBackfillBufferCandles: 5,
-      gapRecoveryCleanCandlesRequired: 3,
       gapBackfillRetryDelayMs: 60000,
       expectedQuietLogIntervalMs: 300000,
     }));
