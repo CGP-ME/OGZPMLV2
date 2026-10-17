@@ -466,7 +466,6 @@ const { StrategyOrchestrator } = require('./core/StrategyOrchestrator');
 
 // PHASE 13A: Position management with immutability guarantees
 const PnLCalculator = require('./core/PnLCalculator');
-const PositionSizer = require('./core/PositionSizer');
 const PositionTracker = require('./core/PositionTracker');
 
 // CHANGE 2026-02-23: BacktestRecorder for proper trade tracking with fees
@@ -716,7 +715,6 @@ class OGZPrimeV14Bot {
 
     // PHASE 13A: Position management with immutability guarantees
     this.pnlCalculator = new PnLCalculator();
-    this.positionSizer = new PositionSizer();
     this.positionTracker = new PositionTracker();
 
     // Phase 2 REWRITE: AdvancedExecutionLayer deleted - OrderRouter+OrderExecutor handle execution

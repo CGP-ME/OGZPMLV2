@@ -1,0 +1,21 @@
+{
+  "base": "547a375ac7b02cd68b9645a2a97872b8c3cd5182",
+  "candidateTree": "4416c6bdff08b9db88cdc67b53ff04c045047d63",
+  "change": "Remove unread PositionSizer runner import and constructor; preserve legacy module and actual OrderExecutor sizing.",
+  "baseTree": "299f6db8a2efe9a72c1f563f31409fbd8ca8c680",
+  "mercuryHarnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "mercuryRun": "2026-10-17T03-49-58-542Z-ffb9d2612a8f",
+  "answerDecision": "found_break",
+  "ledgerVerdict": "no_claim",
+  "sourceManifestSHA256": "6b36a7b0204f1cc2398f02c445f067a1681e320ecfc619dda84637df68ec6b24",
+  "sourceManifestLocalPath": "ogz-meta/inbox/codex/2026-10-17/config-provenance-continuation/unused-sizing-initialization/private/final-ledger/2026-10-17T03-49-19-455Z-3475001-cd5a701e7b88/source-ZSRu6t.json",
+  "changedSource": [
+    {
+      "file": "run-empire-v2.js",
+      "object": "6cedac2a66bceb387356504ec17d6a9a578009a7",
+      "sha256": "994d5da9845aa20524b8f10e581c8caa399abbbfc37787d827783506186a0f77",
+      "bytes": 173112
+    }
+  ],
+  "adjudication": "ASTRA-REVIEW.md: GO; allegations are unchanged source, no introduced break"
+}

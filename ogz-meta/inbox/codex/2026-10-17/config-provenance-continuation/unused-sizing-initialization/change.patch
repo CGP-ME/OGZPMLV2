@@ -1,0 +1,6 @@
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -469 +468,0 @@
+-const PositionSizer = require('./core/PositionSizer');
+@@ -719 +717,0 @@
+-    this.positionSizer = new PositionSizer();

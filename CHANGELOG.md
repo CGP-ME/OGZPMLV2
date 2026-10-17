@@ -1,3 +1,12 @@
+## 2026-10-17 — Remove unused sizing initialization from the runner
+
+- Problem: the runner imported and constructed PositionSizer, but no production reader used that instance. Its startup configuration validation/log suggested a sizing path that orders never called.
+- Change: remove exactly the import and constructor assignment. Preserve the legacy module and the actual OrderExecutor sizing readers/calculations; no settings or behavior added.
+- Verification: isolated exact-source parsing and two-statement comparison, extracted initialization probe, and actual executor sizing block under sequential canonical edits produced 0.05, 0.02, 0.03, 0.01. The first probe failed on VM variable redeclaration; fixing probe invocation resolved it without changing production. Full startup/broker behavior was not exercised.
+- Review: Mercury/Serena blast radius reported one isolated file and zero callers. Mercury answer found_break cited unchanged throws while its ledger classified no_claim. Independent authorized Astra exact-tree review GO confirms no required caller/import side effect and unchanged real sizing. Both original verdicts are preserved.
+- Activation/limits: source delivery only, no PM2 restart/reload/resume. Unrelated dirty work preserved. This removal is not whole-Stop1 acceptance.
+- Evidence: [unused sizing initialization](ogz-meta/inbox/codex/2026-10-17/config-provenance-continuation/unused-sizing-initialization/README.md).
+
 ## 2026-10-16 — Refresh configuration provenance after approved retirements
 
 - Exact executable source: a2d0872896881f7c0b54242dc4d4c0581ef9b8e1 (settings revision15, internals5). The final evidence now includes role-source correction 89affa44, confidence retirement cbf7200c, scale-out-buffer retirement 44901df4 and the volatility fixture correction a2d08728.

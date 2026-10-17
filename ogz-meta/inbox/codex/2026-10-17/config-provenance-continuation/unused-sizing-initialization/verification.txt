@@ -1,0 +1,16 @@
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+{
+  "syntax": "PASS",
+  "exactTwoStatementRemoval": "PASS",
+  "phantomConstructorCalls": {
+    "baseline": 1,
+    "candidate": 0
+  },
+  "unchangedActualExecutorSizingAfterCanonicalEdits": [
+    0.05,
+    0.02,
+    0.03,
+    0.01
+  ],
+  "limitation": "Extracted native initialization and sizing blocks; no full bot startup, deployment, or broker call."
+}
