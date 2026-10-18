@@ -34,9 +34,13 @@
 | [ ] S1-006 | OPEN — tool-only direct env to classify | Legacy backtest / validation behavior env |
 | [ ] S1-007 | OPEN — scope/reachability | TRAI research mode bypasses canonical config |
 | [ ] S1-008 | OPEN — suspected legacy-only config modules | Orphan and local-default candidates |
-| [ ] S1-009 | VERIFIED — no action | Duplicate revision names are role-specific |
-| [ ] S1-010 | VERIFIED — no action | OptimizedIndicators twoPole split is explicitly merged |
+| [x] S1-009 | VERIFIED — no action | Duplicate revision names are role-specific |
+| [x] S1-010 | VERIFIED — no action | OptimizedIndicators twoPole split is explicitly merged |
 | [ ] S1-011 | OPEN — scoped consumer proof | Performance validator may be legacy path |
+| [ ] S1-015 | OPEN — reachability and ownership | PID controller sample-count and history constants |
+| [ ] S1-014 | OPEN — confirmed live source literal | SmartMoneySweep wrapper has its own 50-candle gate |
+| [ ] S1-013 | OPEN — confirmed live source literal | Fibonacci analysis waits for hardcoded 30 candles |
+| [ ] S1-012 | OPEN — confirmed competing gate | Regime classification hardcoded 0.25 overrides configured threshold |
 
 ### Source facts, required correction and closure criteria
 
@@ -150,6 +154,46 @@
 
 **Commit / verification receipt:** NOT RECORDED. **Owner disposition:** pending where marked OPEN.
 
+
+#### S1-012 — Regime classification hardcoded 0.25 overrides configured threshold
+
+**Classification:** OPEN — confirmed competing gate.
+
+**Grounded source:** [`core/StrategyOrchestrator.js:2726–2754`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/StrategyOrchestrator.js#L2726-L2754) only classifies a regime when `regimeConfidence >= 0.25`. The trend-regime gate then requires `regimeType === 'trending' && regimeConfidence >= trendRegimeGate.minConfidence` at [`core/StrategyOrchestrator.js:2750–2755`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/StrategyOrchestrator.js#L2750-L2755). But `strategyBehavior.trendRegimeGate.minConfidence` is a canonical customer setting with valid range 0–1 per [`foundation/ConfigLoader.js:2621–2623`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/foundation/ConfigLoader.js#L2621-L2623). Thus selecting 0.10 while confidence is 0.20 still fails the trend-regime gate because `regimeType` stays `unknown`. It also suppresses configured regime boosts until the hidden 0.25 boundary.
+
+**Closure:** Preserve current default behavior, but make classification ownership explicit and ensure a valid configured threshold cannot be silently superseded by the other threshold. Verify a table across confidence 0.10/0.20/0.25/0.30 with trend gate enabled and disabled, and cite before/after decisions.
+
+**Commit / verification receipt:** NOT RECORDED. **Owner disposition:** pending.
+
+#### S1-013 — Fibonacci analysis waits for hardcoded 30 candles
+
+**Classification:** OPEN — confirmed live source literal.
+
+**Grounded source:** [`core/TradingLoop.js:1067`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/TradingLoop.js#L1067) and [`core/TradingLoop.js:2052`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/TradingLoop.js#L2052) gate Fibonacci processing at `priceHistory.length >= 30`. Canonical `fibonacci.lookbackCandles` is 100; it may govern the detector's own lookback rather than this minimum readiness gate. Do not equate the two without tracing the detector.
+
+**Closure:** Trace detector's true minimum and owning setting. If 30 is a behavior-affecting independent gate, relocate it to settings without changing its default; otherwise document an internal invariant and remove redundant gating only with parity proof.
+
+**Commit / verification receipt:** NOT RECORDED. **Owner disposition:** pending.
+
+#### S1-014 — SmartMoneySweep wrapper has its own 50-candle gate
+
+**Classification:** OPEN — confirmed live source literal.
+
+**Grounded source:** [`core/StrategyOrchestrator.js:2121–2133`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/StrategyOrchestrator.js#L2121-L2133) returns before invoking SmartMoneySweep unless 50 candles exist. `orchestrator.minCandlesSweep` is a **different LiquiditySweep gate** (see [`core/StrategyOrchestrator.js:1784–1792`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/StrategyOrchestrator.js#L1784-L1792)), so treating the two as one config would be an incorrect migration.
+
+**Closure:** Determine whether SmartMoneySweep 50 is algorithmic minimum or configurable entry policy; tie it to the correct owner, retain value, and verify 49/50-candle evaluation behavior.
+
+**Commit / verification receipt:** NOT RECORDED. **Owner disposition:** pending.
+
+#### S1-015 — PID controller sample-count and history constants
+
+**Classification:** OPEN — reachability and ownership.
+
+**Grounded source:** [`core/PIDController.js:97`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/PIDController.js#L97) caps history at 200 and [`core/PIDController.js:223–245`](https://github.com/CGP-ME/OGZPMLV2/blob/db11d5c9cb2f8c96350d04b54a85000d774129f5/core/PIDController.js#L223-L245) applies sample minimums 5 and 3. Settings has `pid.warmupTrades=50`, a separate threshold. No PID getter consumption was found in the main runner / TradingLoop / OrderExecutor / StrategyOrchestrator / ExitContractManager / PolicyBuilder spot-check. Dynamic reachability remains unverified.
+
+**Closure:** Prove whether PID outputs reach sizing, exits or regime before migrating values or deleting. If runtime-unwired, label clearly; do not claim autonomous tuning is active.
+
+**Commit / verification receipt:** NOT RECORDED. **Owner disposition:** pending.
 
 ## Code-census appendix — source paths requiring independent semantic disposition
 
@@ -604,6 +648,7 @@ These checkboxes are intentionally **unchecked** even for files whose basic lexi
 
 | Date | SHA | Scope | Action | Result |
 |---|---|---|---|---|
+| 2026-10-17 | `db11d5c9cb2f` | SOURCE | Classified additional hardcoded live gates and PID candidate; validated canonical trend-regime threshold contract. | Source evidence only; no runtime edits. |
 | 2026-10-17 | `db11d5c9cb2f` | SOURCE | Constructed canonical code-census + grounded issue register from this exact branch. | No production edits, no runtime tests, no deletions. |
 
 ## Documentation retirement condition
