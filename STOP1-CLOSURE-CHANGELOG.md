@@ -37,10 +37,10 @@
 | [x] S1-009 | VERIFIED — no action | Duplicate revision names are role-specific |
 | [x] S1-010 | VERIFIED — no action | OptimizedIndicators twoPole split is explicitly merged |
 | [ ] S1-011 | OPEN — scoped consumer proof | Performance validator may be legacy path |
-| [ ] S1-015 | OPEN — reachability and ownership | PID controller sample-count and history constants |
-| [ ] S1-014 | OPEN — confirmed live source literal | SmartMoneySweep wrapper has its own 50-candle gate |
-| [ ] S1-013 | OPEN — confirmed live source literal | Fibonacci analysis waits for hardcoded 30 candles |
 | [ ] S1-012 | OPEN — confirmed competing gate | Regime classification hardcoded 0.25 overrides configured threshold |
+| [ ] S1-013 | OPEN — confirmed live source literal | Fibonacci analysis waits for hardcoded 30 candles |
+| [ ] S1-014 | OPEN — confirmed live source literal | SmartMoneySweep wrapper has its own 50-candle gate |
+| [ ] S1-015 | OPEN — reachability and ownership | PID controller sample-count and history constants |
 
 ### Source facts, required correction and closure criteria
 
