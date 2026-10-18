@@ -1,0 +1,91 @@
+OGZPrime stopped-work handoff for Qwen
+Prepared: 2026-10-18T18:26:58.843786+00:00
+Repository: /opt/ogzprime/OGZPMLV2
+Branch: codex/archive-legacy-env
+HEAD: db11d5c9cb2f8c96350d04b54a85000d774129f5
+Verified origin fetch/push: https://github.com/CGP-ME/OGZPMLV2.git
+
+1. Authority and current stop
+Trey stopped engineering. This closeout only records existing work and reconciles the changelog. No further tests, reviews, repairs, audits, removals, source edits, trading, broker operations or restarts were performed after STOP. Trey subsequently authorized a documentation-only closeout commit and push to the verified repository and branch. The initial closeout snapshot predates that documentation delivery. Tracked dirty files and current source hashes are in HANDOFF-QWEN-STOPPED-SNAPSHOT.json; the mixed working tree and untracked evidence remain in place. Do not treat all dirty work as this task's authorship. Concurrent frontend/controller changes and buffers must be preserved.
+No task-owned test/review job remains active: review session35396 completed before STOP. No production process was signalled. This statement does not describe other agents' processes.
+One attempted fixture creation was rejected before execution because automatic approval review reported a usage limit. The attempted session-epoch-backtest-modes.cjs file is absent. Trey's requested single read-only recheck later succeeded. There is no current execution connection block established by that old failure. No retries were made against the failed write.
+Authorized documentation destination: origin https://github.com/CGP-ME/OGZPMLV2.git, branch codex/archive-legacy-env, matching the repository URL supplied by Trey. Only this handoff and its new changelog entry are included in the closeout delivery. Source changes, prior mixed changelog edits, the local snapshot, candidates and private reviewer evidence remain unstaged. A normal non-force push is permitted for this documentation closeout; further engineering and runtime actions remain stopped.
+
+2. Applied work already present; retained, not reverted
+Each item below is working-tree source, not a deployment or commit claim. Current hashes are in the snapshot; receipts contain exact before/after hashes and bounded review/test evidence.
+- ConfigLoader: removed43lines comprising3 uncalled helpers; shared credential-free getTelemetryConfig owner; telemetry defaults moved unchanged into internals and revision incremented. The original combined proposal containing new TRAI positive-integer validation was NOT applied as a whole. Final application: config-final-application-receipt.json.
+- Telemetry/report: shared canonical file ownership and read-only report; malformed/unprocessable-line diagnostic; win-rate updated on losses and reconstructed without a saved snapshot. Saved metrics stay authoritative. config-final-application-receipt.json, telemetry-diagnostic-application.json, winrate-application.json. Final20-row applied proof passed; no current live pattern_match producer was established in the recorded bounded search.
+- Downloader: removed import-time dotenv and3 ambient date/output fallbacks; explicit inputs preserved. downloader-application-receipt.json;6 applied tests and4 prior actual CLI before/after scenarios.
+- Unused MAExtensionFilter import/instance removed from StrategyOrchestrator. The module and its9 policy constants were retained. Constructor comparison passed; old baseline/candidate suite parity remains10pass2fail, NOT green. ma-application-receipt.json.
+- Socket: outstanding-pong deadline retention and reentrant-reconnect cancellation applied. socket-timer-applied-proof.log and timer-only-review.log. This is narrower than full socket shutdown/runtime acceptance.
+- Replay work inherited from prior phase: explicit producer outcomes, bridge retry receipts and exact timeframe routing remain applied. Earlier composed8contract+32Cartesian receipts and persistence-failure proofs apply only to their recorded hashes. The separate partial-close replay candidate below is NOT applied.
+- Kraken symbols: runner now passes configured cryptoSymbols to native subscription construction; one/three-symbol proof. crypto-symbol-owner-application-receipt.json. Its stale status string saying prepared is superseded by its appliedSha256/appliedProof and later checkpoint.
+- Kraken OHLC: native interval-end converted to canonical candle start using subscription interval. kraken-timestamp-application-receipt.json;9 intervals applied proof.
+- Confirmed webhook SELL/COVER fills: simulated classification uses explicit paper/backtest mode rather than webhook route. webhook-fill-application-receipt.json;12 applied classification cases and12 joined full-close/persistence cases. Partial fills/full deployed execution are not covered by that receipt.
+- Pause ownership: StateManager and SessionRouter preserve pause source and exact transition identity, including ownership-aware resume. pause-owner-application-receipt.json; applied16+8+6 isolated cases. Separate handler-to-save-to-stop-checker10cases passed. No browser/relay/deployment acceptance follows.
+- EMA: ExitContractManager correction limits missing-as-zero handling to EMA evidence. Shared finiteOrNull proposal was withdrawn. exit-ema-application.json;34 differential rows+22 ownership tests.
+- TTP direct broker authority: runner brokerOrderManagementEnabled requires executionMode live and excludes webhook route. ttp-mode-application.json;24 applied direct-guard cases passed. No blanket durable quarantine, tracked-execution or recovery certification.
+- D14 test-only migration: three existing Jest test files plus test/fixtures/canonical-config-snapshot.js changed. d14-harness-application.json lists exact files. Recorded84pass0fail supersedes old57pass27fail for those four suites. These test changes remain present; none were removed after Trey's objection. They do not certify deployed rehearsal.
+- Reviewer transport/classifier repairs from prior phase remain present. Astra was NOT unsupported: the installed CLI rejected stdin larger than1048576characters, and the old classifier matched words echoed in prompts. Large input uses file chunks with identity/order/hash receipts; large-review model-visible output completeness is still NOT proven. Mercury+Astra were the selected seats; Kimi excluded and Sol not used. CLI update was not established necessary. All failure tapes retained; no checks weakened.
+
+3. Unapplied candidates and exact unfinished work
+A. Completed-trade performance outcome and partial replay
+Production OrderExecutor base: 0d287d7424138391a67d235580d849c42133ee6b61a2812d2a1cb26a507ecf3a.
+Candidate: b0504adb7e6cdd3cd2b03c813b8b344f8bee019be584d11b06c5823e8f4bd58a in fixtures/short-outcome-candidate.cjs.
+Production TradeJournalBridge base: 83649ea13e2d3906eeeef603b31ca8ffd6faa85b1efe78cdb03a47ba5466dade.
+Candidate: 878891c9bbeed65269085564191e3004b7e9e6dd5526076789533282e0ed026d in fixtures/partial-replay-candidate.cjs.
+Recorded failures: generic operation DTO callbacks counted one short trade3times with actual PerformanceAnalyzer; short complete outcome missing. First partial exit consumed replay entry and final exit reported missing_entry_capture.
+Candidate changes: one complete short-close callback at end of short branch; remove generic operation callback; affirmative partial journal receipt does not complete replay. Long complete-result callback and financial values/units preserved.
+Six revised isolated lifecycle cases passed: long/short full, long/short partial-final, replay-write retry, notification retry. Earlier callback placement failed risk-reporting exception order; revised placement passes riskCalls1 with already-closed state and inherited reported failure.
+Evidence: short-partial-current-ordering-verification.json, short-partial-candidate-manifest.json, short-partial-review-v6-ordering.log. Review remains needs_more_evidence, not acceptance. Required remaining work is independent analyzer downstream consumer review for changed DTO/count behavior. Host-only chain is mapped in performance-analyzer-consumer-followup-trace.json; it does not replace review. Threshold branches beyond the short fixture counts were not separately exercised. No production application or composed applied-source proof exists.
+Old unlimited review was stopped after139iterations/174tool calls using exact task-owned argv; tape retained. Subsequent bounded24iteration rechecks exhausted budget without a final Mercury answer. Do not reinterpret exhaustion as pass.
+
+B. Session generation propagation
+Four candidates in session-epoch-candidate-manifest.json: runner, CandleProcessor, TradingLoop, OrderExecutor. They carry existing sessionRouterEpoch/sessionRouterTransitionId through the envelope/decision/accepted position and add a stale/missing-generation entry refusal while preserving existing failed-safe priority and exits.
+They are NOT applied. The OrderExecutor generation candidate is based on the production0d287 hash above and does NOT contain the b050 outcome correction. Applying it after outcome work would overwrite that work unless deliberately recomposed and reverified.
+Long+short isolated identity tests passed:3 stale/missing entries refused, accepted42 persisted/restored, old42 trade exited under active43. Actual runner account helper, candle-store and extracted ledger seams are disclosed. Full scheduler/transition interleaving and live recovery were not proved.
+Review session-epoch-review.log remains needs_more_evidence. No review/test was launched after that result. Delayed pre-order-gate versus actual transition synchronization was not reproduced before STOP. BacktestRunner routing-enabled/disabled entry behavior was not tested before STOP; attempted fixture creation never ran.
+Confirmed source facts from the last read-only follow-up: TradingLoop queues analyzeAndTrade and SessionRouter transitions wait for pending operations before activation; SessionRouter._activateStaticBacktestSession intentionally assigns null callback epoch/transition; BacktestRunner builds its historical envelope without those fields; the prepared guard checks routing-active entries for non-null matching identity. No fix or exemption was written. These facts constrain any later reassessment; no unexecuted interleaving is declared a runtime defect.
+No accepted application or applied composed behavior proof exists for this candidate.
+
+C. Remaining explicit decisions/acceptance, not newly alleged defects
+- D05 whole-account50percent loss per New York calendar day: recurring equity/day-anchor/breach owner remains unfinished in the recorded trace. Wallet scope decision is pending Trey. d05-current-owner-trace.json and d05-kraken-contract-reconciliation.json. Do not equate trade stop or TTP dollar cap with D05, or invent cross-wallet aggregation.
+- Nine invalidation-label meanings remain pending Trey: MADynamicSR sr_break; LiquiditySweep liquidity_absorbed; BreakRetest break_retest_invalidated; CandlePattern pattern_invalidated; ORB fvg_filled and or_break_reversal; SmartMoneySweep sweep_absorbed; PropSafeEMAPullback ema_pullback_invalidated; EMATrendRetest ema_retest_failed. invalidation-intent-trace.json. No semantic changes applied.
+- Historical D07 live immediate-exit incident has no identified event reproduction here. Applied EMA correction and bounded same-price/frozen-policy proofs do not establish that historical incident resolved.
+- Existing15/15enabled strategy paper-long lifecycle proof uses synthetic inputs and explicit seams;16 registered includes disabled MarketRegime. It does not cover all short/partial/invalidation paths, live execution or independent raw-market signal generation.
+- Active frozen policy save/fresh-process load and restored semantic ownership were proved in bounded fixtures. Completed summary/replay full-policy reconstruction and surviving-live session recovery were not established. Full replay-service restart was not tested.
+- Oversized reviewer file transport model-visible completeness remains model_delivery_unverified. Compact proofs do not close it.
+- Reviewer ignore policy excludes test/tests/fixtures sources. Socket complete test-source review remains blocked by that policy; production review plus host attestations is the documented boundary. No policy bypass was made.
+- Global Stop1/Stop2 closure remains unestablished: deployed loaded-source revision, native feed acknowledgement/delivery, actual browser/relay controls, controlled paper walkthrough, real shutdown/restart exclusivity and surviving-state reconciliation are not accepted by source tests. No activation was performed or authorized by these receipts.
+- Frontend Chain of Thought v2 remains behind Stop1 in this task. Concurrent frontend/controller files were preserved and are not this handoff's deliverables.
+
+4. Config census and14 dispositions: precise scope
+Historical inventory1012JS/TS; dynamic graph178files/177parsed;194config-shaped leads in52files:180 retained caller/data contracts plus14 proposal leads.
+Those14 are9 MA constants behind the removed unused allocation,3 telemetry ownership leads resolved by shared ownership,2 TRAI validation proposals withdrawn because no supported producer defect was established. TRAI values5/1000 unchanged; do not claim new integer validation applied. The MA module/constants were not deleted.
+Later bounded production closure173JS/TS+1JSON;10432numeric occurrences counted, not classified as configuration knobs. Previous2869selected literal-policy leads and29-item historical deferred queue are separate denominators, not closed by194-lead dispositions. Arbitrary dynamic/alias flows and all-scalar semantics remain outside proven coverage.
+Existing3974historical versus3977current structural entry reconciliation,1392editable transport fields,184archived-env names across6roles and97supplemental reader leaves have hash/contract limits. Eleven changed reader files were reconciled later; do not resurrect their older pending status. Current-configuration proof:1391ordinary cases plus separately valid fee-model conditional case. No claim of every consumer/runtime adoption.
+Historical deferred-topic catalog remains in PENDING-MIGRATION-MATRIX.txt; its old status lines require later superseding checkpoints, not automatic new work. Do not promote those topic labels to current defects.
+
+5. Fees/sizing: completed evidence and unperformed request
+Existing application-20261017/FEE-SIZING-CHECKPOINT.txt proved canonical-value/owner equality for7paths, without changing values: absoluteCapPercent, maxTotalExposure, fees.model, perShare, minOrderFee, safetyBuffer, totalRoundTrip.
+Recorded owners: settings.entryLogic/settings.positionSizing/settings.fees. Actual percent fee arithmetic uses maker/taker; totalRoundTrip also serves a Loader tier warning, not percent arithmetic itself. The bounded scan did not establish a safetyBuffer arithmetic consumer. This is not a whole-program orphan claim.
+The synthetic per-share/minimum fixture result0.75 and current synthetic percent result0 are fixture outputs, NOT Kraken or evaluation-account fee schedules.
+Trey requested a comparison against ogz-meta papers and Kraken versus evaluation fees. That comparison was NOT performed before STOP and is NOT completed by the7path proof. Do not infer fee equality or change fee/sizing values from this handoff.
+
+6. User-requested accounting left undone at STOP
+Exact new accounting of Jest tests, guards/throws/hardcodes/defaults/conditionals, and any requested removal decision was not performed after STOP. Existing changes remain as documented above; do not claim removed or user-approved replacements. Detailed applied/candidate diffs and prior failed tapes remain available for a later authorized accounting. No new audit was started.
+
+7. Resume constraints and factual next steps (not authorization)
+First obtain Trey's next instruction. Use this handoff plus snapshot for state, not older prepared/applied labels in append-only files. Recheck current hashes before any future application. Preserve unrelated runner BACKTEST INCOMPLETE logging hunk and concurrent frontend/controller work. Outcome and generation candidates overlap and require intentional composition if ever accepted. Pending user semantics must be resolved before dependent changes. Review identity/completeness failures remain failures; counts are not live proof. No resets/stashes/cleans, secrets disclosure, source publication or runtime actions follow from this handoff. The separately authorized documentation-only push does not publish the dirty production work.
+
+Primary records in this directory
+HANDOFF-QWEN-STOPPED-SNAPSHOT.json
+checkpoint-outcome-generation-review-blocked.json
+short-partial-current-ordering-verification.json
+session-epoch-candidate-manifest.json
+performance-analyzer-consumer-followup-trace.json
+PENDING-MIGRATION-MATRIX.txt (append-only historical status, latest entries supersede)
+STOP1-CLOSURE-RECONCILIATION.txt and JOINED-ACCEPTANCE-BOUNDARIES.txt (read with later application receipts)
+Application receipts named above; raw reviewer tapes are private evidence, not staged publication material.
+
+Delivery boundary: Supporting receipts, snapshot, candidate files and private tapes referenced here remain on the VPS; they are not part of this documentation-only commit. Actual commit and push result are reported in the closeout response, not assumed by this file.

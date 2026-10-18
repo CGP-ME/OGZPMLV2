@@ -8781,3 +8781,10 @@ ENABLE_TRAI=false
 ### Commits
 - `ff04647` - Startup script TRAI dependency check
 - This commit - Baseline files + candle format fix
+
+## 2026-10-18 stopped-work handoff closeout
+
+- Engineering stopped at Trey instruction. Added factual handoff at ogz-meta/inbox/codex/2026-10-18/stop12-resume/HANDOFF-QWEN-STOPPED.txt, separating applied working-tree changes, unapplied candidates, confirmed unfinished work, pending decisions and unperformed fee/accounting requests.
+- Outcome/replay and session-generation candidates remain UNAPPLIED and review-incomplete. Existing applied corrections, including TTP, remain in the working tree. The attempted BacktestRunner fixture write was rejected before execution and the file is absent. No post-stop tests, reviews, source repairs, removals or runtime actions were performed.
+- Earlier status labels are reconciled against named application receipts in the handoff. Candidate test counts do not imply production application or deployed acceptance. Supporting snapshots, receipts, candidates and private reviewer tapes remain on the VPS and are not included in this documentation delivery.
+- Trey authorized this documentation-only commit/push to the independently verified origin https://github.com/CGP-ME/OGZPMLV2.git on codex/archive-legacy-env. Source baseline before closeout: db11d5c9cb2f8c96350d04b54a85000d774129f5. Unrelated source changes and earlier mixed changelog edits are excluded from staging; no source publication or runtime activation is authorized by this closeout.
