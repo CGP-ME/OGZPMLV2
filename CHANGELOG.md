@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 exit invalidation static configuration migration
+
+- Problem: exit invalidation multipliers were embedded in contract evaluation.
+- Change: added `internals.exitPolicy.invalidation` and rewired the three reads.
+- Verification: isolated syntax check passed and staged diff checked.
+- Runtime: no activation.
+
 ## 2026-10-26 — Stop 1 confluence bucket static configuration migration
 
 - Problem: confluence sizing capped its bucket with an embedded maximum.

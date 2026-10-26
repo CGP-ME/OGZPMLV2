@@ -437,6 +437,7 @@ class ExitContractManager {
    * @returns {Object} { triggered, reason }
    */
   checkInvalidationConditions(conditions, trade, indicators, context = {}) {
+    const invalidation = ConfigLoader.get('internals.exitPolicy.invalidation');
     for (const condition of conditions) {
       switch (condition) {
         case 'donchian_channel_reentry': {
@@ -532,10 +533,10 @@ class ExitContractManager {
           // Support/resistance level that triggered entry is now broken
           if (trade.customMetadata?.srLevel) {
             const level = trade.customMetadata.srLevel;
-            if (level.type === 'support' && indicators.price < level.price * 0.995) {
+            if (level.type === 'support' && indicators.price < level.price * invalidation.supportBreak) {
               return { triggered: true, reason: `Support broken at ${level.price}` };
             }
-            if (level.type === 'resistance' && indicators.price > level.price * 1.005) {
+            if (level.type === 'resistance' && indicators.price > level.price * invalidation.resistanceBreak) {
               return { triggered: true, reason: `Resistance broken at ${level.price}` };
             }
           }
@@ -551,7 +552,7 @@ class ExitContractManager {
           if (trade.customMetadata?.sweepBox) {
             const box = trade.customMetadata.sweepBox;
             // If price breaks back through the box in the wrong direction
-            if (trade.direction === 'buy' && indicators.price < box.low * 0.99) {
+            if (trade.direction === 'buy' && indicators.price < box.low * invalidation.sweepBreak) {
               return { triggered: true, reason: 'Sweep box broken to downside' };
             }
           }
