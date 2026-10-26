@@ -1,3 +1,11 @@
+## 2026-10-26 — Stop 1 finite inventory migration: current working-tree record
+
+- Scope: the attached relocation inventory contains 611 rows across 83 groups. Current source and both canonical files account for 609 rows: 608 canonical-owner relocations/reuses and one obsolete symbol default removed. Two ownership questions remain in `ogz-meta/inbox/codex/2026-10-26/stop1-migration-issues.md`; no value was guessed for them.
+- Provenance: `ogz-meta/inbox/codex/2026-10-26/stop1-variable-map.csv` records each old definition/reader, value, type, unit, current owner and accessor location. Baseline sources and exact edits are retained in the existing fixture/inbox locations. This entry describes working-tree work, not a completed push.
+- Verification: all 16 strategy/indicator/TRAI comparison modes passed. Service comparisons passed 2,057 cases with synthetic IO, including notifier requests, auth-diagnostic truncation and candle timestamp/status/market-close boundaries. Static AST comparison examines 54 affected source files; remaining structural differences are explicit configuration-owner changes or captured config locals, not silently accepted as equivalent. Standalone-library and changed-canonical-owner checks passed.
+- Review: the first M07 review was incomplete. Two further Mercury runs failed to produce a clean review; the second alleged missing bot internals, contradicted by the pinned producer and 56 passing checks using that exact candidate. The third again alleged an M06 invalidation mismatch outside the M07 diff. An independent M08 candidate passed isolated construction and nine confidence checks, but its panel was blocked by Mercury HTTP 502 and Kimi insufficient-balance HTTP 429; Astra reported static support without certifying the absent Mercury review. Findings and receipts are on the existing issue sheet; no review harness, new gate, fallback or provider change was made.
+- Delivery/activation: production migrations remain pending clean review and atomic delivery. Existing unrelated dirty work is preserved. No PM2 restart, deployment, broker request, credential rotation or production-state operation occurred.
+
 ## 2026-10-26 — Stop 1 exit invalidation static configuration migration
 
 - Problem: exit invalidation multipliers were embedded in contract evaluation.
