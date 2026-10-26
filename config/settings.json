@@ -3351,6 +3351,7 @@
       }
     },
     "SmartMoneySweep": {
+      "minimumHistoryBars": 30,
       "vpDays": 5,
       "vpBins": 50,
       "valueAreaPct": 70,

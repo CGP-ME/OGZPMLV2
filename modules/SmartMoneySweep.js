@@ -68,6 +68,7 @@ class SmartMoneySweep {
 
   _applyConfig(config) {
     // ─── Volume Profile Config ───
+    this.minimumHistoryBars = requireFiniteConfig(config, 'minimumHistoryBars');
     this.vpDays = requireFiniteConfig(config, 'vpDays');
     this.vpBins = requireFiniteConfig(config, 'vpBins');
     this.valueAreaPct = requireFiniteConfig(config, 'valueAreaPct');
@@ -150,7 +151,7 @@ class SmartMoneySweep {
 
   _update(candle, priceHistory, emitEntries) {
     this._applyConfig(this.configProvider());
-    if (!priceHistory || priceHistory.length < 30) return null;
+    if (!priceHistory || priceHistory.length < this.minimumHistoryBars) return null;
     this.barIndex = priceHistory.length - 1;
 
     const tfMinutes = this._detectTimeframe(priceHistory);

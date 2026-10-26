@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 SmartMoneySweep history static configuration migration
+
+- Problem: SmartMoneySweep embedded its minimum history-bar threshold instead of reading dynamic strategy configuration.
+- Change: added `settings.strategies.SmartMoneySweep.minimumHistoryBars` and rewired the existing validation read.
+- Verification: isolated syntax check passed and the staged settings JSON contains the configured owner.
+- Review: no reviewer run, new gate, fallback, default, or runtime activation.
+
 ## 2026-10-26 — Stop 1 Fibonacci history static configuration migration
 
 - Problem: Fibonacci validation embedded its minimum candle-history threshold instead of reading dynamic strategy configuration.
