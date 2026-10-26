@@ -12,6 +12,10 @@
       "distancePercent": 0.5,
       "goldenBoost": 0.15,
       "normalBoost": 0.1
+    },
+    "volumeProfileZones": {
+      "pocProximity": 0.002,
+      "lvnProximity": 0.003
     }
   },
   "backtest": {

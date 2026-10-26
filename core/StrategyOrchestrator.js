@@ -2824,8 +2824,9 @@ class StrategyOrchestrator {
       if (vpProfile && vpProfile.poc && vpProfile.vah && vpProfile.val) {
         // Classify price position relative to VP levels
         let vpZone = 'inValueArea';  // Default
-        const pocThreshold = 0.002;  // Within 0.2% of POC = "at POC"
-        const lvnProximity = 0.003;  // Within 0.3% of nearest LVN = "in LVN"
+        const volumeProfileZones = ConfigLoader.get('internals.orchestrator.volumeProfileZones');
+        const pocThreshold = volumeProfileZones.pocProximity;  // Within 0.2% of POC = "at POC"
+        const lvnProximity = volumeProfileZones.lvnProximity;  // Within 0.3% of nearest LVN = "in LVN"
 
         const priceToPocPct = Math.abs(currentPrice - vpProfile.poc) / vpProfile.poc;
 

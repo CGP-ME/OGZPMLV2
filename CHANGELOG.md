@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 volume-profile zone static configuration migration
+
+- Problem: volume-profile zone proximity thresholds were embedded in evaluation.
+- Change: added `internals.orchestrator.volumeProfileZones` and rewired both reads.
+- Verification: isolated syntax check passed and staged diff checked.
+- Runtime: no activation.
+
 ## 2026-10-26 — Stop 1 SmartMoney Fib static configuration migration
 
 - Problem: SmartMoneySweep’s Fibonacci proximity and confidence boosts were embedded in its orchestrator registration.
