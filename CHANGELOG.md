@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 MarketRegime vote static configuration migration
+
+- Problem: MarketRegime voting embedded four confidence multipliers and used those literals for the agreement label.
+- Change: added `internals.orchestrator.marketRegimeVote`; all four calculations and label comparisons read that sole owner.
+- Verification: isolated syntax check passed; staged configuration and reader references were checked.
+- Review: no reviewer run, new gate, fallback, default, or runtime activation.
+
 ## 2026-10-26 — Stop 1 Alpaca time-in-force static configuration migration
 
 - Problem: Alpaca order construction silently replaced the submitted time-in-force with an embedded `day` value.

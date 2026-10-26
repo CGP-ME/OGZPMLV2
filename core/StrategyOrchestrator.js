@@ -1965,6 +1965,7 @@ class StrategyOrchestrator {
       evaluate: (ctx) => {
         const regime = ctx.regime;
         const trend = ctx.indicators?.trend;
+        const marketRegimeVote = ConfigLoader.get('internals.orchestrator.marketRegimeVote');
 
         // DIAGNOSTIC: Log why no signals
         if (this.strategyDiagnostics) {
@@ -1988,16 +1989,16 @@ class StrategyOrchestrator {
         // Trend alignment modulates confidence — multipliers, not gates (let it flow)
         let trendMult;
         if ((isBullRegime && isBullTrend) || (isBearRegime && isBearTrend)) {
-          trendMult = 1.0;   // full agreement
+          trendMult = marketRegimeVote.aligned;   // full agreement
         } else if ((isBullRegime && isBearTrend) || (isBearRegime && isBullTrend)) {
-          trendMult = 0.4;   // direct conflict — signal survives, heavily damped
+          trendMult = marketRegimeVote.conflict;   // direct conflict — signal survives, heavily damped
         } else {
-          trendMult = 0.7;   // trend unknown/neutral — moderate damping
+          trendMult = marketRegimeVote.partial;   // trend unknown/neutral — moderate damping
         }
 
         const direction = isBullRegime ? 'buy' : 'sell';
-        const finalConf = regimeConf * 0.8 * trendMult;
-        const agreementLabel = trendMult === 1.0 ? 'aligned' : trendMult === 0.4 ? 'conflict' : 'partial';
+        const finalConf = regimeConf * marketRegimeVote.confidenceScale * trendMult;
+        const agreementLabel = trendMult === marketRegimeVote.aligned ? 'aligned' : trendMult === marketRegimeVote.conflict ? 'conflict' : 'partial';
 
         return {
           direction,

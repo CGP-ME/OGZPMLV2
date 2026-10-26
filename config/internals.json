@@ -1,6 +1,14 @@
 {
   "schemaVersion": 1,
   "revision": 6,
+  "orchestrator": {
+    "marketRegimeVote": {
+      "aligned": 1.0,
+      "conflict": 0.4,
+      "partial": 0.7,
+      "confidenceScale": 0.8
+    }
+  },
   "backtest": {
     "candleDataFile": "",
     "reportTag": "",
