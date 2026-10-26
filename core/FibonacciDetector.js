@@ -46,7 +46,7 @@ class FibonacciDetector {
    */
   update(candles) {
     // Validate input data and minimum required candles
-    if (!candles || candles.length < Math.max(30, this.config.lookbackCandles)) {
+    if (!candles || candles.length < Math.max(this.config.minimumHistoryCandles, this.config.lookbackCandles)) {
       return null;
     }
     

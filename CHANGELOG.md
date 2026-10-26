@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 Fibonacci history static configuration migration
+
+- Problem: Fibonacci validation embedded its minimum candle-history threshold instead of reading dynamic strategy configuration.
+- Change: added `settings.fibonacci.minimumHistoryCandles` and rewired the existing validation read.
+- Verification: isolated syntax check passed and the staged settings JSON contains the configured owner.
+- Review: no reviewer run, new gate, fallback, default, or runtime activation.
+
 ## 2026-10-26 — Stop 1 Binance receive-window static configuration migration
 
 - Problem: five Binance signed-request builders embedded the same receive-window value instead of reading a static owner.
