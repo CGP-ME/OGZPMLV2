@@ -2123,9 +2123,10 @@ class StrategyOrchestrator {
     if (shouldRegister('SmartMoneySweep')) this.strategies.push({
       name: 'SmartMoneySweep',
       evaluate: (ctx) => {
+        const smartMoneyFib = ConfigLoader.get('internals.orchestrator.smartMoneyFib');
         diagSMS.evaluated++;
         const candles = ctx.priceHistory;
-        if (!candles || candles.length < 50) return null;
+        if (!candles || candles.length < this.minCandlesSmartMoneySweep) return null;
 
         const latestCandle = candles[candles.length - 1];
         const scopedSmartMoneySweep = this._getSymbolStrategyModule(
@@ -2156,8 +2157,8 @@ class StrategyOrchestrator {
         // Fib level boost (same pattern as other strategies)
         const fib = ctx.extras?.nearestFibLevel;
         let fibBoost = '';
-        if (fib && fib.distance < 0.5) {
-          const boost = fib.isGoldenZone ? 0.15 : 0.10;
+        if (fib && fib.distance < smartMoneyFib.distancePercent) {
+          const boost = fib.isGoldenZone ? smartMoneyFib.goldenBoost : smartMoneyFib.normalBoost;
           conf = Math.min(1.0, conf + boost);
           fibBoost = ` + Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
         }

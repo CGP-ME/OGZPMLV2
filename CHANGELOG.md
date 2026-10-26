@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 SmartMoney Fib static configuration migration
+
+- Problem: SmartMoneySweep’s Fibonacci proximity and confidence boosts were embedded in its orchestrator registration.
+- Change: added `internals.orchestrator.smartMoneyFib` and rewired those three reads.
+- Verification: isolated syntax check passed; staged configuration and reader references were checked.
+- Review: no reviewer run, new gate, fallback, default, or runtime activation.
+
 ## 2026-10-26 — Stop 1 MarketRegime vote static configuration migration
 
 - Problem: MarketRegime voting embedded four confidence multipliers and used those literals for the agreement label.
