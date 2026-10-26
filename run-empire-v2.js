@@ -1579,7 +1579,7 @@ class OGZPrimeV14Bot {
     if (typeof timeframe !== 'string' || !timeframe.trim()) {
       throw new Error('loadCandleHistory: candleTimeframe missing — refusing to load candles under implicit timeframe');
     }
-    this._candleStore.loadFromDisk(candleFile, symbol, timeframe);
+    this._candleStore.loadFromDisk(candleFile, symbol, timeframe, resolvedConfig.config.internals.candleStore.diskMaxAgeMs);
     this.priceHistory = this._candleStore.getCandles(symbol, timeframe);
   }
 
@@ -1604,7 +1604,7 @@ class OGZPrimeV14Bot {
     }
     // Sync priceHistory to CandleStore before saving
     this._candleStore.addCandles(symbol, timeframe, this.priceHistory);
-    this._candleStore.saveToDisk(candleFile, symbol, timeframe, 200);
+    this._candleStore.saveToDisk(candleFile, symbol, timeframe, resolvedConfig.config.internals.candleStore.diskMaxCandles);
   }
 
   _getBootHydrationSymbols() {

@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 candle-store static configuration migration
+
+- Problem: candle-history disk expiry and retained-candle count were embedded in the runner instead of owned by static configuration.
+- Change: added `internals.candleStore.diskMaxAgeMs` and `internals.candleStore.diskMaxCandles`; the two existing CandleStore calls now read those paths.
+- Verification: the focused isolated candle-history suite was invoked but could not reach assertions because its existing fixture fails current ConfigLoader credential/dashboard-token validation. Recorded once in `ogz-meta/inbox/codex/2026-10-26/stop1-migration-issues.md`.
+- Review: no reviewer run, new gate, fallback, default, or runtime activation.
+
 ## 2026-10-17 — Fixed obsolete feed-recovery config and phantom pause fields
 
 - Problem: `dataFeed.staleDataRecoveryAgeMs` and `gapRecoveryCleanCandlesRequired` owned values but their processor branches required a pause flag with no true producer. This left misleading controls after data-feed trading pauses were removed.
