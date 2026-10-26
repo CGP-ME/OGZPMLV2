@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 Binance receive-window static configuration migration
+
+- Problem: five Binance signed-request builders embedded the same receive-window value instead of reading a static owner.
+- Change: added `internals.broker.binance.recvWindowMs` and rewired all five builders to it.
+- Verification: isolated syntax check passed; the staged configuration parses and the staged source contains five owner reads.
+- Review: no reviewer run, new gate, fallback, default, or runtime activation.
+
 ## 2026-10-26 — Stop 1 candle-store static configuration migration
 
 - Problem: candle-history disk expiry and retained-candle count were embedded in the runner instead of owned by static configuration.

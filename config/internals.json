@@ -93,6 +93,9 @@
     "volumeCapMaxReferenceAgeLimitMs": 300000
   },
   "broker": {
+    "binance": {
+      "recvWindowMs": 5000
+    },
     "tradingIntervalMs": 15000,
     "alpacaWebSocket": {
       "initialReconnectDelayMs": 1000,

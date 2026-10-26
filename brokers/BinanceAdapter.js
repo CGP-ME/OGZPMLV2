@@ -12,6 +12,7 @@
  */
 
 const IBrokerAdapter = require('../foundation/IBrokerAdapter');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const axios = require('axios');
 const crypto = require('crypto');
 const WebSocket = require('ws');
@@ -122,7 +123,7 @@ class BinanceAdapter extends IBrokerAdapter {
         try {
             const params = {
                 timestamp: Date.now(),
-                recvWindow: 5000
+                recvWindow: ConfigLoader.getInternalsFileValue('broker.binance.recvWindowMs')
             };
             params.signature = this._generateSignature(params);
 
@@ -172,7 +173,7 @@ class BinanceAdapter extends IBrokerAdapter {
         try {
             const params = {
                 timestamp: Date.now(),
-                recvWindow: 5000
+                recvWindow: ConfigLoader.getInternalsFileValue('broker.binance.recvWindowMs')
             };
             
             if (symbol) {
@@ -223,7 +224,7 @@ class BinanceAdapter extends IBrokerAdapter {
                 type: price ? 'LIMIT' : 'MARKET',
                 timeInForce: 'GTC',
                 timestamp: Date.now(),
-                recvWindow: 5000
+                recvWindow: ConfigLoader.getInternalsFileValue('broker.binance.recvWindowMs')
             };
 
             if (price) {
@@ -262,7 +263,7 @@ class BinanceAdapter extends IBrokerAdapter {
                 symbol: this._toBrokerSymbol(symbol),
                 orderId: orderId,
                 timestamp: Date.now(),
-                recvWindow: 5000
+                recvWindow: ConfigLoader.getInternalsFileValue('broker.binance.recvWindowMs')
             };
 
             params.signature = this._generateSignature(params);
@@ -293,7 +294,7 @@ class BinanceAdapter extends IBrokerAdapter {
                 symbol: this._toBrokerSymbol(symbol),
                 orderId: orderId,
                 timestamp: Date.now(),
-                recvWindow: 5000
+                recvWindow: ConfigLoader.getInternalsFileValue('broker.binance.recvWindowMs')
             };
 
             params.signature = this._generateSignature(params);
