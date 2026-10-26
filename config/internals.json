@@ -93,6 +93,9 @@
     "volumeCapMaxReferenceAgeLimitMs": 300000
   },
   "broker": {
+    "alpacaOrder": {
+      "timeInForce": "day"
+    },
     "binance": {
       "recvWindowMs": 5000
     },

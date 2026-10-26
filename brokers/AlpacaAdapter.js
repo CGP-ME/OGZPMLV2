@@ -16,6 +16,7 @@
 
 const IBrokerAdapter = require('../foundation/IBrokerAdapter');
 const axios = require('axios');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const WebSocket = require('ws');
 const ResilientWebSocket = require('../foundation/ResilientWebSocket');
 const authFailureGuard = require('../core/AuthFailureGuard');
@@ -496,7 +497,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 qty: qty.toString(),
                 side: side,
                 type: price ? 'limit' : 'market',
-                time_in_force: options.timeInForce || 'day'
+                time_in_force: ConfigLoader.getInternalsFileValue('broker.alpacaOrder.timeInForce')
             };
 
             if (price) {

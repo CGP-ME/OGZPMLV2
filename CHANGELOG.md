@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 Alpaca time-in-force static configuration migration
+
+- Problem: Alpaca order construction silently replaced the submitted time-in-force with an embedded `day` value.
+- Change: added `internals.broker.alpacaOrder.timeInForce` and made the order builder read that sole owner directly.
+- Verification: staged owner/read/fallback-retirement check passed. The existing isolated order test cannot construct its current fixture; recorded in the single Stop 1 issue sheet.
+- Review: no reviewer run, new gate, fallback, default, or runtime activation.
+
 ## 2026-10-26 — Stop 1 SmartMoneySweep history static configuration migration
 
 - Problem: SmartMoneySweep embedded its minimum history-bar threshold instead of reading dynamic strategy configuration.
