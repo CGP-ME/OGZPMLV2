@@ -16,6 +16,9 @@
     "volumeProfileZones": {
       "pocProximity": 0.002,
       "lvnProximity": 0.003
+    },
+    "confluence": {
+      "maximumBucket": 4
     }
   },
   "backtest": {

@@ -2963,7 +2963,8 @@ class StrategyOrchestrator {
     const confluenceCount = agreeing.length;
 
     // ─── Step 6: Position sizing multiplier from confluence × regime ───
-    const cappedCount = Math.min(confluenceCount, 4);
+    const confluenceConfig = ConfigLoader.get('internals.orchestrator.confluence');
+    const cappedCount = Math.min(confluenceCount, confluenceConfig.maximumBucket);
     const confluenceSizing = entrySizingInput.multipliers;
     const rawSizingMultiplier = confluenceSizing[cappedCount];
     const sizingMultiplier = rawSizingMultiplier * regimePositionMultiplier;

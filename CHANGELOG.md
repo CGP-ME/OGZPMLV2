@@ -1,3 +1,10 @@
+## 2026-10-26 — Stop 1 confluence bucket static configuration migration
+
+- Problem: confluence sizing capped its bucket with an embedded maximum.
+- Change: added `internals.orchestrator.confluence.maximumBucket` and rewired the cap.
+- Verification: isolated syntax check passed and staged diff checked.
+- Runtime: no activation.
+
 ## 2026-10-26 — Stop 1 volume-profile zone static configuration migration
 
 - Problem: volume-profile zone proximity thresholds were embedded in evaluation.
