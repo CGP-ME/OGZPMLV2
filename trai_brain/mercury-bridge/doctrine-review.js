@@ -13,9 +13,9 @@ const MERCURY_DOCTRINE_PROMPT = [
   'ADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.',
   'CANDIDATE SET: examined N of M; enumerate the complete candidate inventory, including every changed path. These are evidence counts, not confidence estimates. Unread or unresolved evidence must remain named.',
   'AST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.',
-  'INHERITED: use each exact full repo-relative changed path (not only its basename) and the presence, absence or unread status of || 0, swallowed catch, bypass env and silent default behavior. Do not invent absence or zero findings.',
+  'INHERITED: identify each full repo-relative changed path and describe inherited fallback, swallowed error, environment bypass and silent default behavior, including unread areas. Use ordinary wording; category spellings are not evidence. Do not invent absence or zero findings.',
   'FOURTH SHAPE CLASSIFIER: classified N of M; classify every added throw, guard, gate or fallback with producer evidence. Review-tool restrictions are not bot-runtime authority. Do not introduce new bot gates.',
-  'ALLEGATIONS: classify each finding as MECHANICAL or SUBSTANTIVE and its basis as RECEIPT or TESTIMONY.',
+  'ALLEGATIONS: explain each finding and cite its basis. Distinguish observed evidence from testimony in ordinary language; literal classification tags are not required and do not establish evidence.',
   'SUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none. Use none when no substantive dispute exists; retain unresolved disagreements and the actual seat positions.',
   'WHAT I DID: mechanically examined evidence. WHAT I DID NOT DO: named gaps. WHAT I ASSUMED: assumptions or none. WHY THIS VERDICT: reasoning. IF INCOMPLETE, WHY: actual reason or not incomplete. Put each heading on its own line.',
 ].join('\n');
@@ -46,10 +46,6 @@ function extractDiffReferenceNames(diff) {
     }
   }
   return uniqueInOrder(names);
-}
-
-function sectionPresent(answer, heading) {
-  return new RegExp(`(?:^|\\n)\\s*(?:\\*\\*)?${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\*\\*)?\\s*:`, 'i').test(String(answer || ''));
 }
 
 function countDeclaration(answer, heading) {
@@ -129,16 +125,7 @@ function assessReviewReport(answer, changedFiles, fourthShapeCount) {
   const namedAbsences = [];
   const inherited = sectionValue(answer, 'INHERITED');
   const inheritedMissingPaths = changedFiles.filter(file => !inherited.includes(file));
-  const categoryPatterns = [
-    ['|| 0', /\|\|\s*0/],
-    ['swallowed catch', /swallowed[\s\u2010-\u2015-]+catch/i],
-    ['bypass env', /bypass[\s\u2010-\u2015-]+env/i],
-    ['silent default', /silent(?:[\s\u2010-\u2015-]+(?:false|zero|null))?[\s\u2010-\u2015-]+default/i],
-  ];
-  const inheritedMissingCategories = categoryPatterns
-    .filter(([, pattern]) => !pattern.test(inherited)).map(([name]) => name);
-  if (changedFiles.length > 0
-      && (inheritedMissingPaths.length > 0 || inheritedMissingCategories.length > 0)) {
+  if (inheritedMissingPaths.length > 0) {
     namedAbsences.push('inherited_section_incomplete');
   }
   const fourthShape = countDeclaration(answer, 'FOURTH SHAPE CLASSIFIER');
@@ -146,7 +133,7 @@ function assessReviewReport(answer, changedFiles, fourthShapeCount) {
       || fourthShape.total < fourthShapeCount || fourthShape.examined < fourthShape.total)) {
     namedAbsences.push('fourth_shape_unclassified');
   }
-  return { namedAbsences, inheritedMissingPaths, inheritedMissingCategories,
+  return { namedAbsences, inheritedMissingPaths,
     fourthShape, fourthShapeExpected: fourthShapeCount };
 }
 
@@ -210,14 +197,6 @@ function assessDoctrineReview({
   if (/\bVERDICT\s*:\s*(?:found_break|blocked)\b/i.test(text)
       && /\bTESTIMONY\b/i.test(text) && !/\bRECEIPT\b/i.test(text)) {
     addAbsence('testimony_only_finding');
-  }
-
-  const allegationSection = sectionValue(text, 'ALLEGATIONS');
-  if (sectionPresent(text, 'ALLEGATIONS') && !/\b(?:MECHANICAL|SUBSTANTIVE)\b/i.test(allegationSection)) {
-    addAbsence('allegation_class_absent');
-  }
-  if (sectionPresent(text, 'ALLEGATIONS') && !/\b(?:RECEIPT|TESTIMONY)\b/i.test(allegationSection)) {
-    addAbsence('allegation_basis_absent');
   }
 
   const hasSubstantive = /\bSUBSTANTIVE\b/i.test(text);

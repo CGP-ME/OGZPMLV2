@@ -1,3 +1,45 @@
+## 2026-10-27 — Mercury delivered answers and report wording
+
+- Problem: a nonempty model response with `review_receipt_incomplete` was labeled `reviewer_answer_absent`, failed the selected seat, and skipped explicit verdict parsing. Literal inherited-category wording and allegation tags also generated false reporting gaps.
+- Authorized change: recognize an actual matching nonempty final model message for incomplete receipts; preserve the original termination/lifecycle and parse only explicit verdicts. Remove executable keyword-presence checks for inherited categories and allegation class/basis, and update their instructions. This intentionally relaxes report wording requirements. It does not infer evidence from prose, certify a result, or remove source coverage, AST, identity, quarantine, repository-access or financial protections.
+- Producer provenance: the committed candidate's ReAct producer returns `answer_given`. The executing working harness contains inherited uncommitted code at `trai_brain/mercury-bridge/react-loop.js:1110-1125` that returns `answer: content`, `rawFinalAnswer: assistantMsg`, and `termination: 'review_receipt_incomplete'` when literal report fields are omitted. Its SHA256 is `986e0352526dbe648098757c5d10c7f165e16a0b79932505428feda95acb1bc3`. That inherited producer is preserved and excluded from this commit. The consumer correction supports both producer contracts; this is an executable correction, not a documentation-only change.
+- Actual verification: 18 focused regressions pass against 26 source files captured from candidate `74c02bbf59954075f22132a8298f616baab99dc5` and against the working harness. The final source/test revision is recorded in the adjacent manifest. Actual ReAct calls use a synthetic model client, then pass their outputs through answer qualification, explicit parsing and panel metadata. Candidate producer: incomplete/complete field sets both return `answer_given` and succeed. Working producer: omitted fields return `review_receipt_incomplete` and succeed; complete fields return `answer_given` and succeed. Neither gains evidence from transport success. Actual error/tool-only producers remain rejected: candidate `error`/`max_iterations`, working `finalization_error`/`finalization_tool_call`. All three explicit verdicts, missing verdicts, empty responses, quotas, rechecks, Unicode/reversed wording and real unread coverage are covered. No real provider is called by these tests.
+- Reproducible working-source command: `python3 scripts/test-isolated.py --fixture test/fixtures/mercury-answer-reporting.test.js --fixture test/fixtures/mercury-reporting-bootstrap.cjs --fixture test/fixtures/mercury-reporting-ignore.json -- node test/fixtures/mercury-reporting-bootstrap.cjs`. The bootstrap verifies isolation and supplies the public ignore contract omitted by the launcher. Candidate verification substitutes the captured `mercury-reporting-candidate.json` fixture and passes `candidate` to that bootstrap; it never overlays host source. Both actual exit codes are 0.
+- Review: first Mercury pass reported `no_break_found` but incorrectly described executable reporting removals as documentation-only. Astra correctly challenged that characterization and requested executing-harness provenance and host execution evidence; Mercury's recheck returned `cannot_verify` pending that evidence. The provenance and producer-to-panel verification above address that request. The evidence-backed run retained Mercury as `succeeded` with explicit `no_break_found` despite `review_receipt_incomplete`, confirming the corrected live path. Mercury still inaccurately described the removed doctrine checks as unchanged and overstated read coverage; those claims are rejected. Astra's final request did not complete, so the panel reports `review_incomplete`; no clean panel approval is claimed. Initial Astra review identified evidence/provenance gaps, not a demonstrated code defect; the added execution evidence addresses those gaps. This non-trading developer-tool correction is reviewed and behavior-verified; no pending trading migration gains approval from it. Review ledger: `ogz-meta/cognition-history/mercury-runs/2026-10-27.jsonl:16`.
+- Remaining limitations: the pre-existing panel suite has seven failures against removed authority APIs, and the doctrine suite cannot load without the public ignore contract omitted by the isolated launcher. These are not new passing-suite claims. The inherited working harness still assigns incomplete report termination and its existing iteration limit; neither producer behavior is changed here. All source/evidence gaps remain visible. Evidence handoff initially rejected ignored inbox attachments and an excerpt ending in a blank line; the existing changelog excerpt mechanism supplied the proof without changing access or attestation rules. Supporting source manifest, raw review and test output: `ogz-meta/inbox/codex/2026-10-27/mercury-answer-reporting/`.
+- Delivery/runtime: one bridge correction, separate from the staged Stop 1 Donchian change. No trading code, SessionRouter fix, provider configuration, PM2 process or bot runtime is changed by this commit.
+
+- Verbatim executing-producer excerpt (working source only, `react-loop.js:1113-1123`, hash above):
+
+```js
+    if (boundedReview) {
+      const verdict = content.match(/^VERDICT:\s*(found_break|no_break_found|cannot_verify)\s*$/mi);
+      const rationale = /^WHY THIS VERDICT:\s*\S/im.test(content);
+      const missing = content.match(/^MISSING EVIDENCE:\s*(.+)$/mi);
+      const valid = verdict && rationale && missing &&
+        (verdict[1] !== 'cannot_verify' || !/^(none|n\/a)\.?$/i.test(missing[1].trim()));
+      if (!valid) return attachToolTelemetry({ answer: content, rawFinalAnswer: assistantMsg,
+        termination: 'review_receipt_incomplete', iterations: iteration, history, candidateSet,
+        toolsAvailable, iterationLimit, lifecycle: { ...lifecycle, status: 'incomplete',
+          missingFields: ['explicit verdict, rationale and exact missing evidence required'] },
+        providerAttempts: providerAudit ? providerAudit.attempts : [],
+```
+
+- Verbatim host test output, using the recorded isolated commands (candidate then working):
+
+```text
+Producer complete=false: answer_given -> succeeded; evidence=false
+Producer complete=true: answer_given -> succeeded; evidence=false
+Failure producers: error, max_iterations; both rejected
+Test Suites: 1 passed, 1 total
+Tests:       18 passed, 18 total
+Producer complete=false: review_receipt_incomplete -> succeeded; evidence=false
+Producer complete=true: answer_given -> succeeded; evidence=false
+Failure producers: finalization_error, finalization_tool_call; both rejected
+Test Suites: 1 passed, 1 total
+Tests:       18 passed, 18 total
+```
+
 ## 2026-10-27 — Stop 1 M08: Donchian confidence coefficient ownership
 
 - Change: the unchanged 0.55 base, 0.30 cap and 0.15 extension scale now have one owner at `internals.strategies.DonchianBreakout.confidence`; the consumer uses the existing static-file accessor. Entry/exit configuration and strategy arithmetic remain intact.

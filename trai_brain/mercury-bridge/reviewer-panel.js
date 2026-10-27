@@ -214,8 +214,22 @@ function summarizePanelDiagnostics(seats) {
   };
 }
 
+function hasReviewerAnswer(result) {
+  if (!result || typeof result.answer !== 'string' || !result.answer.trim()) return false;
+  if (result.termination === 'answer_given') return true;
+  // A final model response can omit report fields without being absent.
+  // Require the actual final message; transport errors and partial tool loops
+  // also carry text in `answer`, but that text is not a delivered review.
+  const finalMessage = result.rawFinalAnswer;
+  return result.termination === 'review_receipt_incomplete'
+    && finalMessage && typeof finalMessage.content === 'string'
+    && finalMessage.content.trim() !== ''
+    && finalMessage.content === result.answer
+    && !(finalMessage.tool_calls && finalMessage.tool_calls.length);
+}
+
 function ensureReviewerAnswer(result, reviewerId) {
-  if (result && result.termination === 'answer_given' && String(result.answer || '').trim() !== '') {
+  if (hasReviewerAnswer(result)) {
     return result;
   }
   const message = String(result && result.answer || `${reviewerId} reviewer answer absent`);
@@ -263,6 +277,7 @@ module.exports = {
   canAttachFinalReview,
   effectiveIdentityFingerprint,
   ensureReviewerAnswer,
+  hasReviewerAnswer,
   summarizePanelDiagnostics,
   parseReviewerSelection,
   reportedPanelDecision,

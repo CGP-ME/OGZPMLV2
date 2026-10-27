@@ -77,6 +77,7 @@ const {
   canAttachFinalReview,
   effectiveIdentityFingerprint,
   ensureReviewerAnswer,
+  hasReviewerAnswer,
   positiveEvidenceBasis,
   promptReviewerSelection,
   resolveReviewerSelection,
@@ -747,7 +748,7 @@ function priorPanelResult(query, outputs) {
 function finalizeMercuryEvidenceResult(result) {
   // Same explicit-field contract as Astra and Kimi. Never infer a verdict
   // from successful transport, a prose conclusion, or a partial tool loop.
-  if (!result.parsed && result.termination === 'answer_given') {
+  if (!result.parsed && hasReviewerAnswer(result)) {
     const parsed = parseAdversarialReviewAnswer(result.answer);
     if (parsed.verdict !== 'unknown') result.parsed = parsed;
   }
@@ -774,6 +775,8 @@ function panelSeatMetadata(id, output, {
   const evidenceBasis = [...new Set([...directEvidenceBasis, ...inheritedEvidenceBasis])];
   return {
     answer: output.answer || null,
+    termination: output.termination || null,
+    lifecycle: output.lifecycle || null,
     parsed: output.parsed || null,
     reasoning: output.parsed && output.parsed.citedReasoning || null,
     stageReceipt: output.stageReceipt || null,
@@ -807,6 +810,8 @@ function recomputePanelSeatFromRecheck(seat, recheck, { evidenceSources = [] } =
   return {
     ...seat,
     answer: recheck.answer || null,
+    termination: recheck.termination || null,
+    lifecycle: recheck.lifecycle || null,
     parsed: recheck.parsed || null,
     reasoning: recheck.parsed && recheck.parsed.citedReasoning || null,
     inputReceipt: recheck.inputProvenance || null,
