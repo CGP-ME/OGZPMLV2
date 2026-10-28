@@ -692,7 +692,7 @@ class EnhancedPatternChecker {
    * @param {number} limit - Maximum number of results
    * @returns {Array} Similar patterns
    */
-  findSimilarPatterns(features, threshold = 0.8, limit = 5) {
+  findSimilarPatterns(features, threshold = ConfigLoader.get('patternMemory.querySimilarityThreshold'), limit = ConfigLoader.get('internals.patternMemory.matching.similarityLimitDefault')) {
     return this.memory.findSimilarPatterns(features, threshold, limit);
   }
 

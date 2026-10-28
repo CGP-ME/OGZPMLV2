@@ -298,7 +298,20 @@
     }
   },
   "patternMemory": {
-    "saveInBacktest": false
+    "saveInBacktest": false,
+    "matching": {
+      "dtwWindow": 20,
+      "dtwMinimumTrades": 3,
+      "distanceScale": 1.8,
+      "compatBuyConfidence": 0.6,
+      "compatSellConfidence": 0.4,
+      "compatQualitySamples": 10,
+      "similarityLimitDefault": 5
+    },
+    "retention": {
+      "sparseTradeCutoff": 3,
+      "unseenAgeMultiplier": 2
+    }
   },
   "tooling": {
     "confidenceGrid": {

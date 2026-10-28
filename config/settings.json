@@ -1566,7 +1566,8 @@
       "promoteMinAvgR": 0.15,
       "quarantineMaxWinRate": 0.45,
       "maxPatterns": 10000
-    }
+    },
+    "querySimilarityThreshold": 0.8
   },
   "positionSizing": {
     "basePositionSize": 0.01,

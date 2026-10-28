@@ -81,8 +81,8 @@ function dynamicTimeWarping(seriesA, seriesB) {
   const dtw = Array.from({ length: n + 1 }, () => new Float64Array(m + 1).fill(Infinity));
   dtw[0][0] = 0;
   for (let i = 1; i <= n; i++) {
-    const windowStart = Math.max(1, i - 20);
-    const windowEnd = Math.min(m, i + 20);
+    const windowStart = Math.max(1, i - ConfigLoader.get('internals.patternMemory.matching.dtwWindow'));
+    const windowEnd = Math.min(m, i + ConfigLoader.get('internals.patternMemory.matching.dtwWindow'));
     for (let j = windowStart; j <= windowEnd; j++) {
       const cost = Math.abs(seriesA[i - 1] - seriesB[j - 1]);
       dtw[i][j] = cost + Math.min(dtw[i - 1][j], dtw[i][j - 1], dtw[i - 1][j - 1]);
@@ -550,12 +550,12 @@ class UnifiedPatternMemory {
     for (const [sig, pattern] of Object.entries(this.#patterns)) {
       if (pattern.scopeKey !== scope.scopeKey) continue;
       const totalTrades = pattern.wins + pattern.losses;
-      if (totalTrades < 3) continue; // Skip very sparse patterns
+      if (totalTrades < ConfigLoader.get('internals.patternMemory.matching.dtwMinimumTrades')) continue; // Skip very sparse patterns
       if (!pattern.features || pattern.features.length !== features.length) continue;
 
       const normStored = normalize(pattern.features);
       const distance = dynamicTimeWarping(normFeatures, normStored);
-      const similarity = Math.max(0, 1 - (distance / (features.length * 1.8)));
+      const similarity = Math.max(0, 1 - (distance / (features.length * ConfigLoader.get('internals.patternMemory.matching.distanceScale'))));
 
       if (similarity > this.config.dtwThreshold && similarity > bestSimilarity) {
         bestSimilarity = similarity;
@@ -580,14 +580,14 @@ class UnifiedPatternMemory {
       const totalTrades = pattern.wins + pattern.losses;
 
       // Prune old patterns with few trades
-      if (age > maxAgeMs && totalTrades < 3) {
+      if (age > maxAgeMs && totalTrades < ConfigLoader.get('internals.patternMemory.retention.sparseTradeCutoff')) {
         delete this.#patterns[sig];
         pruned++;
         continue;
       }
 
       // Prune patterns that haven't been seen in 2x max age
-      if (now - pattern.lastSeen > maxAgeMs * 2) {
+      if (now - pattern.lastSeen > maxAgeMs * ConfigLoader.get('internals.patternMemory.retention.unseenAgeMultiplier')) {
         delete this.#patterns[sig];
         pruned++;
         continue;
@@ -1107,14 +1107,14 @@ class UnifiedPatternMemory {
       };
     }
 
-    const direction = result.confidence >= 0.6 ? 'buy' :
-                      result.confidence <= 0.4 ? 'sell' : 'hold';
+    const direction = result.confidence >= ConfigLoader.get('internals.patternMemory.matching.compatBuyConfidence') ? 'buy' :
+                      result.confidence <= ConfigLoader.get('internals.patternMemory.matching.compatSellConfidence') ? 'sell' : 'hold';
 
     return {
       confidence: result.confidence,
       direction,
       reason: result.source,
-      quality: result.stats ? result.stats.totalTrades / 10 : 0,
+      quality: result.stats ? result.stats.totalTrades / ConfigLoader.get('internals.patternMemory.matching.compatQualitySamples') : 0,
       bestMatch: result.stats ? { pattern: 'DTW_MATCH', ...result.stats } : null,
       timesSeen: result.stats?.timesSeen || 0,
       winRate: result.stats?.winRate || 0,
@@ -1129,7 +1129,7 @@ class UnifiedPatternMemory {
    * @param {number} limit
    * @returns {Array}
    */
-  findSimilarPatterns(featuresOrQuery, threshold = 0.8, limit = 5) {
+  findSimilarPatterns(featuresOrQuery, threshold = ConfigLoader.get('patternMemory.querySimilarityThreshold'), limit = ConfigLoader.get('internals.patternMemory.matching.similarityLimitDefault')) {
     // Handle both array and object input
     const features = Array.isArray(featuresOrQuery)
       ? featuresOrQuery
@@ -1148,7 +1148,7 @@ class UnifiedPatternMemory {
 
       const normStored = normalize(pattern.features);
       const distance = dynamicTimeWarping(normFeatures, normStored);
-      const similarity = Math.max(0, 1 - (distance / (features.length * 1.8)));
+      const similarity = Math.max(0, 1 - (distance / (features.length * ConfigLoader.get('internals.patternMemory.matching.distanceScale'))));
 
       if (similarity >= threshold) {
         matches.push({
