@@ -221,7 +221,7 @@ class WebSocketManager {
           this.ctx.dashboardReconnectTimeout = setTimeout(() => {
             this.ctx.dashboardReconnectTimeout = null;
             if (this.ctx.isRunning) this.initializeDashboardWebSocket();
-          }, 2000);
+          }, ConfigLoader.getInternalsFileValue('transport.dashboardClient.reconnectDelayMs'));
         }
       });
 
@@ -300,19 +300,19 @@ class WebSocketManager {
           // CHANGE 2026-01-30: Handle timeframe change from dashboard
           // Fetch REAL historical data from Kraken REST API, not just cached WebSocket data
           if (msg.type === 'timeframe_change') {
-            const newTimeframe = msg.timeframe || '1m';
+            const newTimeframe = msg.timeframe || ConfigLoader.getInternalsFileValue('runner.dashboard.initialTimeframe');
             console.log(`[WebSocketManager] Dashboard timeframe changed to: ${newTimeframe}`);
             this.ctx.dashboardTimeframe = newTimeframe;
 
             // Fetch historical candles from Kraken REST API
-            this.ctx.fetchAndSendHistoricalCandles(newTimeframe, 200, msg.asset);
+            this.ctx.fetchAndSendHistoricalCandles(newTimeframe, ConfigLoader.getInternalsFileValue('runner.dashboard.historicalRequestDefaultLimit'), msg.asset);
             return;
           }
 
           // CHANGE 2026-01-30: Handle request for historical data
           if (msg.type === 'request_historical') {
-            const timeframe = msg.timeframe || '1m';
-            const limit = msg.limit || 200;
+            const timeframe = msg.timeframe || ConfigLoader.getInternalsFileValue('runner.dashboard.initialTimeframe');
+            const limit = msg.limit || ConfigLoader.getInternalsFileValue('runner.dashboard.historicalRequestDefaultLimit');
 
             // Fetch historical candles from Kraken REST API
             this.ctx.fetchAndSendHistoricalCandles(timeframe, limit, msg.asset);
@@ -369,7 +369,7 @@ class WebSocketManager {
 
           // TRAI Chat Support - Tech support queries from dashboard
           if (msg.type === 'trai_query' && this.ctx.trai) {
-            console.log('[TRAI] Received chat query:', msg.query?.substring(0, 50) + '...');
+            console.log('[TRAI] Received chat query:', msg.query?.substring(0, ConfigLoader.getInternalsFileValue('transport.dashboardClient.queryLogMaxChars')) + '...');
             this.ctx.handleTraiQuery(msg);
           }
         } catch (error) {
@@ -399,9 +399,9 @@ class WebSocketManager {
       clearInterval(this.ctx.dataWatchdogInterval);
     }
 
-    const PING_INTERVAL = 15000; // 15 seconds (more aggressive)
-    const PONG_TIMEOUT = 30000;  // 30 seconds (miss 2 pings = dead)
-    const DATA_TIMEOUT = 60000;  // 60 seconds no data = force reconnect
+    const PING_INTERVAL = ConfigLoader.getInternalsFileValue('transport.dashboardClient.pingIntervalMs'); // 15 seconds (more aggressive)
+    const PONG_TIMEOUT = ConfigLoader.getInternalsFileValue('transport.dashboardClient.pongTimeoutMs');  // 30 seconds (miss 2 pings = dead)
+    const DATA_TIMEOUT = ConfigLoader.getInternalsFileValue('transport.dashboardClient.dataTimeoutMs');  // 60 seconds no data = force reconnect
 
     // Reset the data-watchdog grace window on each authenticated connection.
     this.ctx.lastDashboardMessageReceived = Date.now();
@@ -459,7 +459,7 @@ class WebSocketManager {
           console.error('[Watchdog] Terminate failed:', e.message);
         }
       }
-    }, 30000); // Check every 30s
+    }, ConfigLoader.getInternalsFileValue('transport.dashboardClient.watchdogPollMs')); // Check every 30s
 
     console.log('[WebSocketManager] Heartbeat started (ping every 15s, pong timeout 30s, data timeout 60s)');
   }
@@ -532,7 +532,7 @@ class WebSocketManager {
       } catch (error) {
         console.error('[WebSocketManager] bot_state broadcast failed:', error.message);
       }
-    }, 60000);
+    }, ConfigLoader.getInternalsFileValue('transport.dashboardClient.botStateIntervalMs'));
   }
 }
 

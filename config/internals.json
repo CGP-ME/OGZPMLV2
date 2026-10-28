@@ -2727,6 +2727,15 @@
       "backoffMultiplier": 2,
       "watchdogMinPollMs": 1000,
       "watchdogPollDivisor": 2
+    },
+    "dashboardClient": {
+      "reconnectDelayMs": 2000,
+      "pingIntervalMs": 15000,
+      "pongTimeoutMs": 30000,
+      "dataTimeoutMs": 60000,
+      "watchdogPollMs": 30000,
+      "botStateIntervalMs": 60000,
+      "queryLogMaxChars": 50
     }
   },
   "runner": {
