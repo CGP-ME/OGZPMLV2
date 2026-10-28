@@ -1,5 +1,6 @@
 'use strict';
 
+const ConfigLoader = require('./foundation/ConfigLoader');
 const { getInternalsFileValue } = require('./foundation/ConfigLoader');
 
 const PROJECT_ROOT = __dirname;
@@ -11,40 +12,40 @@ module.exports = {
       name: 'ogz-websocket',
       script: 'ogzprime-ssl-server.js',
       cwd: PROJECT_ROOT,
-      watch: false,
+      watch: ConfigLoader.getInternalsFileValue('deployment.pm2.websocket.watch'),
       autorestart: PM2.websocket.autorestart,
       max_restarts: PM2.websocket.maxRestarts,
       restart_delay: PM2.websocket.restartDelayMs,
       min_uptime: PM2.websocket.minUptimeMs,
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.websocket.nodeEnv')
       }
     },
     {
       name: 'ogz-stripe',
       script: 'public/stripe-checkout.js',
       cwd: PROJECT_ROOT,
-      watch: false,
+      watch: ConfigLoader.getInternalsFileValue('deployment.pm2.checkout.watch'),
       autorestart: PM2.checkout.autorestart,
       max_restarts: PM2.checkout.maxRestarts,
       restart_delay: PM2.checkout.restartDelayMs,
       min_uptime: PM2.checkout.minUptimeMs,
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.checkout.nodeEnv')
       }
     },
     {
       name: 'ogz-prime-v2',
       script: 'run-empire-v2.js',
       cwd: PROJECT_ROOT,
-      watch: false,
+      watch: ConfigLoader.getInternalsFileValue('deployment.pm2.bot.watch'),
       autorestart: PM2.bot.autorestart,
       max_restarts: PM2.bot.maxRestarts,
       restart_delay: PM2.bot.restartDelayMs,
       min_uptime: PM2.bot.minUptimeMs,
       env: {
-        NODE_ENV: 'production',
-        PROFILE: 'paper'
+        NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.bot.nodeEnv'),
+        PROFILE: ConfigLoader.getInternalsFileValue('deployment.pm2.bot.launchProfile')
       }
     },
     {
@@ -64,7 +65,7 @@ module.exports = {
       name: 'ogz-supervisor',
       script: 'scripts/supervisor-daemon.js',
       cwd: PROJECT_ROOT,
-      watch: false,
+      watch: ConfigLoader.getInternalsFileValue('deployment.pm2.supervisor.watch'),
       // PM2 owns this process's outer autorestart behavior. These values are
       // separate from the daemon's configured target-recovery window.
       autorestart: PM2.supervisor.autorestart,
@@ -75,7 +76,7 @@ module.exports = {
       // subsystems within 2s on a healthy host.
       min_uptime: PM2.supervisor.minUptimeMs,
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.supervisor.nodeEnv')
       }
     }
   ]

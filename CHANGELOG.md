@@ -1,3 +1,10 @@
+## 2026-10-28 — Stop 1 S01: centralize PM2 declaration constants
+
+- Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.
+- Actual verification: 1714 actual service-consumer comparisons and standalone construction checks pass. Tested source and commands: `1ead7c01f042d6904397c288f8c7719c6abbffd1`, `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch2-7-proofs.json`. Code source matches the tested group; preserve existing executable file modes during delivery.
+- Review/findings: Mercury reported cannot_verify and ADVERSARIAL_REVIEW_BLOCKING: no, with no concrete allegation. Its stated missing evidence was a failing runtime test; no failure is required to support a passing bounded relocation check. Actual host service-consumer and standalone checks pass. Host disposition: no supported migration defect remains; preserve the reviewer coverage limitation and deliver the verified relocation. No Mercury approval beyond its nonblocking no-defect finding, Astra approval or panel convergence is claimed. Astra failed to deliver its answer; focused follow-up recorded separately. Review source `a748b52767af12829dc5c15a197b08bfac0b2197`; full answer and executing-harness identity: `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch7-review.log`, `batch7-manifest.json`. The reviewed changes are split into atomic commits with each owner and its consumers together.
+- Limitations/activation: Bounded isolated consumer verification, not complete backtests or live-runtime acceptance. Existing unrelated problems remain on `ogz-meta/inbox/codex/2026-10-26/stop1-migration-issues.md`. Unrelated dirty work is preserved. No PM2 restart, environment change, live order or runtime activation.
+
 ## 2026-10-28 — Stop 1 S11, S12, S13: centralize Alpaca transport and history constants
 
 - Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.

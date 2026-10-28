@@ -2426,25 +2426,34 @@
         "autorestart": true,
         "maxRestarts": 16,
         "restartDelayMs": 0,
-        "minUptimeMs": 1000
+        "minUptimeMs": 1000,
+        "watch": false,
+        "nodeEnv": "production"
       },
       "checkout": {
         "autorestart": true,
         "maxRestarts": 16,
         "restartDelayMs": 0,
-        "minUptimeMs": 1000
+        "minUptimeMs": 1000,
+        "watch": false,
+        "nodeEnv": "production"
       },
       "bot": {
         "autorestart": true,
         "maxRestarts": 10,
         "restartDelayMs": 5000,
-        "minUptimeMs": 1000
+        "minUptimeMs": 1000,
+        "watch": false,
+        "nodeEnv": "production",
+        "launchProfile": "paper"
       },
       "supervisor": {
         "autorestart": true,
         "maxRestarts": 10,
         "restartDelayMs": 5000,
-        "minUptimeMs": 2000
+        "minUptimeMs": 2000,
+        "watch": false,
+        "nodeEnv": "production"
       }
     }
   },
