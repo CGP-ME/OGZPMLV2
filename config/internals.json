@@ -2363,6 +2363,21 @@
       "ntfy": {
         "requestTimeoutMs": 5000
       }
+    },
+    "newsSearchPolicy": {
+      "maximumResults": 20,
+      "tavilySearchDepth": "basic",
+      "tavilyIncludeAnswer": true,
+      "tavilyIncludeRawContent": false,
+      "tavilySnippetLength": 300,
+      "brightDataSnippetLength": 300,
+      "alpacaSnippetLength": 300,
+      "form4SummaryTransactions": 2,
+      "filingCollectionMultiplier": 3,
+      "edgarSnippetLength": 300,
+      "whaleMaxRows": 3,
+      "minimumNonWhaleSlots": 1,
+      "filingSlotsDivisor": 2
     }
   },
   "exitContracts": {

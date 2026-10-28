@@ -57,6 +57,7 @@
 
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { whaleActivityForSymbol } = require('./WhaleFilings');
 
 const SUPPORTED_PROVIDERS = new Set(['tavily', 'brightdata', 'alpaca', 'alpaca-edgar']);
@@ -114,7 +115,7 @@ function resolveNewsSearchConfigFromRuntime(runtimeConfig) {
 
 function boundedMaxResults(maxResults) {
   const n = Number(maxResults);
-  if (!Number.isInteger(n) || n < 1 || n > 20) {
+  if (!Number.isInteger(n) || n < 1 || n > ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.maximumResults')) {
     throw new Error(`[NewsSearchProvider] maxResults must be an integer 1..20 (got ${maxResults})`);
   }
   return n;
@@ -135,10 +136,10 @@ async function tavilySearchImpl(config, query, maxResults) {
     body: JSON.stringify({
       api_key: config.apiKey,
       query,
-      search_depth: 'basic',
+      search_depth: ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.tavilySearchDepth'),
       max_results: maxResults,
-      include_answer: true,
-      include_raw_content: false,
+      include_answer: ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.tavilyIncludeAnswer'),
+      include_raw_content: ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.tavilyIncludeRawContent'),
     }),
   });
 
@@ -156,7 +157,7 @@ async function tavilySearchImpl(config, query, maxResults) {
     results: data.results.map(r => ({
       title: cleanString(r && r.title),
       url: cleanString(r && r.url),
-      snippet: cleanString(r && r.content).substring(0, 300),
+      snippet: cleanString(r && r.content).substring(0, ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.tavilySnippetLength')),
     })).filter(r => r.title && r.url),
   };
 }
@@ -199,7 +200,7 @@ async function brightDataSearchImpl(config, query, maxResults) {
   const results = parsed.organic.slice(0, maxResults).map(r => ({
     title: cleanString(r && r.title),
     url: cleanString(r && r.link),
-    snippet: cleanString(r && r.description).substring(0, 300),
+    snippet: cleanString(r && r.description).substring(0, ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.brightDataSnippetLength')),
   })).filter(r => r.title && r.url);
 
   if (parsed.organic.length > 0 && results.length === 0) {
@@ -252,7 +253,7 @@ async function alpacaSearchImpl(config, query, maxResults) {
     results: data.news.slice(0, maxResults).map(n => ({
       title: cleanString(n && n.headline),
       url: cleanString(n && n.url),
-      snippet: cleanString(n && (n.summary || n.headline)).substring(0, 300),
+      snippet: cleanString(n && (n.summary || n.headline)).substring(0, ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.alpacaSnippetLength')),
     })).filter(r => r.title && r.url),
   };
 }
@@ -382,7 +383,7 @@ function _edgarParseForm4Xml(xml, filingDate) {
     if (aSignal !== bSignal) return bSignal - aSignal;
     return (b.shares * (b.price || 1)) - (a.shares * (a.price || 1));
   });
-  const parts = txns.slice(0, 2).map(t => {
+  const parts = txns.slice(0, ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.form4SummaryTransactions')).map(t => {
     const label = EDGAR_TXN_CODE_LABELS[t.code] || `code ${t.code}`;
     const dir = t.disposed ? '-' : '+';
     const priceStr = t.price ? ` @ $${t.price}` : '';
@@ -391,7 +392,7 @@ function _edgarParseForm4Xml(xml, filingDate) {
 
   return {
     title: `Insider Form 4 — ${owner}${role}: ${parts[0]}`,
-    snippet: `SEC EDGAR primary source. ${owner}${role}, ${filingDate}: ${parts.join('; ')}${txns.length > 2 ? `; +${txns.length - 2} more transactions` : ''}.`,
+    snippet: `SEC EDGAR primary source. ${owner}${role}, ${filingDate}: ${parts.join('; ')}${txns.length > ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.form4SummaryTransactions') ? `; +${txns.length - ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.form4SummaryTransactions')} more transactions` : ''}.`,
   };
 }
 
@@ -451,7 +452,7 @@ async function _edgarRecentFilings(symbol, config, maxResults) {
   const cikNumeric = String(Number(mapped.cik));
   // Collect up to 3x the requested count so query-aware prioritization has
   // insider filings to promote even when routine paper is newer.
-  const collectMax = maxResults * 3;
+  const collectMax = maxResults * ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.filingCollectionMultiplier');
   for (let i = 0; i < recent.form.length && results.length < collectMax; i++) {
     const filingDate = recent.filingDate[i];
     if (filingDate < cutoff) break; // arrays are newest-first
@@ -476,7 +477,7 @@ async function _edgarRecentFilings(symbol, config, maxResults) {
       form: recent.form[i],
       title,
       url: `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accession}/${primaryDoc}`,
-      snippet: snippet.substring(0, 300),
+      snippet: snippet.substring(0, ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.edgarSnippetLength')),
     });
   }
 
@@ -522,7 +523,7 @@ async function alpacaEdgarSearchImpl(config, query, maxResults) {
     alpacaSearchImpl(config, query, maxResults),
     _edgarRecentFilings(symbol, config, maxResults),
     insiderIntent
-      ? whaleActivityForSymbol(symbol, { userAgent: config.edgarUserAgent, maxRows: 3 }).catch(() => [])
+      ? whaleActivityForSymbol(symbol, { userAgent: config.edgarUserAgent, maxRows: ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.whaleMaxRows') }).catch(() => [])
       : Promise.resolve([]),
   ]);
   const filings = _edgarPrioritizeForQuery(rawFilings, query)
@@ -530,8 +531,8 @@ async function alpacaEdgarSearchImpl(config, query, maxResults) {
 
   // Whale rows lead (freshest conviction data), filings take up to half
   // the remaining slots (rounded up); the news wire backfills the rest.
-  const merged = whaleRows.slice(0, Math.max(0, maxResults - 1));
-  const filingSlots = Math.min(filings.length, Math.ceil((maxResults - merged.length) / 2));
+  const merged = whaleRows.slice(0, Math.max(0, maxResults - ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.minimumNonWhaleSlots')));
+  const filingSlots = Math.min(filings.length, Math.ceil((maxResults - merged.length) / ConfigLoader.getInternalsFileValue('services.newsSearchPolicy.filingSlotsDivisor')));
   merged.push(...filings.slice(0, filingSlots));
   for (const r of newsResult.results) {
     if (merged.length >= maxResults) break;
