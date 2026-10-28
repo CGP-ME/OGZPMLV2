@@ -92,7 +92,7 @@ class AuthFailureGuard {
 
     const detailStr = detail == null
       ? ''
-      : `: ${(typeof detail === 'string' ? detail : JSON.stringify(detail)).slice(0, 200)}`;
+      : `: ${(typeof detail === 'string' ? detail : JSON.stringify(detail)).slice(0, ConfigLoader.getInternalsFileValue('broker.authDiagnostics.detailMaxChars'))}`;
     console.error(
       `[AuthFailureGuard] ${broker} ${kind} failure ${fresh.length}/${this.config.thresholdCount} within ${this.config.windowMs}ms${detailStr}`
     );

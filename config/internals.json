@@ -967,6 +967,9 @@
     },
     "alpacaDiagnostics": {
       "controlMessageMaxChars": 240
+    },
+    "authDiagnostics": {
+      "detailMaxChars": 200
     }
   },
   "indicators": {
