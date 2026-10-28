@@ -2,6 +2,7 @@
 
 const { c } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'entryPeriod',
@@ -169,7 +170,8 @@ class DonchianBreakout {
   }
 
   _confidence(extensionAtr) {
-    return Math.max(0, Math.min(1, 0.55 + Math.min(0.30, extensionAtr * 0.15)));
+    const confidence = ConfigLoader.getInternalsFileValue('strategies.DonchianBreakout.confidence');
+    return Math.max(0, Math.min(1, confidence.base + Math.min(confidence.extensionCap, extensionAtr * confidence.extensionScale)));
   }
 
   getState() {

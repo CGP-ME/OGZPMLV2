@@ -1630,5 +1630,14 @@
   },
   "patternRecognition": {
     "signatureQuantizationSteps": 20
+  },
+  "strategies": {
+    "DonchianBreakout": {
+      "confidence": {
+        "base": 0.55,
+        "extensionCap": 0.3,
+        "extensionScale": 0.15
+      }
+    }
   }
 }
