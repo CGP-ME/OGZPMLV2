@@ -1,5 +1,7 @@
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
 /**
  * MultiTimeframeAdapter.js — V2-Compatible Rebuild
  * =================================================
@@ -236,7 +238,7 @@ class MultiTimeframeAdapter extends EventEmitter {
           bollinger: this._calcBollinger(closes, p.bollingerPeriod, p.bollingerStd),
           trend: null,
           trendStrength: 0,
-          volumeSMA: this._calcSMA(volumes, 20),
+          volumeSMA: this._calcSMA(volumes, ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.volumeSmaPeriod')),
           volumeRatio: 0,
         };
 
@@ -373,39 +375,39 @@ class MultiTimeframeAdapter extends EventEmitter {
       if (ind.rsi !== null) {
         rsiSum += ind.rsi;
         rsiCount++;
-        if (ind.rsi < 30) signal += 0.4;
-        else if (ind.rsi > 70) signal -= 0.4;
-        else if (ind.rsi < 45) signal += 0.1;
-        else if (ind.rsi > 55) signal -= 0.1;
+        if (ind.rsi < ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiLow')) signal += ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiExtremeWeight');
+        else if (ind.rsi > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiHigh')) signal -= ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiExtremeWeight');
+        else if (ind.rsi < ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiSoftLow')) signal += ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiSoftWeight');
+        else if (ind.rsi > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiSoftHigh')) signal -= ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiSoftWeight');
       }
 
       // Trend
       if (ind.trend === 'bullish') {
-        signal += 0.3 * Math.min(1, ind.trendStrength);
+        signal += ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.trendWeight') * Math.min(1, ind.trendStrength);
         analysis.bullishCount++;
       } else if (ind.trend === 'bearish') {
-        signal -= 0.3 * Math.min(1, ind.trendStrength);
+        signal -= ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.trendWeight') * Math.min(1, ind.trendStrength);
         analysis.bearishCount++;
       } else {
         analysis.neutralCount++;
       }
 
       // MACD
-      if (ind.macd) signal += ind.macd.bullish ? 0.2 : -0.2;
+      if (ind.macd) signal += ind.macd.bullish ? ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.macdWeight') : -ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.macdWeight');
 
       // Bollinger
       if (ind.bollinger && ind.price) {
         const bbRange = ind.bollinger.upper - ind.bollinger.lower;
         if (bbRange > 0) {
           const bbPos = (ind.price - ind.bollinger.lower) / bbRange;
-          if (bbPos < 0.2) signal += 0.1;
-          else if (bbPos > 0.8) signal -= 0.1;
+          if (bbPos < ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.bbLow')) signal += ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.bbWeight');
+          else if (bbPos > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.bbHigh')) signal -= ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.bbWeight');
         }
       }
 
       signal = Math.max(-1, Math.min(1, signal));
 
-      if (!primaryTrend && ind.trend && weight >= 0.10) primaryTrend = ind.trend;
+      if (!primaryTrend && ind.trend && weight >= ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.primaryTrendMinimumWeight')) primaryTrend = ind.trend;
       if (ind.trend && primaryTrend) {
         trendTotal++;
         if (ind.trend === primaryTrend) trendMatches++;
@@ -415,7 +417,7 @@ class MultiTimeframeAdapter extends EventEmitter {
       totalWeight += weight;
 
       analysis.timeframeSignals[tf] = {
-        signal: signal > 0.15 ? 'bullish' : signal < -0.15 ? 'bearish' : 'neutral',
+        signal: signal > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.directionThreshold') ? 'bullish' : signal < -ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.directionThreshold') ? 'bearish' : 'neutral',
         strength: Math.abs(signal),
         rsi: ind.rsi ? Math.round(ind.rsi * 10) / 10 : null,
         trend: ind.trend,
@@ -427,21 +429,21 @@ class MultiTimeframeAdapter extends EventEmitter {
     if (totalWeight > 0) analysis.confluenceScore = weightedScore / totalWeight;
     if (rsiCount > 0) {
       analysis.rsiAverage = rsiSum / rsiCount;
-      analysis.rsiExtreme = analysis.rsiAverage < 30 || analysis.rsiAverage > 70;
+      analysis.rsiExtreme = analysis.rsiAverage < ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiLow') || analysis.rsiAverage > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.rsiHigh');
     }
     if (trendTotal > 0) analysis.trendAlignment = trendMatches / trendTotal;
 
     const score = analysis.confluenceScore;
-    if (score > 0.4) analysis.overallBias = 'strong_bullish';
-    else if (score > 0.15) analysis.overallBias = 'bullish';
-    else if (score < -0.4) analysis.overallBias = 'strong_bearish';
-    else if (score < -0.15) analysis.overallBias = 'bearish';
+    if (score > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.strongBiasThreshold')) analysis.overallBias = 'strong_bullish';
+    else if (score > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.directionThreshold')) analysis.overallBias = 'bullish';
+    else if (score < -ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.strongBiasThreshold')) analysis.overallBias = 'strong_bearish';
+    else if (score < -ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.directionThreshold')) analysis.overallBias = 'bearish';
 
     const agreementRatio = Math.max(analysis.bullishCount, analysis.bearishCount) /
       (analysis.bullishCount + analysis.bearishCount + analysis.neutralCount || 1);
     analysis.confidence = agreementRatio * analysis.trendAlignment;
 
-    analysis.shouldTrade = analysis.confidence > 0.5 && Math.abs(score) > 0.15;
+    analysis.shouldTrade = analysis.confidence > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.tradeConfidenceThreshold') && Math.abs(score) > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.directionThreshold');
     if (analysis.shouldTrade) {
       analysis.direction = score > 0 ? 'buy' : 'sell';
     }

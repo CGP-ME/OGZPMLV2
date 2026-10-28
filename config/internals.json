@@ -196,6 +196,24 @@
       "1h": 720,
       "4h": 360,
       "1d": 365
+    },
+    "scoring": {
+      "volumeSmaPeriod": 20,
+      "rsiLow": 30,
+      "rsiHigh": 70,
+      "rsiSoftLow": 45,
+      "rsiSoftHigh": 55,
+      "rsiExtremeWeight": 0.4,
+      "rsiSoftWeight": 0.1,
+      "trendWeight": 0.3,
+      "macdWeight": 0.2,
+      "bbLow": 0.2,
+      "bbHigh": 0.8,
+      "bbWeight": 0.1,
+      "primaryTrendMinimumWeight": 0.1,
+      "directionThreshold": 0.15,
+      "strongBiasThreshold": 0.4,
+      "tradeConfidenceThreshold": 0.5
     }
   },
   "singleton": {
