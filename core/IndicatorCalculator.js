@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * IndicatorCalculator - Phase 1 of Modular Architecture Refactor
  *
@@ -444,7 +445,7 @@ class IndicatorCalculator {
    */
   static calculateVolatility(candles, period = 20) {
     if (!candles || candles.length < 2) {
-      return 0.02; // Default 2%
+      return ConfigLoader.getInternalsFileValue('indicators.calculator.unavailableVolatility'); // Default 2%
     }
 
     const slice = candles.slice(-period);
@@ -459,7 +460,7 @@ class IndicatorCalculator {
     }
 
     if (returns.length === 0) {
-      return 0.02;
+      return ConfigLoader.getInternalsFileValue('indicators.calculator.unavailableVolatility');
     }
 
     const mean = returns.reduce((a, b) => a + b, 0) / returns.length;

@@ -1032,6 +1032,9 @@
       "expectedNextOpenHour": 10,
       "dashboardCandleSliceStart": -50,
       "minimumIntegerEpochMs": 1000000000000
+    },
+    "calculator": {
+      "unavailableVolatility": 0.02
     }
   },
   "candleStore": {
