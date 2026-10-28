@@ -2574,6 +2574,9 @@
         "hostname": "api.telegram.org",
         "port": 443,
         "parseMode": "Markdown"
+      },
+      "ntfyTransport": {
+        "defaultOrigin": "https://ntfy.sh"
       }
     },
     "newsSearchPolicy": {

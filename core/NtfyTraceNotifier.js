@@ -1,5 +1,6 @@
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 const http = require('http');
 const https = require('https');
 
@@ -7,7 +8,7 @@ function resolveNtfyEndpoint(topic) {
   const rawTopic = typeof topic === 'string' ? topic.trim() : '';
   if (!rawTopic) return null;
   if (/^https?:\/\//i.test(rawTopic)) return rawTopic;
-  return `https://ntfy.sh/${encodeURIComponent(rawTopic)}`;
+  return `${ConfigLoader.getInternalsFileValue('services.notifications.ntfyTransport.defaultOrigin')}/${encodeURIComponent(rawTopic)}`;
 }
 
 function firstFiniteNumber(...values) {
