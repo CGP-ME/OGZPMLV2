@@ -50,16 +50,16 @@ class AlpacaAdapter extends IBrokerAdapter {
             throw new Error(`[Alpaca] mode must be explicitly set to paper or live, got ${mode || '(missing)'}`);
         }
         if (mode === 'live') {
-            this.baseUrl = 'https://api.alpaca.markets';
-            this.dataUrl = 'https://data.alpaca.markets';
-            this.wsUrl = 'wss://stream.data.alpaca.markets/v2/iex';
-            this.accountStreamUrl = 'wss://api.alpaca.markets/stream';
+            this.baseUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.live.tradingUrl');
+            this.dataUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.live.dataUrl');
+            this.wsUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.live.dataWsUrl');
+            this.accountStreamUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.live.accountWsUrl');
             console.log('[Alpaca] LIVE MODE - real money at risk');
         } else {
-            this.baseUrl = 'https://paper-api.alpaca.markets';
-            this.dataUrl = 'https://data.alpaca.markets'; // Data API is same for paper
-            this.wsUrl = 'wss://stream.data.alpaca.markets/v2/iex';
-            this.accountStreamUrl = 'wss://paper-api.alpaca.markets/stream';
+            this.baseUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.paper.tradingUrl');
+            this.dataUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.paper.dataUrl'); // Data API is same for paper
+            this.wsUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.paper.dataWsUrl');
+            this.accountStreamUrl = ConfigLoader.getInternalsFileValue('broker.alpacaEndpoints.paper.accountWsUrl');
             console.log('[Alpaca] Paper trading mode');
         }
 
@@ -658,7 +658,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
     }
 
-    async getCandles(symbol, timeframe = '1m', limit = 100) {
+    async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault')) {
         try {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
@@ -673,10 +673,10 @@ class AlpacaAdapter extends IBrokerAdapter {
                         start: start.toISOString(),
                         end: end.toISOString(),
                         timeframe: tf,
-                        limit: Math.min(limit, 10000),
-                        adjustment: 'raw',
-                        feed: 'iex',
-                        sort: 'desc'
+                        limit: Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit')),
+                        adjustment: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.adjustment'),
+                        feed: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.feed'),
+                        sort: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.sort')
                     }
                 }
             );
@@ -963,7 +963,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             '1m': '1Min', '5m': '5Min', '15m': '15Min',
             '30m': '30Min', '1h': '1Hour', '4h': '4Hour', '1d': '1Day'
         };
-        return map[tf] || '1Min';
+        return map[tf] || ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.mappedTimeframeFallback');
     }
 
     _timeframeIntervalMs(timeframe) {
@@ -994,9 +994,9 @@ class AlpacaAdapter extends IBrokerAdapter {
             '1d': 24 * 60 * 60 * 1000
         };
         const intervalMs = map[timeframe] || map['1m'];
-        const safeLimit = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 100;
-        const requestedWindowMs = intervalMs * safeLimit * 3;
-        const minimumIntradayWindowMs = 7 * 24 * 60 * 60 * 1000;
+        const safeLimit = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault');
+        const requestedWindowMs = intervalMs * safeLimit * ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.lookbackMultiplier');
+        const minimumIntradayWindowMs = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.minimumIntradayDays') * 24 * 60 * 60 * 1000;
         return timeframe === '1d'
             ? requestedWindowMs
             : Math.max(requestedWindowMs, minimumIntradayWindowMs);
@@ -1115,7 +1115,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             return;
         }
         if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
-            console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, 240));
+            console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, ConfigLoader.getInternalsFileValue('broker.alpacaDiagnostics.controlMessageMaxChars')));
         }
         if (msg.T === 'success' && msg.msg === 'authenticated') return;
         if (msg.T === 'error') {
@@ -1187,7 +1187,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         if (frameState.requestedBarFetch) return;
 
         const requestedIntervalMs = this._timeframeIntervalMs(frameState.timeframe);
-        frameState.requestedBarFetch = this.getCandles(symbol, frameState.timeframe, 2)
+        frameState.requestedBarFetch = this.getCandles(symbol, frameState.timeframe, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.requestedBarFetchCount'))
             .then((candles) => {
                 if (this.barSubscriptions.get(symbol) !== barSubscription || barSubscription.requestedFrames.get(frameState.timeframe) !== frameState) return;
                 for (const candle of candles) {

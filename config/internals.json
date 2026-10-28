@@ -938,6 +938,35 @@
       "timeframeDefault": "1m",
       "limitDefault": 100,
       "intervalFallback": 1
+    },
+    "alpacaEndpoints": {
+      "live": {
+        "tradingUrl": "https://api.alpaca.markets",
+        "dataUrl": "https://data.alpaca.markets",
+        "dataWsUrl": "wss://stream.data.alpaca.markets/v2/iex",
+        "accountWsUrl": "wss://api.alpaca.markets/stream"
+      },
+      "paper": {
+        "tradingUrl": "https://paper-api.alpaca.markets",
+        "dataUrl": "https://data.alpaca.markets",
+        "dataWsUrl": "wss://stream.data.alpaca.markets/v2/iex",
+        "accountWsUrl": "wss://paper-api.alpaca.markets/stream"
+      }
+    },
+    "alpacaHistorical": {
+      "timeframeDefault": "1m",
+      "limitDefault": 100,
+      "maxLimit": 10000,
+      "adjustment": "raw",
+      "feed": "iex",
+      "sort": "desc",
+      "mappedTimeframeFallback": "1Min",
+      "lookbackMultiplier": 3,
+      "minimumIntradayDays": 7,
+      "requestedBarFetchCount": 2
+    },
+    "alpacaDiagnostics": {
+      "controlMessageMaxChars": 240
     }
   },
   "indicators": {
