@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * @fileoverview TelegramNotifier - Mobile Trading Alerts via Telegram
  *
@@ -69,7 +70,7 @@ class TelegramNotifier {
    * @param {boolean} silent - Send without notification sound
    * @returns {Promise<boolean>} Success status
    */
-  async sendMessage(message, silent = false) {
+  async sendMessage(message, silent = ConfigLoader.getInternalsFileValue('services.notifications.telegramTransport.silentDefault')) {
     if (!this.isEnabled) return false;
 
     // Rate limiting
@@ -84,13 +85,13 @@ class TelegramNotifier {
       const data = JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
-        parse_mode: 'Markdown',
+        parse_mode: ConfigLoader.getInternalsFileValue('services.notifications.telegramTransport.parseMode'),
         disable_notification: silent
       });
 
       const options = {
-        hostname: 'api.telegram.org',
-        port: 443,
+        hostname: ConfigLoader.getInternalsFileValue('services.notifications.telegramTransport.hostname'),
+        port: ConfigLoader.getInternalsFileValue('services.notifications.telegramTransport.port'),
         path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
         method: 'POST',
         headers: {

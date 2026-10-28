@@ -2565,6 +2565,12 @@
       },
       "ntfy": {
         "requestTimeoutMs": 5000
+      },
+      "telegramTransport": {
+        "silentDefault": false,
+        "hostname": "api.telegram.org",
+        "port": 443,
+        "parseMode": "Markdown"
       }
     },
     "newsSearchPolicy": {
