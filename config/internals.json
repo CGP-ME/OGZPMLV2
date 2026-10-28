@@ -9,9 +9,7 @@
       "confidenceScale": 0.8
     },
     "smartMoneyFib": {
-      "distancePercent": 0.5,
-      "goldenBoost": 0.15,
-      "normalBoost": 0.1
+      "distancePercent": 0.5
     },
     "volumeProfileZones": {
       "pocProximity": 0.002,

@@ -2158,7 +2158,7 @@ class StrategyOrchestrator {
         const fib = ctx.extras?.nearestFibLevel;
         let fibBoost = '';
         if (fib && fib.distance < smartMoneyFib.distancePercent) {
-          const boost = fib.isGoldenZone ? smartMoneyFib.goldenBoost : smartMoneyFib.normalBoost;
+          const boost = fib.isGoldenZone ? fibBoostGolden : fibBoostNormal;
           conf = Math.min(1.0, conf + boost);
           fibBoost = ` + Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
         }
