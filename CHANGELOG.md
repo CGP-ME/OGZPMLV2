@@ -1,3 +1,10 @@
+## 2026-10-28 — Stop 1 M20, M21, M22, M23, M24, M25, M26, M27, M28: centralize candle-pattern policy
+
+- Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.
+- Actual verification: 2506 complete candle-detector comparisons pass, including 1870 matching detected patterns. Tested source and commands: `8c8ebe9c7290385208a7e5328eb348f911e71950`, `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch2-7-proofs.json`. Queries also pass changed-owner checks in batch-ownership-proofs.json.
+- Review/findings: Mercury returned no_break_found and ADVERSARIAL_REVIEW_BLOCKING: no after examining the relocated key/accessor paths. No supported migration defect was found. Its universal all-path and no-inherited-fallback assertions exceed the bounded reads and are not adopted; host execution and exact-source values provide the behavior evidence. Astra failed to deliver an answer; no Astra approval or panel convergence is claimed. Missing review coverage/report fields remain recorded limitations rather than a new verdict ceiling. Review source `beae2cfc99453a3423947d9c089edb1e7fbd79af`; full answer and executing-harness identity: `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch2-review.log`, `batch2-manifest.json`. The reviewed changes are split into atomic commits with each owner and its consumers together.
+- Limitations/activation: Bounded isolated consumer verification, not complete backtests or live-runtime acceptance. Existing unrelated problems remain on `ogz-meta/inbox/codex/2026-10-26/stop1-migration-issues.md`. Unrelated dirty work is preserved. No PM2 restart, environment change, live order or runtime activation.
+
 ## 2026-10-28 — Stop 1 M18, M19: centralize pattern-memory matching and retention
 
 - Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.

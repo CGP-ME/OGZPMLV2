@@ -14,6 +14,8 @@
 
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
 const { c, o, h, l, v } = require('./CandleHelper');
 
 class CandlePatternDetector {
@@ -29,7 +31,7 @@ class CandlePatternDetector {
    * @returns {Array} detected patterns [{name, confidence, direction, description}, ...]
    */
   detect(candles, indicators = {}) {
-    if (!candles || candles.length < 5) return [];
+    if (!candles || candles.length < ConfigLoader.getInternalsFileValue('candlePatterns.history.minimumCandles')) return [];
 
     // Normalize candle format (handle both {o,h,l,c} and {open,high,low,close})
     const c = candles.map(candle => ({
@@ -81,8 +83,8 @@ class CandlePatternDetector {
     }
 
     // === MULTI-CANDLE STRUCTURE PATTERNS (need 20+ candles) ===
-    if (c.length >= 20) {
-      const recent = c.slice(-30); // Use last 30 candles for structure
+    if (c.length >= ConfigLoader.getInternalsFileValue('candlePatterns.history.structureMinimum')) {
+      const recent = c.slice(-ConfigLoader.getInternalsFileValue('candlePatterns.history.structureLookback')); // Use last 30 candles for structure
 
       const dblBottom = this._detectDoubleBottom(recent);
       if (dblBottom) patterns.push(dblBottom);
@@ -103,8 +105,8 @@ class CandlePatternDetector {
       if (ihs) patterns.push(ihs);
     }
 
-    if (c.length >= 15) {
-      const recent = c.slice(-20);
+    if (c.length >= ConfigLoader.getInternalsFileValue('candlePatterns.history.continuationMinimum')) {
+      const recent = c.slice(-ConfigLoader.getInternalsFileValue('candlePatterns.history.continuationLookback'));
 
       const flag = this._detectFlag(recent);
       if (flag) patterns.push(flag);
@@ -141,11 +143,11 @@ class CandlePatternDetector {
     const upperWick = this._upperWick(curr);
 
     // Hammer: small body at top, long lower wick (2x+ body), tiny upper wick
-    if (lowerWick >= body * 2 && upperWick < body * 0.5 && body > range * 0.05) {
+    if (lowerWick >= body * ConfigLoader.getInternalsFileValue('candlePatterns.single.hammerLongWick') && upperWick < body * ConfigLoader.getInternalsFileValue('candlePatterns.single.hammerShortWick') && body > range * ConfigLoader.getInternalsFileValue('candlePatterns.single.minimumBody')) {
       // More confident if in downtrend
-      const trendBonus = (indicators.trend === 'downtrend' || indicators.trend === 'bearish') ? 0.15 : 0;
-      const rsiBonus = (indicators.rsi && indicators.rsi < 35) ? 0.1 : 0;
-      const conf = Math.min(0.55 + trendBonus + rsiBonus + (lowerWick / range) * 0.2, 0.95);
+      const trendBonus = (indicators.trend === 'downtrend' || indicators.trend === 'bearish') ? ConfigLoader.getInternalsFileValue('candlePatterns.single.trendBonus') : 0;
+      const rsiBonus = (indicators.rsi && indicators.rsi < ConfigLoader.getInternalsFileValue('candlePatterns.single.hammerRsi')) ? ConfigLoader.getInternalsFileValue('candlePatterns.single.rsiBonus') : 0;
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.single.baseConfidence') + trendBonus + rsiBonus + (lowerWick / range) * ConfigLoader.getInternalsFileValue('candlePatterns.single.wickConfidenceScale'), ConfigLoader.getInternalsFileValue('candlePatterns.single.confidenceCap'));
 
       return {
         name: 'hammer',
@@ -164,10 +166,10 @@ class CandlePatternDetector {
     const lowerWick = this._lowerWick(curr);
 
     // Shooting star: small body at bottom, long upper wick, tiny lower wick
-    if (upperWick >= body * 2 && lowerWick < body * 0.5 && body > range * 0.05) {
-      const trendBonus = (indicators.trend === 'uptrend' || indicators.trend === 'bullish') ? 0.15 : 0;
-      const rsiBonus = (indicators.rsi && indicators.rsi > 65) ? 0.1 : 0;
-      const conf = Math.min(0.55 + trendBonus + rsiBonus + (upperWick / range) * 0.2, 0.95);
+    if (upperWick >= body * ConfigLoader.getInternalsFileValue('candlePatterns.single.hammerLongWick') && lowerWick < body * ConfigLoader.getInternalsFileValue('candlePatterns.single.hammerShortWick') && body > range * ConfigLoader.getInternalsFileValue('candlePatterns.single.minimumBody')) {
+      const trendBonus = (indicators.trend === 'uptrend' || indicators.trend === 'bullish') ? ConfigLoader.getInternalsFileValue('candlePatterns.single.trendBonus') : 0;
+      const rsiBonus = (indicators.rsi && indicators.rsi > ConfigLoader.getInternalsFileValue('candlePatterns.single.shootingRsi')) ? ConfigLoader.getInternalsFileValue('candlePatterns.single.rsiBonus') : 0;
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.single.baseConfidence') + trendBonus + rsiBonus + (upperWick / range) * ConfigLoader.getInternalsFileValue('candlePatterns.single.wickConfidenceScale'), ConfigLoader.getInternalsFileValue('candlePatterns.single.confidenceCap'));
 
       return {
         name: 'shooting_star',
@@ -184,10 +186,10 @@ class CandlePatternDetector {
     const range = this._range(curr);
 
     // Doji: body is less than 10% of range
-    if (range > 0 && body / range < 0.1) {
+    if (range > 0 && body / range < ConfigLoader.getInternalsFileValue('candlePatterns.single.dojiBodyRatio')) {
       return {
         name: 'doji',
-        confidence: 0.4,
+        confidence: ConfigLoader.getInternalsFileValue('candlePatterns.single.dojiConfidence'),
         direction: 'neutral',
         description: `Doji at $${c(curr).toFixed(2)} — indecision, watch for breakout`
       };
@@ -202,10 +204,10 @@ class CandlePatternDetector {
     const prevBody = this._bodySize(prev);
 
     // Current green candle completely covers previous red candle
-    if (o(curr) <= c(prev) && c(curr) >= o(prev) && currBody > prevBody * 1.2) {
+    if (o(curr) <= c(prev) && c(curr) >= o(prev) && currBody > prevBody * ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.bodyRatio')) {
       const ratio = currBody / prevBody;
-      const trendBonus = (indicators.trend === 'downtrend' || indicators.trend === 'bearish') ? 0.15 : 0;
-      const conf = Math.min(0.5 + Math.min(ratio * 0.1, 0.25) + trendBonus, 0.92);
+      const trendBonus = (indicators.trend === 'downtrend' || indicators.trend === 'bearish') ? ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.trendBonus') : 0;
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.baseConfidence') + Math.min(ratio * ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.ratioScale'), ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.ratioBonusCap')) + trendBonus, ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.confidenceCap'));
 
       return {
         name: 'bullish_engulfing',
@@ -223,10 +225,10 @@ class CandlePatternDetector {
     const currBody = this._bodySize(curr);
     const prevBody = this._bodySize(prev);
 
-    if (o(curr) >= c(prev) && c(curr) <= o(prev) && currBody > prevBody * 1.2) {
+    if (o(curr) >= c(prev) && c(curr) <= o(prev) && currBody > prevBody * ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.bodyRatio')) {
       const ratio = currBody / prevBody;
-      const trendBonus = (indicators.trend === 'uptrend' || indicators.trend === 'bullish') ? 0.15 : 0;
-      const conf = Math.min(0.5 + Math.min(ratio * 0.1, 0.25) + trendBonus, 0.92);
+      const trendBonus = (indicators.trend === 'uptrend' || indicators.trend === 'bullish') ? ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.trendBonus') : 0;
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.baseConfidence') + Math.min(ratio * ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.ratioScale'), ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.ratioBonusCap')) + trendBonus, ConfigLoader.getInternalsFileValue('candlePatterns.engulfing.confidenceCap'));
 
       return {
         name: 'bearish_engulfing',
@@ -248,8 +250,8 @@ class CandlePatternDetector {
     const bBody = this._bodySize(b);
     const cBody = this._bodySize(curr);
 
-    if (bBody < aBody * 0.4 && this._isBullish(curr) && cBody > aBody * 0.5) {
-      const conf = Math.min(0.6 + (cBody / aBody) * 0.15, 0.88);
+    if (bBody < aBody * ConfigLoader.getInternalsFileValue('candlePatterns.star.middleBodyRatio') && this._isBullish(curr) && cBody > aBody * ConfigLoader.getInternalsFileValue('candlePatterns.star.lastBodyRatio')) {
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.star.baseConfidence') + (cBody / aBody) * ConfigLoader.getInternalsFileValue('candlePatterns.star.bodyConfidenceScale'), ConfigLoader.getInternalsFileValue('candlePatterns.star.confidenceCap'));
       return {
         name: 'morning_star',
         confidence: conf,
@@ -267,8 +269,8 @@ class CandlePatternDetector {
     const bBody = this._bodySize(b);
     const cBody = this._bodySize(curr);
 
-    if (bBody < aBody * 0.4 && this._isBearish(curr) && cBody > aBody * 0.5) {
-      const conf = Math.min(0.6 + (cBody / aBody) * 0.15, 0.88);
+    if (bBody < aBody * ConfigLoader.getInternalsFileValue('candlePatterns.star.middleBodyRatio') && this._isBearish(curr) && cBody > aBody * ConfigLoader.getInternalsFileValue('candlePatterns.star.lastBodyRatio')) {
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.star.baseConfidence') + (cBody / aBody) * ConfigLoader.getInternalsFileValue('candlePatterns.star.bodyConfidenceScale'), ConfigLoader.getInternalsFileValue('candlePatterns.star.confidenceCap'));
       return {
         name: 'evening_star',
         confidence: conf,
@@ -285,14 +287,14 @@ class CandlePatternDetector {
     const lows = candles.map(candle => l(candle));
     const highs = candles.map(candle => h(candle));
     const avgRange = (Math.max(...highs) - Math.min(...lows)) || 1;
-    const tolerance = avgRange * 0.02; // 2% of range
+    const tolerance = avgRange * ConfigLoader.getInternalsFileValue('candlePatterns.double.priceTolerance'); // 2% of range
 
     // Find two lowest points that are near each other in price but separated in time
     let minIdx1 = -1, minIdx2 = -1;
     let minVal = Infinity;
     
     // First trough
-    for (let i = 2; i < candles.length - 5; i++) {
+    for (let i = 2; i < candles.length - ConfigLoader.getInternalsFileValue('candlePatterns.double.minimumSeparation'); i++) {
       if (lows[i] < lows[i-1] && lows[i] < lows[i-2] && lows[i] < lows[i+1] && lows[i] < lows[i+2]) {
         if (lows[i] < minVal) { minVal = lows[i]; minIdx1 = i; }
       }
@@ -301,7 +303,7 @@ class CandlePatternDetector {
 
     // Second trough (at least 5 candles apart)
     let min2Val = Infinity;
-    for (let i = minIdx1 + 5; i < candles.length - 2; i++) {
+    for (let i = minIdx1 + ConfigLoader.getInternalsFileValue('candlePatterns.double.minimumSeparation'); i < candles.length - 2; i++) {
       if (lows[i] < lows[i-1] && lows[i] < lows[i+1]) {
         if (Math.abs(lows[i] - minVal) < tolerance && lows[i] < min2Val) {
           min2Val = lows[i]; minIdx2 = i;
@@ -313,13 +315,13 @@ class CandlePatternDetector {
     // Check there's a peak between them
     const midHigh = Math.max(...highs.slice(minIdx1, minIdx2 + 1));
     const necklineDistance = midHigh - minVal;
-    if (necklineDistance < avgRange * 0.03) return null;
+    if (necklineDistance < avgRange * ConfigLoader.getInternalsFileValue('candlePatterns.double.minimumNeckline')) return null;
 
     // Last candle should be recovering (above midpoint)
     const lastClose = c(candles[candles.length - 1]);
-    if (lastClose < minVal + necklineDistance * 0.3) return null;
+    if (lastClose < minVal + necklineDistance * ConfigLoader.getInternalsFileValue('candlePatterns.double.recoveryFraction')) return null;
 
-    const conf = Math.min(0.55 + (necklineDistance / avgRange) * 0.3, 0.85);
+    const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.double.baseConfidence') + (necklineDistance / avgRange) * ConfigLoader.getInternalsFileValue('candlePatterns.double.necklineConfidenceScale'), ConfigLoader.getInternalsFileValue('candlePatterns.double.confidenceCap'));
     return {
       name: 'double_bottom',
       confidence: conf,
@@ -332,12 +334,12 @@ class CandlePatternDetector {
     const highs = candles.map(candle => h(candle));
     const lows = candles.map(candle => l(candle));
     const avgRange = (Math.max(...highs) - Math.min(...lows)) || 1;
-    const tolerance = avgRange * 0.02;
+    const tolerance = avgRange * ConfigLoader.getInternalsFileValue('candlePatterns.double.priceTolerance');
 
     let maxIdx1 = -1, maxIdx2 = -1;
     let maxVal = -Infinity;
 
-    for (let i = 2; i < candles.length - 5; i++) {
+    for (let i = 2; i < candles.length - ConfigLoader.getInternalsFileValue('candlePatterns.double.minimumSeparation'); i++) {
       if (highs[i] > highs[i-1] && highs[i] > highs[i-2] && highs[i] > highs[i+1] && highs[i] > highs[i+2]) {
         if (highs[i] > maxVal) { maxVal = highs[i]; maxIdx1 = i; }
       }
@@ -345,7 +347,7 @@ class CandlePatternDetector {
     if (maxIdx1 < 0) return null;
 
     let max2Val = -Infinity;
-    for (let i = maxIdx1 + 5; i < candles.length - 2; i++) {
+    for (let i = maxIdx1 + ConfigLoader.getInternalsFileValue('candlePatterns.double.minimumSeparation'); i < candles.length - 2; i++) {
       if (highs[i] > highs[i-1] && highs[i] > highs[i+1]) {
         if (Math.abs(highs[i] - maxVal) < tolerance && highs[i] > max2Val) {
           max2Val = highs[i]; maxIdx2 = i;
@@ -356,12 +358,12 @@ class CandlePatternDetector {
 
     const midLow = Math.min(...lows.slice(maxIdx1, maxIdx2 + 1));
     const necklineDistance = maxVal - midLow;
-    if (necklineDistance < avgRange * 0.03) return null;
+    if (necklineDistance < avgRange * ConfigLoader.getInternalsFileValue('candlePatterns.double.minimumNeckline')) return null;
 
     const lastClose = c(candles[candles.length - 1]);
-    if (lastClose > maxVal - necklineDistance * 0.3) return null;
+    if (lastClose > maxVal - necklineDistance * ConfigLoader.getInternalsFileValue('candlePatterns.double.recoveryFraction')) return null;
 
-    const conf = Math.min(0.55 + (necklineDistance / avgRange) * 0.3, 0.85);
+    const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.double.baseConfidence') + (necklineDistance / avgRange) * ConfigLoader.getInternalsFileValue('candlePatterns.double.necklineConfidenceScale'), ConfigLoader.getInternalsFileValue('candlePatterns.double.confidenceCap'));
     return {
       name: 'double_top',
       confidence: conf,
@@ -375,7 +377,7 @@ class CandlePatternDetector {
     const lows = candles.map(candle => l(candle));
 
     // Flat resistance (highs are consistent)
-    const recentHighs = highs.slice(-10);
+    const recentHighs = highs.slice(-ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatLookback'));
     const highRange = Math.max(...recentHighs) - Math.min(...recentHighs);
     const avgPrice = c(candles[candles.length-1]);
     const relHighRange = highRange / avgPrice;
@@ -387,9 +389,9 @@ class CandlePatternDetector {
     const avgQ2Low = q2Lows.reduce((a,b) => a+b, 0) / q2Lows.length;
 
     // Flat top (< 1% range) + rising bottom
-    if (relHighRange < 0.01 && avgQ2Low > avgQ1Low * 1.005) {
+    if (relHighRange < ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatRange') && avgQ2Low > avgQ1Low * ConfigLoader.getInternalsFileValue('candlePatterns.triangle.risingLowMultiplier')) {
       const slopeStrength = (avgQ2Low - avgQ1Low) / avgQ1Low;
-      const conf = Math.min(0.5 + slopeStrength * 10 + (0.01 - relHighRange) * 20, 0.85);
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.triangle.baseConfidence') + slopeStrength * ConfigLoader.getInternalsFileValue('candlePatterns.triangle.slopeScale') + (ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatRange') - relHighRange) * ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatnessScale'), ConfigLoader.getInternalsFileValue('candlePatterns.triangle.confidenceCap'));
       return {
         name: 'ascending_triangle',
         confidence: conf,
@@ -404,7 +406,7 @@ class CandlePatternDetector {
     const highs = candles.map(candle => h(candle));
     const lows = candles.map(candle => l(candle));
 
-    const recentLows = lows.slice(-10);
+    const recentLows = lows.slice(-ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatLookback'));
     const lowRange = Math.max(...recentLows) - Math.min(...recentLows);
     const avgPrice = c(candles[candles.length-1]);
     const relLowRange = lowRange / avgPrice;
@@ -414,9 +416,9 @@ class CandlePatternDetector {
     const avgQ1High = q1Highs.reduce((a,b) => a+b, 0) / q1Highs.length;
     const avgQ2High = q2Highs.reduce((a,b) => a+b, 0) / q2Highs.length;
 
-    if (relLowRange < 0.01 && avgQ2High < avgQ1High * 0.995) {
+    if (relLowRange < ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatRange') && avgQ2High < avgQ1High * ConfigLoader.getInternalsFileValue('candlePatterns.triangle.fallingHighMultiplier')) {
       const slopeStrength = (avgQ1High - avgQ2High) / avgQ1High;
-      const conf = Math.min(0.5 + slopeStrength * 10 + (0.01 - relLowRange) * 20, 0.85);
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.triangle.baseConfidence') + slopeStrength * ConfigLoader.getInternalsFileValue('candlePatterns.triangle.slopeScale') + (ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatRange') - relLowRange) * ConfigLoader.getInternalsFileValue('candlePatterns.triangle.flatnessScale'), ConfigLoader.getInternalsFileValue('candlePatterns.triangle.confidenceCap'));
       return {
         name: 'descending_triangle',
         confidence: conf,
@@ -448,13 +450,13 @@ class CandlePatternDetector {
     
     // Shoulders within 3% of each other
     const shoulderDiff = Math.abs(lShoulder - rShoulder) / ((lShoulder + rShoulder) / 2);
-    if (shoulderDiff > 0.03) return null;
+    if (shoulderDiff > ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.shoulderDifferenceMax')) return null;
 
     // Head meaningfully higher than shoulders
     const headProminence = (headHeight - (lShoulder + rShoulder) / 2) / headHeight;
-    if (headProminence < 0.005) return null;
+    if (headProminence < ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.headProminenceMin')) return null;
 
-    const conf = Math.min(0.55 + (1 - shoulderDiff) * 0.15 + headProminence * 5, 0.88);
+    const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.baseConfidence') + (1 - shoulderDiff) * ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.shoulderScale') + headProminence * ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.headScale'), ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.confidenceCap'));
     return {
       name: 'head_shoulders',
       confidence: conf,
@@ -480,12 +482,12 @@ class CandlePatternDetector {
     const rShoulder = lows[shoulders[1]];
 
     const shoulderDiff = Math.abs(lShoulder - rShoulder) / ((lShoulder + rShoulder) / 2);
-    if (shoulderDiff > 0.03) return null;
+    if (shoulderDiff > ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.shoulderDifferenceMax')) return null;
 
     const headProminence = ((lShoulder + rShoulder) / 2 - headLow) / headLow;
-    if (headProminence < 0.005) return null;
+    if (headProminence < ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.headProminenceMin')) return null;
 
-    const conf = Math.min(0.55 + (1 - shoulderDiff) * 0.15 + headProminence * 5, 0.88);
+    const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.baseConfidence') + (1 - shoulderDiff) * ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.shoulderScale') + headProminence * ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.headScale'), ConfigLoader.getInternalsFileValue('candlePatterns.headShoulders.confidenceCap'));
     return {
       name: 'inverse_head_shoulders',
       confidence: conf,
@@ -496,15 +498,15 @@ class CandlePatternDetector {
 
   _detectFlag(candles) {
     // Strong move (pole) followed by small counter-trend consolidation (flag)
-    const pole = candles.slice(0, Math.floor(candles.length * 0.4));
-    const flag = candles.slice(Math.floor(candles.length * 0.4));
+    const pole = candles.slice(0, Math.floor(candles.length * ConfigLoader.getInternalsFileValue('candlePatterns.flag.poleFraction')));
+    const flag = candles.slice(Math.floor(candles.length * ConfigLoader.getInternalsFileValue('candlePatterns.flag.poleFraction')));
 
     const poleMove = c(pole[pole.length-1]) - c(pole[0]);
     const poleRange = Math.abs(poleMove);
     const avgPrice = c(candles[candles.length-1]);
     const relPole = poleRange / avgPrice;
     
-    if (relPole < 0.01) return null; // Need meaningful pole
+    if (relPole < ConfigLoader.getInternalsFileValue('candlePatterns.flag.poleMin')) return null; // Need meaningful pole
 
     // Flag should be tight consolidation
     const flagHighs = flag.map(candle => h(candle));
@@ -513,12 +515,12 @@ class CandlePatternDetector {
     const relFlag = flagRange / avgPrice;
 
     // Flag range should be < 50% of pole
-    if (flagRange > poleRange * 0.5) return null;
+    if (flagRange > poleRange * ConfigLoader.getInternalsFileValue('candlePatterns.flag.flagPoleRatioMax')) return null;
     // Flag should be at least somewhat tight
-    if (relFlag > 0.015) return null;
+    if (relFlag > ConfigLoader.getInternalsFileValue('candlePatterns.flag.flagPriceRatioMax')) return null;
 
     const direction = poleMove > 0 ? 'buy' : 'sell';
-    const conf = Math.min(0.5 + (1 - flagRange / poleRange) * 0.25, 0.82);
+    const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.flag.baseConfidence') + (1 - flagRange / poleRange) * ConfigLoader.getInternalsFileValue('candlePatterns.flag.compressionScale'), ConfigLoader.getInternalsFileValue('candlePatterns.flag.confidenceCap'));
 
     return {
       name: 'flag',
@@ -543,13 +545,13 @@ class CandlePatternDetector {
                         Math.abs(highSlope - lowSlope) < Math.abs(highSlope) + Math.abs(lowSlope));
 
     // Range is narrowing over time
-    const earlyRange = highs.slice(0, 5).reduce((a,b)=>a+b,0)/5 - lows.slice(0, 5).reduce((a,b)=>a+b,0)/5;
-    const lateRange = highs.slice(-5).reduce((a,b)=>a+b,0)/5 - lows.slice(-5).reduce((a,b)=>a+b,0)/5;
+    const earlyRange = highs.slice(0, ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow')).reduce((a,b)=>a+b,0)/ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow') - lows.slice(0, ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow')).reduce((a,b)=>a+b,0)/ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow');
+    const lateRange = highs.slice(-ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow')).reduce((a,b)=>a+b,0)/ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow') - lows.slice(-ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow')).reduce((a,b)=>a+b,0)/ConfigLoader.getInternalsFileValue('candlePatterns.wedge.edgeWindow');
 
-    if (lateRange < earlyRange * 0.7 && converging) {
+    if (lateRange < earlyRange * ConfigLoader.getInternalsFileValue('candlePatterns.wedge.compressionRatioMax') && converging) {
       const compression = 1 - (lateRange / earlyRange);
       const direction = lowSlope > 0 ? 'buy' : highSlope < 0 ? 'sell' : 'neutral';
-      const conf = Math.min(0.45 + compression * 0.4, 0.8);
+      const conf = Math.min(ConfigLoader.getInternalsFileValue('candlePatterns.wedge.baseConfidence') + compression * ConfigLoader.getInternalsFileValue('candlePatterns.wedge.compressionScale'), ConfigLoader.getInternalsFileValue('candlePatterns.wedge.confidenceCap'));
 
       return {
         name: 'wedge',

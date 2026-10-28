@@ -1752,5 +1752,86 @@
       "stopMin": 0.01,
       "stopMax": 0.05
     }
+  },
+  "candlePatterns": {
+    "history": {
+      "minimumCandles": 5,
+      "structureMinimum": 20,
+      "structureLookback": 30,
+      "continuationMinimum": 15,
+      "continuationLookback": 20
+    },
+    "single": {
+      "hammerLongWick": 2,
+      "hammerShortWick": 0.5,
+      "minimumBody": 0.05,
+      "trendBonus": 0.15,
+      "hammerRsi": 35,
+      "shootingRsi": 65,
+      "rsiBonus": 0.1,
+      "baseConfidence": 0.55,
+      "wickConfidenceScale": 0.2,
+      "confidenceCap": 0.95,
+      "dojiBodyRatio": 0.1,
+      "dojiConfidence": 0.4
+    },
+    "engulfing": {
+      "bodyRatio": 1.2,
+      "trendBonus": 0.15,
+      "baseConfidence": 0.5,
+      "ratioScale": 0.1,
+      "ratioBonusCap": 0.25,
+      "confidenceCap": 0.92
+    },
+    "star": {
+      "middleBodyRatio": 0.4,
+      "lastBodyRatio": 0.5,
+      "baseConfidence": 0.6,
+      "bodyConfidenceScale": 0.15,
+      "confidenceCap": 0.88
+    },
+    "double": {
+      "priceTolerance": 0.02,
+      "minimumSeparation": 5,
+      "minimumNeckline": 0.03,
+      "recoveryFraction": 0.3,
+      "baseConfidence": 0.55,
+      "necklineConfidenceScale": 0.3,
+      "confidenceCap": 0.85
+    },
+    "triangle": {
+      "flatLookback": 10,
+      "flatRange": 0.01,
+      "risingLowMultiplier": 1.005,
+      "fallingHighMultiplier": 0.995,
+      "baseConfidence": 0.5,
+      "slopeScale": 10,
+      "flatnessScale": 20,
+      "confidenceCap": 0.85
+    },
+    "headShoulders": {
+      "shoulderDifferenceMax": 0.03,
+      "headProminenceMin": 0.005,
+      "baseConfidence": 0.55,
+      "shoulderScale": 0.15,
+      "headScale": 5,
+      "confidenceCap": 0.88
+    },
+    "flag": {
+      "poleFraction": 0.4,
+      "poleMin": 0.01,
+      "flagPoleRatioMax": 0.5,
+      "flagPriceRatioMax": 0.015,
+      "baseConfidence": 0.5,
+      "compressionScale": 0.25,
+      "confidenceCap": 0.82
+    },
+    "wedge": {
+      "edgeWindow": 5,
+      "compressionRatioMax": 0.7,
+      "baseConfidence": 0.45,
+      "compressionScale": 0.4,
+      "confidenceCap": 0.8
+    }
   }
 }
