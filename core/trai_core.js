@@ -49,6 +49,7 @@
 
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('events');
@@ -185,7 +186,7 @@ class TRAICore extends EventEmitter {
     if (isLoadingBrain) {
       console.log('Static brain is currently loading, waiting...');
       while (isLoadingBrain) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, ConfigLoader.getInternalsFileValue('trai.corePolicy.brainLoadPollMs')));
       }
       this.staticBrain = staticBrainInstance;
       return;
@@ -287,7 +288,7 @@ class TRAICore extends EventEmitter {
     for (const [category, data] of Object.entries(this.staticBrain)) {
       if (category === 'index') continue;
       const relevance = this.calculateRelevance(query, data.messages);
-      if (relevance > 0.3) {
+      if (relevance > ConfigLoader.getInternalsFileValue('trai.corePolicy.categoryRelevanceThreshold')) {
         categoryMatches[category] = relevance;
       }
     }
@@ -324,7 +325,7 @@ class TRAICore extends EventEmitter {
     if (queryWords.length === 0) return 0;
 
     let totalRelevance = 0;
-    for (const message of messages.slice(0, 50)) {
+    for (const message of messages.slice(0, ConfigLoader.getInternalsFileValue('trai.corePolicy.relevanceMessageLimit'))) {
       if (!message || !message.content) continue;
       const content = message.content.toLowerCase();
       let messageRelevance = 0;
@@ -338,28 +339,18 @@ class TRAICore extends EventEmitter {
   }
 
   assessComplexity(query) {
-    const complexityIndicators = {
-      technical: ['code', 'implement', 'debug', 'error', 'function'],
-      business: ['revenue', 'customer', 'market', 'strategy', 'growth'],
-      trading: ['trade', 'pattern', 'indicator', 'strategy', 'risk'],
-      support: ['help', 'problem', 'issue', 'fix', 'troubleshoot'],
-    };
+    const complexityIndicators = structuredClone(ConfigLoader.getInternalsFileValue('trai.corePolicy.complexityKeywords'));
 
     let complexity = 0;
     const queryLower = query.toLowerCase();
     for (const keywords of Object.values(complexityIndicators)) {
-      if (keywords.some((kw) => queryLower.includes(kw))) complexity += 0.25;
+      if (keywords.some((kw) => queryLower.includes(kw))) complexity += ConfigLoader.getInternalsFileValue('trai.corePolicy.complexityCategoryWeight');
     }
     return Math.min(complexity, 1);
   }
 
   detectIntent(query) {
-    const intents = {
-      question: ['what', 'how', 'why', 'when', 'where', 'who'],
-      request: ['please', 'can you', 'would you', 'help me'],
-      command: ['do this', 'create', 'implement', 'fix', 'update'],
-      information: ['tell me', 'explain', 'describe', 'show me'],
-    };
+    const intents = structuredClone(ConfigLoader.getInternalsFileValue('trai.corePolicy.intentKeywords'));
 
     const queryLower = query.toLowerCase();
     for (const [intent, keywords] of Object.entries(intents)) {
@@ -381,7 +372,7 @@ class TRAICore extends EventEmitter {
       const schema = chooseSchema(query);
       isChatMode = schema.type === 'chat';
     } else {
-      const planningKeywords = ['plan', 'proposal', 'strategy', 'roadmap', 'timeline', 'milestone'];
+      const planningKeywords = structuredClone(ConfigLoader.getInternalsFileValue('trai.schemaPolicy.planningKeywords'));
       isChatMode = !planningKeywords.some((kw) => query.toLowerCase().includes(kw));
     }
 
@@ -483,7 +474,7 @@ class TRAICore extends EventEmitter {
 
       this.processPool.totalCompleted++;
 
-      if (inferenceTime > 10000) {
+      if (inferenceTime > ConfigLoader.getInternalsFileValue('trai.corePolicy.slowInferenceMs')) {
         console.warn(`Slow TRAI inference: ${inferenceTime}ms`);
       }
 
@@ -601,7 +592,7 @@ BOT STATUS:
     });
 
     // Skip trivial interactions
-    if (importance < 0.25) return;
+    if (importance < ConfigLoader.getInternalsFileValue('trai.corePolicy.minimumInteractionImportance')) return;
 
     // Record to semantic memory journal if available
     if (this.memoryStore) {
@@ -620,7 +611,7 @@ BOT STATUS:
       importance,
     });
 
-    if (this.learningQueue.length >= 10) {
+    if (this.learningQueue.length >= ConfigLoader.getInternalsFileValue('trai.corePolicy.learningCommitBatchSize')) {
       await this.commitLearnings();
     }
   }
@@ -633,34 +624,29 @@ BOT STATUS:
     let totalScore = 0;
 
     // 1. Keyword importance (0-0.4)
-    const indicators = [
-      'error', 'bug', 'fix', 'solution', 'critical', 'breakthrough',
-      'innovation', 'improvement', 'security', 'performance', 'optimization',
-      'revenue', 'customer', 'business', 'strategy', 'growth', 'trading',
-      'pattern', 'analysis', 'research', 'technical', 'support',
-    ];
-    const keywordScore = Math.min(indicators.filter((i) => content.includes(i)).length * 0.1, 0.4);
+    const indicators = structuredClone(ConfigLoader.getInternalsFileValue('trai.corePolicy.importanceKeywords'));
+    const keywordScore = Math.min(indicators.filter((i) => content.includes(i)).length * ConfigLoader.getInternalsFileValue('trai.corePolicy.importanceKeywordWeight'), ConfigLoader.getInternalsFileValue('trai.corePolicy.importanceKeywordCap'));
     totalScore += keywordScore;
 
     // 2. Category relevance (0-0.3)
-    const highValue = ['technical_support', 'trading_optimization', 'business_strategy', 'customer_service'];
-    totalScore += highValue.includes(context.category) ? 0.3 : 0.1;
+    const highValue = structuredClone(ConfigLoader.getInternalsFileValue('trai.corePolicy.highValueCategories'));
+    totalScore += highValue.includes(context.category) ? ConfigLoader.getInternalsFileValue('trai.corePolicy.highValueCategoryScore') : ConfigLoader.getInternalsFileValue('trai.corePolicy.otherCategoryScore');
 
     // 3. Novelty (0-0.2)
     totalScore += this.calculateNovelty(content);
 
     // 4. Length & complexity (0-0.1)
-    totalScore += Math.min((query.length + responseText.length) / 1000, 0.1);
+    totalScore += Math.min((query.length + responseText.length) / ConfigLoader.getInternalsFileValue('trai.corePolicy.importanceLengthDivisor'), ConfigLoader.getInternalsFileValue('trai.corePolicy.importanceLengthCap'));
 
     // 5. Timeliness (0-0.1)
     const ageHours = (Date.now() - (context.timestamp || Date.now())) / 3600000;
-    totalScore += Math.max(0.1 - (ageHours / 24) * 0.05, 0);
+    totalScore += Math.max(ConfigLoader.getInternalsFileValue('trai.corePolicy.timelinessInitialScore') - (ageHours / ConfigLoader.getInternalsFileValue('trai.corePolicy.timelinessDecayHours')) * ConfigLoader.getInternalsFileValue('trai.corePolicy.timelinessDecayAmount'), 0);
 
     return Math.min(totalScore, 1);
   }
 
   calculateNovelty(content) {
-    const recentLearnings = this.learningQueue.slice(-10);
+    const recentLearnings = this.learningQueue.slice(-ConfigLoader.getInternalsFileValue('trai.corePolicy.noveltyRecentLimit'));
     let similarityScore = 0;
 
     for (const learning of recentLearnings) {
@@ -669,19 +655,19 @@ BOT STATUS:
       similarityScore = Math.max(similarityScore, overlap);
     }
 
-    return Math.max(0.2 - similarityScore * 0.2, 0);
+    return Math.max(ConfigLoader.getInternalsFileValue('trai.corePolicy.noveltyInitialScore') - similarityScore * ConfigLoader.getInternalsFileValue('trai.corePolicy.noveltyOverlapWeight'), 0);
   }
 
   calculateOverlap(text1, text2) {
-    const words1 = text1.split(/\s+/).filter((w) => w.length > 3);
-    const words2 = text2.split(/\s+/).filter((w) => w.length > 3);
+    const words1 = text1.split(/\s+/).filter((w) => w.length > ConfigLoader.getInternalsFileValue('trai.corePolicy.overlapMinimumWordLengthExclusive'));
+    const words2 = text2.split(/\s+/).filter((w) => w.length > ConfigLoader.getInternalsFileValue('trai.corePolicy.overlapMinimumWordLengthExclusive'));
     const intersection = words1.filter((w) => words2.includes(w));
     const union = [...new Set([...words1, ...words2])];
     return union.length > 0 ? intersection.length / union.length : 0;
   }
 
   async commitLearnings() {
-    const importantLearnings = this.learningQueue.filter((e) => e.importance > 0.75);
+    const importantLearnings = this.learningQueue.filter((e) => e.importance > ConfigLoader.getInternalsFileValue('trai.corePolicy.staticCommitImportanceExclusive'));
 
     if (importantLearnings.length > 0) {
       // Write to journal if memory store available
@@ -723,9 +709,9 @@ BOT STATUS:
   categorizeLearning(learning) {
     const content = (learning.query + learning.response).toLowerCase();
     const categories = [];
-    if (content.includes('customer') || content.includes('support')) categories.push('customer_service');
-    if (content.includes('error') || content.includes('fix') || content.includes('debug')) categories.push('technical_support');
-    if (content.includes('trade') || content.includes('strategy')) categories.push('trading_optimization');
+    if (content.includes(ConfigLoader.getInternalsFileValue('trai.learningCategoryKeywords.customerKeyword')) || content.includes(ConfigLoader.getInternalsFileValue('trai.learningCategoryKeywords.supportKeyword'))) categories.push('customer_service');
+    if (content.includes(ConfigLoader.getInternalsFileValue('trai.learningCategoryKeywords.errorKeyword')) || content.includes(ConfigLoader.getInternalsFileValue('trai.learningCategoryKeywords.fixKeyword')) || content.includes(ConfigLoader.getInternalsFileValue('trai.learningCategoryKeywords.debugKeyword'))) categories.push('technical_support');
+    if (content.includes(ConfigLoader.getInternalsFileValue('trai.learningCategoryKeywords.tradeKeyword')) || content.includes(ConfigLoader.getInternalsFileValue('trai.learningCategoryKeywords.strategyKeyword'))) categories.push('trading_optimization');
     return categories.length > 0 ? categories : ['learned_interactions'];
   }
 

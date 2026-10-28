@@ -138,6 +138,137 @@
       "riskThreshold": 0.5,
       "stopFactor": 0.8,
       "lowLiquidityTargetFactor": 0.7
+    },
+    "corePolicy": {
+      "brainLoadPollMs": 100,
+      "categoryRelevanceThreshold": 0.3,
+      "relevanceMessageLimit": 50,
+      "complexityCategoryWeight": 0.25,
+      "slowInferenceMs": 10000,
+      "minimumInteractionImportance": 0.25,
+      "learningCommitBatchSize": 10,
+      "importanceKeywordWeight": 0.1,
+      "importanceKeywordCap": 0.4,
+      "highValueCategoryScore": 0.3,
+      "otherCategoryScore": 0.1,
+      "importanceLengthDivisor": 1000,
+      "importanceLengthCap": 0.1,
+      "timelinessInitialScore": 0.1,
+      "timelinessDecayHours": 24,
+      "timelinessDecayAmount": 0.05,
+      "noveltyRecentLimit": 10,
+      "noveltyInitialScore": 0.2,
+      "noveltyOverlapWeight": 0.2,
+      "overlapMinimumWordLengthExclusive": 3,
+      "staticCommitImportanceExclusive": 0.75,
+      "complexityKeywords": {
+        "technical": [
+          "code",
+          "implement",
+          "debug",
+          "error",
+          "function"
+        ],
+        "business": [
+          "revenue",
+          "customer",
+          "market",
+          "strategy",
+          "growth"
+        ],
+        "trading": [
+          "trade",
+          "pattern",
+          "indicator",
+          "strategy",
+          "risk"
+        ],
+        "support": [
+          "help",
+          "problem",
+          "issue",
+          "fix",
+          "troubleshoot"
+        ]
+      },
+      "intentKeywords": {
+        "question": [
+          "what",
+          "how",
+          "why",
+          "when",
+          "where",
+          "who"
+        ],
+        "request": [
+          "please",
+          "can you",
+          "would you",
+          "help me"
+        ],
+        "command": [
+          "do this",
+          "create",
+          "implement",
+          "fix",
+          "update"
+        ],
+        "information": [
+          "tell me",
+          "explain",
+          "describe",
+          "show me"
+        ]
+      },
+      "importanceKeywords": [
+        "error",
+        "bug",
+        "fix",
+        "solution",
+        "critical",
+        "breakthrough",
+        "innovation",
+        "improvement",
+        "security",
+        "performance",
+        "optimization",
+        "revenue",
+        "customer",
+        "business",
+        "strategy",
+        "growth",
+        "trading",
+        "pattern",
+        "analysis",
+        "research",
+        "technical",
+        "support"
+      ],
+      "highValueCategories": [
+        "technical_support",
+        "trading_optimization",
+        "business_strategy",
+        "customer_service"
+      ]
+    },
+    "schemaPolicy": {
+      "planningKeywords": [
+        "plan",
+        "proposal",
+        "strategy",
+        "roadmap",
+        "timeline",
+        "milestone"
+      ]
+    },
+    "learningCategoryKeywords": {
+      "customerKeyword": "customer",
+      "supportKeyword": "support",
+      "errorKeyword": "error",
+      "fixKeyword": "fix",
+      "debugKeyword": "debug",
+      "tradeKeyword": "trade",
+      "strategyKeyword": "strategy"
     }
   },
   "monitoring": {
