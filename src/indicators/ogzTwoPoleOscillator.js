@@ -1,3 +1,4 @@
+const ConfigLoader = require('../../foundation/ConfigLoader');
 /**
  * OGZ NATIVE TWO-POLE OSCILLATOR
  * ================================
@@ -126,11 +127,11 @@ function computeOgzTpo(input) {
             tpoLag: [],
             norm: [],
             bands: {
-                upperExtreme: 1,
-                upperZone: 0.5,
+                upperExtreme: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.upperExtreme'),
+                upperZone: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.upperZone'),
                 mid: 0,
-                lowerZone: -0.5,
-                lowerExtreme: -1
+                lowerZone: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.lowerZone'),
+                lowerExtreme: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.lowerExtreme')
             },
             vol: []
         };
@@ -227,11 +228,11 @@ function computeOgzTpo(input) {
         tpoLag,
         norm,
         bands: {
-            upperExtreme: 1,
-            upperZone: 0.5,
+            upperExtreme: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.upperExtreme'),
+            upperZone: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.upperZone'),
             mid: 0,
-            lowerZone: -0.5,
-            lowerExtreme: -1
+            lowerZone: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.lowerZone'),
+            lowerExtreme: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.lowerExtreme')
         },
         vol
     };
@@ -312,7 +313,7 @@ function calculateDynamicLevels(entryPrice, vol, direction, multiplier = 1.5) {
     if (direction !== 'LONG' && direction !== 'SHORT') return null;
 
     const stopDistance = vol * multiplier;
-    const tpDistance = stopDistance * 1.5; // 1.5:1 R:R ratio
+    const tpDistance = stopDistance * ConfigLoader.getInternalsFileValue('indicators.ogzTpoRewardRiskRatio'); // 1.5:1 R:R ratio
     
     if (direction === 'LONG') {
         return {
@@ -320,7 +321,7 @@ function calculateDynamicLevels(entryPrice, vol, direction, multiplier = 1.5) {
             takeProfit: entryPrice + tpDistance,
             riskAmount: stopDistance,
             rewardAmount: tpDistance,
-            riskRewardRatio: 1.5
+            riskRewardRatio: ConfigLoader.getInternalsFileValue('indicators.ogzTpoRewardRiskRatio')
         };
     } else {
         return {
@@ -328,7 +329,7 @@ function calculateDynamicLevels(entryPrice, vol, direction, multiplier = 1.5) {
             takeProfit: entryPrice - tpDistance,
             riskAmount: stopDistance,
             rewardAmount: tpDistance,
-            riskRewardRatio: 1.5
+            riskRewardRatio: ConfigLoader.getInternalsFileValue('indicators.ogzTpoRewardRiskRatio')
         };
     }
 }

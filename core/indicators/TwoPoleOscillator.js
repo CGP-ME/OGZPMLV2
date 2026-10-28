@@ -1,3 +1,4 @@
+const ConfigLoader = require('../../foundation/ConfigLoader');
 /**
  * OGZ NATIVE TWO-POLE OSCILLATOR - Empire V2 Clean Version
  * =========================================================
@@ -105,11 +106,11 @@ class TwoPoleOscillator {
 
         // Reference bands (static)
         this.bands = {
-            upperExtreme: 1,
-            upperZone: 0.5,
+            upperExtreme: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.upperExtreme'),
+            upperZone: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.upperZone'),
             mid: 0,
-            lowerZone: -0.5,
-            lowerExtreme: -1
+            lowerZone: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.lowerZone'),
+            lowerExtreme: ConfigLoader.getInternalsFileValue('indicators.ogzTpoReferenceBands.lowerExtreme')
         };
 
         // Latest signal (if any)
@@ -180,7 +181,7 @@ class TwoPoleOscillator {
             if (prevIndex > 0) {
                 // Reconstruct previous s1 from previous tpo calculation
                 s1_prev = this.norm[prevIndex];
-                for (let j = prevIndex - 1; j >= 0 && j > prevIndex - 5; j--) {
+                for (let j = prevIndex - 1; j >= 0 && j > prevIndex - ConfigLoader.getInternalsFileValue('indicators.ogzTpoStreamingPolicy.s1ReconstructionLookback'); j--) {
                     s1_prev = (1 - alpha) * s1_prev + alpha * this.norm[j];
                 }
             }

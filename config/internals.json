@@ -1035,6 +1035,19 @@
     },
     "calculator": {
       "unavailableVolatility": 0.02
+    },
+    "ogzTpoReferenceBands": {
+      "upperExtreme": 1,
+      "upperZone": 0.5,
+      "lowerZone": -0.5,
+      "lowerExtreme": -1
+    },
+    "ogzTpoRewardRiskRatio": 1.5,
+    "ogzTpoStreamingPolicy": {
+      "s1ReconstructionLookback": 5
+    },
+    "ogzTpoIntegrationPolicy": {
+      "warmupPadding": 5
     }
   },
   "candleStore": {

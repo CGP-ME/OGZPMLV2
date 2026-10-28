@@ -269,12 +269,12 @@ class OgzTpoIntegration extends EventEmitter {
         this.stats.totalUpdates++;
         
         // Need minimum data for calculation
-        if (this.candleHistory.closes.length < this.config.normLength + 5) {
+        if (this.candleHistory.closes.length < this.config.normLength + ConfigLoader.get('internals.indicators.ogzTpoIntegrationPolicy.warmupPadding')) {
             this._expireLastSignal(currentBarIndex);
             return { 
                 enabled: this.entriesEnabled,
                 ready: false, 
-                message: `Warming up (${this.candleHistory.closes.length}/${this.config.normLength + 5})` 
+                message: `Warming up (${this.candleHistory.closes.length}/${this.config.normLength + ConfigLoader.get('internals.indicators.ogzTpoIntegrationPolicy.warmupPadding')})`
             };
         }
         
