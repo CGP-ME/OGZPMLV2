@@ -2577,6 +2577,9 @@
       },
       "ntfyTransport": {
         "defaultOrigin": "https://ntfy.sh"
+      },
+      "discordTransport": {
+        "webhookTypeDefault": "status"
       }
     },
     "newsSearchPolicy": {

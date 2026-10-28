@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * @fileoverview DiscordNotifier - Real-Time Trading Alerts to Discord
  *
@@ -109,7 +110,7 @@ class DiscordTradingNotifier {
     * @param {string} webhookType - 'stats' or 'status' webhook selection
     * @param {Array} embeds - Rich embed objects for formatted messages
     */
-   sendMessage(content, webhookType = 'status', embeds = null) {
+   sendMessage(content, webhookType = ConfigLoader.getInternalsFileValue('services.notifications.discordTransport.webhookTypeDefault'), embeds = null) {
        if (!NOTIFICATIONS_ENABLED) return;
 
        // Select appropriate webhook URL
