@@ -260,7 +260,7 @@ class TRAIDecisionModule extends EventEmitter {
         // Use LLM for borderline decisions (40-70% confidence) - need deep analysis
         // CRITICAL: Check ORIGINAL confidence, not final (final is already blended down!)
         // Uses persistent LLM server for fast inference (<2s with model in GPU)
-        const useLLM = normalizedSignal.confidence >= 0.40 && normalizedSignal.confidence <= 0.70;
+        const useLLM = normalizedSignal.confidence >= ConfigLoader.get('internals.trai.decisionClassification.llmConfidenceLow') && normalizedSignal.confidence <= ConfigLoader.get('internals.trai.decisionClassification.llmConfidenceHigh');
 
         if (useLLM) {
           try {
@@ -422,9 +422,9 @@ class TRAIDecisionModule extends EventEmitter {
     // Classify volatility
     if (volatility == null) {
       analysis.risk = 'unknown';
-    } else if (analysis.volatility < 0.015) {
+    } else if (analysis.volatility < ConfigLoader.get('internals.trai.decisionClassification.volatilityLow')) {
       analysis.risk = 'low';
-    } else if (analysis.volatility > 0.035) {
+    } else if (analysis.volatility > ConfigLoader.get('internals.trai.decisionClassification.volatilityHigh')) {
       analysis.risk = 'high';
     } else {
       analysis.risk = 'medium';
@@ -433,10 +433,10 @@ class TRAIDecisionModule extends EventEmitter {
     // Analyze trend strength
     if (context.indicators) {
       const { rsi, macd } = context.indicators;
-      if (rsi > 70) analysis.sentiment = 'overbought';
-      else if (rsi < 30) analysis.sentiment = 'oversold';
-      else if (rsi > 55 && macd?.histogram > 0) analysis.sentiment = 'bullish';
-      else if (rsi < 45 && macd?.histogram < 0) analysis.sentiment = 'bearish';
+      if (rsi > ConfigLoader.get('internals.trai.decisionClassification.rsiOverbought')) analysis.sentiment = 'overbought';
+      else if (rsi < ConfigLoader.get('internals.trai.decisionClassification.rsiOversold')) analysis.sentiment = 'oversold';
+      else if (rsi > ConfigLoader.get('internals.trai.decisionClassification.rsiBullish') && macd?.histogram > 0) analysis.sentiment = 'bullish';
+      else if (rsi < ConfigLoader.get('internals.trai.decisionClassification.rsiBearish') && macd?.histogram < 0) analysis.sentiment = 'bearish';
     }
     
     return analysis;
@@ -536,14 +536,14 @@ class TRAIDecisionModule extends EventEmitter {
       } else {
         // No signal confidence provided, use default based on action
         // CHANGE 614: Fix case-sensitivity bug - normalize to lowercase
-        confidence = actionLower === 'hold' ? 0.3 : 0.5;
+        confidence = actionLower === 'hold' ? ConfigLoader.get('internals.trai.confidencePolicy.missingHoldConfidence') : ConfigLoader.get('internals.trai.confidencePolicy.missingActionConfidence');
       }
       console.log(`[TRAI-CALC-10] Initial confidence from signal: ${confidence} (raw: ${signal.confidence})`);
 
       // If confidence appears to be very low, ensure we start with reasonable base
-      if (confidence < 0.3) {
+      if (confidence < ConfigLoader.get('internals.trai.confidencePolicy.minimumActionConfidence')) {
         console.log(`[TRAI-CALC-11] Boosting low confidence from ${confidence} to 0.3`);
-        confidence = 0.3; // Minimum base confidence for actionable signals
+        confidence = ConfigLoader.get('internals.trai.confidencePolicy.minimumActionConfidence'); // Minimum base confidence for actionable signals
       }
 
       // Pattern recognition boost (small adjustments)
@@ -551,7 +551,7 @@ class TRAIDecisionModule extends EventEmitter {
         console.log(`[TRAI-CALC-12] Evaluating ${signal.patterns.length} patterns`);
         const patternBoost = this.evaluatePatterns(signal.patterns);
         console.log(`[TRAI-CALC-13] Pattern boost: ${patternBoost}`);
-        confidence += patternBoost * 0.1; // Scale down pattern boost
+        confidence += patternBoost * ConfigLoader.get('internals.trai.confidencePolicy.patternScale'); // Scale down pattern boost
         console.log(`[TRAI-CALC-14] Confidence after patterns: ${confidence}`);
       }
 
@@ -560,23 +560,23 @@ class TRAIDecisionModule extends EventEmitter {
         console.log('[TRAI-CALC-15] Scoring indicators');
         const indicatorScore = this.scoreIndicators(context.indicators, signal.action);
         console.log(`[TRAI-CALC-16] Indicator score: ${indicatorScore}`);
-        confidence += indicatorScore * 0.1; // Scale down indicator boost
+        confidence += indicatorScore * ConfigLoader.get('internals.trai.confidencePolicy.indicatorScale'); // Scale down indicator boost
         console.log(`[TRAI-CALC-17] Confidence after indicators: ${confidence}`);
       }
 
       // Market regime alignment (small adjustments)
       // CHANGE 614: Fix case-sensitivity bug - normalize to lowercase
       if (marketAnalysis.sentiment === 'bullish' && actionLower === 'buy') {
-        confidence += 0.05; // Reduced from 0.1
+        confidence += ConfigLoader.get('internals.trai.confidencePolicy.alignedSentimentBonus'); // Reduced from 0.1
       } else if (marketAnalysis.sentiment === 'bearish' && actionLower === 'sell') {
-        confidence += 0.05; // Reduced from 0.1
+        confidence += ConfigLoader.get('internals.trai.confidencePolicy.alignedSentimentBonus'); // Reduced from 0.1
       }
 
       // Volatility adjustment (small adjustments)
       if (marketAnalysis.risk === 'low') {
-        confidence += 0.03; // Reduced from 0.05
+        confidence += ConfigLoader.get('internals.trai.confidencePolicy.lowRiskBonus'); // Reduced from 0.05
       } else if (marketAnalysis.risk === 'high') {
-        confidence -= 0.05; // Reduced from 0.1
+        confidence -= ConfigLoader.get('internals.trai.confidencePolicy.highRiskPenalty'); // Reduced from 0.1
       }
 
       // Legacy historical pattern success rate (old Map-based memory)
@@ -585,7 +585,7 @@ class TRAIDecisionModule extends EventEmitter {
         const history = this.patternMemory.get(patternKey);
         if (history.samples >= this.config.minSampleSize) {
           const successRate = history.successes / history.samples;
-          confidence = confidence * 0.7 + successRate * 0.3; // 30% weight to history
+          confidence = confidence * ConfigLoader.get('internals.trai.confidencePolicy.currentWeight') + successRate * ConfigLoader.get('internals.trai.confidencePolicy.historyWeight'); // 30% weight to history
         }
       }
     } else {
@@ -611,13 +611,13 @@ class TRAIDecisionModule extends EventEmitter {
     
     for (const pattern of patterns) {
       if (strongPatterns.includes(pattern.name || pattern)) {
-        boost += 0.15;
+        boost += ConfigLoader.get('internals.trai.confidencePolicy.strongPatternBonus');
       } else if (!weakPatterns.includes(pattern.name || pattern)) {
-        boost += 0.08;
+        boost += ConfigLoader.get('internals.trai.confidencePolicy.otherPatternBonus');
       }
     }
     
-    return Math.min(0.3, boost); // Cap at 30% boost
+    return Math.min(ConfigLoader.get('internals.trai.confidencePolicy.patternBonusCap'), boost); // Cap at 30% boost
   }
   
   /**
@@ -631,15 +631,15 @@ class TRAIDecisionModule extends EventEmitter {
     const actionLower = (action || '').toString().toLowerCase();
 
     if (actionLower === 'buy') {
-      if (rsi > 30 && rsi < 70) score += 0.1;
-      if (rsi > 40 && rsi < 60) score += 0.05; // Optimal range
-      if (macd?.histogram > 0) score += 0.1;
-      if (trend === 'upward' || trend === 'up' || trend === 'uptrend') score += 0.1;
+      if (rsi > ConfigLoader.get('internals.trai.confidencePolicy.rsiBroadLow') && rsi < ConfigLoader.get('internals.trai.confidencePolicy.rsiBroadHigh')) score += ConfigLoader.get('internals.trai.confidencePolicy.rsiBroadBonus');
+      if (rsi > ConfigLoader.get('internals.trai.confidencePolicy.rsiOptimalLow') && rsi < ConfigLoader.get('internals.trai.confidencePolicy.rsiOptimalHigh')) score += ConfigLoader.get('internals.trai.confidencePolicy.rsiOptimalBonus'); // Optimal range
+      if (macd?.histogram > 0) score += ConfigLoader.get('internals.trai.confidencePolicy.macdBonus');
+      if (trend === 'upward' || trend === 'up' || trend === 'uptrend') score += ConfigLoader.get('internals.trai.confidencePolicy.trendBonus');
     } else if (actionLower === 'sell') {
-      if (rsi > 30 && rsi < 70) score += 0.1;
-      if (rsi > 40 && rsi < 60) score += 0.05;
-      if (macd?.histogram < 0) score += 0.1;
-      if (trend === 'downward' || trend === 'down' || trend === 'downtrend') score += 0.1;
+      if (rsi > ConfigLoader.get('internals.trai.confidencePolicy.rsiBroadLow') && rsi < ConfigLoader.get('internals.trai.confidencePolicy.rsiBroadHigh')) score += ConfigLoader.get('internals.trai.confidencePolicy.rsiBroadBonus');
+      if (rsi > ConfigLoader.get('internals.trai.confidencePolicy.rsiOptimalLow') && rsi < ConfigLoader.get('internals.trai.confidencePolicy.rsiOptimalHigh')) score += ConfigLoader.get('internals.trai.confidencePolicy.rsiOptimalBonus');
+      if (macd?.histogram < 0) score += ConfigLoader.get('internals.trai.confidencePolicy.macdBonus');
+      if (trend === 'downward' || trend === 'down' || trend === 'downtrend') score += ConfigLoader.get('internals.trai.confidencePolicy.trendBonus');
     }
 
     return score;
@@ -707,25 +707,25 @@ class TRAIDecisionModule extends EventEmitter {
     if (volatility == null) {
       assessment.factors.push('missing_volatility');
     } else {
-      riskScore += volatility * 10; // Scale volatility to 0-0.5 range
+      riskScore += volatility * ConfigLoader.get('internals.trai.riskPolicy.volatilityScale'); // Scale volatility to 0-0.5 range
     }
     
     // Low confidence risk
-    if (confidence < 0.5) {
-      riskScore += (0.5 - confidence) * 0.5;
+    if (confidence < ConfigLoader.get('internals.trai.riskPolicy.lowConfidenceThreshold')) {
+      riskScore += (ConfigLoader.get('internals.trai.riskPolicy.lowConfidenceThreshold') - confidence) * ConfigLoader.get('internals.trai.riskPolicy.lowConfidenceScale');
       assessment.factors.push('low_confidence');
     }
     
     // Market regime risk
     if (context.regime === 'volatile' || context.regime === 'unknown') {
-      riskScore += 0.2;
+      riskScore += ConfigLoader.get('internals.trai.riskPolicy.uncertainRegimeRisk');
       assessment.factors.push('uncertain_regime');
     }
     
     // Time of day risk (if available)
     const hour = new Date().getHours();
-    if (hour >= 0 && hour < 6) {
-      riskScore += 0.1; // Low liquidity hours
+    if (hour >= ConfigLoader.get('internals.trai.riskPolicy.lowLiquidityStartHour') && hour < ConfigLoader.get('internals.trai.riskPolicy.lowLiquidityEndHour')) {
+      riskScore += ConfigLoader.get('internals.trai.riskPolicy.lowLiquidityRisk'); // Low liquidity hours
       assessment.factors.push('low_liquidity_hours');
     }
     
@@ -778,9 +778,9 @@ class TRAIDecisionModule extends EventEmitter {
       const originalActionLower = (originalAction || '').toString().toLowerCase();
       // Return the original action - let confidence threshold be the gate
       if (originalActionLower === 'sell') {
-        return confidence >= 0.7 ? 'STRONG_SELL' : 'SELL';
+        return confidence >= ConfigLoader.get('internals.trai.decisionClassification.strongRecommendationConfidence') ? 'STRONG_SELL' : 'SELL';
       } else if (originalActionLower === 'buy') {
-        return confidence >= 0.7 ? 'STRONG_BUY' : 'BUY';
+        return confidence >= ConfigLoader.get('internals.trai.decisionClassification.strongRecommendationConfidence') ? 'STRONG_BUY' : 'BUY';
       } else {
         return originalAction; // HOLD if that's what was passed
       }
@@ -880,25 +880,25 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     const adjustments = [];
     
     // Position size adjustment based on confidence
-    if (confidence > 0.8) {
+    if (confidence > ConfigLoader.get('internals.trai.adjustmentPolicy.confidenceHigh')) {
       adjustments.push({
         type: 'position_size',
-        factor: 1.2,
+        factor: ConfigLoader.get('internals.trai.adjustmentPolicy.highSizeFactor'),
         reason: 'High confidence'
       });
-    } else if (confidence < 0.6) {
+    } else if (confidence < ConfigLoader.get('internals.trai.adjustmentPolicy.confidenceLow')) {
       adjustments.push({
         type: 'position_size',
-        factor: 0.8,
+        factor: ConfigLoader.get('internals.trai.adjustmentPolicy.lowSizeFactor'),
         reason: 'Lower confidence'
       });
     }
     
     // Stop loss adjustment based on risk
-    if (riskAssessment.riskScore > 0.5) {
+    if (riskAssessment.riskScore > ConfigLoader.get('internals.trai.adjustmentPolicy.riskThreshold')) {
       adjustments.push({
         type: 'stop_loss',
-        factor: 0.8, // Tighter stop
+        factor: ConfigLoader.get('internals.trai.adjustmentPolicy.stopFactor'), // Tighter stop
         reason: 'Higher risk environment'
       });
     }
@@ -907,7 +907,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     if (riskAssessment.factors.includes('low_liquidity_hours')) {
       adjustments.push({
         type: 'take_profit',
-        factor: 0.7, // Lower target
+        factor: ConfigLoader.get('internals.trai.adjustmentPolicy.lowLiquidityTargetFactor'), // Lower target
         reason: 'Low liquidity period'
       });
     }

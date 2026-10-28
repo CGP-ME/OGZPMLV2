@@ -86,7 +86,59 @@
     "decisionLogPath": "logs/trai-decisions.log",
     "decisionHistoryLimit": 1000,
     "memoryTopK": 5,
-    "memoryMaxJournalEntries": 1000
+    "memoryMaxJournalEntries": 1000,
+    "decisionClassification": {
+      "llmConfidenceLow": 0.4,
+      "llmConfidenceHigh": 0.7,
+      "volatilityLow": 0.015,
+      "volatilityHigh": 0.035,
+      "rsiOverbought": 70,
+      "rsiOversold": 30,
+      "rsiBullish": 55,
+      "rsiBearish": 45,
+      "strongRecommendationConfidence": 0.7
+    },
+    "confidencePolicy": {
+      "missingHoldConfidence": 0.3,
+      "missingActionConfidence": 0.5,
+      "minimumActionConfidence": 0.3,
+      "patternScale": 0.1,
+      "indicatorScale": 0.1,
+      "alignedSentimentBonus": 0.05,
+      "lowRiskBonus": 0.03,
+      "highRiskPenalty": 0.05,
+      "currentWeight": 0.7,
+      "historyWeight": 0.3,
+      "strongPatternBonus": 0.15,
+      "otherPatternBonus": 0.08,
+      "patternBonusCap": 0.3,
+      "rsiBroadLow": 30,
+      "rsiBroadHigh": 70,
+      "rsiOptimalLow": 40,
+      "rsiOptimalHigh": 60,
+      "rsiBroadBonus": 0.1,
+      "rsiOptimalBonus": 0.05,
+      "macdBonus": 0.1,
+      "trendBonus": 0.1
+    },
+    "riskPolicy": {
+      "volatilityScale": 10,
+      "lowConfidenceThreshold": 0.5,
+      "lowConfidenceScale": 0.5,
+      "uncertainRegimeRisk": 0.2,
+      "lowLiquidityStartHour": 0,
+      "lowLiquidityEndHour": 6,
+      "lowLiquidityRisk": 0.1
+    },
+    "adjustmentPolicy": {
+      "confidenceHigh": 0.8,
+      "highSizeFactor": 1.2,
+      "confidenceLow": 0.6,
+      "lowSizeFactor": 0.8,
+      "riskThreshold": 0.5,
+      "stopFactor": 0.8,
+      "lowLiquidityTargetFactor": 0.7
+    }
   },
   "monitoring": {
     "sentryEnabled": true,
