@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * TRAI Memory Store - Local-First Journal System
  *
@@ -107,29 +108,11 @@ class TRAIMemoryStore {
         if (!text || typeof text !== 'string') return [];
 
         // Remove common stop words, keep significant terms
-        const stopWords = new Set([
-            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
-            'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
-            'would', 'could', 'should', 'may', 'might', 'must', 'shall',
-            'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in',
-            'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into',
-            'through', 'during', 'before', 'after', 'above', 'below',
-            'between', 'under', 'again', 'further', 'then', 'once',
-            'here', 'there', 'when', 'where', 'why', 'how', 'all',
-            'each', 'few', 'more', 'most', 'other', 'some', 'such',
-            'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
-            'too', 'very', 'just', 'and', 'but', 'if', 'or', 'because',
-            'until', 'while', 'although', 'though', 'after', 'before',
-            'what', 'which', 'who', 'whom', 'this', 'that', 'these',
-            'those', 'am', 'it', 'its', 'i', 'me', 'my', 'myself',
-            'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours',
-            'yourself', 'yourselves', 'he', 'him', 'his', 'himself',
-            'she', 'her', 'hers', 'herself', 'they', 'them', 'their'
-        ]);
+        const stopWords = new Set(structuredClone(ConfigLoader.getInternalsFileValue('trai.memoryScoring.stopWords')));
 
         return text.toLowerCase()
             .match(/[a-z0-9]+/g)
-            ?.filter(word => word.length > 2 && !stopWords.has(word)) || [];
+            ?.filter(word => word.length > ConfigLoader.getInternalsFileValue('trai.memoryScoring.minimumKeywordLengthExclusive') && !stopWords.has(word)) || [];
     }
 
     /**
@@ -156,7 +139,7 @@ class TRAIMemoryStore {
         const recency = this.recencyScore(timestamp);
 
         // Combined score: 70% keywords, 30% recency
-        return keywordScore * 0.7 + recency * 0.3;
+        return keywordScore * ConfigLoader.getInternalsFileValue('trai.memoryScoring.keywordWeight') + recency * ConfigLoader.getInternalsFileValue('trai.memoryScoring.recencyWeight');
     }
 
     /**
@@ -164,7 +147,7 @@ class TRAIMemoryStore {
      */
     recencyScore(timestamp) {
         const ageMs = Date.now() - new Date(timestamp).getTime();
-        const halfLife = 7 * 24 * 60 * 60 * 1000; // 7 days
+        const halfLife = ConfigLoader.getInternalsFileValue('trai.memoryScoring.recencyDecayDays') * 24 * 60 * 60 * 1000; // 7 days
         return Math.exp(-ageMs / halfLife);
     }
 
