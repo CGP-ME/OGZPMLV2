@@ -933,6 +933,11 @@
     "krakenHistorical": {
       "intervalDefault": 1,
       "countDefault": 200
+    },
+    "krakenWrapperHistorical": {
+      "timeframeDefault": "1m",
+      "limitDefault": 100,
+      "intervalFallback": 1
     }
   },
   "indicators": {

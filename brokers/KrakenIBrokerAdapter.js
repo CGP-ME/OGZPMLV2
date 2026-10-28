@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * ============================================================================
  * KrakenIBrokerAdapter - Kraken IBroker Implementation
@@ -313,7 +314,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     };
   }
 
-  async getCandles(symbol, timeframe = '1m', limit = 100) {
+  async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.limitDefault')) {
     // CHANGE 2026-01-30: Implement proper historical candle fetching via REST API
     const krakenPair = this.toKrakenRestPair(symbol);
 
@@ -322,7 +323,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
       '1m': 1, '5m': 5, '15m': 15, '30m': 30,
       '1h': 60, '4h': 240, '1d': 1440
     };
-    const interval = timeframeToInterval[timeframe] || 1;
+    const interval = timeframeToInterval[timeframe] || ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.intervalFallback');
 
     console.log(`[KrakenIBroker] Fetching ${limit} historical candles for ${symbol} @ ${timeframe}`);
     return await this.kraken.getHistoricalOHLC(krakenPair, interval, limit);
