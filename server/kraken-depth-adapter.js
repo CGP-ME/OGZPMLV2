@@ -9,8 +9,9 @@
  */
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 const KrakenDepth = {
-    WALL_MIN_USD: 2000000, // $2M+ qualifies as whale wall
+    WALL_MIN_USD: ConfigLoader.getInternalsFileValue('dashboard.krakenDepthHelper.wallMinUsd'), // $2M+ qualifies as whale wall
 
     _toFiniteNumber: function(value) {
         const number = Number(value);
@@ -38,7 +39,7 @@ const KrakenDepth = {
         const asks = this._normalizeLevels(rawBook?.asks);
         if (bids.length === 0 && asks.length === 0) return null;
 
-        const isLive = Boolean(metadata.isLive || rawBook?.isLive || bids.length > 10 || asks.length > 10);
+        const isLive = Boolean(metadata.isLive || rawBook?.isLive || bids.length > ConfigLoader.getInternalsFileValue('dashboard.krakenDepthHelper.liveDepthThreshold') || asks.length > ConfigLoader.getInternalsFileValue('dashboard.krakenDepthHelper.liveDepthThreshold'));
 
         const walls = [];
 
@@ -66,11 +67,11 @@ const KrakenDepth = {
             symbol,
             source,
             isLive,
-            walls: walls.sort((a, b) => b.size - a.size).slice(0, 15),
+            walls: walls.sort((a, b) => b.size - a.size).slice(0, ConfigLoader.getInternalsFileValue('dashboard.krakenDepthHelper.maxWalls')),
             density: [], // Populated from full book binning when available
             depth: {
-                bids: bids.slice(0, 25),
-                asks: asks.slice(0, 25)
+                bids: bids.slice(0, ConfigLoader.getInternalsFileValue('dashboard.krakenDepthHelper.maxDepthLevels')),
+                asks: asks.slice(0, ConfigLoader.getInternalsFileValue('dashboard.krakenDepthHelper.maxDepthLevels'))
             },
             timestamp: metadata.timestamp || rawBook?.timestamp || Date.now()
         };

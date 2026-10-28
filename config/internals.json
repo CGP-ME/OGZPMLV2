@@ -1177,6 +1177,12 @@
       "brokerStatusMaxChars": 80,
       "restErrorMaxChars": 200,
       "cryptoTickLogEvery": 100
+    },
+    "krakenDepthHelper": {
+      "wallMinUsd": 2000000,
+      "liveDepthThreshold": 10,
+      "maxWalls": 15,
+      "maxDepthLevels": 25
     }
   },
   "instruments": {
