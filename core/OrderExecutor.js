@@ -203,7 +203,7 @@ class OrderExecutor {
       && String(traiSignal.action || '').toUpperCase() === String(decision?.action || '').toUpperCase()
       && Number.isFinite(traiDecisionAgeMs)
       && traiDecisionAgeMs >= 0
-      && traiDecisionAgeMs <= 60000
+      && traiDecisionAgeMs <= ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.traiDecisionMaximumAgeMs')
     );
   }
 
@@ -266,7 +266,7 @@ class OrderExecutor {
   }
 
   _normalizePatternFeatureVector(features) {
-    if (!Array.isArray(features) || features.length === 0 || features.length > 50) {
+    if (!Array.isArray(features) || features.length === 0 || features.length > ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.patternFeatureMaximumLength')) {
       return null;
     }
     if (!features.every(value => Number.isFinite(value))) {
@@ -618,7 +618,7 @@ class OrderExecutor {
     if (!Number.isFinite(plannedQuantity) || plannedQuantity <= 0) {
       throw new Error(`[ORDER-PLAN] planned order quantity invalid: ${plannedQuantity}`);
     }
-    const tolerance = Math.max(Math.abs(plannedQuantity) * 1e-8, 1e-12);
+    const tolerance = Math.max(Math.abs(plannedQuantity) * ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.acceptedQuantityRelativeTolerance'), ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.acceptedQuantityAbsoluteTolerance'));
     const explicitQuantity = Number(orderResult?.qty ?? orderResult?.quantity);
     if (Number.isFinite(explicitQuantity) && explicitQuantity > 0) {
       if (explicitQuantity > plannedQuantity + tolerance) {
@@ -814,7 +814,7 @@ class OrderExecutor {
     return Number.isFinite(remainingQuantity)
       && remainingQuantity > 0
       && Number.isFinite(filledQuantity)
-      && filledQuantity + 1e-9 >= remainingQuantity;
+      && filledQuantity + ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.fullExitQuantityTolerance') >= remainingQuantity;
   }
 
   _normalizeBrokerPositionSymbol(symbol) {
@@ -844,7 +844,7 @@ class OrderExecutor {
     return positions.find((position) => {
       const symbol = this._normalizeBrokerPositionSymbol(position?.symbol);
       const size = this._brokerPositionSize(position);
-      return symbol === targetSymbol && size !== null && size > 1e-9;
+      return symbol === targetSymbol && size !== null && size > ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.matchingPositionMinimumSize');
     }) || null;
   }
 
@@ -892,8 +892,8 @@ class OrderExecutor {
   }
 
   _exitIntentTtlMs() {
-    const webhookTimeout = Number(this.ctx.webhookAdapter?.timeout);
-    return Number.isFinite(webhookTimeout) && webhookTimeout > 0 ? webhookTimeout * 3 : 15000;
+    const webhookTimeout = ConfigLoader.getInternalsFileValue('webhookOrders.timeoutMs');
+    return webhookTimeout * ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.exitIntentTimeoutMultiplier');
   }
 
   _exitIntentAgeMs(pendingExitIntent, nowMs = Date.now()) {
@@ -1732,7 +1732,7 @@ class OrderExecutor {
       !Number.isFinite(activeRisk) ||
       proposedRisk === null ||
       singleEntryRisk === null ||
-      activeRisk + proposedRisk > singleEntryRisk * aggregateRiskCap + 1e-9
+      activeRisk + proposedRisk > singleEntryRisk * aggregateRiskCap + ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.scaleInAggregateRiskToleranceUsd')
     ) {
       return {
         reason: 'scale_in_aggregate_risk_cap',
@@ -1904,7 +1904,7 @@ class OrderExecutor {
   _checkPatternOutcomeHealth() {
     this.tradeExitCount = (this.tradeExitCount || 0) + 1;
     const rejectedSinceHealth = this.patternOutcomeRejectedSinceHealth || 0;
-    if ((this.tradeExitCount % 10 !== 0 && rejectedSinceHealth === 0) || this._patternOutcomeRecordingDisabled()) {
+    if ((this.tradeExitCount % ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.patternHealthEveryExits') !== 0 && rejectedSinceHealth === 0) || this._patternOutcomeRecordingDisabled()) {
       return null;
     }
 
@@ -1953,7 +1953,7 @@ class OrderExecutor {
     const acceptedWithoutOrderId = sent && !orderId && !brokerFlat;
     const ok = sent && !brokerFlat;
     const reason = result?.reason || (brokerFlat ? 'broker_flat_no_open_position' : acceptedWithoutOrderId ? 'accepted_without_order_id' : ok ? null : sent ? 'missing_webhook_order_id' : 'not_sent');
-    const body = typeof response?.body === 'string' ? response.body.slice(0, 500) : null;
+    const body = typeof response?.body === 'string' ? response.body.slice(0, ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.brokerResultPreviewLength')) : null;
     const scope = this._runtimeScope(baseFields.symbol || null, baseFields, { preferOverrides: true });
 
     const frame = {
@@ -2126,7 +2126,7 @@ class OrderExecutor {
     }
 
     const remainingQuantity = Math.max(0, remainingBefore - filledQuantity);
-    const tolerance = 1e-9;
+    const tolerance = ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.fillLifecycleQuantityTolerance');
     const expectedExitQuantity = Number(exitPlan.orderQuantity);
     const resolvedLifecycleState = lifecycleState
       || (Number.isFinite(expectedExitQuantity) && filledQuantity + tolerance < expectedExitQuantity ? 'partial_fill' : 'full_fill');
@@ -2738,7 +2738,7 @@ class OrderExecutor {
           reason: normalizedResult?.reason || null,
           orderId: orderId || null,
           httpStatus: response?.status ?? null,
-          responseBody: typeof response?.body === 'string' ? response.body.slice(0, 500) : null,
+          responseBody: typeof response?.body === 'string' ? response.body.slice(0, ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.brokerResultPreviewLength')) : null,
           dryRun: normalizedResult?.reason === 'dry_run',
         });
         this._broadcastBrokerOrderResult(baseFields, resultForTrace);
@@ -3348,7 +3348,7 @@ class OrderExecutor {
             stateMutationSucceeded: false,
           });
         } else if (!webhookOrderId && this._isWebhookBrokerFlatResult(decision.action, webhookResult)) {
-          const responseBody = this._webhookResponseBody(webhookResult).slice(0, 500);
+          const responseBody = this._webhookResponseBody(webhookResult).slice(0, ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.brokerResultPreviewLength'));
           const reconciled = await stateManager.reconcileBrokerFlat(exitPlan.tradeId, {
             traceId,
             signalId,
@@ -3404,7 +3404,7 @@ class OrderExecutor {
         } else if (isExitAction && !webhookFillProof) {
           const localOrderId = webhookOrderId
             || this._webhookCorrelationOrderId(decision.action, brokerOrderPlan, decisionId);
-          const responseBody = this._webhookResponseBody(webhookResult).slice(0, 500);
+          const responseBody = this._webhookResponseBody(webhookResult).slice(0, ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.brokerResultPreviewLength'));
           const acceptedIntent = exitIntent && typeof stateManager.markExitSlotAccepted === 'function'
             ? await stateManager.markExitSlotAccepted(exitPlan.tradeId, exitIntent.intentId, {
               brokerOrderId: localOrderId,
@@ -3466,7 +3466,7 @@ class OrderExecutor {
             brokerOrderId: null,
             webhookOrderIdMissing: true,
             webhookAcceptedWithoutOrderId: true,
-            responseBody: this._webhookResponseBody(webhookResult).slice(0, 500),
+            responseBody: this._webhookResponseBody(webhookResult).slice(0, ConfigLoader.getInternalsFileValue('executionPolicy.orderExecutor.brokerResultPreviewLength')),
             price,
             amount: brokerOrderPlan.sizeUsd,
             orderQuantity: webhookFillProof?.filledQuantity ?? brokerOrderPlan.orderQuantity,

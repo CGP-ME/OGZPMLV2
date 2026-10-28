@@ -2628,5 +2628,20 @@
       "compressionScale": 0.4,
       "confidenceCap": 0.8
     }
+  },
+  "executionPolicy": {
+    "orderExecutor": {
+      "traiDecisionMaximumAgeMs": 60000,
+      "patternFeatureMaximumLength": 50,
+      "acceptedQuantityRelativeTolerance": 1e-08,
+      "acceptedQuantityAbsoluteTolerance": 1e-12,
+      "fullExitQuantityTolerance": 1e-09,
+      "matchingPositionMinimumSize": 1e-09,
+      "exitIntentTimeoutMultiplier": 3,
+      "scaleInAggregateRiskToleranceUsd": 1e-09,
+      "patternHealthEveryExits": 10,
+      "brokerResultPreviewLength": 500,
+      "fillLifecycleQuantityTolerance": 1e-09
+    }
   }
 }
