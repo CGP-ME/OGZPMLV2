@@ -898,6 +898,41 @@
       "dataWatchdogMs": 60000,
       "maxPayloadBytes": 1048576,
       "maxBytesPerSecond": 10485760
+    },
+    "krakenTransport": {
+      "baseUrl": "https://api.kraken.com",
+      "dataTimeoutMs": 60000,
+      "requestWindowMs": 1000,
+      "maxRequestsPerWindow": 15,
+      "initialRateLimitBackoffMs": 1000,
+      "queuePollMs": 100,
+      "rateLimitBackoffMultiplier": 2,
+      "maxRateLimitBackoffMs": 8000,
+      "publicWsUrl": "wss://ws.kraken.com",
+      "heartbeatPingMs": 30000,
+      "dataWatchdogPollMs": 30000,
+      "reconnectBaseDelayMs": 5000,
+      "reconnectMaxDelayMs": 300000,
+      "reconnectMultiplier": 2,
+      "reconnectWarningAttempt": 10,
+      "reconnectErrorAttempt": 50
+    },
+    "krakenBook": {
+      "liveDepthThreshold": 10,
+      "subscriptionDepth": 25,
+      "ohlcIntervals": [
+        1,
+        5,
+        15,
+        30,
+        60,
+        240,
+        1440
+      ]
+    },
+    "krakenHistorical": {
+      "intervalDefault": 1,
+      "countDefault": 200
     }
   },
   "indicators": {

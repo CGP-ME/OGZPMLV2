@@ -1,3 +1,10 @@
+## 2026-10-28 — Stop 1 S07, S08, S09: centralize Kraken transport and history constants
+
+- Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.
+- Actual verification: 1714 actual broker/service comparisons and 16 Alpaca buy/sell payload cases pass. Tested source and commands: `5e9bd89540e94c7028631c8f1c5893dfafa5087f`, `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch2-7-proofs.json`. Exact namespace proof: batch6-namespace-proof.json; payload commands and source identity: batch-ownership-proofs.json.
+- Review/findings: Mercury reported found_break, alleging alpacaEndpoints was at the JSON root rather than under broker. Parsing the exact reviewed tree refutes that allegation: the root property is absent and broker.alpacaEndpoints contains the eight expected live/paper URLs. Actual broker/service comparisons and 16 order payload cases pass. Host disposition: no supported migration defect remains; preserve the review disagreement and deliver the verified relocation. Mercury has not withdrawn the false namespace claim. Original Astra answer delivery failed; no Astra approval or panel convergence is claimed. A focused follow-up is recorded separately. Review source `8cfcd3bd6acc7e994759029d6806f531e1952372`; full answer and executing-harness identity: `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch6-review.log`, `batch6-manifest.json`. The reviewed changes are split into atomic commits with each owner and its consumers together.
+- Limitations/activation: Bounded isolated consumer verification, not complete backtests or live-runtime acceptance. Existing unrelated problems remain on `ogz-meta/inbox/codex/2026-10-26/stop1-migration-issues.md`. Unrelated dirty work is preserved. No PM2 restart, environment change, live order or runtime activation.
+
 ## 2026-10-28 — Stop 1 S06: centralize resilient WebSocket constants
 
 - Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.

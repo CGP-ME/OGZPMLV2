@@ -1,3 +1,4 @@
+const ConfigLoader = require('./foundation/ConfigLoader');
 /**
  * @fileoverview KrakenAdapterSimple - Direct Kraken Exchange Integration
  *
@@ -72,7 +73,7 @@ class KrakenAdapterSimple {
     this.config = config;
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
-    this.baseUrl = 'https://api.kraken.com';
+    this.baseUrl = ConfigLoader.getInternalsFileValue('broker.krakenTransport.baseUrl');
     this.wsUrl = 'wss://ws-auth.kraken.com/v2';
     this.connected = false;
     this.assetPairs = new Map();
@@ -99,13 +100,13 @@ class KrakenAdapterSimple {
     // CHANGE 2026-01-23: Data-level watchdog - force reconnect if no data even if socket "open"
     this.lastDataReceived = Date.now();
     this.dataWatchdogInterval = null;
-    this.dataTimeout = 60000; // 60 seconds without data = force reconnect
+    this.dataTimeout = ConfigLoader.getInternalsFileValue('broker.krakenTransport.dataTimeoutMs'); // 60 seconds without data = force reconnect
 
     // Rate limiting (Kraken API tier 2: 15 req/sec)
-    this.requestWindow = 1000; // 1 second window
-    this.maxRequestsPerWindow = 15;
+    this.requestWindow = ConfigLoader.getInternalsFileValue('broker.krakenTransport.requestWindowMs'); // 1 second window
+    this.maxRequestsPerWindow = ConfigLoader.getInternalsFileValue('broker.krakenTransport.maxRequestsPerWindow');
     this.requestTimestamps = [];
-    this.rateLimitBackoff = 1000; // Start at 1s for 429 errors
+    this.rateLimitBackoff = ConfigLoader.getInternalsFileValue('broker.krakenTransport.initialRateLimitBackoffMs'); // Start at 1s for 429 errors
 
     // CHANGE 2025-12-13: Step 4 - Simple queue to prevent recursion
     this.requestQueue = [];
@@ -219,7 +220,7 @@ class KrakenAdapterSimple {
     if (this.queueProcessing) return;
 
     this.queueProcessing = true;
-    this.processQueueInterval = setInterval(() => this.processQueue(), 100);
+    this.processQueueInterval = setInterval(() => this.processQueue(), ConfigLoader.getInternalsFileValue('broker.krakenTransport.queuePollMs'));
   }
 
   async processQueue() {
@@ -271,7 +272,7 @@ class KrakenAdapterSimple {
       request.brokerRequestAttempted = true;
       const response = await axios.post(requestUrl, postData, requestOptions);
       // Success - reset backoff
-      this.rateLimitBackoff = 1000;
+      this.rateLimitBackoff = ConfigLoader.getInternalsFileValue('broker.krakenTransport.initialRateLimitBackoffMs');
       request.resolve(response.data);
 
     } catch (error) {
@@ -291,7 +292,7 @@ class KrakenAdapterSimple {
         // Resume after backoff
         this.queueBackoffTimeout = setTimeout(() => {
           this.queueBackoffTimeout = null;
-          this.rateLimitBackoff = Math.min(this.rateLimitBackoff * 2, 8000);
+          this.rateLimitBackoff = Math.min(this.rateLimitBackoff * ConfigLoader.getInternalsFileValue('broker.krakenTransport.rateLimitBackoffMultiplier'), ConfigLoader.getInternalsFileValue('broker.krakenTransport.maxRateLimitBackoffMs'));
           this.startQueueProcessor();
         }, this.rateLimitBackoff);
       } else {
@@ -329,7 +330,7 @@ class KrakenAdapterSimple {
    * @param {number} count - Number of candles to fetch (max ~720)
    * @returns {Array} Array of OHLC candles
    */
-  async getHistoricalOHLC(pair = 'XBTUSD', interval = 1, count = 200) {
+  async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault')) {
     try {
       // Calculate 'since' timestamp to get approximately 'count' candles
       const intervalMs = interval * 60 * 1000;
@@ -657,8 +658,8 @@ class KrakenAdapterSimple {
       return null;
     }
 
-    const hasDepthSnapshot = (Array.isArray(bids) && bids.length > 10)
-      || (Array.isArray(asks) && asks.length > 10);
+    const hasDepthSnapshot = (Array.isArray(bids) && bids.length > ConfigLoader.getInternalsFileValue('broker.krakenBook.liveDepthThreshold'))
+      || (Array.isArray(asks) && asks.length > ConfigLoader.getInternalsFileValue('broker.krakenBook.liveDepthThreshold'));
     const depthTimestamp = Number(timestamp);
     const now = Number.isFinite(depthTimestamp) ? depthTimestamp : Date.now();
     const previousLiveAt = this.depthLiveSymbolTimestamps.get(canonicalSymbol);
@@ -699,7 +700,7 @@ class KrakenAdapterSimple {
     this.ws.send(JSON.stringify({
       event: 'subscribe',
       pair: [pair],
-      subscription: { name: 'book', depth: 25 }
+      subscription: { name: 'book', depth: ConfigLoader.getInternalsFileValue('broker.krakenBook.subscriptionDepth') }
     }));
     this.bookSubscriptions.add(pair);
     return true;
@@ -951,7 +952,7 @@ class KrakenAdapterSimple {
 
     try {
       // Public WebSocket for market data (no auth needed for public feeds)
-      this.ws = new WebSocket('wss://ws.kraken.com');
+      this.ws = new WebSocket(ConfigLoader.getInternalsFileValue('broker.krakenTransport.publicWsUrl'));
 
       this.ws.on('open', () => {
         console.log('[Kraken] WebSocket connected');
@@ -993,12 +994,12 @@ class KrakenAdapterSimple {
 
         // CHANGE 2026-01-29: Subscribe to multiple OHLC timeframes for dashboard
         // Kraken intervals: 1=1m, 5=5m, 15=15m, 30=30m, 60=1h, 240=4h, 1440=1d
-        const ohlcIntervals = [1, 5, 15, 30, 60, 240, 1440];
+        const ohlcIntervals = structuredClone(ConfigLoader.getInternalsFileValue('broker.krakenBook.ohlcIntervals'));
 
         const bookSub = {
           event: 'subscribe',
           pair: wsPairs,
-          subscription: { name: 'book', depth: 25 }
+          subscription: { name: 'book', depth: ConfigLoader.getInternalsFileValue('broker.krakenBook.subscriptionDepth') }
         };
 
         const subscriptionWs = this.ws;
@@ -1044,7 +1045,7 @@ class KrakenAdapterSimple {
           if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.ping();
           }
-        }, 30000); // Ping every 30 seconds
+        }, ConfigLoader.getInternalsFileValue('broker.krakenTransport.heartbeatPingMs')); // Ping every 30 seconds
         console.log('[Kraken] Heartbeat started (30s ping interval)');
 
         // CHANGE 2026-01-23: Data watchdog - force reconnect if no data even if socket "open"
@@ -1060,7 +1061,7 @@ class KrakenAdapterSimple {
               this.ws.terminate(); // Hard close, don't wait for graceful
             }
           }
-        }, 30000); // Check every 30 seconds
+        }, ConfigLoader.getInternalsFileValue('broker.krakenTransport.dataWatchdogPollMs')); // Check every 30 seconds
         console.log('[Kraken] Data watchdog started (60s timeout)');
       });
 
@@ -1237,14 +1238,14 @@ class KrakenAdapterSimple {
           this.reconnectAttempts++;
 
           // Exponential backoff: 5s, 10s, 20s, 40s... capped at 5 minutes
-          const baseDelay = 5000;
-          const maxDelay = 300000; // 5 minutes max
-          const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts - 1), maxDelay);
+          const baseDelay = ConfigLoader.getInternalsFileValue('broker.krakenTransport.reconnectBaseDelayMs');
+          const maxDelay = ConfigLoader.getInternalsFileValue('broker.krakenTransport.reconnectMaxDelayMs'); // 5 minutes max
+          const delay = Math.min(baseDelay * Math.pow(ConfigLoader.getInternalsFileValue('broker.krakenTransport.reconnectMultiplier'), this.reconnectAttempts - 1), maxDelay);
 
           // Log warning at certain thresholds but NEVER stop trying
-          if (this.reconnectAttempts === 10) {
+          if (this.reconnectAttempts === ConfigLoader.getInternalsFileValue('broker.krakenTransport.reconnectWarningAttempt')) {
             console.warn('[Kraken] WS_RECONNECT: 10 attempts failed - will keep trying (check network?)');
-          } else if (this.reconnectAttempts === 50) {
+          } else if (this.reconnectAttempts === ConfigLoader.getInternalsFileValue('broker.krakenTransport.reconnectErrorAttempt')) {
             console.error('[Kraken] WS_RECONNECT: 50 attempts failed - serious connectivity issue');
           }
 
