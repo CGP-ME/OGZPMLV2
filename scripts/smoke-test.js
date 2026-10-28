@@ -261,7 +261,9 @@ test('LiquiditySweepDetector processes candles and tracks levels', () => {
   const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
   const detector = new LiquiditySweepDetector(
-    ConfigLoader.get('strategies.LiquiditySweep')
+    ConfigLoader.get('strategies.LiquiditySweep'),
+    null,
+    testCandles[1].t - testCandles[0].t
   );
 
   let lastResult = null;

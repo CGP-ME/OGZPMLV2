@@ -63,19 +63,19 @@ describe('LiquiditySweep interval detection', () => {
   });
 
   test('ignores sub-minute update noise instead of creating Infinity windows', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig());
+    const detector = new LiquiditySweepDetector(liquidityConfig(), null, 60000);
 
     detector.feedCandle(candle(1_000_000));
     detector.feedCandle(candle(1_005_000));
 
     expect(detector._candleIntervalMin).toBeNull();
-    expect(detector._entryWindowBars).toBeNull();
+    expect(detector._entryWindowBars).toBe(90);
     expect(detector._openingRangeBars).toBeNull();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Ignoring sub-minute candle interval'));
   });
 
   test('detects a real one-minute candle boundary with finite windows', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig());
+    const detector = new LiquiditySweepDetector(liquidityConfig(), null, 60000);
 
     detector.feedCandle(candle(1_000_000));
     detector.feedCandle(candle(1_060_000));
@@ -86,9 +86,9 @@ describe('LiquiditySweep interval detection', () => {
   });
 
   test('rejects explicit non-positive ATR multipliers instead of passing every opening candle', () => {
-    expect(() => new LiquiditySweepDetector(liquidityConfig({ atrMultiplier: 0 })))
+    expect(() => new LiquiditySweepDetector(liquidityConfig({ atrMultiplier: 0 }), null, 60000))
       .toThrow(/atrMultiplier must be a finite positive number/);
-    expect(() => new LiquiditySweepDetector(liquidityConfig({ atrMultiplier: -0.5 })))
+    expect(() => new LiquiditySweepDetector(liquidityConfig({ atrMultiplier: -0.5 }), null, 60000))
       .toThrow(/atrMultiplier must be a finite positive number/);
   });
 
@@ -96,7 +96,7 @@ describe('LiquiditySweep interval detection', () => {
     const detector = new LiquiditySweepDetector(liquidityConfig({
       atrMultiplier: 0.5,
       openingRangeMinutes: 1,
-    }));
+    }), null, 60000);
 
     expect(() => {
       detector.config.atrMultiplier = -0.5;
@@ -122,7 +122,7 @@ describe('LiquiditySweep interval detection', () => {
     const detector = new LiquiditySweepDetector(liquidityConfig({
       atrMultiplier: 0.5,
       openingRangeMinutes: 1,
-    }));
+    }), null, 60000);
     seedDailyATR(detector, 10);
 
     expect(() => {
@@ -177,7 +177,7 @@ describe('LiquiditySweep interval detection', () => {
     const detector = new LiquiditySweepDetector(liquidityConfig({
       atrMultiplier: 0.5,
       openingRangeMinutes: 1,
-    }));
+    }), null, 60000);
     seedDailyATR(detector, 10);
     detector.state.priorHighs = [105.6];
 
@@ -203,7 +203,7 @@ describe('LiquiditySweep interval detection', () => {
     const detector = new LiquiditySweepDetector(liquidityConfig({
       atrMultiplier: 0.5,
       openingRangeMinutes: 1,
-    }));
+    }), null, 60000);
     seedDailyATR(detector, 10);
     detector.state.priorHighs = [105.6];
 
@@ -226,7 +226,7 @@ describe('LiquiditySweep interval detection', () => {
   });
 
   test('refuses swept opening candles that do not close back inside the swept level', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig({ openingRangeMinutes: 1 }));
+    const detector = new LiquiditySweepDetector(liquidityConfig({ openingRangeMinutes: 1 }), null, 60000);
     seedDailyATR(detector, 10);
     detector.state.priorHighs = [105];
 
@@ -250,7 +250,7 @@ describe('LiquiditySweep interval detection', () => {
   });
 
   test('refuses low sweeps that close below the swept level', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig({ openingRangeMinutes: 1 }));
+    const detector = new LiquiditySweepDetector(liquidityConfig({ openingRangeMinutes: 1 }), null, 60000);
     seedDailyATR(detector, 10);
     detector.state.priorLows = [95];
 
@@ -274,7 +274,7 @@ describe('LiquiditySweep interval detection', () => {
   });
 
   test('continues watching when low sweeps close back above the swept level', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig({ openingRangeMinutes: 1 }));
+    const detector = new LiquiditySweepDetector(liquidityConfig({ openingRangeMinutes: 1 }), null, 60000);
     seedDailyATR(detector, 10);
     detector.state.priorLows = [95];
 
@@ -301,7 +301,7 @@ describe('LiquiditySweep interval detection', () => {
     expect(() => new LiquiditySweepDetector({
       ...liquidityConfig(),
       sweepExtensionBandMult: undefined,
-    })).toThrow(/sweepExtensionBandMult is required/);
+    }, null, 60000)).toThrow(/sweepExtensionBandMult is required/);
 
     expect(() => new LiquiditySweepDetector({
       ...liquidityConfig(),
@@ -311,11 +311,11 @@ describe('LiquiditySweep interval detection', () => {
         hammerPattern: 0.25,
         engulfPattern: 0.25,
       },
-    })).toThrow(/manipCandle is required/);
+    }, null, 60000)).toThrow(/manipCandle is required/);
   });
 
   test('consumes a generated signal instead of replaying stale structural levels', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig());
+    const detector = new LiquiditySweepDetector(liquidityConfig(), null, 60000);
     detector.state.signal = {
       hasSignal: true,
       direction: 'buy',

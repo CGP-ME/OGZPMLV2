@@ -50,7 +50,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('LiquiditySweep next-candle-open patterns do not emit market-entry override levels', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig());
+    const detector = new LiquiditySweepDetector(liquidityConfig(), null, 60000);
     detector.state.box = {
       high: 110,
       low: 90,
@@ -75,7 +75,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('LiquiditySweep known-entry patterns stop at producer on invalid exit geometry', () => {
-    const detector = new LiquiditySweepDetector(liquidityConfig());
+    const detector = new LiquiditySweepDetector(liquidityConfig(), null, 60000);
     detector.state.box = {
       high: 105,
       low: 90,

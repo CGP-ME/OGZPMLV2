@@ -37,6 +37,7 @@ const { getNarrator } = require('./TradeNarrator');
 const narrator = getNarrator();
 const MAExtensionFilter = require('./MAExtensionFilter');
 const ConfigLoader = require('../foundation/ConfigLoader');
+const { TIMEFRAME_MS } = require('./TimeframeEngine');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
 const { c } = require('./CandleHelper');
 const { createTraceId, emitTrace } = require('./TraceSpine');
@@ -855,7 +856,7 @@ class StrategyOrchestrator {
       ...ConfigLoader.get('strategies.LiquiditySweep'),
       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
     });
-    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider);
+    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider, TIMEFRAME_MS[this.mtfBaseTimeframe]);
     this.breakAndRetestConfigProvider = () => ConfigLoader.get('strategies.BreakRetest');
     this.breakAndRetestExitConfigProvider = () => ConfigLoader.get('exitContracts.BreakRetest');
     this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfigProvider, this.breakAndRetestExitConfigProvider);
@@ -1799,7 +1800,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           ctx.extras?.timeframe,
           liquiditySweepModule,
-          () => new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider)
+          () => new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider, TIMEFRAME_MS[ctx.extras?.timeframe])
         );
         if (ctx.entriesEnabled === false) {
           scopedLiquiditySweep.observe(latestCandle);

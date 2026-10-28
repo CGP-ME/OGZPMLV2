@@ -1652,6 +1652,15 @@
         "sma20_50": 1.0,
         "sma50_200": 1.4
       }
+    },
+    "LiquiditySweep": {
+      "oppositeWickRatio": 1.5,
+      "rrHigh": 2.0,
+      "rrMid": 1.5,
+      "rrLow": 1.0,
+      "rrHighBonus": 0.1,
+      "rrMidBonus": 0.05,
+      "rrLowPenalty": 0.1
     }
   }
 }

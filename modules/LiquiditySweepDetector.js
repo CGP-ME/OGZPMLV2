@@ -11,7 +11,7 @@
  *   • No hardcoded timeframe assumptions anywhere
  *
  * Integration:
- *   const sweep = new LiquiditySweepDetector(config.strategies.LiquiditySweep);
+ *   const sweep = new LiquiditySweepDetector(config.strategies.LiquiditySweep, null, selectedCandleIntervalMs);
  *   // In your candle loop (any timeframe):
  *   const signal = sweep.feedCandle(candle);
  */
@@ -19,6 +19,7 @@
 'use strict';
 
 const { c, o, h, l, v, t } = require('../core/CandleHelper');
+const ConfigLoader = require('../foundation/ConfigLoader');
 function positiveConfigNumber(config, key) {
   if (!Object.prototype.hasOwnProperty.call(config, key) || config[key] == null) {
     throw new Error(`[LiquiditySweep] ${key} is required`);
@@ -91,14 +92,15 @@ function buildDetectorConfig(config) {
 class LiquiditySweepDetector {
   #dailyATR = null;
 
-  constructor(config, configProvider = null) {
+  constructor(config, configProvider = null, candleIntervalMs) {
     this.config = buildDetectorConfig(config);
     this.configProvider = configProvider;
+    this._entryWindowIntervalMin = candleIntervalMs / 60000;
 
     this._candleIntervalMs = null;
     this._candleIntervalMin = null;
     this._lastCandleTs = null;
-    this._entryWindowBars = null;
+    this._entryWindowBars = Math.max(1, Math.round(this.config.entryWindowMinutes / this._entryWindowIntervalMin));
     this._openingRangeBars = null;
     this._dailyCandle = null;
     this._currentDay = null;
@@ -182,7 +184,6 @@ class LiquiditySweepDetector {
       if (diff > 0) {
         this._candleIntervalMs = diff;
         this._candleIntervalMin = Math.max(1, Math.round(diff / 60000));
-        this._entryWindowBars = Math.max(1, Math.round(this.config.entryWindowMinutes / this._candleIntervalMin));
         this._openingRangeBars = Math.max(1, Math.round(this.config.openingRangeMinutes / this._candleIntervalMin));
         this.stats.detectedIntervalMin = this._candleIntervalMin;
         console.log(`[LiquiditySweep] Auto-detected ${this._candleIntervalMin}m candles -> entryWindow: ${this._entryWindowBars} bars, openingRange: ${this._openingRangeBars} bars`);
@@ -199,8 +200,8 @@ class LiquiditySweepDetector {
     if (!this.configProvider) return;
 
     this.config = buildDetectorConfig(this.configProvider());
+    this._entryWindowBars = Math.max(1, Math.round(this.config.entryWindowMinutes / this._entryWindowIntervalMin));
     if (this._candleIntervalMin) {
-      this._entryWindowBars = Math.max(1, Math.round(this.config.entryWindowMinutes / this._candleIntervalMin));
       this._openingRangeBars = Math.max(1, Math.round(this.config.openingRangeMinutes / this._candleIntervalMin));
     }
     if (Number.isFinite(this.#dailyATR) && this.#dailyATR > 0) {
@@ -376,7 +377,7 @@ class LiquiditySweepDetector {
     if (!bar || !this.state.box || this.state.phase === 'done' || this.state.phase === 'waiting_for_open') return;
     this.state.barsAfterOpen++;
     const box = this.state.box;
-    const maxBars = this._entryWindowBars || 6;
+    const maxBars = this._entryWindowBars;
     if (this.state.barsAfterOpen > maxBars) {
       if (this.state.phase !== 'signal_active') this.state.phase = 'done';
       return;
@@ -417,7 +418,7 @@ class LiquiditySweepDetector {
     if (range === 0 || body === 0) return null;
     const bodyRatio = body / range;
     if (exitSide === 'below') {
-      if (bodyRatio <= this.config.hammerBodyMaxPct && lowerWick / body >= this.config.hammerWickMinRatio && lowerWick > upperWick * 1.5) {
+      if (bodyRatio <= this.config.hammerBodyMaxPct && lowerWick / body >= this.config.hammerWickMinRatio && lowerWick > upperWick * ConfigLoader.getInternalsFileValue('strategies.LiquiditySweep.oppositeWickRatio')) {
         this.stats.hammersDetected++;
         return { type: 'hammer', direction: 'bullish', wickExtreme: l(candle) };
       }
@@ -430,7 +431,7 @@ class LiquiditySweepDetector {
       }
     }
     if (exitSide === 'above') {
-      if (bodyRatio <= this.config.hammerBodyMaxPct && upperWick / body >= this.config.hammerWickMinRatio && upperWick > lowerWick * 1.5) {
+      if (bodyRatio <= this.config.hammerBodyMaxPct && upperWick / body >= this.config.hammerWickMinRatio && upperWick > lowerWick * ConfigLoader.getInternalsFileValue('strategies.LiquiditySweep.oppositeWickRatio')) {
         this.stats.hammersDetected++;
         return { type: 'inverted_hammer', direction: 'bearish', wickExtreme: h(candle) };
       }
@@ -471,9 +472,10 @@ class LiquiditySweepDetector {
       const reward = Math.abs(takeProfit - entry);
       if (risk > 0) {
         const rr = reward / risk;
-        if (rr >= 2.0) confidence += 0.10;
-        else if (rr >= 1.5) confidence += 0.05;
-        else if (rr < 1.0) confidence -= 0.10;
+        const rewardRisk = ConfigLoader.getInternalsFileValue('strategies.LiquiditySweep');
+        if (rr >= rewardRisk.rrHigh) confidence += rewardRisk.rrHighBonus;
+        else if (rr >= rewardRisk.rrMid) confidence += rewardRisk.rrMidBonus;
+        else if (rr < rewardRisk.rrLow) confidence -= rewardRisk.rrLowPenalty;
       }
     }
     confidence = Math.min(1.0, Math.max(0, confidence));
@@ -506,7 +508,7 @@ class LiquiditySweepDetector {
   }
 
   getSignal() {
-    const maxBars = this._entryWindowBars || 6;
+    const maxBars = this._entryWindowBars;
     if (!this.state.signal) {
       return {
         module: 'LiquiditySweep', hasSignal: false, direction: 'neutral', confidence: 0,
@@ -532,7 +534,7 @@ class LiquiditySweepDetector {
   _emptySignal() { return { module: 'LiquiditySweep', hasSignal: false, direction: 'neutral', confidence: 0, phase: 'waiting' }; }
 
   getStatus() {
-    const maxBars = this._entryWindowBars || 6;
+    const maxBars = this._entryWindowBars;
     return {
       phase: this.state.phase, dailyATR: this.state.dailyATR?.toFixed(2) || 'N/A',
       box: this.state.box, exitSide: this.state.exitSide,
