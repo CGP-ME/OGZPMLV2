@@ -34,6 +34,8 @@
 
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
 const { c, o, h, l, v } = require('./CandleHelper');
 
 class VolumeProfile {
@@ -57,7 +59,7 @@ class VolumeProfile {
    * @param {Array}  priceHistory  — candles array, newest LAST
    */
   update(candle, priceHistory) {
-    if (!priceHistory || priceHistory.length < 20) return;
+    if (!priceHistory || priceHistory.length < ConfigLoader.getInternalsFileValue('volumeProfile.minimumCandles')) return;
 
     const config = this.configProvider();
     this.barCount++;
@@ -196,7 +198,7 @@ class VolumeProfile {
 
   _buildProfile(priceHistory, config) {
     const candles = priceHistory.slice(-config.sessionLookback);
-    if (candles.length < 20) return;
+    if (candles.length < ConfigLoader.getInternalsFileValue('volumeProfile.minimumCandles')) return;
 
     // Find price range
     let minPrice = Infinity;
@@ -293,7 +295,7 @@ class VolumeProfile {
     const lvns = [];
     for (let i = 1; i < bins.length - 1; i++) {
       // LVN = bin significantly lower than neighbors
-      if (bins[i] < lvnThreshold && bins[i] < bins[i - 1] * 0.6 && bins[i] < bins[i + 1] * 0.6) {
+      if (bins[i] < lvnThreshold && bins[i] < bins[i - 1] * ConfigLoader.getInternalsFileValue('volumeProfile.lvnNeighborVolumeRatio') && bins[i] < bins[i + 1] * ConfigLoader.getInternalsFileValue('volumeProfile.lvnNeighborVolumeRatio')) {
         lvns.push({
           price: binPrices[i],
           volume: bins[i],

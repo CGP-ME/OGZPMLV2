@@ -1716,5 +1716,9 @@
       "tpHighConditions": 3,
       "tpMidConditions": 2
     }
+  },
+  "volumeProfile": {
+    "minimumCandles": 20,
+    "lvnNeighborVolumeRatio": 0.6
   }
 }
