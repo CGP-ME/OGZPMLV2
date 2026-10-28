@@ -1,5 +1,6 @@
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * SessionRouter
  *
@@ -45,9 +46,9 @@ const FIAT_BALANCE_SYMBOLS = new Set([
 ]);
 const SESSION_ROUTER_WIND_DOWN_SOURCE = 'session_router_wind_down';
 const RTH_OPEN_MINUTE = 9 * 60 + 30;
-const WIND_DOWN_SOFT_STOP_MINUTES = 30;
-const WIND_DOWN_WARN_MINUTES = 15;
-const WIND_DOWN_FORCE_FLATTEN_MINUTES = 5;
+const WIND_DOWN_SOFT_STOP_MINUTES = ConfigLoader.getInternalsFileValue('sessionRouter.fixedPolicy.softStopMinutes');
+const WIND_DOWN_WARN_MINUTES = ConfigLoader.getInternalsFileValue('sessionRouter.fixedPolicy.warnMinutes');
+const WIND_DOWN_FORCE_FLATTEN_MINUTES = ConfigLoader.getInternalsFileValue('sessionRouter.fixedPolicy.forceFlattenMinutes');
 
 class SessionRouter extends EventEmitter {
   constructor(config = {}) {

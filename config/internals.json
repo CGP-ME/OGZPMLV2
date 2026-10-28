@@ -61,7 +61,12 @@
   "sessionRouter": {
     "fastCheckIntervalMs": 1000,
     "transitionStoreDir": "data/session-router",
-    "transitionStoreStaleLockMs": 120000
+    "transitionStoreStaleLockMs": 120000,
+    "fixedPolicy": {
+      "softStopMinutes": 30,
+      "warnMinutes": 15,
+      "forceFlattenMinutes": 5
+    }
   },
   "marketCalendar": {
     "timezone": "America/New_York",
