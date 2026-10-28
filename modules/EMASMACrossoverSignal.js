@@ -24,6 +24,7 @@
 
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c } = require('../core/CandleHelper');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'decayBars',
@@ -151,12 +152,13 @@ function configReceipt(cfg, warmupBars) {
 class EMASMACrossoverSignal {
   constructor(config, configProvider = null) {
     // MA pair definitions — period pairs + type
+    const pairWeights = ConfigLoader.getInternalsFileValue('strategies.EMASMACrossover.pairWeights');
     this.pairs = [
-      { id: 'ema9_20',   fast: 9,   slow: 20,  type: 'ema', weight: 1.0 },
-      { id: 'ema20_50',  fast: 20,  slow: 50,  type: 'ema', weight: 1.2 },
-      { id: 'ema50_200', fast: 50,  slow: 200, type: 'ema', weight: 1.5 },
-      { id: 'sma20_50',  fast: 20,  slow: 50,  type: 'sma', weight: 1.0 },
-      { id: 'sma50_200', fast: 50,  slow: 200, type: 'sma', weight: 1.4 },
+      { id: 'ema9_20',   fast: 9,   slow: 20,  type: 'ema', weight: pairWeights.ema9_20 },
+      { id: 'ema20_50',  fast: 20,  slow: 50,  type: 'ema', weight: pairWeights.ema20_50 },
+      { id: 'ema50_200', fast: 50,  slow: 200, type: 'ema', weight: pairWeights.ema50_200 },
+      { id: 'sma20_50',  fast: 20,  slow: 50,  type: 'sma', weight: pairWeights.sma20_50 },
+      { id: 'sma50_200', fast: 50,  slow: 200, type: 'sma', weight: pairWeights.sma50_200 },
     ];
 
     this.configProvider = configProvider;

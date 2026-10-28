@@ -1643,6 +1643,15 @@
         "extensionCap": 0.3,
         "extensionScale": 0.15
       }
+    },
+    "EMASMACrossover": {
+      "pairWeights": {
+        "ema9_20": 1.0,
+        "ema20_50": 1.2,
+        "ema50_200": 1.5,
+        "sma20_50": 1.0,
+        "sma50_200": 1.4
+      }
     }
   }
 }
