@@ -2581,6 +2581,14 @@
       "whaleMaxRows": 3,
       "minimumNonWhaleSlots": 1,
       "filingSlotsDivisor": 2
+    },
+    "checkoutPolicy": {
+      "paymentMethodTypes": [
+        "card"
+      ],
+      "mode": "subscription",
+      "quantity": 1,
+      "allowPromotionCodes": true
     }
   },
   "exitContracts": {

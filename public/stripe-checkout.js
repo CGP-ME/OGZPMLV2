@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * OGZPrime Stripe Checkout Endpoint
  * Drop this into your Express server or run standalone
@@ -78,18 +79,18 @@ app.post('/create-checkout-session', async (req, res) => {
     }
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'subscription',
+      payment_method_types: structuredClone(ConfigLoader.getInternalsFileValue('services.checkoutPolicy.paymentMethodTypes')),
+      mode: ConfigLoader.getInternalsFileValue('services.checkoutPolicy.mode'),
       line_items: [{
         price: resolvedPriceId,
-        quantity: 1,
+        quantity: ConfigLoader.getInternalsFileValue('services.checkoutPolicy.quantity'),
       }],
       subscription_data: {
         trial_period_days: checkoutConfig.trialPeriodDays,
       },
       success_url: checkoutConfig.successUrl,
       cancel_url: checkoutConfig.cancelUrl,
-      allow_promotion_codes: true,
+      allow_promotion_codes: ConfigLoader.getInternalsFileValue('services.checkoutPolicy.allowPromotionCodes'),
     });
 
     res.json({ sessionId: session.id, url: session.url });
