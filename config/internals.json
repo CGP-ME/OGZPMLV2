@@ -400,6 +400,28 @@
         "them",
         "their"
       ]
+    },
+    "resolverPolicy": {
+      "maxTokensUpper": 200000,
+      "minimumTokensUpper": 200000,
+      "temperatureUpper": 2,
+      "timeoutLowerMs": 1000,
+      "timeoutUpperMs": 300000
+    },
+    "clientPolicy": {
+      "timeoutUpperMs": 600000,
+      "warmupPrompt": "Respond with READY.",
+      "warmupTokens": 10,
+      "slowInferenceMs": 10000,
+      "minimumCleanResponseLength": 5,
+      "ollamaKeepAlive": "20m",
+      "unexpectedShapePreviewLength": 500,
+      "thinkingTailStart": -200,
+      "ollamaWarmupPrompt": "Hello",
+      "unclosedThinkPrefixThreshold": 10,
+      "sentenceCleanupLengthThreshold": 20,
+      "sentenceCleanupMinimumFraction": 0.5,
+      "httpErrorPreviewBytes": 200
     }
   },
   "monitoring": {

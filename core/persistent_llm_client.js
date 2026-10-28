@@ -15,6 +15,7 @@
  */
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 const https = require('https');
 const http = require('http');
 
@@ -110,10 +111,10 @@ class PersistentLLMClient {
     this.baseUrl = requireString(resolvedConfig, 'baseUrl').replace(/\/+$/, '');
     this.model = requireString(resolvedConfig, 'model');
     this.apiKey = resolvedConfig.authRequired === false ? '' : requireString(resolvedConfig, 'apiKey');
-    this.maxTokens = requireInteger(resolvedConfig, 'maxTokens', { min: 1, max: 200000 });
-    this.minimumTokens = requireInteger(resolvedConfig, 'minimumTokens', { min: 0, max: 200000 });
-    this.temperature = requireNumber(resolvedConfig, 'temperature', { min: 0, max: 2 });
-    this.requestTimeoutMs = requireInteger(resolvedConfig, 'requestTimeoutMs', { min: 1000, max: 600000 });
+    this.maxTokens = requireInteger(resolvedConfig, 'maxTokens', { min: 1, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.maxTokensUpper') });
+    this.minimumTokens = requireInteger(resolvedConfig, 'minimumTokens', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.minimumTokensUpper') });
+    this.temperature = requireNumber(resolvedConfig, 'temperature', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.temperatureUpper') });
+    this.requestTimeoutMs = requireInteger(resolvedConfig, 'requestTimeoutMs', { min: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.timeoutLowerMs'), max: ConfigLoader.getInternalsFileValue('trai.clientPolicy.timeoutUpperMs') });
     this.systemPrompt = requireString(resolvedConfig, 'systemPrompt');
     this.openaiExtraBody = resolvedConfig.openaiExtraBody
       && typeof resolvedConfig.openaiExtraBody === 'object'
@@ -146,7 +147,7 @@ class PersistentLLMClient {
       } else if (!this.skipWarmup) {
         // For cloud providers, do a minimal test call
         const warmupStart = Date.now();
-        const warmupResponse = await this.generateRawResponse('Respond with READY.', 10);
+        const warmupResponse = await this.generateRawResponse(ConfigLoader.getInternalsFileValue('trai.clientPolicy.warmupPrompt'), ConfigLoader.getInternalsFileValue('trai.clientPolicy.warmupTokens'));
         if (!String(warmupResponse || '').trim()) {
           throw new Error('TRAI LLM warm-up returned an empty response');
         }
@@ -202,14 +203,14 @@ class PersistentLLMClient {
       this.requestCount++;
       this.totalLatency += latency;
 
-      if (latency > 10000) {
+      if (latency > ConfigLoader.getInternalsFileValue('trai.clientPolicy.slowInferenceMs')) {
         console.warn(`[TRAI] Slow inference: ${latency}ms`);
       }
 
       // Clean response
       responseText = this._cleanResponse(responseText);
 
-      if (!responseText || responseText.length < 5) {
+      if (!responseText || responseText.length < ConfigLoader.getInternalsFileValue('trai.clientPolicy.minimumCleanResponseLength')) {
         throw new Error('TRAI LLM response empty after cleaning');
       }
 
@@ -274,7 +275,7 @@ class PersistentLLMClient {
           prompt,
           system: this.systemPrompt,
           stream: false,
-          keep_alive: '20m',
+          keep_alive: ConfigLoader.getInternalsFileValue('trai.clientPolicy.ollamaKeepAlive'),
           options: { num_predict: tokens, temperature: this.temperature },
         },
         headers: { 'Content-Type': 'application/json' },
@@ -466,7 +467,7 @@ class PersistentLLMClient {
 
     const data = JSON.parse(response);
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error(`Unexpected response shape: ${JSON.stringify(data).slice(0, 500)}`);
+      throw new Error(`Unexpected response shape: ${JSON.stringify(data).slice(0, ConfigLoader.getInternalsFileValue('trai.clientPolicy.unexpectedShapePreviewLength'))}`);
     }
 
     return data.choices[0].message;
@@ -651,7 +652,7 @@ class PersistentLLMClient {
       prompt: prompt,
       system: this.systemPrompt,
       stream: false,
-      keep_alive: '20m',
+      keep_alive: ConfigLoader.getInternalsFileValue('trai.clientPolicy.ollamaKeepAlive'),
       options: {
         num_predict: maxTokens,
         temperature: this.temperature,
@@ -677,7 +678,7 @@ class PersistentLLMClient {
       const thinking = data.thinking.trim();
       const sentences = thinking.split(/[.!?]\s+/);
       // Return last meaningful sentence as the "answer"
-      return sentences[sentences.length - 1] || thinking.slice(-200);
+      return sentences[sentences.length - 1] || thinking.slice(ConfigLoader.getInternalsFileValue('trai.clientPolicy.thinkingTailStart'));
     }
     return '';
   }
@@ -702,7 +703,7 @@ class PersistentLLMClient {
       // Warmup
       console.log(`[TRAI] Warming up ${this.model}...`);
       const start = Date.now();
-      await this._callOllama('Hello', 10);
+      await this._callOllama(ConfigLoader.getInternalsFileValue('trai.clientPolicy.ollamaWarmupPrompt'), ConfigLoader.getInternalsFileValue('trai.clientPolicy.warmupTokens'));
       console.log(`[TRAI] Warmup: ${Date.now() - start}ms`);
     } catch (e) {
       throw new Error(`Ollama not reachable at ${this.baseUrl}: ${e.message}`);
@@ -719,7 +720,7 @@ class PersistentLLMClient {
       text = text.replace(/<think>[\s\S]*?<\/think>/g, '');
     } else if (text.includes('<think>') && !text.includes('</think>')) {
       const idx = text.indexOf('<think>');
-      text = idx > 10 ? text.substring(0, idx) : '';
+      text = idx > ConfigLoader.getInternalsFileValue('trai.clientPolicy.unclosedThinkPrefixThreshold') ? text.substring(0, idx) : '';
     }
     text = text.replace(/<\/think>/g, '');
 
@@ -731,9 +732,9 @@ class PersistentLLMClient {
 
     // Truncate at last complete sentence if cut off
     text = text.trim();
-    if (text.length > 20 && !/[.!?]$/.test(text)) {
+    if (text.length > ConfigLoader.getInternalsFileValue('trai.clientPolicy.sentenceCleanupLengthThreshold') && !/[.!?]$/.test(text)) {
       const lastEnd = Math.max(text.lastIndexOf('.'), text.lastIndexOf('?'), text.lastIndexOf('!'));
-      if (lastEnd > text.length * 0.5) {
+      if (lastEnd > text.length * ConfigLoader.getInternalsFileValue('trai.clientPolicy.sentenceCleanupMinimumFraction')) {
         text = text.substring(0, lastEnd + 1);
       }
     }
@@ -769,7 +770,7 @@ class PersistentLLMClient {
         res.on('end', () => {
           const rawBody = Buffer.concat(chunks);
           if (res.statusCode >= 400) {
-            const error = new Error(`HTTP ${res.statusCode}: ${rawBody.toString('utf8', 0, 200)}`);
+            const error = new Error(`HTTP ${res.statusCode}: ${rawBody.toString('utf8', 0, ConfigLoader.getInternalsFileValue('trai.clientPolicy.httpErrorPreviewBytes'))}`);
             error.statusCode = res.statusCode;
             error.rawResponse = rawBody;
             reject(error);

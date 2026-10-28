@@ -68,10 +68,10 @@ function resolveTraiLlmConfig(options = {}) {
     apiKey,
     apiKeyEnv,
     authRequired,
-    maxTokens: requireInteger(llmConfig.maxTokens, 'trai.llm.maxTokens', { min: 1, max: 200000 }),
-    minimumTokens: requireInteger(llmConfig.minimumTokens, 'trai.llm.minimumTokens', { min: 0, max: 200000 }),
-    temperature: requireNumber(llmConfig.temperature, 'trai.llm.temperature', { min: 0, max: 2 }),
-    requestTimeoutMs: requireInteger(llmConfig.requestTimeoutMs, 'trai.llm.requestTimeoutMs', { min: 1000, max: 300000 }),
+    maxTokens: requireInteger(llmConfig.maxTokens, 'trai.llm.maxTokens', { min: 1, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.maxTokensUpper') }),
+    minimumTokens: requireInteger(llmConfig.minimumTokens, 'trai.llm.minimumTokens', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.minimumTokensUpper') }),
+    temperature: requireNumber(llmConfig.temperature, 'trai.llm.temperature', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.temperatureUpper') }),
+    requestTimeoutMs: requireInteger(llmConfig.requestTimeoutMs, 'trai.llm.requestTimeoutMs', { min: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.timeoutLowerMs'), max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.timeoutUpperMs') }),
     systemPrompt: requireString(llmConfig.systemPrompt, 'trai.llm.systemPrompt'),
   });
 }
