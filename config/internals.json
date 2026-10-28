@@ -988,7 +988,17 @@
   },
   "singleton": {
     "lockDir": ".",
-    "monitorIntervalMs": 30000
+    "monitorIntervalMs": 30000,
+    "stateManagerPolicy": {
+      "transactionLogLimit": 100,
+      "activeTradeQuantityTolerance": 1e-12,
+      "balanceConsistencyToleranceUsd": 0.01,
+      "bypassStackSliceEnd": 6,
+      "operatorStopIdentityMaxLength": 512,
+      "fillNotionalAbsoluteToleranceUsd": 0.01,
+      "fillNotionalRelativeTolerance": 1e-06,
+      "fillQuantityTolerance": 1e-09
+    }
   },
   "dashboard": {
     "stateUpdateHeartbeatMs": 30000,

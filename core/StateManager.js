@@ -502,9 +502,9 @@ class StateManager {
       // BALANCE TRACKING (all values in USD)
       // Invariant: totalBalance ≈ balance + inPosition + unrealizedPnL
       // ─────────────────────────────────────────────────────────────────────
-      balance: 10000,           // Available USD (not locked in positions)
-      totalBalance: 10000,      // Total account value in USD
-      initialBalance: 10000,    // FIX 2026-03-14: Reference point for drawdown calculation
+      balance: ConfigLoader.get('startingBalance'),           // Available USD (not locked in positions)
+      totalBalance: ConfigLoader.get('startingBalance'),      // Total account value in USD
+      initialBalance: ConfigLoader.get('startingBalance'),    // FIX 2026-03-14: Reference point for drawdown calculation
       inPosition: 0,            // USD locked in positions (position × entryPrice)
 
       // ─────────────────────────────────────────────────────────────────────
@@ -557,7 +557,7 @@ class StateManager {
 
     /** @type {Array<Object>} Rolling log of recent transactions for debugging */
     this.transactionLog = [];
-    this.maxLogSize = 100;
+    this.maxLogSize = ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.transactionLogLimit');
 
     /** @type {boolean} Lock flag for atomic operations */
     this.locked = false;
@@ -1939,7 +1939,7 @@ class StateManager {
     const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
     const entryOrderQuantityUnit = trade.entryOrderQuantityUnit;
     const remainingOrderQuantityUnit = trade.remainingOrderQuantityUnit;
-    const tolerance = 1e-12;
+    const tolerance = ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.activeTradeQuantityTolerance');
 
     if (!Number.isFinite(sizeUsd) || Math.abs(sizeUsd) <= tolerance) {
       issues.push(`${tradeId}: invalid open sizeUsd=${trade.sizeUsd ?? trade.size}`);
@@ -2426,7 +2426,7 @@ class StateManager {
     // Check balance consistency
     const expectedTotal = this.state.balance + this.state.inPosition;
     const diff = Math.abs(expectedTotal - this.state.totalBalance);
-    if (diff > 0.01) {
+    if (diff > ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.balanceConsistencyToleranceUsd')) {
       issues.push(`Balance mismatch: total=${this.state.totalBalance}, expected=${expectedTotal}`);
     }
 
@@ -2745,7 +2745,7 @@ class StateManager {
         orderId,
         caller,
         timestamp: Date.now(),
-        stack: stack.split('\n').slice(1, 6).join('\n')
+        stack: stack.split('\n').slice(1, ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.bypassStackSliceEnd')).join('\n')
       });
 
       console.warn(`[StateManager] BYPASS DETECTED: updateActiveTrade() called from outside PositionTracker`);
@@ -2929,7 +2929,7 @@ class StateManager {
     if (!request || typeof request !== 'object' || Array.isArray(request)) return reject('invalid_trade_stop_request');
     const { requestId, tradeId, scopeKey, expectedTradeRevision, stopPrice } = request;
     if ([requestId, tradeId, scopeKey].some(value => typeof value !== 'string'
-      || value.trim() !== value || value.length === 0 || value.length > 512)) {
+      || value.trim() !== value || value.length === 0 || value.length > ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.operatorStopIdentityMaxLength'))) {
       return reject('invalid_trade_stop_identity');
     }
     if (!Number.isSafeInteger(expectedTradeRevision) || expectedTradeRevision < 0
@@ -3370,7 +3370,7 @@ class StateManager {
         throw new Error(`[${caller}] fillPrice must be > 0; got ${fillPrice}`);
       }
       const expectedFilledSizeUsd = filledQuantity * fillPrice;
-      const fillNotionalTolerance = Math.max(0.01, Math.abs(expectedFilledSizeUsd) * 1e-6);
+      const fillNotionalTolerance = Math.max(ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.fillNotionalAbsoluteToleranceUsd'), Math.abs(expectedFilledSizeUsd) * ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.fillNotionalRelativeTolerance'));
       if (Math.abs(filledSizeUsd - expectedFilledSizeUsd) > fillNotionalTolerance) {
         throw new Error(`[${caller}] filledSizeUsd ${filledSizeUsd} does not match filledQuantity * fillPrice ${expectedFilledSizeUsd}`);
       }
@@ -3494,7 +3494,7 @@ class StateManager {
         };
       }
 
-      const tolerance = 1e-9;
+      const tolerance = ConfigLoader.getInternalsFileValue('singleton.stateManagerPolicy.fillQuantityTolerance');
       if (filledQuantity > priorOrderQuantity + tolerance) {
         return {
           success: false,
