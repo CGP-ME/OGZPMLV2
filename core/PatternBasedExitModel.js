@@ -12,6 +12,8 @@
  * Works with the ExitContractManager profit planner path; does not own fills.
  */
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
 class PatternBasedExitModel {
   constructor(options) {
     this.config = options;
@@ -210,7 +212,7 @@ class PatternBasedExitModel {
    */
   calculatePatternTarget(patterns) {
     if (!patterns || patterns.length === 0) {
-      return 0.015; // Default 1.5%
+      return ConfigLoader.getInternalsFileValue('patternExit.tracking.targetFallback'); // Default 1.5%
     }
 
     let totalWeight = 0;
@@ -218,8 +220,8 @@ class PatternBasedExitModel {
 
     patterns.forEach(pattern => {
       const stats = pattern.stats || pattern;
-      const avgGain = stats.avgPnL || stats.averageGain || 0.01;
-      const winRate = stats.winRate || (stats.wins / stats.timesSeen) || 0.5;
+      const avgGain = stats.avgPnL || stats.averageGain || ConfigLoader.getInternalsFileValue('patternExit.tracking.averageGainFallback');
+      const winRate = stats.winRate || (stats.wins / stats.timesSeen) || ConfigLoader.getInternalsFileValue('patternExit.tracking.targetWinRateFallback');
       const occurrences = stats.timesSeen || stats.occurrences || 1;
 
       const weight = occurrences * winRate;
@@ -230,10 +232,10 @@ class PatternBasedExitModel {
       }
     });
 
-    if (totalWeight === 0) return 0.015;
+    if (totalWeight === 0) return ConfigLoader.getInternalsFileValue('patternExit.tracking.targetFallback');
 
     const patternTarget = weightedTarget / totalWeight;
-    return Math.max(0.005, Math.min(0.05, patternTarget));
+    return Math.max(ConfigLoader.getInternalsFileValue('patternExit.tracking.targetMin'), Math.min(ConfigLoader.getInternalsFileValue('patternExit.tracking.targetMax'), patternTarget));
   }
 
   /**
@@ -241,7 +243,7 @@ class PatternBasedExitModel {
    */
   calculatePatternStop(patterns) {
     if (!patterns || patterns.length === 0) {
-      return 0.02; // Default 2%
+      return ConfigLoader.getInternalsFileValue('patternExit.tracking.stopFallback'); // Default 2%
     }
 
     let totalWeight = 0;
@@ -249,19 +251,19 @@ class PatternBasedExitModel {
 
     patterns.forEach(pattern => {
       const stats = pattern.stats || pattern;
-      const maxDrawdown = stats.maxDrawdown || stats.avgDrawdown || 0.015;
-      const winRate = stats.winRate || 0.5;
+      const maxDrawdown = stats.maxDrawdown || stats.avgDrawdown || ConfigLoader.getInternalsFileValue('patternExit.tracking.drawdownFallback');
+      const winRate = stats.winRate || ConfigLoader.getInternalsFileValue('patternExit.tracking.stopWinRateFallback');
       const occurrences = stats.timesSeen || 1;
 
       const weight = occurrences * winRate;
-      weightedStop += maxDrawdown * 1.2 * weight;
+      weightedStop += maxDrawdown * ConfigLoader.getInternalsFileValue('patternExit.tracking.drawdownBuffer') * weight;
       totalWeight += weight;
     });
 
-    if (totalWeight === 0) return 0.02;
+    if (totalWeight === 0) return ConfigLoader.getInternalsFileValue('patternExit.tracking.stopFallback');
 
     const patternStop = weightedStop / totalWeight;
-    return Math.max(0.01, Math.min(0.05, patternStop));
+    return Math.max(ConfigLoader.getInternalsFileValue('patternExit.tracking.stopMin'), Math.min(ConfigLoader.getInternalsFileValue('patternExit.tracking.stopMax'), patternStop));
   }
 
   /**

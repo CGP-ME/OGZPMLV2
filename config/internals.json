@@ -1724,5 +1724,20 @@
   "fibonacci": {
     "swingConfirmBarsBefore": 5,
     "swingConfirmEndOffset": 6
+  },
+  "patternExit": {
+    "tracking": {
+      "targetFallback": 0.015,
+      "averageGainFallback": 0.01,
+      "targetWinRateFallback": 0.5,
+      "targetMin": 0.005,
+      "targetMax": 0.05,
+      "stopFallback": 0.02,
+      "drawdownFallback": 0.015,
+      "stopWinRateFallback": 0.5,
+      "drawdownBuffer": 1.2,
+      "stopMin": 0.01,
+      "stopMax": 0.05
+    }
   }
 }
