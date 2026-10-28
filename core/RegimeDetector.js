@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * RegimeDetector - Phase 3 of Modular Architecture Refactor
  *
@@ -166,7 +167,7 @@ class RegimeDetector {
     const lookback = Math.min(this.config.directionalLookback, candles.length);
     const recent = candles.slice(-lookback);
 
-    if (recent.length < 3) return 0;
+    if (recent.length < ConfigLoader.getInternalsFileValue('analysisPolicy.regime.directionalMinimumCandles')) return 0;
 
     let upMoves = 0;
     let downMoves = 0;

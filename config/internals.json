@@ -2859,5 +2859,10 @@
     "diagnostics": {
       "warmupLogCandleCount": 3
     }
+  },
+  "analysisPolicy": {
+    "regime": {
+      "directionalMinimumCandles": 3
+    }
   }
 }
