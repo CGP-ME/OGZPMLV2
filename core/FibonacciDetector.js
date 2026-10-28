@@ -2,6 +2,7 @@
 // Detects swing high/lows and calculates retracement levels
 
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { c, h, l } = require('./CandleHelper');
 
 /**
@@ -211,12 +212,12 @@ class FibonacciDetector {
       let strength = 0;
 
       // Count candles before swing that are lower (confirming high)
-      for (let i = Math.max(0, index - 5); i < index; i++) {
+      for (let i = Math.max(0, index - ConfigLoader.getInternalsFileValue('fibonacci.swingConfirmBarsBefore')); i < index; i++) {
         if (h(candles[i]) < high) strength++;
       }
 
       // Count candles after swing that are lower (confirming high)
-      for (let i = index + 1; i < Math.min(candles.length, index + 6); i++) {
+      for (let i = index + 1; i < Math.min(candles.length, index + ConfigLoader.getInternalsFileValue('fibonacci.swingConfirmEndOffset')); i++) {
         if (h(candles[i]) < high) strength++;
       }
 
@@ -226,12 +227,12 @@ class FibonacciDetector {
       let strength = 0;
 
       // Count candles before swing that are higher (confirming low)
-      for (let i = Math.max(0, index - 5); i < index; i++) {
+      for (let i = Math.max(0, index - ConfigLoader.getInternalsFileValue('fibonacci.swingConfirmBarsBefore')); i < index; i++) {
         if (l(candles[i]) > low) strength++;
       }
 
       // Count candles after swing that are higher (confirming low)
-      for (let i = index + 1; i < Math.min(candles.length, index + 6); i++) {
+      for (let i = index + 1; i < Math.min(candles.length, index + ConfigLoader.getInternalsFileValue('fibonacci.swingConfirmEndOffset')); i++) {
         if (l(candles[i]) > low) strength++;
       }
 

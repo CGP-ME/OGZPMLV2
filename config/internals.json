@@ -1720,5 +1720,9 @@
   "volumeProfile": {
     "minimumCandles": 20,
     "lvnNeighborVolumeRatio": 0.6
+  },
+  "fibonacci": {
+    "swingConfirmBarsBefore": 5,
+    "swingConfirmEndOffset": 6
   }
 }
