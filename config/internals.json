@@ -975,7 +975,16 @@
   "indicators": {
     "engine": {
       "maxCandles": 2000,
-      "maxSeriesPoints": 400
+      "maxSeriesPoints": 400,
+      "renderMarkerLimit": 200,
+      "stochRsiLookbackPadding": 50,
+      "stochRsiHistoryLimit": 500,
+      "dxLookbackPeriodMultiple": 3,
+      "ogzTpoWarmupPadding": 5,
+      "ichimokuForwardPadding": 10,
+      "pivotMinimumLookback": 500,
+      "trendMinimumRetainedPivots": 10,
+      "seriesRetentionMultiple": 4
     },
     "optimized": {
       "cacheSize": 1000,

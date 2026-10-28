@@ -1,3 +1,4 @@
+const ConfigLoader = require('../../foundation/ConfigLoader');
 // /opt/ogzprime/OGZPMLV2/core/indicators/IndicatorEngine.js
 // Empire V2 - Authoritative Indicator Engine (single source of truth)
 //
@@ -465,7 +466,7 @@ class IndicatorEngine {
         lines: packLines,
         bands: packBands,
         panels: packPanels,
-        markers: this.series.markers.slice(-200),
+        markers: this.series.markers.slice(-ConfigLoader.getInternalsFileValue('indicators.engine.renderMarkerLimit')),
       },
       timestamp: Date.now(),
       source: 'bot',
@@ -615,7 +616,7 @@ class IndicatorEngine {
     const dLen = this.config.stochRsiD;
 
     // Need RSI series
-    const rsiSeries = this._getRSISeries(p + 50); // small lookback buffer
+    const rsiSeries = this._getRSISeries(p + ConfigLoader.getInternalsFileValue('indicators.engine.stochRsiLookbackPadding')); // small lookback buffer
     if (rsiSeries.length < p) return;
 
     const tail = rsiSeries.slice(-p);
@@ -625,7 +626,7 @@ class IndicatorEngine {
     const stoch = (maxR === minR) ? 0 : ((curR - minR) / (maxR - minR)) * 100;
 
     this.stochRsiState.history.push(stoch);
-    if (this.stochRsiState.history.length > 500) this.stochRsiState.history.shift();
+    if (this.stochRsiState.history.length > ConfigLoader.getInternalsFileValue('indicators.engine.stochRsiHistoryLimit')) this.stochRsiState.history.shift();
 
     const k = this._smaArrayTail(this.stochRsiState.history, kLen);
     const d = this._smaArrayTail(this.stochRsiState.history.slice(-Math.max(kLen, dLen)), dLen);
@@ -751,7 +752,7 @@ class IndicatorEngine {
   _computeDXSeries(lookback = 50) {
     // lightweight batch DX builder for seeding
     const p = this.config.adxPeriod;
-    const cs = this.candles.slice(-Math.max(lookback, p * 3));
+    const cs = this.candles.slice(-Math.max(lookback, p * ConfigLoader.getInternalsFileValue('indicators.engine.dxLookbackPeriodMultiple')));
     if (cs.length < p + 2) return [];
 
     let smTR = null, smPDM = null, smMDM = null;
@@ -954,7 +955,7 @@ class IndicatorEngine {
     if (typeof computeOgzTpo !== 'function') return;
 
     // Need enough history for stable output
-    const need = this.config.ogzTpoNormLength + 5;
+    const need = this.config.ogzTpoNormLength + ConfigLoader.getInternalsFileValue('indicators.engine.ogzTpoWarmupPadding');
     if (this.candles.length < need) {
       this.state.ogzTpo = { ready: false, warmup: `${this.candles.length}/${need}` };
       return;
@@ -1087,7 +1088,7 @@ class IndicatorEngine {
     this.ichimokuState.chikou = idx >= 0 ? _c(this.candles[idx]) : null;
 
     // trim forward arrays to avoid unbounded growth
-    const max = this.config.maxCandles + this.config.ichimokuDisplacement + 10;
+    const max = this.config.maxCandles + this.config.ichimokuDisplacement + ConfigLoader.getInternalsFileValue('indicators.engine.ichimokuForwardPadding');
     if (this.ichimokuState.senkouAForward.length > max) this.ichimokuState.senkouAForward = this.ichimokuState.senkouAForward.slice(-max);
     if (this.ichimokuState.senkouBForward.length > max) this.ichimokuState.senkouBForward = this.ichimokuState.senkouBForward.slice(-max);
   }
@@ -1140,7 +1141,7 @@ class IndicatorEngine {
     if (isLow)  this._pushPivot(this.pivots.lows,  { i: pivotIndex, t: _t(pivotC), price: _l(pivotC) });
 
     // trim pivots to lookback
-    const maxLook = Math.max(this.config.trendMaxLookback, 500);
+    const maxLook = Math.max(this.config.trendMaxLookback, ConfigLoader.getInternalsFileValue('indicators.engine.pivotMinimumLookback'));
     this.pivots.highs = this.pivots.highs.filter(p => (n - 1 - p.i) <= maxLook);
     this.pivots.lows  = this.pivots.lows.filter(p => (n - 1 - p.i) <= maxLook);
   }
@@ -1265,7 +1266,7 @@ class IndicatorEngine {
 
     const pts = pivots
       .filter(p => (n - 1 - p.i) <= look)
-      .slice(-Math.max(minPts, 10));
+      .slice(-Math.max(minPts, ConfigLoader.getInternalsFileValue('indicators.engine.trendMinimumRetainedPivots')));
 
     if (pts.length < minPts) return null;
 
@@ -1317,8 +1318,8 @@ class IndicatorEngine {
   _updateSeries(c) {
     // candles
     this.series.candles.push(c);
-    if (this.series.candles.length > this.config.maxSeriesPoints * 4) {
-      this.series.candles = this.series.candles.slice(-this.config.maxSeriesPoints * 4);
+    if (this.series.candles.length > this.config.maxSeriesPoints * ConfigLoader.getInternalsFileValue('indicators.engine.seriesRetentionMultiple')) {
+      this.series.candles = this.series.candles.slice(-this.config.maxSeriesPoints * ConfigLoader.getInternalsFileValue('indicators.engine.seriesRetentionMultiple'));
     }
 
     const t = _t(c);
@@ -1467,7 +1468,7 @@ class IndicatorEngine {
     if (!this.series.lines.has(id)) this.series.lines.set(id, []);
     const arr = this.series.lines.get(id);
     arr.push(pt);
-    if (arr.length > this.config.maxSeriesPoints * 4) this.series.lines.set(id, arr.slice(-this.config.maxSeriesPoints * 4));
+    if (arr.length > this.config.maxSeriesPoints * ConfigLoader.getInternalsFileValue('indicators.engine.seriesRetentionMultiple')) this.series.lines.set(id, arr.slice(-this.config.maxSeriesPoints * ConfigLoader.getInternalsFileValue('indicators.engine.seriesRetentionMultiple')));
   }
 
   _setLine2(id, pts2) {
@@ -1482,7 +1483,7 @@ class IndicatorEngine {
     b.mid.push({ t, y: mid });
     b.lower.push({ t, y: lower });
 
-    const cap = this.config.maxSeriesPoints * 4;
+    const cap = this.config.maxSeriesPoints * ConfigLoader.getInternalsFileValue('indicators.engine.seriesRetentionMultiple');
     if (b.upper.length > cap) {
       b.upper = b.upper.slice(-cap);
       b.mid = b.mid.slice(-cap);
@@ -1495,7 +1496,7 @@ class IndicatorEngine {
     if (!this.series.panels.has(id)) this.series.panels.set(id, []);
     const arr = this.series.panels.get(id);
     arr.push(pt);
-    if (arr.length > this.config.maxSeriesPoints * 4) this.series.panels.set(id, arr.slice(-this.config.maxSeriesPoints * 4));
+    if (arr.length > this.config.maxSeriesPoints * ConfigLoader.getInternalsFileValue('indicators.engine.seriesRetentionMultiple')) this.series.panels.set(id, arr.slice(-this.config.maxSeriesPoints * ConfigLoader.getInternalsFileValue('indicators.engine.seriesRetentionMultiple')));
   }
 
   // ---------- Helpers ----------
