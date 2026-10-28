@@ -1672,6 +1672,16 @@
         "largeBonus": 0.1,
         "cap": 0.85
       }
+    },
+    "MADynamicSR": {
+      "historyPadding": 20,
+      "maxSwings": 50,
+      "maxSrLevels": 20,
+      "missingAtrPriceFraction": 0.01,
+      "hammerLongWickRatio": 2,
+      "hammerShortWickRatio": 0.5,
+      "strongBodyFraction": 0.6,
+      "strongBodyStrengthScale": 0.8
     }
   }
 }

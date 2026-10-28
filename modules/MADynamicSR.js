@@ -23,6 +23,8 @@
 
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
 const { c, o, h, l } = require('../core/CandleHelper');
 
 const REQUIRED_NUMBER_KEYS = [
@@ -300,7 +302,7 @@ class MADynamicSR {
     }
 
     // Need enough history for 200 MA + slope lookback to generate signals
-    const minBars = Math.max(entryMaPeriod, srMaPeriod) + slopeLookback + 20;
+    const minBars = Math.max(entryMaPeriod, srMaPeriod) + slopeLookback + ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.historyPadding');
     if (!priceHistory || priceHistory.length < minBars) {
       return this._emptySignal(conditionFlags);
     }
@@ -502,8 +504,8 @@ class MADynamicSR {
     }
 
     // Keep only last 50 swings
-    if (this.swings.length > 50) {
-      this.swings = this.swings.slice(-50);
+    if (this.swings.length > ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.maxSwings')) {
+      this.swings = this.swings.slice(-ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.maxSwings'));
     }
   }
 
@@ -551,7 +553,7 @@ class MADynamicSR {
     // Keep only recent levels (last 20)
     this.srLevels = this.srLevels
       .sort((a, b) => b.lastTest - a.lastTest)
-      .slice(0, 20);
+      .slice(0, ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.maxSrLevels'));
   }
 
   /**
@@ -916,7 +918,7 @@ class MADynamicSR {
   }
 
   _structuralProfile(direction, price, ma20, atr, structuralConfig) {
-    const atrBuffer = atr && atr > 0 ? atr * structuralConfig.atrBufferMultiplier : price * 0.01;
+    const atrBuffer = atr && atr > 0 ? atr * structuralConfig.atrBufferMultiplier : price * ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.missingAtrPriceFraction');
     let stopLoss;
     let takeProfit;
     let risk;
@@ -1016,13 +1018,13 @@ class MADynamicSR {
     if (range === 0) return result;
 
     // Hammer (bullish) - small body, long lower wick, little upper wick
-    if (close > open && lowerWick >= body * 2 && upperWick <= body * 0.5) {
+    if (close > open && lowerWick >= body * ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.hammerLongWickRatio') && upperWick <= body * ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.hammerShortWickRatio')) {
       result.bullish = true;
       result.pattern = 'hammer';
       result.strength = Math.min(1, lowerWick / range);
     }
     // Inverted Hammer / Shooting Star (bearish) - small body, long upper wick
-    else if (close < open && upperWick >= body * 2 && lowerWick <= body * 0.5) {
+    else if (close < open && upperWick >= body * ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.hammerLongWickRatio') && lowerWick <= body * ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.hammerShortWickRatio')) {
       result.bearish = true;
       result.pattern = 'shooting_star';
       result.strength = Math.min(1, upperWick / range);
@@ -1049,16 +1051,16 @@ class MADynamicSR {
     }
 
     // Strong bullish candle (big green body)
-    if (!result.bullish && close > open && body / range > 0.6) {
+    if (!result.bullish && close > open && body / range > ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.strongBodyFraction')) {
       result.bullish = true;
       result.pattern = 'strong_bullish';
-      result.strength = body / range * 0.8;
+      result.strength = body / range * ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.strongBodyStrengthScale');
     }
     // Strong bearish candle (big red body)
-    if (!result.bearish && close < open && body / range > 0.6) {
+    if (!result.bearish && close < open && body / range > ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.strongBodyFraction')) {
       result.bearish = true;
       result.pattern = 'strong_bearish';
-      result.strength = body / range * 0.8;
+      result.strength = body / range * ConfigLoader.getInternalsFileValue('strategies.MADynamicSR.strongBodyStrengthScale');
     }
 
     return result;
