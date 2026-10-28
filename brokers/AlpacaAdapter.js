@@ -497,7 +497,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 qty: qty.toString(),
                 side: side,
                 type: price ? 'limit' : 'market',
-                time_in_force: ConfigLoader.getInternalsFileValue('broker.alpacaOrder.timeInForce')
+                time_in_force: options.timeInForce || ConfigLoader.getInternalsFileValue('broker.alpacaOrder.timeInForce')
             };
 
             if (price) {
