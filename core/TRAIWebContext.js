@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * TRAIWebContext - Web data fetching for TRAI market context
  *
@@ -20,59 +21,25 @@ function detectAssetFromQuery(query) {
   const words = q.split(/\s+/);
 
   // Common crypto names → CoinGecko ID
-  const cryptoPatterns = [
-    { patterns: ['bitcoin', 'btc'], id: 'bitcoin', symbol: 'BTC' },
-    { patterns: ['ethereum', 'eth', 'ether'], id: 'ethereum', symbol: 'ETH' },
-    { patterns: ['solana', 'sol'], id: 'solana', symbol: 'SOL' },
-    { patterns: ['cardano', 'ada'], id: 'cardano', symbol: 'ADA' },
-    { patterns: ['xrp', 'ripple'], id: 'ripple', symbol: 'XRP' },
-    { patterns: ['dogecoin', 'doge'], id: 'dogecoin', symbol: 'DOGE' },
-    { patterns: ['polkadot', 'dot'], id: 'polkadot', symbol: 'DOT' },
-    { patterns: ['avalanche', 'avax'], id: 'avalanche-2', symbol: 'AVAX' },
-    { patterns: ['chainlink', 'link'], id: 'chainlink', symbol: 'LINK' },
-    { patterns: ['polygon', 'matic'], id: 'matic-network', symbol: 'MATIC' },
-    { patterns: ['litecoin', 'ltc'], id: 'litecoin', symbol: 'LTC' },
-    { patterns: ['binance', 'bnb'], id: 'binancecoin', symbol: 'BNB' },
-    { patterns: ['shiba', 'shib'], id: 'shiba-inu', symbol: 'SHIB' },
-    { patterns: ['tron', 'trx'], id: 'tron', symbol: 'TRX' },
-    { patterns: ['uniswap', 'uni'], id: 'uniswap', symbol: 'UNI' }
-  ];
+  const cryptoPatterns = structuredClone(ConfigLoader.getInternalsFileValue('trai.webContextPolicy.cryptoPatterns'));
 
   // Common stock names → Yahoo symbol
-  const stockPatterns = [
-    { patterns: ['apple', 'aapl'], symbol: 'AAPL' },
-    { patterns: ['tesla', 'tsla'], symbol: 'TSLA' },
-    { patterns: ['microsoft', 'msft'], symbol: 'MSFT' },
-    { patterns: ['google', 'googl', 'alphabet'], symbol: 'GOOGL' },
-    { patterns: ['amazon', 'amzn'], symbol: 'AMZN' },
-    { patterns: ['nvidia', 'nvda'], symbol: 'NVDA' },
-    { patterns: ['meta', 'facebook', 'fb'], symbol: 'META' },
-    { patterns: ['netflix', 'nflx'], symbol: 'NFLX' },
-    { patterns: ['spy', 'sp500', 's&p', 'snp'], symbol: 'SPY' },
-    { patterns: ['qqq', 'qq', 'nasdaq', 'nas', 'tech'], symbol: 'QQQ' },
-    { patterns: ['amd'], symbol: 'AMD' },
-    { patterns: ['intel', 'intc'], symbol: 'INTC' },
-    { patterns: ['disney', 'dis'], symbol: 'DIS' },
-    { patterns: ['boeing', 'ba'], symbol: 'BA' },
-    { patterns: ['jpmorgan', 'jpm'], symbol: 'JPM' },
-    { patterns: ['walmart', 'wmt'], symbol: 'WMT' },
-    { patterns: ['costco', 'cost'], symbol: 'COST' }
-  ];
+  const stockPatterns = structuredClone(ConfigLoader.getInternalsFileValue('trai.webContextPolicy.stockPatterns'));
 
   // Fuzzy match helper
   const fuzzyMatch = (pattern) => {
     for (const word of words) {
       if (word === pattern) return true;
       if (word.startsWith(pattern)) return true;
-      if (pattern.startsWith(word) && word.length >= 2) return true;
-      if (Math.abs(word.length - pattern.length) <= 1) {
+      if (pattern.startsWith(word) && word.length >= ConfigLoader.getInternalsFileValue('trai.webContextPolicy.prefixMinimumLength')) return true;
+      if (Math.abs(word.length - pattern.length) <= ConfigLoader.getInternalsFileValue('trai.webContextPolicy.maximumLengthDifference')) {
         let diffs = 0;
         const longer = word.length >= pattern.length ? word : pattern;
         const shorter = word.length < pattern.length ? word : pattern;
-        for (let i = 0; i < longer.length && diffs <= 1; i++) {
+        for (let i = 0; i < longer.length && diffs <= ConfigLoader.getInternalsFileValue('trai.webContextPolicy.differenceLoopLimit'); i++) {
           if (longer[i] !== shorter[i]) diffs++;
         }
-        if (diffs <= 1 && shorter.length >= 2) return true;
+        if (diffs <= ConfigLoader.getInternalsFileValue('trai.webContextPolicy.maximumDifferences') && shorter.length >= ConfigLoader.getInternalsFileValue('trai.webContextPolicy.shorterMinimumLength')) return true;
       }
     }
     return false;
@@ -104,8 +71,8 @@ function detectAssetFromQuery(query) {
 
   // Extract likely asset name for API search
   const assetWords = words.filter(w =>
-    w.length >= 2 &&
-    !['how', 'what', 'is', 'the', 'are', 'doing', 'like', 'about', 'whats', 'hows'].includes(w)
+    w.length >= ConfigLoader.getInternalsFileValue('trai.webContextPolicy.assetWordMinimumLength') &&
+    !structuredClone(ConfigLoader.getInternalsFileValue('trai.webContextPolicy.assetStopWords')).includes(w)
   );
 
   if (assetWords.length > 0) {
@@ -113,7 +80,7 @@ function detectAssetFromQuery(query) {
   }
 
   // Default to Bitcoin
-  return { type: 'crypto', id: 'bitcoin', symbol: 'BTC' };
+  return structuredClone(ConfigLoader.getInternalsFileValue('trai.webContextPolicy.defaultAsset'));
 }
 
 /**
@@ -123,7 +90,7 @@ async function searchCrypto(searchQuery) {
   try {
     const response = await axios.get(
       `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(searchQuery)}`,
-      { timeout: 3000 }
+      { timeout: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.cryptoSearchTimeoutMs') }
     );
     const coins = response.data.coins || [];
     if (coins.length > 0) {
@@ -144,7 +111,7 @@ async function searchStock(searchQuery) {
   try {
     const response = await axios.get(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(searchQuery)}&quotesCount=1`,
-      { timeout: 3000, headers: { 'User-Agent': 'Mozilla/5.0' } }
+      { timeout: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.stockSearchTimeoutMs'), headers: { 'User-Agent': 'Mozilla/5.0' } }
     );
     const quotes = response.data.quotes || [];
     if (quotes.length > 0) {
@@ -165,7 +132,7 @@ async function fetchFearGreedIndex() {
   try {
     const response = await axios.get(
       'https://api.alternative.me/fng/?limit=1',
-      { timeout: 5000 }
+      { timeout: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.fearGreedTimeoutMs') }
     );
 
     const data = response.data.data[0];
@@ -188,10 +155,10 @@ async function fetchCryptoNewsHeadlines() {
   try {
     const response = await axios.get(
       'https://min-api.cryptocompare.com/data/v2/news/?categories=BTC&excludeCategories=Sponsored',
-      { timeout: 5000 }
+      { timeout: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.newsTimeoutMs') }
     );
 
-    const headlines = response.data.Data?.slice(0, 3).map(article => ({
+    const headlines = response.data.Data?.slice(0, ConfigLoader.getInternalsFileValue('trai.webContextPolicy.headlineLimit')).map(article => ({
       title: article.title,
       source: article.source_info?.name || article.source,
       time: new Date(article.published_on * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -211,7 +178,7 @@ async function fetchCryptoContext(coinId, symbol) {
   const [coinResponse, fearGreed, newsHeadlines] = await Promise.all([
     axios.get(
       `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false`,
-      { timeout: 5000 }
+      { timeout: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.cryptoContextTimeoutMs') }
     ),
     fetchFearGreedIndex(),
     fetchCryptoNewsHeadlines()
@@ -237,8 +204,8 @@ async function fetchCryptoContext(coinId, symbol) {
     athChangePercent: market.ath_change_percentage?.usd?.toFixed(2) + '%',
     marketCap: market.market_cap?.usd || 0,
     marketCapRank: data.market_cap_rank || 0,
-    sentimentUp: data.sentiment_votes_up_percentage || 50,
-    sentimentDown: data.sentiment_votes_down_percentage || 50,
+    sentimentUp: data.sentiment_votes_up_percentage || ConfigLoader.getInternalsFileValue('trai.webContextPolicy.cryptoSentimentUpFallback'),
+    sentimentDown: data.sentiment_votes_down_percentage || ConfigLoader.getInternalsFileValue('trai.webContextPolicy.cryptoSentimentDownFallback'),
     fearGreedIndex: fearGreed?.value || null,
     fearGreedLabel: fearGreed?.classification || null,
     newsHeadlines: newsHeadlines || []
@@ -251,7 +218,7 @@ async function fetchCryptoContext(coinId, symbol) {
 async function fetchStockContext(symbol) {
   const response = await axios.get(
     `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`,
-    { timeout: 5000, headers: { 'User-Agent': 'Mozilla/5.0' } }
+    { timeout: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.stockContextTimeoutMs'), headers: { 'User-Agent': 'Mozilla/5.0' } }
   );
 
   const result = response.data.chart.result[0];
@@ -263,7 +230,7 @@ async function fetchStockContext(symbol) {
   const prevClose = meta.chartPreviousClose || meta.previousClose;
   const change24h = ((currentPrice - prevClose) / prevClose * 100).toFixed(2);
 
-  const price7dAgo = closes[closes.length - 6] || closes[0];
+  const price7dAgo = closes[closes.length - ConfigLoader.getInternalsFileValue('trai.webContextPolicy.stockWeekCloseOffset')] || closes[0];
   const price30dAgo = closes[0];
   const change7d = ((currentPrice - price7dAgo) / price7dAgo * 100).toFixed(2);
   const change30d = ((currentPrice - price30dAgo) / price30dAgo * 100).toFixed(2);
@@ -285,8 +252,8 @@ async function fetchStockContext(symbol) {
     athChangePercent: ((currentPrice - meta.fiftyTwoWeekHigh) / meta.fiftyTwoWeekHigh * 100).toFixed(2) + '%',
     marketCap: meta.marketCap || 0,
     marketCapRank: 0,
-    sentimentUp: 50,
-    sentimentDown: 50
+    sentimentUp: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.stockSentimentUp'),
+    sentimentDown: ConfigLoader.getInternalsFileValue('trai.webContextPolicy.stockSentimentDown')
   };
 }
 
@@ -308,7 +275,7 @@ async function getMarketContext(query) {
         asset = stockResult;
       } else {
         // Default to Bitcoin if search fails
-        asset = { type: 'crypto', id: 'bitcoin', symbol: 'BTC' };
+        asset = structuredClone(ConfigLoader.getInternalsFileValue('trai.webContextPolicy.defaultAsset'));
       }
     }
   }
@@ -321,7 +288,7 @@ async function getMarketContext(query) {
   }
 
   // Fallback
-  return await fetchCryptoContext('bitcoin', 'BTC');
+  return await fetchCryptoContext(ConfigLoader.getInternalsFileValue('trai.webContextPolicy.defaultAsset.id'), ConfigLoader.getInternalsFileValue('trai.webContextPolicy.defaultAsset.symbol'));
 }
 
 module.exports = {

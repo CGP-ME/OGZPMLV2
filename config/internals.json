@@ -521,6 +521,293 @@
         "VTI",
         "VOO"
       ]
+    },
+    "webContextPolicy": {
+      "cryptoPatterns": [
+        {
+          "patterns": [
+            "bitcoin",
+            "btc"
+          ],
+          "id": "bitcoin",
+          "symbol": "BTC"
+        },
+        {
+          "patterns": [
+            "ethereum",
+            "eth",
+            "ether"
+          ],
+          "id": "ethereum",
+          "symbol": "ETH"
+        },
+        {
+          "patterns": [
+            "solana",
+            "sol"
+          ],
+          "id": "solana",
+          "symbol": "SOL"
+        },
+        {
+          "patterns": [
+            "cardano",
+            "ada"
+          ],
+          "id": "cardano",
+          "symbol": "ADA"
+        },
+        {
+          "patterns": [
+            "xrp",
+            "ripple"
+          ],
+          "id": "ripple",
+          "symbol": "XRP"
+        },
+        {
+          "patterns": [
+            "dogecoin",
+            "doge"
+          ],
+          "id": "dogecoin",
+          "symbol": "DOGE"
+        },
+        {
+          "patterns": [
+            "polkadot",
+            "dot"
+          ],
+          "id": "polkadot",
+          "symbol": "DOT"
+        },
+        {
+          "patterns": [
+            "avalanche",
+            "avax"
+          ],
+          "id": "avalanche-2",
+          "symbol": "AVAX"
+        },
+        {
+          "patterns": [
+            "chainlink",
+            "link"
+          ],
+          "id": "chainlink",
+          "symbol": "LINK"
+        },
+        {
+          "patterns": [
+            "polygon",
+            "matic"
+          ],
+          "id": "matic-network",
+          "symbol": "MATIC"
+        },
+        {
+          "patterns": [
+            "litecoin",
+            "ltc"
+          ],
+          "id": "litecoin",
+          "symbol": "LTC"
+        },
+        {
+          "patterns": [
+            "binance",
+            "bnb"
+          ],
+          "id": "binancecoin",
+          "symbol": "BNB"
+        },
+        {
+          "patterns": [
+            "shiba",
+            "shib"
+          ],
+          "id": "shiba-inu",
+          "symbol": "SHIB"
+        },
+        {
+          "patterns": [
+            "tron",
+            "trx"
+          ],
+          "id": "tron",
+          "symbol": "TRX"
+        },
+        {
+          "patterns": [
+            "uniswap",
+            "uni"
+          ],
+          "id": "uniswap",
+          "symbol": "UNI"
+        }
+      ],
+      "stockPatterns": [
+        {
+          "patterns": [
+            "apple",
+            "aapl"
+          ],
+          "symbol": "AAPL"
+        },
+        {
+          "patterns": [
+            "tesla",
+            "tsla"
+          ],
+          "symbol": "TSLA"
+        },
+        {
+          "patterns": [
+            "microsoft",
+            "msft"
+          ],
+          "symbol": "MSFT"
+        },
+        {
+          "patterns": [
+            "google",
+            "googl",
+            "alphabet"
+          ],
+          "symbol": "GOOGL"
+        },
+        {
+          "patterns": [
+            "amazon",
+            "amzn"
+          ],
+          "symbol": "AMZN"
+        },
+        {
+          "patterns": [
+            "nvidia",
+            "nvda"
+          ],
+          "symbol": "NVDA"
+        },
+        {
+          "patterns": [
+            "meta",
+            "facebook",
+            "fb"
+          ],
+          "symbol": "META"
+        },
+        {
+          "patterns": [
+            "netflix",
+            "nflx"
+          ],
+          "symbol": "NFLX"
+        },
+        {
+          "patterns": [
+            "spy",
+            "sp500",
+            "s&p",
+            "snp"
+          ],
+          "symbol": "SPY"
+        },
+        {
+          "patterns": [
+            "qqq",
+            "qq",
+            "nasdaq",
+            "nas",
+            "tech"
+          ],
+          "symbol": "QQQ"
+        },
+        {
+          "patterns": [
+            "amd"
+          ],
+          "symbol": "AMD"
+        },
+        {
+          "patterns": [
+            "intel",
+            "intc"
+          ],
+          "symbol": "INTC"
+        },
+        {
+          "patterns": [
+            "disney",
+            "dis"
+          ],
+          "symbol": "DIS"
+        },
+        {
+          "patterns": [
+            "boeing",
+            "ba"
+          ],
+          "symbol": "BA"
+        },
+        {
+          "patterns": [
+            "jpmorgan",
+            "jpm"
+          ],
+          "symbol": "JPM"
+        },
+        {
+          "patterns": [
+            "walmart",
+            "wmt"
+          ],
+          "symbol": "WMT"
+        },
+        {
+          "patterns": [
+            "costco",
+            "cost"
+          ],
+          "symbol": "COST"
+        }
+      ],
+      "assetStopWords": [
+        "how",
+        "what",
+        "is",
+        "the",
+        "are",
+        "doing",
+        "like",
+        "about",
+        "whats",
+        "hows"
+      ],
+      "prefixMinimumLength": 2,
+      "maximumLengthDifference": 1,
+      "differenceLoopLimit": 1,
+      "maximumDifferences": 1,
+      "shorterMinimumLength": 2,
+      "assetWordMinimumLength": 2,
+      "cryptoSearchTimeoutMs": 3000,
+      "stockSearchTimeoutMs": 3000,
+      "fearGreedTimeoutMs": 5000,
+      "newsTimeoutMs": 5000,
+      "headlineLimit": 3,
+      "cryptoContextTimeoutMs": 5000,
+      "cryptoSentimentUpFallback": 50,
+      "cryptoSentimentDownFallback": 50,
+      "stockContextTimeoutMs": 5000,
+      "stockWeekCloseOffset": 6,
+      "stockSentimentUp": 50,
+      "stockSentimentDown": 50,
+      "defaultAsset": {
+        "type": "crypto",
+        "id": "bitcoin",
+        "symbol": "BTC"
+      }
     }
   },
   "monitoring": {
