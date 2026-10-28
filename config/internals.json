@@ -2643,5 +2643,12 @@
       "brokerResultPreviewLength": 500,
       "fillLifecycleQuantityTolerance": 1e-09
     }
+  },
+  "transport": {
+    "resilientWebSocket": {
+      "backoffMultiplier": 2,
+      "watchdogMinPollMs": 1000,
+      "watchdogPollDivisor": 2
+    }
   }
 }

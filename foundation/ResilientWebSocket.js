@@ -34,6 +34,7 @@
 
 'use strict';
 
+const ConfigLoader = require('./ConfigLoader');
 const EventEmitter = require('events');
 const WebSocket = require('ws');
 
@@ -478,7 +479,7 @@ class ResilientWebSocket extends EventEmitter {
     if (this.intentionalStop) return;
 
     const delayMs = Math.min(
-      this.initialReconnectDelayMs * Math.pow(2, this.reconnectAttempts),
+      this.initialReconnectDelayMs * Math.pow(ConfigLoader.getInternalsFileValue('transport.resilientWebSocket.backoffMultiplier'), this.reconnectAttempts),
       this.maxBackoffMs
     );
     this.reconnectAttempts++;
@@ -540,7 +541,7 @@ class ResilientWebSocket extends EventEmitter {
     // resolution. Could also use a single setTimeout that re-arms on
     // each message; setInterval is simpler and the periodic wake cost
     // is trivial.
-    const checkMs = Math.max(1000, Math.floor(this.dataWatchdogMs / 2));
+    const checkMs = Math.max(ConfigLoader.getInternalsFileValue('transport.resilientWebSocket.watchdogMinPollMs'), Math.floor(this.dataWatchdogMs / ConfigLoader.getInternalsFileValue('transport.resilientWebSocket.watchdogPollDivisor')));
     this.dataWatchdogTimer = setInterval(() => this._tickDataWatchdog(), checkMs);
   }
 
