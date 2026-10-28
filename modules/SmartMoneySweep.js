@@ -20,6 +20,8 @@
 
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
 const { c, o, h, l, v, t } = require('../core/CandleHelper');
 
 function isFinitePositivePrice(value) {
@@ -343,7 +345,7 @@ class SmartMoneySweep {
       }
     }
     rthCandles.reverse();
-    if (rthCandles.length < lookbackBars * 0.5) {
+    if (rthCandles.length < lookbackBars * ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.minimumVpRthFraction')) {
       if (!this._vpRthFallbackWarned) {
         console.warn(`[SMS] VP RTH filter: only ${rthCandles.length}/${lookbackBars} RTH bars, falling back`);
         this._vpRthFallbackWarned = true;
@@ -563,8 +565,8 @@ class SmartMoneySweep {
     const initBearMet = cV > volAvg && bodyPct > this.initBodyPct && isBearish;
 
     // Initiative IN PROGRESS
-    const initBullProg = !initBullMet && cV > volAvg * 0.8 && bodyPct > this.initBodyProgPct && isBullish;
-    const initBearProg = !initBearMet && cV > volAvg * 0.8 && bodyPct > this.initBodyProgPct && isBearish;
+    const initBullProg = !initBullMet && cV > volAvg * ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.initiativeProgressVolumeRatio') && bodyPct > this.initBodyProgPct && isBullish;
+    const initBearProg = !initBearMet && cV > volAvg * ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.initiativeProgressVolumeRatio') && bodyPct > this.initBodyProgPct && isBearish;
 
     return {
       close: cC, open: cO, high: cH, low: cL, volume: cV,
@@ -621,8 +623,8 @@ class SmartMoneySweep {
       const prev3 = cvdSeries[cvdSeries.length - 4];
       const cvdSlope3 = cur.cvd - prev3.cvd;
       const priceSlope3 = cur.close - prev3.close;
-      cvdBullProg = !cvdBullMet && priceSlope3 < 0 && cvdSlope3 > -Math.abs(priceSlope3) * 0.3;
-      cvdBearProg = !cvdBearMet && priceSlope3 > 0 && cvdSlope3 < Math.abs(priceSlope3) * 0.3;
+      cvdBullProg = !cvdBullMet && priceSlope3 < 0 && cvdSlope3 > -Math.abs(priceSlope3) * ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.cvdProgressSlopeRatio');
+      cvdBearProg = !cvdBearMet && priceSlope3 > 0 && cvdSlope3 < Math.abs(priceSlope3) * ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.cvdProgressSlopeRatio');
     }
 
     return { bullMet: cvdBullMet, bearMet: cvdBearMet, bullProg: cvdBullProg, bearProg: cvdBearProg };
@@ -716,7 +718,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('IVB↑');
     } else if (this.ivbDirection === 0 && this.ivbLocked) {
-      confidence += 10;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialIvbScore');
       details.push('IVB~');
     }
 
@@ -725,7 +727,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('P-shape');
     } else if (vp.profileBias === 0) {
-      confidence += 10;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialProfileScore');
       details.push('D-shape');
     }
 
@@ -736,7 +738,7 @@ class SmartMoneySweep {
         conditionsMet++;
         details.push('Absorb✓');
       } else if (sweepCandle.absorbProg) {
-        confidence += 20;
+        confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialAbsorptionScore');
         details.push('Absorb~');
       }
     }
@@ -746,7 +748,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('Init✓');
     } else if (cc[0].initBullProg) {
-      confidence += 20;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialInitiativeScore');
       details.push('Init~');
     }
 
@@ -759,10 +761,10 @@ class SmartMoneySweep {
         details.push('PriorVA✓');
       } else {
         // Near VA boundary check (within 0.5%)
-        const nearVAH = Math.abs(priorClose - vp.vah) / vp.vah * 100 < 0.5;
-        const nearVAL = Math.abs(priorClose - vp.val) / vp.val * 100 < 0.5;
+        const nearVAH = Math.abs(priorClose - vp.vah) / vp.vah * 100 < ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.nearVaPercent');
+        const nearVAL = Math.abs(priorClose - vp.val) / vp.val * 100 < ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.nearVaPercent');
         if (nearVAH || nearVAL) {
-          confidence += 15;
+          confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialVaScore');
           details.push('PriorVA~');
         }
       }
@@ -773,7 +775,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('CVD✓');
     } else if (cvdResult.bullProg) {
-      confidence += 15;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialCvdScore');
       details.push('CVD~');
     }
 
@@ -782,7 +784,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('Exh✓');
     } else if (exh.bullProg) {
-      confidence += 10;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialExhaustionScore');
       details.push('Exh~');
     }
 
@@ -799,7 +801,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('IVB↓');
     } else if (this.ivbDirection === 0 && this.ivbLocked) {
-      confidence += 10;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialIvbScore');
       details.push('IVB~');
     }
 
@@ -808,7 +810,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('b-shape');
     } else if (vp.profileBias === 0) {
-      confidence += 10;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialProfileScore');
       details.push('D-shape');
     }
 
@@ -819,7 +821,7 @@ class SmartMoneySweep {
         conditionsMet++;
         details.push('Absorb✓');
       } else if (sweepCandle.absorbProg) {
-        confidence += 20;
+        confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialAbsorptionScore');
         details.push('Absorb~');
       }
     }
@@ -829,7 +831,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('Init✓');
     } else if (cc[0].initBearProg) {
-      confidence += 20;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialInitiativeScore');
       details.push('Init~');
     }
 
@@ -841,10 +843,10 @@ class SmartMoneySweep {
         conditionsMet++;
         details.push('PriorVA✓');
       } else {
-        const nearVAH = Math.abs(priorClose - vp.vah) / vp.vah * 100 < 0.5;
-        const nearVAL = Math.abs(priorClose - vp.val) / vp.val * 100 < 0.5;
+        const nearVAH = Math.abs(priorClose - vp.vah) / vp.vah * 100 < ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.nearVaPercent');
+        const nearVAL = Math.abs(priorClose - vp.val) / vp.val * 100 < ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.nearVaPercent');
         if (nearVAH || nearVAL) {
-          confidence += 15;
+          confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialVaScore');
           details.push('PriorVA~');
         }
       }
@@ -855,7 +857,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('CVD✓');
     } else if (cvdResult.bearProg) {
-      confidence += 15;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialCvdScore');
       details.push('CVD~');
     }
 
@@ -864,7 +866,7 @@ class SmartMoneySweep {
       conditionsMet++;
       details.push('Exh✓');
     } else if (exh.bearProg) {
-      confidence += 10;
+      confidence += ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.partialExhaustionScore');
       details.push('Exh~');
     }
 
@@ -914,7 +916,7 @@ class SmartMoneySweep {
       const midTarget = Math.min(vpTP, atrTPMid);
       const highTarget = vp.vah > price ? Math.min(vp.vah, atrTPHigh) : atrTPHigh;
 
-      const takeProfit = conditionsMet >= 3 ? highTarget : conditionsMet >= 2 ? midTarget : atrTPLow;
+      const takeProfit = conditionsMet >= ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.tpHighConditions') ? highTarget : conditionsMet >= ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.tpMidConditions') ? midTarget : atrTPLow;
 
       const levels = { stopLoss, takeProfit };
       return hasValidExitGeometry(direction, price, levels) ? levels : null;
@@ -943,7 +945,7 @@ class SmartMoneySweep {
       const midTarget = Math.max(vpTP, atrTPMid);
       const highTarget = vp.val < price ? Math.max(vp.val, atrTPHigh) : atrTPHigh;
 
-      const takeProfit = conditionsMet >= 3 ? highTarget : conditionsMet >= 2 ? midTarget : atrTPLow;
+      const takeProfit = conditionsMet >= ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.tpHighConditions') ? highTarget : conditionsMet >= ConfigLoader.getInternalsFileValue('strategies.SmartMoneySweep.tpMidConditions') ? midTarget : atrTPLow;
 
       const levels = { stopLoss, takeProfit };
       return hasValidExitGeometry(direction, price, levels) ? levels : null;

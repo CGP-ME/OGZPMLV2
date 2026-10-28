@@ -1682,6 +1682,21 @@
       "hammerShortWickRatio": 0.5,
       "strongBodyFraction": 0.6,
       "strongBodyStrengthScale": 0.8
+    },
+    "SmartMoneySweep": {
+      "minimumVpRthFraction": 0.5,
+      "initiativeProgressVolumeRatio": 0.8,
+      "cvdProgressSlopeRatio": 0.3,
+      "partialIvbScore": 10,
+      "partialProfileScore": 10,
+      "partialAbsorptionScore": 20,
+      "partialInitiativeScore": 20,
+      "nearVaPercent": 0.5,
+      "partialVaScore": 15,
+      "partialCvdScore": 15,
+      "partialExhaustionScore": 10,
+      "tpHighConditions": 3,
+      "tpMidConditions": 2
     }
   }
 }
