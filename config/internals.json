@@ -2728,5 +2728,24 @@
       "watchdogMinPollMs": 1000,
       "watchdogPollDivisor": 2
     }
+  },
+  "runner": {
+    "startup": {
+      "liveCountdownSteps": 10,
+      "liveCountdownSleepSeconds": 1
+    },
+    "dashboard": {
+      "initialTimeframe": "1m",
+      "symbolHistoryLimit": 200,
+      "timeframeHistoryLimit": 200,
+      "historicalRequestDefaultLimit": 200,
+      "historicalCacheLimit": 200,
+      "learningActiveCountThreshold": 100,
+      "bullishSentimentThreshold": 60,
+      "bearishSentimentThreshold": 60
+    },
+    "diagnostics": {
+      "warmupLogCandleCount": 3
+    }
   }
 }

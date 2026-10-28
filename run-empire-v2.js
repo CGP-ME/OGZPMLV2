@@ -1211,7 +1211,7 @@ class OGZPrimeV14Bot {
       '1d': []
     };
     this.symbolTimeframeHistories = new Map();
-    this.dashboardTimeframe = '1m';  // Track what timeframe dashboard wants
+    this.dashboardTimeframe = ConfigLoader.get('internals.runner.dashboard.initialTimeframe');  // Track what timeframe dashboard wants
 
     // Stale data tracking
     // CHANGE 2026-01-16: Liveness watchdog - tracks last data arrival
@@ -1524,9 +1524,9 @@ class OGZPrimeV14Bot {
 
         // 10-second countdown
         console.log('Starting in:');
-        for (let i = 10; i > 0; i--) {
+        for (let i = ConfigLoader.get('internals.runner.startup.liveCountdownSteps'); i > 0; i--) {
           process.stdout.write(`\r  ${i} seconds...`);
-          require('child_process').execSync('sleep 1');
+          require('child_process').execSync(`sleep ${ConfigLoader.get('internals.runner.startup.liveCountdownSleepSeconds')}`);
         }
         console.log('\r  LIVE TRADING ENGAGED!\n');
 
@@ -2083,8 +2083,8 @@ class OGZPrimeV14Bot {
     } else {
       isNewCandle = true;
       history.push(candle);
-      if (history.length > 200) {
-        byTimeframe.set(timeframe, history.slice(-200));
+      if (history.length > ConfigLoader.get('internals.runner.dashboard.symbolHistoryLimit')) {
+        byTimeframe.set(timeframe, history.slice(-ConfigLoader.get('internals.runner.dashboard.symbolHistoryLimit')));
       }
     }
 
@@ -2302,8 +2302,8 @@ class OGZPrimeV14Bot {
       isNewCandle = true;
       history.push(candle);
       // Keep max 200 candles per timeframe
-      if (history.length > 200) {
-        this.timeframeHistories[timeframe] = history.slice(-200);
+      if (history.length > ConfigLoader.get('internals.runner.dashboard.timeframeHistoryLimit')) {
+        this.timeframeHistories[timeframe] = history.slice(-ConfigLoader.get('internals.runner.dashboard.timeframeHistoryLimit'));
       }
     }
 
@@ -2315,7 +2315,7 @@ class OGZPrimeV14Bot {
    */
   getCandlesForTimeframe(timeframe) {
     // Default to 1m if invalid timeframe
-    const tf = this.timeframeHistories[timeframe] ? timeframe : '1m';
+    const tf = this.timeframeHistories[timeframe] ? timeframe : ConfigLoader.get('internals.runner.dashboard.initialTimeframe');
     return this.timeframeHistories[tf] || this.priceHistory;
   }
 
@@ -2358,7 +2358,7 @@ class OGZPrimeV14Bot {
    * @param {number} limit - Number of candles to fetch
    * @param {string|null} requestedAsset - Dashboard-requested asset, if any
    */
-  async fetchAndSendHistoricalCandles(timeframe, limit = 200, requestedAsset = null) {
+  async fetchAndSendHistoricalCandles(timeframe, limit = ConfigLoader.get('internals.runner.dashboard.historicalRequestDefaultLimit'), requestedAsset = null) {
     const requestedDashboardSymbol = normalizeRuntimeSymbol(requestedAsset);
     const fallbackDashboardSymbol = normalizeRuntimeSymbol(
       this.assetManager?.activeAsset || this.tradingPair || resolvedConfig.config.execution.tradingPair
@@ -2430,7 +2430,7 @@ class OGZPrimeV14Bot {
         // the runtime-active asset. Non-active dashboard lookups must not
         // poison price-frame candle payloads for the active trading symbol.
         if (dashboardSymbol === fallbackDashboardSymbol) {
-          this.timeframeHistories[timeframe] = candles.slice(-200);
+          this.timeframeHistories[timeframe] = candles.slice(-ConfigLoader.get('internals.runner.dashboard.historicalCacheLimit'));
         }
 
         // Send to dashboard
@@ -2509,7 +2509,7 @@ class OGZPrimeV14Bot {
       const activeHistory = activeSymbol && this.symbolContexts?.has(activeSymbol)
         ? this.symbolContexts.get(activeSymbol).priceHistory
         : this.priceHistory;
-      if (!this.marketData || activeHistory.length < 3) {
+      if (!this.marketData || activeHistory.length < ConfigLoader.get('internals.runner.diagnostics.warmupLogCandleCount')) {
         console.log(`[EXIT-MONITOR] warming up ${activeHistory.length}/3 candles (${this.candleTimeframe} timeframe); entries wait for candle close`);
       }
       return;
@@ -3298,7 +3298,7 @@ class OGZPrimeV14Bot {
             growthRate: patternGrowthRate,
             status: patternMemoryCount === null
               ? 'unavailable'
-              : (patternMemoryCount > 100 ? 'Learning Active' : 'Building Memory')
+              : (patternMemoryCount > ConfigLoader.get('internals.runner.dashboard.learningActiveCountThreshold') ? 'Learning Active' : 'Building Memory')
           },
           indicators: {
             rsi: indicatorSource?.rsi ?? null,
@@ -3509,8 +3509,8 @@ class OGZPrimeV14Bot {
           fearGreedLabel: webContext.fearGreedLabel || null,
           // CHANGE 2026-02-01: News Headlines for market context
           newsHeadlines: webContext.newsHeadlines || [],
-          marketSentiment: webContext.sentimentUp > 60 ? 'BULLISH' :
-                          webContext.sentimentDown > 60 ? 'BEARISH' : 'NEUTRAL'
+          marketSentiment: webContext.sentimentUp > ConfigLoader.get('internals.runner.dashboard.bullishSentimentThreshold') ? 'BULLISH' :
+                          webContext.sentimentDown > ConfigLoader.get('internals.runner.dashboard.bearishSentimentThreshold') ? 'BEARISH' : 'NEUTRAL'
         }),
         // Fallback to local data if web fetch failed
         ...(!webContext && {
