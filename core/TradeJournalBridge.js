@@ -1144,7 +1144,7 @@ class TradeJournalBridge {
       this._pushTradeClosedNotification(data.orderId, data, replayPath, { journalRecorded: !!journalExit });
       this._closedTradeLogKeySet.add(closeKey);
       this._closedTradeLogKeys.push(closeKey);
-      if (this._closedTradeLogKeys.length > 500) {
+      if (this._closedTradeLogKeys.length > ConfigLoader.getInternalsFileValue('journal.bridgePolicy.closedTradeLogKeyLimit')) {
         const expired = this._closedTradeLogKeys.shift();
         this._closedTradeLogKeySet.delete(expired);
       }
@@ -1387,8 +1387,8 @@ class TradeJournalBridge {
     overflowData.visibilityDashboardDelivered = false;
     overflowData.visibilityDashboardQueued = true;
     context.droppedCount += droppedPayloads.length;
-    context.droppedOrderIds = [...context.droppedOrderIds, ...droppedOrderIds].slice(-50);
-    context.droppedEventTypes = [...context.droppedEventTypes, ...droppedEventTypes].slice(-50);
+    context.droppedOrderIds = [...context.droppedOrderIds, ...droppedOrderIds].slice(ConfigLoader.getInternalsFileValue('journal.bridgePolicy.droppedOrderIdsSliceStart'));
+    context.droppedEventTypes = [...context.droppedEventTypes, ...droppedEventTypes].slice(ConfigLoader.getInternalsFileValue('journal.bridgePolicy.droppedEventTypesSliceStart'));
     TradeJournalBridge.prototype._persistVisibilityQueueOverflow.call(this, overflowData);
 
     this._pendingVisibilityErrors.push(overflowPayload);
@@ -1692,7 +1692,7 @@ class TradeJournalBridge {
     const todayTrades = trades.filter(trade => new Date(Number(trade.timestamp || 0)).toISOString().split('T')[0] === todayKey);
     const todayPnl = todayTrades.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
     const todayWins = todayTrades.filter(trade => (finiteNumberOrNull(trade.netPnl) || 0) > 0).length;
-    const recentTrades = trades.slice(-10).reverse();
+    const recentTrades = trades.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.snapshotTradesSliceStart')).reverse();
     const startingBalance = finiteNumberOrNull(this._journalStartingBalance) || 0;
     const totalTrades = trades.length;
     const winRate = totalTrades > 0 ? (wins.length / totalTrades) * 100 : 0;
@@ -1757,7 +1757,7 @@ class TradeJournalBridge {
       currentStreakType,
       longestWinStreak,
       longestLossStreak,
-      recentWL: recentWL.slice(-30),
+      recentWL: recentWL.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.streakHistorySliceStart')),
       bestTrade: sortedByPnl.length ? sortedByPnl[sortedByPnl.length - 1] : null,
       worstTrade: sortedByPnl.length ? sortedByPnl[0] : null,
       todayTrades: todayTrades.length,
@@ -1782,7 +1782,7 @@ class TradeJournalBridge {
     };
   }
 
-  _combinedReplayList(limit = 50) {
+  _combinedReplayList(limit = ConfigLoader.getInternalsFileValue('journal.bridgePolicy.combinedReplayDefaultLimit')) {
     return TradeJournalBridge.prototype._allJournalBundles.call(this)
       .flatMap(bundle => bundle.replay?.listReplays?.(limit) || [])
       .sort((a, b) => Number(b.savedAt || b.timestamp || 0) - Number(a.savedAt || a.timestamp || 0))
@@ -1847,7 +1847,7 @@ class TradeJournalBridge {
         case 'confidenceBand': {
           const conf = finiteNumberOrNull(trade.confidence);
           if (conf === null) break;
-          const key = conf < 55 ? '< 55%' : conf < 65 ? '55-65%' : conf < 75 ? '65-75%' : conf < 85 ? '75-85%' : '85%+';
+          const key = conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand55') ? '< 55%' : conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand65') ? '55-65%' : conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand75') ? '65-75%' : conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand85') ? '75-85%' : '85%+';
           this._addBreakdownTrade(buckets, key, trade);
           break;
         }
@@ -1892,7 +1892,7 @@ class TradeJournalBridge {
   }
 
   _sendEquityCurve() {
-    this._send({ type: 'journal_equity', data: this.journal.getEquityCurve(500) });
+    this._send({ type: 'journal_equity', data: this.journal.getEquityCurve(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit')) });
   }
 
   _sendBreakdown(dimension) {
@@ -1900,7 +1900,7 @@ class TradeJournalBridge {
   }
 
   _sendCalendar() {
-    this._send({ type: 'journal_calendar', data: this.journal.getDailySummaries(90) });
+    this._send({ type: 'journal_calendar', data: this.journal.getDailySummaries(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.dailySummaryDefaultDays')) });
   }
 
   _sendReplay(orderId) {
@@ -1909,7 +1909,7 @@ class TradeJournalBridge {
     this._send(data ? { type: 'replay_data', data } : { type: 'replay_not_found', orderId });
   }
 
-  _sendReplayList(limit = 50) {
+  _sendReplayList(limit = ConfigLoader.getInternalsFileValue('journal.bridgePolicy.combinedReplayDefaultLimit')) {
     this._send({ type: 'replay_list', data: this._combinedReplayList(limit) });
   }
 
@@ -1944,7 +1944,7 @@ class TradeJournalBridge {
     app.get('/journal', (req, res) => res.sendFile(path.join(process.cwd(), 'public', 'trade-journal.html')));
 
     app.get('/api/replay/adjacent', (req, res) => {
-      const all = bridge._combinedReplayList(1000);
+      const all = bridge._combinedReplayList(ConfigLoader.getInternalsFileValue('journal.bridgePolicy.expressAdjacentReplayLimit'));
       const idx = all.findIndex(r => r.orderId === req.query.id);
       const target = idx + (parseInt(req.query.direction) || 1);
       res.json({ orderId: (target >= 0 && target < all.length) ? all[target].orderId : null });
@@ -1955,9 +1955,9 @@ class TradeJournalBridge {
       data ? res.json(data) : res.status(404).json({ error: 'Replay not found' });
     });
 
-    app.get('/api/replays', (req, res) => res.json(bridge._combinedReplayList(parseInt(req.query.limit) || 50)));
+    app.get('/api/replays', (req, res) => res.json(bridge._combinedReplayList(parseInt(req.query.limit) || ConfigLoader.getInternalsFileValue('journal.bridgePolicy.combinedReplayDefaultLimit'))));
     app.get('/api/journal/stats', (req, res) => res.json(bridge._combinedJournalSnapshot()));
-    app.get('/api/journal/equity', (req, res) => res.json(bridge.journal.getEquityCurve(parseInt(req.query.limit) || 500)));
+    app.get('/api/journal/equity', (req, res) => res.json(bridge.journal.getEquityCurve(parseInt(req.query.limit) || ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit'))));
     app.get('/api/journal/breakdown/:dim', (req, res) => res.json(bridge._combinedPerformanceBreakdown(req.params.dim)));
 
     console.log('[TradeJournalBridge] HTTP routes registered (/journal, /replay, /api/*)');
@@ -1984,7 +1984,7 @@ class TradeJournalBridge {
     if (url.pathname === '/replay') return sendFile(path.join(process.cwd(), 'public', 'trade-replay.html'));
 
     if (url.pathname.startsWith('/api/replay/adjacent')) {
-      const all = this._combinedReplayList(1000);
+      const all = this._combinedReplayList(ConfigLoader.getInternalsFileValue('journal.bridgePolicy.expressAdjacentReplayLimit'));
       const idx = all.findIndex(r => r.orderId === url.searchParams.get('id'));
       const target = idx + (parseInt(url.searchParams.get('direction')) || 1);
       return sendJSON({ orderId: (target >= 0 && target < all.length) ? all[target].orderId : null });
@@ -1994,9 +1994,9 @@ class TradeJournalBridge {
       const data = this._loadReplay(id);
       return data ? sendJSON(data) : sendJSON({ error: 'Not found' }, 404);
     }
-    if (url.pathname === '/api/replays') return sendJSON(this._combinedReplayList(parseInt(url.searchParams.get('limit')) || 50));
+    if (url.pathname === '/api/replays') return sendJSON(this._combinedReplayList(parseInt(url.searchParams.get('limit')) || ConfigLoader.getInternalsFileValue('journal.bridgePolicy.combinedReplayDefaultLimit')));
     if (url.pathname === '/api/journal/stats') return sendJSON(this._combinedJournalSnapshot());
-    if (url.pathname === '/api/journal/equity') return sendJSON(this.journal.getEquityCurve(500));
+    if (url.pathname === '/api/journal/equity') return sendJSON(this.journal.getEquityCurve(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit')));
     if (url.pathname.startsWith('/api/journal/breakdown/')) {
       const dim = url.pathname.split('/').pop();
       return sendJSON(this._combinedPerformanceBreakdown(dim));

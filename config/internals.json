@@ -56,7 +56,35 @@
     "replayCandlesAfter": 30,
     "maxPendingVisibilityErrors": 50,
     "dashboardHookIntervalMs": 2000,
-    "broadcastIntervalMs": 30000
+    "broadcastIntervalMs": 30000,
+    "tradeJournalPolicy": {
+      "pnlToleranceAbsoluteUsd": 0.01,
+      "pnlToleranceRelative": 0.0001,
+      "pnlToleranceNotionalRelative": 1e-06,
+      "notionalToleranceAbsoluteUsd": 0.01,
+      "notionalToleranceRelative": 1e-06,
+      "remainingLifecycleRelativeTolerance": 1e-12,
+      "equityCurveDefaultLimit": 500,
+      "historyDefaultPerPage": 50,
+      "confidenceBand55": 55,
+      "confidenceBand65": 65,
+      "confidenceBand75": 75,
+      "confidenceBand85": 85,
+      "dailySummaryDefaultDays": 90,
+      "streakHistorySliceStart": -30,
+      "snapshotTradesSliceStart": -10,
+      "reportDailySummaryDays": 365,
+      "reportEquityCurveLimit": 200,
+      "pnlRollingWindow": 500,
+      "sharpeAnnualizationPeriods": 252
+    },
+    "bridgePolicy": {
+      "closedTradeLogKeyLimit": 500,
+      "droppedOrderIdsSliceStart": -50,
+      "droppedEventTypesSliceStart": -50,
+      "combinedReplayDefaultLimit": 50,
+      "expressAdjacentReplayLimit": 1000
+    }
   },
   "sessionRouter": {
     "fastCheckIntervalMs": 1000,

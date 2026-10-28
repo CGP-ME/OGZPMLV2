@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * ============================================================================
  * TradeJournal - Elite Trade Ledger & Performance Analytics
@@ -133,16 +134,16 @@ function expectedGrossPnl(entryPrice, exitPrice, usdValue, side) {
 }
 
 function pnlTolerance(expected, usdValue) {
-  return Math.max(0.01, Math.abs(expected) * 0.0001, usdValue * 0.000001);
+  return Math.max(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlToleranceAbsoluteUsd'), Math.abs(expected) * ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlToleranceRelative'), usdValue * ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlToleranceNotionalRelative'));
 }
 
 function usdValueTolerance(sizeUsd) {
-  return Math.max(0.01, sizeUsd * 0.000001);
+  return Math.max(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.notionalToleranceAbsoluteUsd'), sizeUsd * ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.notionalToleranceRelative'));
 }
 
 function remainingLifecycleTolerance(sizeUsd) {
   const n = positiveNumberOrNull(sizeUsd) ?? 1;
-  return Math.max(Number.EPSILON * Math.max(1, n), n * 1e-12);
+  return Math.max(Number.EPSILON * Math.max(1, n), n * ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.remainingLifecycleRelativeTolerance'));
 }
 
 function exitNotionalOrNull(exit) {
@@ -680,7 +681,7 @@ class TradeJournal {
    * @param {number} [limit] - Max points to return (downsampled if needed)
    * @returns {Array} [{ timestamp, balance, equity, drawdown, drawdownPct }]
    */
-  getEquityCurve(limit = 500) {
+  getEquityCurve(limit = ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit')) {
     if (this.equityCurve.length <= limit) return [...this.equityCurve];
     // Downsample: keep first, last, and evenly spaced points
     const step = Math.floor(this.equityCurve.length / limit);
@@ -724,7 +725,7 @@ class TradeJournal {
     // Sort newest first
     filtered.sort((a, b) => b.timestamp - a.timestamp);
 
-    const perPage = filters.perPage || 50;
+    const perPage = filters.perPage || ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.historyDefaultPerPage');
     const page = filters.page || 1;
     const total = filtered.length;
     const pages = Math.ceil(total / perPage);
@@ -775,10 +776,10 @@ class TradeJournal {
         case 'confidenceBand':
           const conf = finiteNumberOrNull(trade.confidence);
           if (conf === null) continue;
-          if (conf < 55) key = '< 55%';
-          else if (conf < 65) key = '55-65%';
-          else if (conf < 75) key = '65-75%';
-          else if (conf < 85) key = '75-85%';
+          if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand55')) key = '< 55%';
+          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand65')) key = '55-65%';
+          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand75')) key = '65-75%';
+          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand85')) key = '75-85%';
           else key = '85%+';
           break;
         case 'exitReason':
@@ -815,7 +816,7 @@ class TradeJournal {
    * @param {number} [days] - Number of days back (default 90)
    * @returns {Array} [{ date, trades, wins, losses, netPnl, balance, drawdown }]
    */
-  getDailySummaries(days = 90) {
+  getDailySummaries(days = ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.dailySummaryDefaultDays')) {
     const cutoff = Date.now() - (days * 86400000);
     const dailyMap = {};
 
@@ -901,7 +902,7 @@ class TradeJournal {
       currentType,
       longestWin,
       longestLoss,
-      recentHistory: streakHistory.slice(-30)  // last 30 trades W/L pattern
+      recentHistory: streakHistory.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.streakHistorySliceStart'))  // last 30 trades W/L pattern
     };
   }
 
@@ -912,7 +913,7 @@ class TradeJournal {
   getSnapshot() {
     const s = this.stats;
     const streaks = this.getStreaks();
-    const recentTrades = this.trades.slice(-10).reverse();
+    const recentTrades = this.trades.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.snapshotTradesSliceStart')).reverse();
 
     return {
       module: 'TradeJournal',
@@ -1042,7 +1043,7 @@ class TradeJournal {
       generated: new Date().toISOString(),
       stats: this.getStats(),
       streaks: this.getStreaks(),
-      dailySummaries: this.getDailySummaries(365),
+      dailySummaries: this.getDailySummaries(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.reportDailySummaryDays')),
       breakdowns: {
         byRegime: this.getPerformanceBreakdown('regime'),
         byPattern: this.getPerformanceBreakdown('pattern'),
@@ -1052,7 +1053,7 @@ class TradeJournal {
         byExitReason: this.getPerformanceBreakdown('exitReason'),
         byMonth: this.getPerformanceBreakdown('month')
       },
-      equityCurve: this.getEquityCurve(200)
+      equityCurve: this.getEquityCurve(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.reportEquityCurveLimit'))
     };
   }
 
@@ -1217,7 +1218,7 @@ class TradeJournal {
 
     // ── Sharpe / Sortino (rolling window) ───────────────────────────
     s._pnlArray.push(pnl);
-    if (s._pnlArray.length > 500) s._pnlArray = s._pnlArray.slice(-500);
+    if (s._pnlArray.length > ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlRollingWindow')) s._pnlArray = s._pnlArray.slice(-ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlRollingWindow'));
     s.sharpeRatio = this._calcSharpe(s._pnlArray);
     s.sortinoRatio = this._calcSortino(s._pnlArray);
 
@@ -1258,7 +1259,7 @@ class TradeJournal {
     const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
     const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (returns.length - 1);
     const stdDev = Math.sqrt(variance);
-    return stdDev > 0 ? (mean / stdDev * Math.sqrt(252)) : 0;  // Annualized
+    return stdDev > 0 ? (mean / stdDev * Math.sqrt(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.sharpeAnnualizationPeriods'))) : 0;  // Annualized
   }
 
   _calcSortino(returns) {
@@ -1268,7 +1269,7 @@ class TradeJournal {
     if (downsideReturns.length === 0) return mean > 0 ? Infinity : 0;
     const downsideVariance = downsideReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downsideReturns.length;
     const downsideDev = Math.sqrt(downsideVariance);
-    return downsideDev > 0 ? (mean / downsideDev * Math.sqrt(252)) : 0;
+    return downsideDev > 0 ? (mean / downsideDev * Math.sqrt(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.sharpeAnnualizationPeriods'))) : 0;
   }
 
 
