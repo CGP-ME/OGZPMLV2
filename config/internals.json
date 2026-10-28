@@ -1661,6 +1661,17 @@
       "rrHighBonus": 0.1,
       "rrMidBonus": 0.05,
       "rrLowPenalty": 0.1
+    },
+    "OpeningRangeBreakout": {
+      "confidence": {
+        "base": 0.5,
+        "gapLow": 0.3,
+        "gapMiddle": 1.0,
+        "gapHigh": 1.5,
+        "cleanBonus": 0.15,
+        "largeBonus": 0.1,
+        "cap": 0.85
+      }
     }
   }
 }

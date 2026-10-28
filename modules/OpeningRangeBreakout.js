@@ -3,6 +3,7 @@
 
 const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('../core/CandleHelper');
 const FairValueGapDetector = require('./FairValueGapDetector');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 /**
  * OpeningRangeBreakout (ORB) Strategy
@@ -512,17 +513,17 @@ class OpeningRangeBreakout {
    * @private
    */
   _calculateConfidence(fvg) {
-    let confidence = 0.50; // Base confidence
+    const coefficients = ConfigLoader.getInternalsFileValue('strategies.OpeningRangeBreakout.confidence');
+    let confidence = coefficients.base;
 
     // Boost for cleaner gaps (larger but not excessive)
-    if (fvg.gapPercent >= 0.3 && fvg.gapPercent <= 1.0) {
-      confidence += 0.15;
-    } else if (fvg.gapPercent > 1.0 && fvg.gapPercent <= 1.5) {
-      confidence += 0.10;
+    if (fvg.gapPercent >= coefficients.gapLow && fvg.gapPercent <= coefficients.gapMiddle) {
+      confidence += coefficients.cleanBonus;
+    } else if (fvg.gapPercent > coefficients.gapMiddle && fvg.gapPercent <= coefficients.gapHigh) {
+      confidence += coefficients.largeBonus;
     }
 
-    // Cap at 0.85 (nothing is certain)
-    return Math.min(0.85, confidence);
+    return Math.min(coefficients.cap, confidence);
   }
 
   /**
