@@ -24,6 +24,13 @@
       "supportBreak": 0.995,
       "resistanceBreak": 1.005,
       "sweepBreak": 0.99
+    },
+    "trailing": {
+      "roundNumberIncrements": [
+        1000,
+        5000,
+        10000
+      ]
     }
   },
   "backtest": {

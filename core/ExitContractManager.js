@@ -816,7 +816,7 @@ class ExitContractManager {
       const roundNumberProximity = finiteOrNull(trailConfig.roundNumberProximity);
       const roundNumberTighten = finiteOrNull(trailConfig.roundNumberTighten);
       if (roundNumberProximity !== null && roundNumberTighten !== null) {
-        const roundNumbers = [1000, 5000, 10000];
+        const roundNumbers = [...ConfigLoader.get('internals.exitPolicy.trailing.roundNumberIncrements')];
         for (const increment of roundNumbers) {
           const nearest = Math.round(currentPrice / increment) * increment;
           const distToRound = Math.abs(currentPrice - nearest) / currentPrice * 100;
