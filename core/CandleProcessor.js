@@ -15,6 +15,7 @@
 
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { normalizeOhlc, toTimestampMs } = require('../foundation/ohlc-normalize');
@@ -88,7 +89,7 @@ function timeframeToMs(timeframe) {
 }
 
 function isIntegerEpochMs(value) {
-  return Number.isInteger(value) && value >= 1e12;
+  return Number.isInteger(value) && value >= ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.minimumIntegerEpochMs');
 }
 
 function cleanScopeValue(value) {
@@ -100,7 +101,7 @@ function cleanScopeValue(value) {
 function cleanStatusText(value) {
   const cleaned = cleanScopeValue(value);
   if (!cleaned) return null;
-  return cleaned.replace(/[^\w:.-]/g, '_').slice(0, 80);
+  return cleaned.replace(/[^\w:.-]/g, '_').slice(0, ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.statusTextLimit'));
 }
 
 function redactErrorMessage(value, maxLength) {
@@ -113,7 +114,7 @@ function redactErrorMessage(value, maxLength) {
 }
 
 function cleanRedactedStatusText(value) {
-  const redacted = redactErrorMessage(value, 80);
+  const redacted = redactErrorMessage(value, ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.redactedStatusTextLimit'));
   return cleanStatusText(redacted);
 }
 
@@ -593,20 +594,20 @@ class CandleProcessor {
     }
 
     // Warmup log (only first 20 candles)
-    if (isLegacyRootMirrorCandle && this.ctx.priceHistory.length <= 20) {
+    if (isLegacyRootMirrorCandle && this.ctx.priceHistory.length <= ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.warmupLogCandleCount')) {
       const candleTime = new Date(candle.t).toLocaleTimeString();
       console.log(`Candle #${this.ctx.priceHistory.length}/15 [${candleTime}]`);
     }
 
     // Trim history to 250
-    if (isLegacyRootMirrorCandle && this.ctx.priceHistory.length > 250) {
-      this.ctx.priceHistory = this.ctx.priceHistory.slice(-250);
+    if (isLegacyRootMirrorCandle && this.ctx.priceHistory.length > ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.legacyHistoryLimit')) {
+      this.ctx.priceHistory = this.ctx.priceHistory.slice(-ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.legacyHistoryLimit'));
     }
 
     // Save counter
     if (isLegacyRootMirrorCandle && persist) {
       this.ctx.candleSaveCounter++;
-      if (this.ctx.candleSaveCounter >= 5) {
+      if (this.ctx.candleSaveCounter >= ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.saveEveryCandles')) {
         this.ctx.saveCandleHistory();
         this.ctx.candleSaveCounter = 0;
       }
@@ -650,9 +651,9 @@ class CandleProcessor {
     // Fail-safe direction: if we can't determine the close, return false
     // and let gap-recovery + halt handle it. Same logic as line 147.
     if (!Number.isFinite(lastDayPhase.rthCloseMinute)) return false;
-    const closeBoundary = lastDayPhase.rthCloseMinute - 30;  // 30-min slop for last bar pre-close
+    const closeBoundary = lastDayPhase.rthCloseMinute - ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.expectedCloseSlopMinutes');  // 30-min slop for last bar pre-close
     const isAfterClose = last.minuteOfDay >= closeBoundary;
-    const isBeforeOpen = next.minuteOfDay <= 10 * 60;  // 10:00 ET morning slop
+    const isBeforeOpen = next.minuteOfDay <= ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.expectedNextOpenHour') * 60;  // 10:00 ET morning slop
     const differentDays = last.date !== next.date;
     return isAfterClose && isBeforeOpen && differentDays;
   }
@@ -1094,7 +1095,7 @@ class CandleProcessor {
     if (!getConfigValue('backtest.fast') && this.ctx.dashboardWsConnected && this.ctx.dashboardWs) {
       try {
         // CHANGE 2025-12-23: Use IndicatorEngine render packet for dashboard
-        const renderPacket = this.ctx.indicatorEngine.getRenderPacket({ maxPoints: 200 });
+        const renderPacket = this.ctx.indicatorEngine.getRenderPacket({ maxPoints: ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.renderRequestMaxPoints') });
 
         // CHANGE 2026-01-23: Calculate performance stats for dashboard
         // BUGFIX 2026-01-23: Include position value in P&L calculation!
@@ -1132,7 +1133,7 @@ class CandleProcessor {
           volume: parseFloat(volume),
           timestamp: dashboardTimestamp
         };
-        const dashboardCandles = this.ctx.getCandlesForTimeframe(dashboardTimeframe).slice(-50);
+        const dashboardCandles = this.ctx.getCandlesForTimeframe(dashboardTimeframe).slice(ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.dashboardCandleSliceStart'));
         const dashboardPricePayload = {
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           symbol: dashboardSymbol,

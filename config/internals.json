@@ -907,6 +907,18 @@
         "priceLogDigits": 2,
         "riskLogDigits": 2
       }
+    },
+    "candleProcessorPolicy": {
+      "renderRequestMaxPoints": 200,
+      "statusTextLimit": 80,
+      "redactedStatusTextLimit": 80,
+      "warmupLogCandleCount": 20,
+      "legacyHistoryLimit": 250,
+      "saveEveryCandles": 5,
+      "expectedCloseSlopMinutes": 30,
+      "expectedNextOpenHour": 10,
+      "dashboardCandleSliceStart": -50,
+      "minimumIntegerEpochMs": 1000000000000
     }
   },
   "candleStore": {
