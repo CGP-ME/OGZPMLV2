@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 const missionSchema = `{
   "schema": "mission",
   "summary": "1-2 sentence summary",
@@ -29,7 +30,7 @@ function chooseSchema(query = '') {
 
     // CHANGE 2026-01-31: Detect conversational queries (most chat messages)
     // Only use structured JSON for explicit planning/strategy requests
-    const planningKeywords = ['plan', 'proposal', 'strategy', 'roadmap', 'timeline', 'milestone'];
+    const planningKeywords = structuredClone(ConfigLoader.getInternalsFileValue('trai.schemaPolicy.planningKeywords'));
     const isPlanningQuery = planningKeywords.some(kw => normalized.includes(kw));
 
     // Default to CHAT mode for normal conversational queries
