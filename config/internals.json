@@ -1116,6 +1116,67 @@
       "densityWeightDivisorUsd": 250000,
       "cvdTrendDeltaThresholdUsd": 1,
       "buySellRatioWhenNoSells": 99
+    },
+    "stockHistorical": {
+      "timeframeDefault": "15m",
+      "limitDefault": 500,
+      "lookbackMultiplier": 3,
+      "sort": "desc"
+    },
+    "marketSnapshot": {
+      "ollamaChatUrl": "http://localhost:11434/api/chat",
+      "polygonOrigin": "https://api.polygon.io",
+      "lookbackDays": 60,
+      "candleLimit": 60,
+      "indicatorWarmupBars": 21,
+      "rsiPeriod": 14,
+      "emaFastPeriod": 9,
+      "emaSlowPeriod": 21,
+      "atrPeriod": 14,
+      "positiveChangeThreshold": 2,
+      "negativeChangeThreshold": -2,
+      "highMomentumRsi": 65,
+      "positiveMomentumRsi": 55,
+      "negativeMomentumRsi": 45,
+      "lowMomentumRsi": 35
+    },
+    "traiRequests": {
+      "searchDefaultResults": 5,
+      "analyzeSearchResults": 4,
+      "searchRouteDefaultResults": 5,
+      "eventsSearchResults": 5,
+      "regimeSearchResults": 3,
+      "sessionSearchResults": 3,
+      "whalesSearchResults": 5
+    },
+    "traiResponseBounds": {
+      "stringDefault": 200,
+      "eventCount": 20,
+      "eventDateChars": 12,
+      "eventTitleChars": 120,
+      "eventSummaryChars": 240,
+      "eventSourceChars": 80,
+      "regimeSummaryChars": 240,
+      "whaleCount": 20,
+      "whaleActorChars": 120,
+      "whaleDetailChars": 240,
+      "whaleDateChars": 12,
+      "whaleSourceChars": 80,
+      "summaryTagCount": 8,
+      "summaryTagChars": 48,
+      "tradeSummaryChars": 400,
+      "tradeLessonChars": 400
+    },
+    "sessionDisplay": {
+      "premarketStartMinute": 240,
+      "regularStartMinute": 570,
+      "regularEndMinute": 960,
+      "afterHoursEndMinute": 1200
+    },
+    "relayDiagnostics": {
+      "brokerStatusMaxChars": 80,
+      "restErrorMaxChars": 200,
+      "cryptoTickLogEvery": 100
     }
   },
   "instruments": {

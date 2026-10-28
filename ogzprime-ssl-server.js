@@ -1,3 +1,4 @@
+const ConfigLoader = require('./foundation/ConfigLoader');
 /**
  * @fileoverview OGZ Prime Dashboard Server - Web Interface & API
  *
@@ -268,7 +269,7 @@ app.get('/snapshot', (req, res) => {
 // CHANGE 2026-01-23: Ollama proxy for TRAI widget
 app.post('/api/ollama/chat', async (req, res) => {
   try {
-    const response = await fetch('http://localhost:11434/api/chat', {
+    const response = await fetch(ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.ollamaChatUrl'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body)
@@ -305,7 +306,7 @@ const newsSearchClient = NEWS_SEARCH_CONFIG.provider ? createNewsSearchClient(NE
 const NEWS_SEARCH_CONFIGURED = Boolean(newsSearchClient);
 const NEWS_SEARCH_SOURCE = NEWS_SEARCH_CONFIG.provider || 'unconfigured';
 
-async function newsSearch(query, maxResults = 5) {
+async function newsSearch(query, maxResults = ConfigLoader.getInternalsFileValue('dashboard.traiRequests.searchDefaultResults')) {
   if (!newsSearchClient) {
     return null;  // Callers must expose the unconfigured search state.
   }
@@ -348,13 +349,13 @@ async function fetchMarketData(symbol) {
   try {
     // Calculate date range for 60 days of candles (need 50+ for indicators)
     const toDate = new Date().toISOString().split('T')[0];
-    const fromDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const fromDate = new Date(Date.now() - ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.lookbackDays') * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     // Fetch previous day data, current snapshot, and candles for indicators in parallel
     const [prevDayRes, snapshotRes, candlesRes] = await Promise.all([
-      fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?apiKey=${POLYGON_API_KEY}`),
-      fetch(`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`),
-      fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${fromDate}/${toDate}?limit=60&apiKey=${POLYGON_API_KEY}`)
+      fetch(`${ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.polygonOrigin')}/v2/aggs/ticker/${symbol}/prev?apiKey=${POLYGON_API_KEY}`),
+      fetch(`${ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.polygonOrigin')}/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`),
+      fetch(`${ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.polygonOrigin')}/v2/aggs/ticker/${symbol}/range/1/day/${fromDate}/${toDate}?limit=${ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.candleLimit')}&apiKey=${POLYGON_API_KEY}`)
     ]);
 
     if (!prevDayRes.ok || !snapshotRes.ok) {
@@ -386,21 +387,21 @@ async function fetchMarketData(symbol) {
 
     // Compute real indicators from candle data using PineTALib
     let rsi = null, ema9 = null, ema21 = null, atr = null;
-    if (candles.length >= 21) {
+    if (candles.length >= ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.indicatorWarmupBars')) {
       const closes = candles.map(c => c.c);
       const highs = candles.map(c => c.h);
       const lows = candles.map(c => c.l);
 
-      rsi = PineTALib.rsi(closes, 14);
-      ema9 = PineTALib.ema(closes, 9);
-      ema21 = PineTALib.ema(closes, 21);
-      atr = PineTALib.atr(highs, lows, closes, 14);
+      rsi = PineTALib.rsi(closes, ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.rsiPeriod'));
+      ema9 = PineTALib.ema(closes, ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.emaFastPeriod'));
+      ema21 = PineTALib.ema(closes, ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.emaSlowPeriod'));
+      atr = PineTALib.atr(highs, lows, closes, ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.atrPeriod'));
 
       console.log(`[Market Data] ${symbol} indicators: RSI=${rsi?.toFixed(1)}, EMA9=${ema9?.toFixed(2)}, EMA21=${ema21?.toFixed(2)}, ATR=${atr?.toFixed(2)}`);
     } else {
       console.warn(`[Market Data] Not enough candles for ${symbol} (${candles.length}), using fallback`);
       // Fallback: simple momentum indicator
-      rsi = changePct > 2 ? 65 : changePct > 0 ? 55 : changePct > -2 ? 45 : 35;
+      rsi = changePct > ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.positiveChangeThreshold') ? ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.highMomentumRsi') : changePct > 0 ? ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.positiveMomentumRsi') : changePct > ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.negativeChangeThreshold') ? ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.negativeMomentumRsi') : ConfigLoader.getInternalsFileValue('dashboard.marketSnapshot.lowMomentumRsi');
     }
 
     return {
@@ -484,7 +485,7 @@ IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, pr
       const newsQuery = symbol
         ? `${symbol} stock news today ${new Date().toISOString().slice(0, 10)}`
         : prompt;
-      const searchResults = await newsSearch(newsQuery, 4);
+      const searchResults = await newsSearch(newsQuery, ConfigLoader.getInternalsFileValue('dashboard.traiRequests.analyzeSearchResults'));
       if (searchResults && (searchResults.answer || searchResults.results?.length)) {
         searchUsed = true;
         dataContext += `\n**Recent news (last 24-48h):**\n`;
@@ -543,7 +544,7 @@ Give an educational, specific answer. If the question is about current events or
     const startTime = Date.now();
     // CHANGE 2026-04-22: raised default token budget so answers don't get
     // cut off mid-sentence when explaining market context + news.
-    const response = await client.generateResponse(fullPrompt, maxTokens || 600);
+    const response = await client.generateResponse(fullPrompt, maxTokens || dashboardRuntimeConfig.trai.llm.maxTokens);
     const latency = Date.now() - startTime;
 
     res.json({
@@ -588,7 +589,7 @@ app.post('/api/trai/search', async (req, res) => {
       });
     }
 
-    const results = await newsSearch(query, maxResults === undefined ? 5 : maxResults);
+    const results = await newsSearch(query, maxResults === undefined ? ConfigLoader.getInternalsFileValue('dashboard.traiRequests.searchRouteDefaultResults') : maxResults);
     res.json(results || { answer: null, results: [] });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -652,7 +653,7 @@ const _FETCH_TIMEOUT_MS = dashboardRuntimeConfig.dashboard.traiFetchTimeoutMs;
 // by an embedded instruction in untrusted search results, the output
 // passes through these validators which enforce exact shape, enum
 // values, and bounded strings. Invalid or unexpected fields are dropped.
-function _str(v, maxLen = 200) {
+function _str(v, maxLen = ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.stringDefault')) {
   if (v == null) return '';
   return String(v).slice(0, maxLen);
 }
@@ -664,15 +665,15 @@ function _strOrNull(v, maxLen = 200) {
 const _EVENT_TYPES = new Set(['earnings','fomc','fda','macro','catalyst','other']);
 function _validateEventsArray(arr) {
   if (!Array.isArray(arr)) return [];
-  return arr.slice(0, 20).map(e => {
+  return arr.slice(0, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.eventCount')).map(e => {
     if (!e || typeof e !== 'object') return null;
     const type = _EVENT_TYPES.has(e.type) ? e.type : 'other';
     return {
       type,
-      date: _str(e.date, 12),
-      title: _str(e.title, 120),
-      summary: _str(e.summary, 240),
-      source: _str(e.source, 80),
+      date: _str(e.date, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.eventDateChars')),
+      title: _str(e.title, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.eventTitleChars')),
+      summary: _str(e.summary, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.eventSummaryChars')),
+      source: _str(e.source, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.eventSourceChars')),
     };
   }).filter(Boolean);
 }
@@ -688,21 +689,21 @@ function _validateRegimeObject(obj) {
   return {
     regime,
     confidence,
-    summary: _str(obj.summary, 240),
+    summary: _str(obj.summary, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.regimeSummaryChars')),
   };
 }
 const _WHALE_TYPES = new Set(['insider_buy','insider_sell','institutional','sec_filing','block_trade']);
 function _validateWhalesArray(arr) {
   if (!Array.isArray(arr)) return [];
-  return arr.slice(0, 20).map(a => {
+  return arr.slice(0, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.whaleCount')).map(a => {
     if (!a || typeof a !== 'object') return null;
     const type = _WHALE_TYPES.has(a.type) ? a.type : 'institutional';
     return {
       type,
-      actor: _str(a.actor, 120),
-      detail: _str(a.detail, 240),
-      date: _str(a.date, 12),
-      source: _str(a.source, 80),
+      actor: _str(a.actor, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.whaleActorChars')),
+      detail: _str(a.detail, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.whaleDetailChars')),
+      date: _str(a.date, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.whaleDateChars')),
+      source: _str(a.source, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.whaleSourceChars')),
     };
   }).filter(Boolean);
 }
@@ -711,10 +712,10 @@ function _validateTradeSummary(obj) {
     return { summary: '', lesson: '', tags: [] };
   }
   let tags = Array.isArray(obj.tags) ? obj.tags : [];
-  tags = tags.slice(0, 8).map(t => _str(t, 48)).filter(Boolean);
+  tags = tags.slice(0, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.summaryTagCount')).map(t => _str(t, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.summaryTagChars'))).filter(Boolean);
   return {
-    summary: _str(obj.summary, 400),
-    lesson: _str(obj.lesson, 400),
+    summary: _str(obj.summary, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.tradeSummaryChars')),
+    lesson: _str(obj.lesson, ConfigLoader.getInternalsFileValue('dashboard.traiResponseBounds.tradeLessonChars')),
     tags,
   };
 }
@@ -785,7 +786,7 @@ app.get('/api/trai/events', async (req, res) => {
       data = await _withTimeout((async () => {
         const results = await newsSearch(
           `${symbol} stock upcoming earnings date FOMC FDA catalyst 2026`,
-          5
+          ConfigLoader.getInternalsFileValue('dashboard.traiRequests.eventsSearchResults')
         );
         if (!results) {
           throw new Error('TRAI news search unavailable');
@@ -817,7 +818,7 @@ If no events found, return []. ONLY output the JSON array.`;
         // generateRawResponse: _cleanResponse()'s sentence-truncation chops
         // JSON mid-string (parse: "Unterminated string"). Raw + own fence
         // stripping + _validateEventsArray is the correct pipeline here.
-        const response = await client.generateRawResponse(prompt, 7750);
+        const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
         let events = [];
         try {
           const cleaned = String(response || '').replace(/```json|```/g, '').trim();
@@ -893,7 +894,7 @@ app.get('/api/trai/regime', async (req, res) => {
     const symbol = sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol());
     const data = await cachedFetch(`regime:${symbol}`, dashboardRuntimeConfig.dashboard.traiRegimeCacheTtlMs, async () => {
       const marketData = await fetchMarketData(symbol);
-      const news = await newsSearch(`${symbol} stock market trend today`, 3);
+      const news = await newsSearch(`${symbol} stock market trend today`, ConfigLoader.getInternalsFileValue('dashboard.traiRequests.regimeSearchResults'));
       const client = await getTraiClient();
       const dataBlock = marketData
         ? `Price: $${marketData.price}, Change: ${marketData.changePct}%, RSI: ${marketData.rsi}, Volume ratio: ${marketData.volumeRatio}x, ATR: $${marketData.atr}`
@@ -914,7 +915,7 @@ News: ${newsBlock}
 <<<END UNTRUSTED>>>
 
 ONLY output the JSON object.`;
-      const response = await client.generateRawResponse(prompt, 7750);
+      const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
@@ -955,17 +956,17 @@ app.get('/api/trai/session-context', async (req, res) => {
       let phase = 'closed';
       if (dayOfWeek === 'Sat' || dayOfWeek === 'Sun') {
         phase = 'closed';
-      } else if (mod >= 240 && mod < 570) {
+      } else if (mod >= ConfigLoader.getInternalsFileValue('dashboard.sessionDisplay.premarketStartMinute') && mod < ConfigLoader.getInternalsFileValue('dashboard.sessionDisplay.regularStartMinute')) {
         phase = 'pre';
-      } else if (mod >= 570 && mod < 960) {
+      } else if (mod >= ConfigLoader.getInternalsFileValue('dashboard.sessionDisplay.regularStartMinute') && mod < ConfigLoader.getInternalsFileValue('dashboard.sessionDisplay.regularEndMinute')) {
         phase = 'rth';
-      } else if (mod >= 960 && mod < 1200) {
+      } else if (mod >= ConfigLoader.getInternalsFileValue('dashboard.sessionDisplay.regularEndMinute') && mod < ConfigLoader.getInternalsFileValue('dashboard.sessionDisplay.afterHoursEndMinute')) {
         phase = 'ah';
       }
 
       let watchNote = null;
       try {
-        const news = await newsSearch(`${symbol} stock what to watch market open`, 3);
+        const news = await newsSearch(`${symbol} stock what to watch market open`, ConfigLoader.getInternalsFileValue('dashboard.traiRequests.sessionSearchResults'));
         if (news && news.answer) {
           watchNote = news.answer;
         } else if (news && news.results && news.results.length) {
@@ -1068,7 +1069,7 @@ ${JSON.stringify(tradeEntry)}
 <<<END UNTRUSTED>>>
 
 ONLY output the JSON object.`;
-      const response = await client.generateRawResponse(prompt, 7750);
+      const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         const validated = _validateTradeSummary(JSON.parse(cleaned));
@@ -1092,7 +1093,7 @@ app.get('/api/trai/whales', async (req, res) => {
     const data = await cachedFetch(`whales:${symbol}`, dashboardRuntimeConfig.dashboard.traiWhalesCacheTtlMs, async () => {
       const results = await newsSearch(
         `${symbol} insider trading SEC filing institutional ownership large block trade 2026`,
-        5
+        ConfigLoader.getInternalsFileValue('dashboard.traiRequests.whalesSearchResults')
       );
       if (!results || !results.results || !results.results.length) {
         return { activities: [], source: NEWS_SEARCH_SOURCE, symbol };
@@ -1110,7 +1111,7 @@ ${results.results.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join('\n')
 <<<END UNTRUSTED>>>
 
 If no activity found, return []. ONLY output the JSON array.`;
-      const response = await client.generateRawResponse(prompt, 7750);
+      const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
       let activities = [];
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
@@ -1273,7 +1274,7 @@ function broadcastDashboardNewsEvents(events, symbol) {
 function sanitizeBrokerStatusText(value) {
   const cleaned = String(value || '').trim();
   if (!cleaned) return null;
-  return cleaned.replace(/[^\w:.-]/g, '_').slice(0, 80);
+  return cleaned.replace(/[^\w:.-]/g, '_').slice(0, ConfigLoader.getInternalsFileValue('dashboard.relayDiagnostics.brokerStatusMaxChars'));
 }
 
 function broadcastDashboardBrokerStatus(status) {
@@ -1713,7 +1714,7 @@ async function fetchKrakenCryptoTickers() {
   const response = await fetchFn(url);
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+    throw new Error(`HTTP ${response.status}: ${text.slice(0, ConfigLoader.getInternalsFileValue('dashboard.relayDiagnostics.restErrorMaxChars'))}`);
   }
 
   const payload = await response.json();
@@ -1966,8 +1967,8 @@ wss.on('connection', (ws, req) => {
             const { isStock, fetchStockCandles } = require('./server/stock-data-adapter');
             if (isStock(asset, { config: DASHBOARD_STOCK_DATA_CONFIG })) {
               handled = true;
-              const tf = data.timeframe || '15m';
-              const limit = data.limit || 500;
+              const tf = data.timeframe || ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.timeframeDefault');
+              const limit = data.limit || ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.limitDefault');
               const dashboardSymbol = normalizeDashboardSymbol(asset);
               console.log(`[StockAdapter] Fetching ${asset} @ ${tf} from Alpaca...`);
               fetchStockCandles(asset, tf, limit, { config: DASHBOARD_STOCK_DATA_CONFIG }).then(candles => {
@@ -2247,7 +2248,7 @@ const cryptoFeed = createCryptoMarketFeed({
       assetClass: 'crypto',
     }, {}, { allowedSymbols: DASHBOARD_TICKER_PRICE_SYMBOLS });
     if (tickerPriceMessage) broadcastCryptoFrame(tickerPriceMessage);
-    if (tickCount % 100 === 0) {
+    if (tickCount % ConfigLoader.getInternalsFileValue('dashboard.relayDiagnostics.cryptoTickLogEvery') === 0) {
       console.log(`[CryptoFeed] TICK #${tickCount}: ${asset} $${price.toFixed(2)}`);
     }
   },

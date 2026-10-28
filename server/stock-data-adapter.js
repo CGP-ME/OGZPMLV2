@@ -5,6 +5,7 @@
  */
 'use strict';
 
+const ConfigLoader = require('../foundation/ConfigLoader');
 function resolveRequestConfig(options = {}) {
     return Object.prototype.hasOwnProperty.call(options, 'config') ? options.config : null;
 }
@@ -58,7 +59,7 @@ function toEpochSeconds(value) {
     return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
 }
 
-async function fetchStockCandles(ticker, timeframe = '15m', limit = 500, options = {}) {
+async function fetchStockCandles(ticker, timeframe = ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.limitDefault'), options = {}) {
     const config = resolveRequestConfig(options);
     const symbol = cleanTicker(ticker);
     if (missingRequestConfigKeys(config).length > 0) {
@@ -79,7 +80,7 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500, options
     // Calculate start date based on limit and timeframe
     const now = new Date();
     // Go back further than needed to account for market hours only
-    const start = new Date(now.getTime() - (timeframeConfig.intervalMs * limit * 3));
+    const start = new Date(now.getTime() - (timeframeConfig.intervalMs * limit * ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.lookbackMultiplier')));
 
     const params = new URLSearchParams({
         start: start.toISOString(),
@@ -88,7 +89,7 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500, options
         limit: String(limit),
         adjustment: config.adjustment,
         feed: config.feed,
-        sort: 'desc'
+        sort: ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.sort')
     });
 
     const url = `${config.dataUrl}/${symbol}/bars?${params}`;
