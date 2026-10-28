@@ -1018,7 +1018,8 @@
         "deltaLogDigits": 1,
         "priceLogDigits": 2,
         "riskLogDigits": 2
-      }
+      },
+      "cacheKeyPrefixCodeUnits": 50
     },
     "candleProcessorPolicy": {
       "renderRequestMaxPoints": 200,

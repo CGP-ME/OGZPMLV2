@@ -68,7 +68,7 @@ class OptimizedIndicators {
    */
   getScalperCacheKey(indicator, data, ...params) {
     // Create deterministic cache key from data and parameters
-    const dataHash = data.map(d => _c(d)).join(',').substring(0, 50);
+    const dataHash = data.map(d => _c(d)).join(',').substring(0, ConfigLoader.get('internals.indicators.optimized.cacheKeyPrefixCodeUnits'));
     return `${indicator}_${dataHash}_${params.join('_')}`;
   }
 
