@@ -1,3 +1,10 @@
+## 2026-10-28 — Stop 1 G-10: centralize replay listing policy
+
+- Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.
+- Actual verification: Isolated actual service-consumer baseline comparisons pass, including the order-executor age owner. Tested source and commands: `07a6665cbdd08d3178b3cc40590d4ff599327f28`, `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch2-7-proofs.json`.
+- Review/findings: Mercury returned no_break_found and ADVERSARIAL_REVIEW_BLOCKING: no. No concrete migration defect was identified. Its broad coverage claim exceeds the observed tool reads; coverage/reporting omissions remain recorded. Astra failed to deliver an answer; no Astra approval or panel convergence is claimed. Review source `8e0681efb02f193f0501d53855086643cd21903a`; full answer and executing-harness identity: `ogz-meta/inbox/codex/2026-10-28/stop1-delivery/batch5-review.log`, `batch5-manifest.json`. The reviewed changes are split into atomic commits with each owner and its consumers together.
+- Limitations/activation: Bounded isolated consumer verification, not complete backtests or live-runtime acceptance. Existing unrelated problems remain on `ogz-meta/inbox/codex/2026-10-26/stop1-migration-issues.md`. Unrelated dirty work is preserved. No PM2 restart, environment change, live order or runtime activation.
+
 ## 2026-10-28 — Stop 1 G-08, G-09: centralize journal and bridge policy
 
 - Problem/change: Relocate the listed current values to their canonical configuration owners and update their readers, preserving the values and arithmetic.

@@ -84,6 +84,9 @@
       "droppedEventTypesSliceStart": -50,
       "combinedReplayDefaultLimit": 50,
       "expressAdjacentReplayLimit": 1000
+    },
+    "replayCapturePolicy": {
+      "listDefaultLimit": 100
     }
   },
   "sessionRouter": {

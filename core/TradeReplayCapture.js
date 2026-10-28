@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * ============================================================================
  * TradeReplayCapture — Snapshot Candle Context For Every Trade
@@ -260,7 +261,7 @@ class TradeReplayCapture {
    * @param {number} [limit] - Max to return
    * @returns {Array} [{ orderId, direction, pnl, savedAt }]
    */
-  listReplays(limit = 100) {
+  listReplays(limit = ConfigLoader.getInternalsFileValue('journal.replayCapturePolicy.listDefaultLimit')) {
     try {
       const files = fs.readdirSync(this.replayDir)
         .filter(f => f.endsWith('.json'))
