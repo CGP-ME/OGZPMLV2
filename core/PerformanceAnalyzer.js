@@ -1,3 +1,4 @@
+const ConfigLoader = require('../foundation/ConfigLoader');
 /**
  * ============================================================================
  * DOCUMENTED_PerformanceAnalyzer.js - AI-Powered Trading Quality Analysis
@@ -372,7 +373,7 @@ class PerformanceAnalyzer {
    */
   scoreEntryQuality(trade, analysisData = {}) {
     // Default to moderate score
-    let entryQuality = 0.5;
+    let entryQuality = ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entryBase');
     
     // ====================================================================
     // PATTERN CONFIDENCE ASSESSMENT
@@ -380,7 +381,7 @@ class PerformanceAnalyzer {
     
     if (analysisData.patternEvaluation) {
       const confidence = analysisData.patternEvaluation.confidence || 0;
-      entryQuality += confidence * 0.3; // Max 0.3 boost from pattern confidence
+      entryQuality += confidence * ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entryPatternWeight'); // Max 0.3 boost from pattern confidence
     }
     
     // ====================================================================
@@ -398,9 +399,9 @@ class PerformanceAnalyzer {
       );
 
       if (trendAligned) {
-        entryQuality += 0.1;
+        entryQuality += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entryTrendBonus');
       } else {
-        entryQuality -= 0.1;
+        entryQuality -= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entryTrendPenalty');
       }
     }
     
@@ -412,9 +413,9 @@ class PerformanceAnalyzer {
       // Check for extreme RSI conditions
       // CHANGE 614: Normalize direction to lowercase for case-insensitive comparison
       const normalizedDirection = (trade.direction || '').toLowerCase();
-      if ((analysisData.rsi < 30 && normalizedDirection === 'buy') ||
-          (analysisData.rsi > 70 && normalizedDirection === 'sell')) {
-        entryQuality += 0.1;
+      if ((analysisData.rsi < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entryRsiLow') && normalizedDirection === 'buy') ||
+          (analysisData.rsi > ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entryRsiHigh') && normalizedDirection === 'sell')) {
+        entryQuality += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entryRsiBonus');
       }
     }
     
@@ -425,7 +426,7 @@ class PerformanceAnalyzer {
     if (analysisData.srLevels && analysisData.srLevels.length > 0) {
       const nearLevel = this.isNearSupportResistance(trade.entryPrice, analysisData.srLevels, trade.direction);
       if (nearLevel) {
-        entryQuality += 0.15;
+        entryQuality += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.entrySrBonus');
       }
     }
     
@@ -448,7 +449,7 @@ class PerformanceAnalyzer {
    */
   scoreExitQuality(trade, analysisData = {}) {
     // Default to moderate score
-    let exitQuality = 0.5;
+    let exitQuality = ConfigLoader.getInternalsFileValue('analysisPolicy.performance.exitBase');
     
     // ====================================================================
     // EXIT DISCIPLINE ASSESSMENT
@@ -459,7 +460,7 @@ class PerformanceAnalyzer {
           trade.exitReason.includes('profit') ||
           trade.exitReason.includes('stop') ||
           trade.exitReason.includes('trailing')) {
-        exitQuality += 0.15; // Disciplined exit
+        exitQuality += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.disciplinedExitBonus'); // Disciplined exit
       }
     }
     
@@ -467,20 +468,20 @@ class PerformanceAnalyzer {
     // HOLD TIME EVALUATION
     // ====================================================================
     
-    if (trade.holdTimeMin < 5) {
+    if (trade.holdTimeMin < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.quickHoldMinutes')) {
       if (trade.profitable) {
         // Quick profit is acceptable
-        exitQuality += 0.05;
+        exitQuality += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.quickProfitBonus');
       } else {
         // Quick loss might indicate poor entry
-        exitQuality -= 0.1;
+        exitQuality -= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.quickLossPenalty');
       }
-    } else if (trade.holdTimeMin > 120) {
+    } else if (trade.holdTimeMin > ConfigLoader.getInternalsFileValue('analysisPolicy.performance.longHoldMinutes')) {
       // Very long hold times should result in larger profits
-      if (trade.profitable && Math.abs(trade.pnl) > 100) {
-        exitQuality += 0.1;
+      if (trade.profitable && Math.abs(trade.pnl) > ConfigLoader.getInternalsFileValue('analysisPolicy.performance.longHoldProfitThreshold')) {
+        exitQuality += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.longHoldProfitBonus');
       } else {
-        exitQuality -= 0.05; // Holding too long without significant profit
+        exitQuality -= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.longHoldPenalty'); // Holding too long without significant profit
       }
     }
     
@@ -499,7 +500,7 @@ class PerformanceAnalyzer {
       );
 
       if (nearLevel) {
-        exitQuality += 0.15;
+        exitQuality += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.exitSrBonus');
       }
     }
     
@@ -522,7 +523,7 @@ class PerformanceAnalyzer {
    */
   scorePatternAccuracy(trade, analysisData = {}) {
     // Default to moderate score
-    let patternAccuracy = 0.5;
+    let patternAccuracy = ConfigLoader.getInternalsFileValue('analysisPolicy.performance.patternBase');
     
     // If no pattern data, return default
     if (!analysisData.patternEvaluation || !trade.pattern) {
@@ -555,7 +556,7 @@ class PerformanceAnalyzer {
     // ====================================================================
     
     if (exactMatch) {
-      patternAccuracy += 0.1;
+      patternAccuracy += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.exactPatternBonus');
     }
     
     // ====================================================================
@@ -569,9 +570,9 @@ class PerformanceAnalyzer {
     );
 
     if (directionCorrect) {
-      patternAccuracy += 0.2;
+      patternAccuracy += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.correctPatternDirectionBonus');
     } else {
-      patternAccuracy -= 0.2;
+      patternAccuracy -= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.incorrectPatternDirectionPenalty');
     }
     
     // ====================================================================
@@ -583,14 +584,14 @@ class PerformanceAnalyzer {
       const history = this.state.patternPerformance[patternKey];
       
       // Adjust based on historical accuracy
-      if (history.trades > 5) {
+      if (history.trades > ConfigLoader.getInternalsFileValue('analysisPolicy.performance.patternHistoryMinimumExclusive')) {
         const historicalWinRate = history.wins / history.trades;
         
         // Boost score if pattern historically accurate
-        if (historicalWinRate > 0.6) {
-          patternAccuracy += 0.1;
-        } else if (historicalWinRate < 0.4) {
-          patternAccuracy -= 0.1;
+        if (historicalWinRate > ConfigLoader.getInternalsFileValue('analysisPolicy.performance.patternHistoryHighWinRate')) {
+          patternAccuracy += ConfigLoader.getInternalsFileValue('analysisPolicy.performance.patternHistoryBonus');
+        } else if (historicalWinRate < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.patternHistoryLowWinRate')) {
+          patternAccuracy -= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.patternHistoryPenalty');
         }
       }
     }
@@ -609,7 +610,7 @@ class PerformanceAnalyzer {
    */
   isNearSupportResistance(price, levels, direction) {
     // Default proximity threshold (0.5%)
-    const proximityThreshold = 0.005;
+    const proximityThreshold = ConfigLoader.getInternalsFileValue('analysisPolicy.performance.srProximityFraction');
     // CHANGE 614: Normalize direction and type to lowercase for case-insensitive comparison
     const normalizedDirection = (direction || '').toLowerCase();
 
@@ -657,9 +658,9 @@ class PerformanceAnalyzer {
     const improvements = [];
     
     // Suggest improvements based on quality
-    if (qualityScore < 70) {
+    if (qualityScore < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.improvementQualityThreshold')) {
       // Entry improvements
-      if (trade.qualityComponents && trade.qualityComponents.entryQuality < 0.6) {
+      if (trade.qualityComponents && trade.qualityComponents.entryQuality < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.improvementEntryThreshold')) {
         improvements.push({
           aspect: 'entry',
           suggestion: 'Look for stronger entry confirmation signals',
@@ -668,7 +669,7 @@ class PerformanceAnalyzer {
       }
       
       // Exit improvements
-      if (trade.qualityComponents && trade.qualityComponents.exitQuality < 0.6) {
+      if (trade.qualityComponents && trade.qualityComponents.exitQuality < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.improvementExitThreshold')) {
         improvements.push({
           aspect: 'exit',
           suggestion: 'Consider using more disciplined exit criteria',
@@ -677,7 +678,7 @@ class PerformanceAnalyzer {
       }
       
       // Hold time issues
-      if (trade.holdTimeMin < 2 && !trade.profitable) {
+      if (trade.holdTimeMin < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.improvementQuickLossMinutes') && !trade.profitable) {
         improvements.push({
           aspect: 'patience',
           suggestion: 'Avoid quick exits on losing trades',
@@ -685,7 +686,7 @@ class PerformanceAnalyzer {
         });
       }
       
-      if (trade.holdTimeMin > 180 && !trade.profitable) {
+      if (trade.holdTimeMin > ConfigLoader.getInternalsFileValue('analysisPolicy.performance.improvementLongLossMinutes') && !trade.profitable) {
         improvements.push({
           aspect: 'discipline',
           suggestion: 'Consider tighter stop loss to avoid extended losing trades',
@@ -756,7 +757,7 @@ class PerformanceAnalyzer {
    * Update edge metrics for decay detection
    */
   updateEdgeMetrics() {
-    if (this.state.totalTrades < 10) {
+    if (this.state.totalTrades < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.edgeMinimumTrades')) {
       return; // Not enough trades for meaningful metrics
     }
     
@@ -838,7 +839,7 @@ class PerformanceAnalyzer {
     const expectedVariation = Math.sqrt(historicalRate * (1 - historicalRate) / sampleSize);
     
     // If delta is more than 2x the expected variation, we consider it significant
-    const significance = Math.min(1, delta / (2 * expectedVariation));
+    const significance = Math.min(1, delta / (ConfigLoader.getInternalsFileValue('analysisPolicy.performance.significanceVariationMultiplier') * expectedVariation));
     return significance;
   }
   
@@ -867,13 +868,13 @@ class PerformanceAnalyzer {
     }
     
     // Quality score recommendations
-    if (this.state.averageQuality < 70 && this.state.qualityScores.length >= 10) {
+    if (this.state.averageQuality < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.recommendationQualityThreshold') && this.state.qualityScores.length >= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.recommendationMinimumSamples')) {
       recommendations.push({
         type: 'improvement',
         aspect: 'trade_quality',
         priority: 'medium',
         message: `Average trade quality (${this.state.averageQuality.toFixed(1)}/100) below optimal level.`,
-        confidence: 0.8,
+        confidence: ConfigLoader.getInternalsFileValue('analysisPolicy.performance.qualityRecommendationConfidence'),
         suggestedAction: 'Review recent trade entries and exits for improvement opportunities'
       });
     }
@@ -886,7 +887,7 @@ class PerformanceAnalyzer {
         aspect: 'pattern_performance',
         priority: 'medium',
         message: `Identified ${ineffectivePatterns.length} underperforming patterns.`,
-        confidence: 0.75,
+        confidence: ConfigLoader.getInternalsFileValue('analysisPolicy.performance.patternRecommendationConfidence'),
         suggestedAction: 'Consider avoiding these pattern types or increasing entry criteria',
         details: ineffectivePatterns
       });
@@ -909,7 +910,7 @@ class PerformanceAnalyzer {
     
     // Check each pattern with sufficient trades
     Object.entries(this.state.patternPerformance).forEach(([key, stats]) => {
-      if (stats.trades >= 5 && stats.winRate < 0.4) {
+      if (stats.trades >= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.ineffectiveMinimumTrades') && stats.winRate < ConfigLoader.getInternalsFileValue('analysisPolicy.performance.ineffectiveWinRateThreshold')) {
         ineffective.push({
           patternKey: key,
           trades: stats.trades,
@@ -931,11 +932,11 @@ class PerformanceAnalyzer {
    * @returns {string} Quality category
    */
   getQualityCategory(score) {
-    if (score >= 90) return 'excellent';
-    if (score >= 80) return 'good';
-    if (score >= 70) return 'satisfactory';
-    if (score >= 60) return 'needs improvement';
-    if (score >= 50) return 'poor';
+    if (score >= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.excellentThreshold')) return 'excellent';
+    if (score >= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.goodThreshold')) return 'good';
+    if (score >= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.satisfactoryThreshold')) return 'satisfactory';
+    if (score >= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.needsImprovementThreshold')) return 'needs improvement';
+    if (score >= ConfigLoader.getInternalsFileValue('analysisPolicy.performance.poorThreshold')) return 'poor';
     return 'critical';
   }
   
