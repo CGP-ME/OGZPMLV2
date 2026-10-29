@@ -1598,6 +1598,11 @@ class SessionRouter extends EventEmitter {
       await this.ctx.tradingLoop.waitForPendingOperations();
       this.activeSession = 'stocks';
       this.activeBroker = this.alpacaAdapter;
+      this.ctx.kraken = this.alpacaAdapter;
+      this.ctx.promoteBrokerAccountIdentity(this.alpacaAdapter, {
+        source: 'session_router_transition',
+        brokerId: runtimeScope.brokerId,
+      });
       this.lastTransitionAt = Date.now();
 
       const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('stocks', runtimeScope);
@@ -1702,6 +1707,11 @@ class SessionRouter extends EventEmitter {
       await this.ctx.tradingLoop.waitForPendingOperations();
       this.activeSession = 'crypto';
       this.activeBroker = this.krakenAdapter;
+      this.ctx.kraken = this.krakenAdapter;
+      this.ctx.promoteBrokerAccountIdentity(this.krakenAdapter, {
+        source: 'session_router_transition',
+        brokerId: runtimeScope.brokerId,
+      });
       this.lastTransitionAt = Date.now();
 
       const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('crypto', runtimeScope);
