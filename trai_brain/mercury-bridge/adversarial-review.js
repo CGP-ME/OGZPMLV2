@@ -1069,7 +1069,10 @@ function stageAttemptReceipt({
     retry_status: role === 'opus_challenger'
       ? 'emergency_replacement'
       : (role === 'kimi_tie_breaker' && attemptNumber > 1 ? 'truncation_retry' : 'primary_attempt'),
-    input_provenance: inputProvenance || buildAttestedPromptProvenance(prompt, suppliedSources),
+    input_provenance: { ...(inputProvenance || buildAttestedPromptProvenance(prompt, suppliedSources)),
+      // Original request attestation remains separate from actual CLI delivery.
+      delivery: metadata.inputDelivery || { mode: 'provider_prompt', status: 'supplied_inline' },
+    },
     raw_output: rawOutput,
     raw_error: rawError,
     tools: metadata.tools || {
@@ -1223,6 +1226,19 @@ async function runAstraAdversarialReview({
       createClient: createAstraClient, persistRaw, attemptNumber: 1,
     });
     attempts.push(stage.receipt);
+    // A failed request is not a completed critique or a model mismatch verdict.
+    // Keep partial answers and original identity/raw receipts, but do not recheck
+    // Mercury against an absent challenger answer.
+    if (stage.receipt.status === 'failed') {
+      const error = new Error('Astra reviewer request did not complete; inspect the preserved stage status');
+      error.code = 'REVIEWER_REQUEST_FAILED';
+      error.stageAttempt = stage.receipt;
+      error.challengerAttempts = attempts;
+      const failure = adversarialReviewFailure(error);
+      failure.answer = stage.answer;
+      failure.identityPosture = stage.receipt.identity_posture;
+      return failure;
+    }
     if (stage.receipt.identity_posture.status === 'identity_conflict') {
       quarantines.push(reviewQuarantine({
         unit: 'identity',
