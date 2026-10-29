@@ -108,9 +108,28 @@ function verifyInputDelivery(delivery, frames) {
 
 function invoke(command, args, options) {
   return new Promise(resolve => {
-    const { input, ...execOptions } = options;
+    const { input, idleTimeoutMs, ...execOptions } = options;
     let inputError = null;
-    const child = execFile(command, args, execOptions, (error, stdout, stderr) => resolve({ error: error || inputError, stdout, stderr }));
+    let idleError = null;
+    let idleTimer = null;
+    const child = execFile(command, args, execOptions, (error, stdout, stderr) => {
+      clearTimeout(idleTimer);
+      resolve({ error: error || idleError || inputError, stdout, stderr });
+    });
+    const recordActivity = () => {
+      clearTimeout(idleTimer);
+      if (idleTimeoutMs > 0 && !idleError) {
+        idleTimer = setTimeout(() => {
+          idleError = Object.assign(new Error(`Reviewer produced no output for ${idleTimeoutMs}ms`), {
+            code: 'ETIMEDOUT', signal: 'SIGTERM', killed: true,
+          });
+          child.kill('SIGTERM');
+        }, idleTimeoutMs);
+      }
+    };
+    child.stdout.on('data', recordActivity);
+    child.stderr.on('data', recordActivity);
+    recordActivity();
     if (input !== undefined) {
       child.stdin.on('error', error => { inputError = error; });
       child.stdin.end(input);
@@ -238,7 +257,11 @@ class CodexChallengerClient {
         'Use the available tools for read-only evidence inspection in the supplied working directory; it is the selected source snapshot when a review ref is pinned. Do not substitute the parent checkout. Do not edit files, call other reviewers, or change runtime state.'))}`,
       '-'];
     const delivery = prepareInputDelivery(prompt);
-    const result = await this.invoke(CODEX_LAUNCHER, args, { ...this.execOptions(), input: delivery.input });
+    // A review spans many requests and tool reads. Apply the existing timeout
+    // to inactivity, so progress can continue without leaving a silent child stuck.
+    const result = await this.invoke(CODEX_LAUNCHER, args, {
+      ...this.execOptions(), timeout: 0, idleTimeoutMs: this.requestTimeoutMs, input: delivery.input,
+    });
     this.requestCount += 1;
     const parsed = parseCodexTapes(result.stdout, result.stderr, this.model);
     const inputDelivery = verifyInputDelivery(delivery, parsed.frames);

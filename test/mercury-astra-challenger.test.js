@@ -42,6 +42,34 @@ test('actual provider identity, completion and complete tapes qualify; CLI confi
  const absent=await client({...tapes(),stderr:''}).generateResponseWithMetadata('review');expect(absent.answer).toContain('VERDICT: pass');expect(absent.metadata.identityPosture.status).toBe('identity_conflict');
 });
 
+test('reviews use the configured timeout for inactivity; initialization retains its total timeout', async () => {
+ const c = client();
+ expect(c.execOptions().timeout).toBe(1000);
+ await c.generateResponseWithMetadata('review');
+  expect(c.invoke.mock.calls[0][2].timeout).toBe(0);
+ expect(c.invoke.mock.calls[0][2].idleTimeoutMs).toBe(1000);
+});
+
+test.each(['stdout', 'stderr'])('real child progress on %s outlives the idle deadline', async stream => {
+ const c = new CodexChallengerClient({ model, repoRoot: process.cwd(), requestTimeoutMs: 1000 });
+ const script = `let n=0; const timer=setInterval(()=>{process.${stream}.write('progress\\n'); if(++n===8){clearInterval(timer);}},100);`;
+ const start = Date.now();
+ const result = await c.invoke(process.execPath, ['-e', script], { timeout: 0, idleTimeoutMs: 500 });
+ expect(Date.now() - start).toBeGreaterThan(500);
+ expect(result.error).toBeNull();
+ expect(result[stream].match(/progress/g)).toHaveLength(8);
+});
+
+test('real silent child timeout preserves partial tapes even when SIGTERM exits zero', async () => {
+ const c = new CodexChallengerClient({ model, repoRoot: process.cwd(), requestTimeoutMs: 1000 });
+ const script = "process.on('SIGTERM',()=>process.exit(0));process.stdout.write('partial answer');process.stderr.write('partial evidence');setInterval(()=>{},1000);";
+ const result = await c.invoke(process.execPath, ['-e', script], { timeout: 0, idleTimeoutMs: 250 });
+ expect(result.error.code).toBe('ETIMEDOUT');
+ expect(result.error.killed).toBe(true);
+ expect(result.stdout).toBe('partial answer');
+ expect(result.stderr).toBe('partial evidence');
+});
+
 test.each(['timeout','malformed','incomplete'])('failure %s preserves tapes without fallback',async kind=>{
  const raw=tapes();if(kind==='timeout')raw.error=Object.assign(new Error('timed out'),{code:'ETIMEDOUT'});
  if(kind==='malformed')raw.stderr+='TRACE SSE event: {broken\n';
