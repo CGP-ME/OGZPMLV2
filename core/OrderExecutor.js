@@ -3221,6 +3221,11 @@ class OrderExecutor {
       }
     }
 
+    // Replay time belongs to the selected symbol/frame and must survive awaits.
+    // Paper/live trades use the local execution time when the result arrives.
+    const replayTimestamp = this.ctx.backtestMode
+      ? this.ctx.runner.getSymbolTimeframeContext(symbol, executionScope.timeframe).marketData.timestamp
+      : null;
     let exitIntent = null;
     let reservationBlockOverride = null;
     let liveBrokerOrderAccepted = false;
@@ -3692,6 +3697,7 @@ class OrderExecutor {
       console.log(`CP4: Order result:`, tradeResult ? `success=${tradeResult.success}` : 'NULL');
 
       if (tradeResult && tradeResult.success) {
+        const tradeTimestamp = this.ctx.backtestMode ? replayTimestamp : Date.now();
         console.log(`CP4.5: Trade SUCCESS confirmed, creating unified result`);
         if (!tradeResult.orderId) {
           throw new Error(`[EXECUTION-FILL] successful_trade_result_missing_order_id for ${decision.action} ${symbol}`);
@@ -3721,7 +3727,7 @@ class OrderExecutor {
           signalId,
           decisionId,
           entryPrice: price,
-          entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
+          entryTime: tradeTimestamp,
           size: tradeResult.amount ?? positionSize,
           confidence: decision.confidence,
           // CHANGE 648: Store full pattern objects with signatures for learning
@@ -3840,7 +3846,7 @@ class OrderExecutor {
             confidence: decision.confidence,
             patterns: patterns || [],
             entryIndicators: indicators,
-            entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
+            entryTime: tradeTimestamp,
             signalBreakdown: orchResult?.signalBreakdown ?? null,
             bullishScore: orchResult?.bullishScore ?? 0,
             bearishScore: orchResult?.bearishScore || 0,
@@ -4003,7 +4009,7 @@ class OrderExecutor {
               size: adjustedPositionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
-              entryTime: this.ctx.marketData?.timestamp ?? Date.now()
+              entryTime: tradeTimestamp
             });
 
             if (this.ctx.patternExitShadowMode) {
@@ -4108,7 +4114,7 @@ class OrderExecutor {
             positionEffect,
             patterns: patterns || [],
             entryIndicators: indicators,
-            entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
+            entryTime: tradeTimestamp,
             signalBreakdown: orchResult?.signalBreakdown ?? null,
             bullishScore: orchResult?.bullishScore ?? 0,
             bearishScore: orchResult?.bearishScore || 0,
@@ -4264,7 +4270,7 @@ class OrderExecutor {
               size: adjustedPositionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
-              entryTime: this.ctx.marketData?.timestamp ?? Date.now()
+              entryTime: tradeTimestamp
             });
 
             if (this.ctx.patternExitShadowMode) {
@@ -4374,7 +4380,7 @@ class OrderExecutor {
               buyTrade = buyTrades[0];
             }
             pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
-            const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
+            const exitTimestamp = tradeTimestamp;
             const holdDuration = exitTimestamp - buyTrade.entryTime;
             const longExitSizeUsd = this._firstFiniteNumber(executedExitPlan?.sizeUsd) ?? this._resolveStoredSizeUsd(buyTrade, 'BUY exit');
             const longExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity ?? null;
@@ -4822,7 +4828,7 @@ class OrderExecutor {
 
                 // Timing
                 entryTime: new Date(buyTrade.entryTime).toISOString(),
-                exitTime: new Date().toISOString(),
+                exitTime: new Date(exitTimestamp).toISOString(),
                 holdTime: holdDuration,
 
                 // Account
@@ -4979,7 +4985,7 @@ class OrderExecutor {
           }
           // SHORT PnL: profit when price goes DOWN (entry - exit)
           const pnl = ((shortTrade.entryPrice - price) / shortTrade.entryPrice) * 100;
-          const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
+          const exitTimestamp = tradeTimestamp;
           const holdDuration = exitTimestamp - shortTrade.entryTime;
           const coverExitSizeUsd = this._firstFiniteNumber(executedExitPlan?.sizeUsd) ?? this._resolveStoredSizeUsd(shortTrade, 'SHORT exit');
           const coverExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity ?? null;
@@ -5293,7 +5299,7 @@ class OrderExecutor {
                 exitQuantity: shortExitFeeQuantity,
               }),
               entryTime: new Date(shortTrade.entryTime).toISOString(),
-              exitTime: new Date().toISOString(),
+              exitTime: new Date(exitTimestamp).toISOString(),
               holdTime: holdDuration,
               balanceBefore: shortResultPnlDollars === null ? null : stateManager.get('balance') - shortResultPnlDollars,
               balanceAfter: stateManager.get('balance'),

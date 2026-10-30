@@ -1129,7 +1129,7 @@ class TradingLoop {
       const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
         indicators,
         priceHistory,
-        currentTime: priceSource === 'state_last_price' ? Date.now() : (marketData?.timestamp ?? Date.now()),
+        currentTime: this.ctx.backtestMode ? marketData.timestamp : Date.now(),
         currentPosition: stateManager.get('position'),
         currentPrice: price,
         nearestStructure,
@@ -1496,7 +1496,7 @@ class TradingLoop {
         const exitCheck = exitContractManager.checkExitConditions(activeTrade, tradeExit.price, {
           indicators: tradeExit.indicators,
           priceHistory: tradeExit.priceHistory,
-          currentTime: tradeExit.marketData?.timestamp ?? Date.now(),
+          currentTime: this.ctx.backtestMode ? tradeExit.marketData.timestamp : Date.now(),
           currentPosition: stateManager.get('position'),
           currentPrice: tradeExit.price,
           nearestStructure: tradeExit.nearestStructure,

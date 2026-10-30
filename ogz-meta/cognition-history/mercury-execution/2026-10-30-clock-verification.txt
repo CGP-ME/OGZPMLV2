@@ -1,0 +1,374 @@
+HOST VERIFICATION SUMMARY — 2026-10-30
+The baseline failure section below is deliberate pre-repair reproduction: six failing tests and two passing historical-timer cases. It is NOT a candidate run.
+The candidate section below is the isolated staged-source run: eight passing tests, zero failed.
+The test-source tree was 845efcccbe78f3d5450e7ceabd56c20c3fb3281e. All 42 inherited dirty tracked production JS/JSON dependencies were restored to HEAD in the disposable snapshot; the two clock files were replaced with the staged candidate sources before Jest ran.
+Git comparison from that tree to review tree f01fb6cb30154355824cbdc545d4877c04d22f26 changes ONLY this verification transcript. No executable or config dependency differs between those trees.
+The present update changes only this header and later review-result documentation, not the tested production/test bytes.
+The exact fixture and baseline/candidate console output are copied below, followed by source hashes and the executing harness hashes.
+Astra's previous review refuted Mercury's baseline-as-candidate allegations with source and result evidence. The automatic Mercury recheck then failed before any call because its indispensable envelope exceeded the context limit. This rerun supplies a short prompt and retains the full readable evidence below.
+Scope limits: synthetic boundary inputs and mocked persistence; no real broker execution, runtime activation, complete dependency-suite coverage, or historical record repair is claimed.
+
+SOURCE: test/fixtures/order-executor-clock.test.js
+'use strict';
+
+require('../helpers/require-isolation.cjs')();
+const mockState = {
+  normalizeSymbol: symbol => symbol,
+  get: jest.fn(), getState: jest.fn(), getEquity: jest.fn(() => 10000),
+  getAvailableCapital: jest.fn(() => 10000), getTradesBySymbol: jest.fn(),
+  isPaused: jest.fn(() => false), isSymbolHalted: jest.fn(() => false), getSymbolHaltReason: jest.fn(),
+  getSymbolHaltCode: jest.fn(), openPosition: jest.fn(), applyFill: jest.fn(),
+  reserveExitSlot: jest.fn(), markExitSlotAccepted: jest.fn(), releaseExitSlot: jest.fn(),
+  haltSymbol: jest.fn(), reconcileBrokerFlat: jest.fn(),
+};
+jest.mock('../../core/StateManager', () => ({ getInstance: () => mockState }));
+jest.mock('../../ogz-meta/claudito-logger', () => ({
+  TradingProofLogger: { trade: jest.fn(), explanation: jest.fn() },
+}));
+
+for (const key of ['KRAKEN_API_KEY', 'KRAKEN_API_SECRET', 'ALPACA_API_KEY', 'ALPACA_API_SECRET', 'WEBSOCKET_AUTH_TOKEN']) {
+  process.env[key] = 'synthetic-clock-test';
+}
+process.env.PROFILE = 'paper';
+const ConfigLoader = require('../../foundation/ConfigLoader');
+ConfigLoader.load({ role: 'bot', loadDotenv: false, silent: true });
+const OrderExecutor = require('../../core/OrderExecutor');
+const { getInstance: getExitContractManager } = require('../../core/ExitContractManager');
+const TradingLoop = require('../../core/TradingLoop');
+
+const T0 = Date.parse('2026-10-29T20:00:00Z');
+const features = [0.51, 0.62, 0.41, 0.53, 0.44, 0.35, 0.58, 0.49, 0.5];
+let positions, now, spies;
+
+function makeExecutor(mode) {
+  const frame = {
+    marketData: { symbol: 'RIOT', timeframe: '1m', timestamp: T0 },
+    priceHistory: Array.from({ length: 60 }, (_, i) => ({
+      timestamp: T0 - (60 - i) * 60000, open: 20 + i / 100,
+      high: 21 + i / 100, low: 19 + i / 100, close: 20.5 + i / 100, volume: 100,
+    })),
+  };
+  const ctx = {
+    config: { brokerId: 'alpaca', accountId: 'clock-account', accountIdSource: 'broker',
+      assetClass: 'stocks', timeframe: '1m', executionMode: mode, enableBacktestMode: mode === 'backtest' },
+    backtestMode: mode === 'backtest', paperTrading: mode === 'paper', backtestFast: true,
+    marketData: { symbol: 'TSLA', timeframe: '15m', timestamp: T0 - 86400000 },
+    runner: { getSymbolTimeframeContext: jest.fn((symbol, timeframe) => {
+      expect(symbol).toBe('RIOT'); expect(timeframe).toBe('1m'); return frame;
+    }) },
+    backtestRecorder: { recordTrade: jest.fn() },
+    logTrade: jest.fn(), notifyTrade: jest.fn(), notifyTradeClose: jest.fn(),
+    discordNotifier: { notifyTrade: jest.fn() },
+    performanceAnalyzer: { processTrade: jest.fn() },
+    patternChecker: { recordPatternResult: jest.fn(() => true), memory: { healthCheck: jest.fn(() => ({ healthy: true, issues: [] })) } },
+  };
+  return { executor: new OrderExecutor(ctx), ctx, frame };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  positions = new Map(); now = T0 + 10000;
+  spies = ['log', 'warn', 'error'].map(method => jest.spyOn(console, method).mockImplementation(() => {}));
+  spies.push(jest.spyOn(Date, 'now').mockImplementation(() => now));
+  mockState.get.mockImplementation(key => ({ isTrading: true, balance: 10000, activeTrades: positions })[key]);
+  mockState.getState.mockImplementation(() => ({ balance: 10000, activeTrades: positions }));
+  mockState.getTradesBySymbol.mockImplementation(symbol => [...positions.values()].filter(trade => trade.symbol === symbol));
+  mockState.openPosition.mockImplementation(async (size, price, metadata) => {
+    positions.set(metadata.orderId, { ...metadata, id: metadata.orderId, size, sizeUsd: size, entryPrice: price });
+    return { success: true };
+  });
+  mockState.reserveExitSlot.mockResolvedValue({ success: true, reserved: true, pendingExitIntent: { intentId: 'clock-exit' } });
+  mockState.markExitSlotAccepted.mockResolvedValue({ success: true, accepted: true });
+  mockState.applyFill.mockResolvedValue({ success: true, applied: true, code: 'FILL_APPLIED' });
+});
+
+test.each(['paper', 'backtest'].flatMap(mode => ['exit_only', 'analysis'].map(route => [mode, route])))
+('%s %s supplies the matching clock to the exit timer', async (mode, route) => {
+  const { ctx, frame } = makeExecutor(mode);
+  frame.timeframe = '1m'; frame.marketData.price = 20;
+  ctx.getSymbolTimeframeContext = ctx.runner.getSymbolTimeframeContext;
+  frame.strategyOrchestrator = { evaluate: jest.fn(() => ({ direction: 'hold', confidence: 0, allResults: [] })) };
+  ctx.strategyOrchestrator = frame.strategyOrchestrator;
+  ctx.broadcastPatternAnalysis = jest.fn();
+  const trade = { id: 'timer-trade', symbol: 'RIOT', direction: 'long', action: 'BUY',
+    timeframe: '1m', entryPrice: 20, entryTime: T0 - 60000,
+    brokerId: 'alpaca', accountId: 'clock-account', accountIdSource: 'broker', assetClass: 'stocks', executionMode: mode };
+  positions.set(trade.id, trade);
+  const loop = new TradingLoop(ctx);
+  const data = { indicators: { rsi: 50, trend: 'sideways', atr: 0.1 }, patterns: [],
+    regime: { currentRegime: 'sideways' }, tpoResult: null, fibLevels: null, nearestFibLevel: null, nearestStructure: null };
+  loop._gatherData = jest.fn(() => data);
+  loop._runTRAI = jest.fn();
+  loop._writeDecisionAutopsy = jest.fn(() => ({ success: true, persisted: true }));
+  loop._getTradeExitContext = jest.fn(() => ({ ...data, exitTimeframe: '1m',
+    marketData: frame.marketData, price: 20, priceSource: 'market_data', priceHistory: frame.priceHistory }));
+  const checker = jest.spyOn(getExitContractManager(), 'checkExitConditions').mockReturnValue({ shouldExit: false });
+  spies.push(checker);
+  if (route === 'exit_only') await loop._checkExitsOnly('RIOT');
+  else await loop._analyze('RIOT', 'clock-analysis', '1m');
+  expect(checker).toHaveBeenCalledWith(trade, 20, expect.objectContaining({ currentTime: mode === 'paper' ? now : T0 }));
+});
+afterEach(() => spies.forEach(spy => spy.mockRestore()));
+
+test.each(['paper', 'backtest'].flatMap(mode => ['BUY', 'SELL_SHORT'].map(action => [mode, action])))
+('%s %s records its execution clock through entry, close and learning', async (mode, action) => {
+  const { executor, ctx, frame } = makeExecutor(mode);
+  const exitContract = { ...getExitContractManager().getDefaultContract('RSI', { timeframe: '1m' }), timeframe: '1m' };
+  const entryResult = await executor.executeTrade(
+    { action, confidence: 90 }, { totalConfidence: 90 }, 20,
+    { rsi: 55, trend: 'sideways', volatility: 0.01 },
+    [{ name: 'RSI', features }], null,
+    { winnerStrategy: 'RSI', sizingMultiplier: 1, exitContract, marketCondition: 'ranging' }, 'RIOT', '1m'
+  );
+  expect(entryResult).toEqual(expect.objectContaining({ success: true, reason: null }));
+  const trade = [...positions.values()][0];
+  const expectedEntry = mode === 'paper' ? now : T0;
+  expect(trade.entryTime).toBe(expectedEntry);
+  now += 60000;
+  frame.marketData = { ...frame.marketData, timestamp: mode === 'paper' ? T0 : T0 + 60000 };
+  // Other streams can advance while this exit awaits reservation. The replay
+  // result must retain its selected event time, not read mutable context later.
+  mockState.reserveExitSlot.mockImplementation(async () => {
+    now += 5000;
+    frame.marketData.timestamp += 900000;
+    ctx.marketData.timestamp += 86400000;
+    return { success: true, reserved: true, pendingExitIntent: { intentId: 'clock-exit' } };
+  });
+  const result = await executor.executeTrade(
+    { action: action === 'BUY' ? 'SELL' : 'COVER', confidence: 100, tradeId: trade.orderId, exitReason: 'signal' },
+    { totalConfidence: 100 }, action === 'BUY' ? 21 : 19,
+    { rsi: 55, trend: 'sideways', volatility: 0.01 }, [], null, null, 'RIOT', '1m'
+  );
+  expect(result).toEqual(expect.objectContaining({ success: true, reason: null }));
+  const expectedExit = mode === 'paper' ? now : T0 + 60000;
+  const duration = expectedExit - expectedEntry;
+  expect(ctx.patternChecker.recordPatternResult).toHaveBeenCalledWith(features, expect.objectContaining({ holdTimeMs: duration, symbol: 'RIOT', timeframe: '1m' }));
+  const closed = ctx.logTrade.mock.calls.map(call => call[0]).find(record => record.type === 'SELL' || record.type === 'COVER');
+  expect(closed).toEqual(expect.objectContaining({
+    entryTime: new Date(expectedEntry).toISOString(), exitTime: new Date(expectedExit).toISOString(), holdTime: duration,
+  }));
+});
+
+SOURCE: ogz-meta/inbox/codex/2026-10-30/runtime-error-repairs/clock-baseline-tests.log
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+  console.log
+    [FeatureFlagManager] Initialized: mode=paper, tier=ml
+
+      at new log (core/FeatureFlagManager.js:74:13)
+
+  console.log
+    [FeatureFlagManager] Enabled features: [ 'PATTERN_EXIT_MODEL', 'TRAI_INFERENCE', 'OGZ_TPO' ]
+
+      at new log (core/FeatureFlagManager.js:75:13)
+
+FAIL test/fixtures/order-executor-clock.test.js
+  ✕ paper exit_only supplies the matching clock to the exit timer (35 ms)
+  ✕ paper analysis supplies the matching clock to the exit timer (20 ms)
+  ✓ backtest exit_only supplies the matching clock to the exit timer (3 ms)
+  ✓ backtest analysis supplies the matching clock to the exit timer (3 ms)
+  ✕ paper BUY records its execution clock through entry, close and learning (23 ms)
+  ✕ paper SELL_SHORT records its execution clock through entry, close and learning (5 ms)
+  ✕ backtest BUY records its execution clock through entry, close and learning (7 ms)
+  ✕ backtest SELL_SHORT records its execution clock through entry, close and learning (7 ms)
+
+  ● paper exit_only supplies the matching clock to the exit timer
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      {"accountId": "clock-account", "accountIdSource": "broker", "action": "BUY", "assetClass": "stocks", "brokerId": "alpaca", "direction": "long", "entryPrice": 20, "entryTime": 1793303940000, "executionMode": "paper", "highestPrice": 20, "id": "timer-trade", "maxAdverseExcursionPercent": 0, "maxFavorableExcursionPercent": 0, "maxProfitPercent": 0, "symbol": "RIOT", "timeframe": "1m"},
+      20,
+    - ObjectContaining {"currentTime": 1793304010000},
+    + {"accountId": "clock-account", "assetClass": "stocks", "brokerId": "alpaca", "currentPosition": undefined, "currentPrice": 20, "currentTime": 1793304000000, "eventTimeMs": 1793304000000, "executionMode": "paper", "indicators": {"atr": 0.1, "rsi": 50, "trend": "sideways"}, "intentId": "trace_1793304010000_96lse2:profit:timer-trade", "nearestStructure": null, "nowMs": 1793304010000, "priceHistory": [{"close": 20.5, "high": 21, "low": 19, "open": 20, "timestamp": 1793300400000, "volume": 100}, {"close": 20.51, "high": 21.01, "low": 19.01, "open": 20.01, "timestamp": 1793300460000, "volume": 100}, {"close": 20.52, "high": 21.02, "low": 19.02, "open": 20.02, "timestamp": 1793300520000, "volume": 100}, {"close": 20.53, "high": 21.03, "low": 19.03, "open": 20.03, "timestamp": 1793300580000, "volume": 100}, {"close": 20.54, "high": 21.04, "low": 19.04, "open": 20.04, "timestamp": 1793300640000, "volume": 100}, {"close": 20.55, "high": 21.05, "low": 19.05, "open": 20.05, "timestamp": 1793300700000, "volume": 100}, {"close": 20.56, "high": 21.06, "low": 19.06, "open": 20.06, "timestamp": 1793300760000, "volume": 100}, {"close": 20.57, "high": 21.07, "low": 19.07, "open": 20.07, "timestamp": 1793300820000, "volume": 100}, {"close": 20.58, "high": 21.08, "low": 19.08, "open": 20.08, "timestamp": 1793300880000, "volume": 100}, {"close": 20.59, "high": 21.09, "low": 19.09, "open": 20.09, "timestamp": 1793300940000, "volume": 100}, …], "priceSource": "market_data", "receivedAtMs": 1793304010000, "signalId": "trace_1793304010000_96lse2:exit", "symbol": "RIOT", "timeframe": "1m", "traceId": "trace_1793304010000_96lse2"},
+
+    Number of calls: 1
+
+       96 |   if (route === 'exit_only') await loop._checkExitsOnly('RIOT');
+       97 |   else await loop._analyze('RIOT', 'clock-analysis', '1m');
+    >  98 |   expect(checker).toHaveBeenCalledWith(trade, 20, expect.objectContaining({ currentTime: mode === 'paper' ? now : T0 }));
+          |                   ^
+       99 | });
+      100 | afterEach(() => spies.forEach(spy => spy.mockRestore()));
+      101 |
+
+      at toHaveBeenCalledWith (test/fixtures/order-executor-clock.test.js:98:19)
+
+  ● paper analysis supplies the matching clock to the exit timer
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      {"accountId": "clock-account", "accountIdSource": "broker", "action": "BUY", "assetClass": "stocks", "brokerId": "alpaca", "direction": "long", "entryPrice": 20, "entryTime": 1793303940000, "executionMode": "paper", "highestPrice": 20, "id": "timer-trade", "maxAdverseExcursionPercent": 0, "maxFavorableExcursionPercent": 0, "maxProfitPercent": 0, "symbol": "RIOT", "timeframe": "1m"},
+      20,
+    - ObjectContaining {"currentTime": 1793304010000},
+    + {"accountId": "clock-account", "assetClass": "stocks", "brokerId": "alpaca", "currentPosition": undefined, "currentPrice": 20, "currentTime": 1793304000000, "eventTimeMs": 1793304000000, "executionMode": "paper", "indicators": {"atr": 0.1, "rsi": 50, "trend": "sideways"}, "intentId": "clock-analysis:profit:timer-trade", "nearestStructure": null, "nowMs": 1793304010000, "priceHistory": [{"close": 20.5, "high": 21, "low": 19, "open": 20, "timestamp": 1793300400000, "volume": 100}, {"close": 20.51, "high": 21.01, "low": 19.01, "open": 20.01, "timestamp": 1793300460000, "volume": 100}, {"close": 20.52, "high": 21.02, "low": 19.02, "open": 20.02, "timestamp": 1793300520000, "volume": 100}, {"close": 20.53, "high": 21.03, "low": 19.03, "open": 20.03, "timestamp": 1793300580000, "volume": 100}, {"close": 20.54, "high": 21.04, "low": 19.04, "open": 20.04, "timestamp": 1793300640000, "volume": 100}, {"close": 20.55, "high": 21.05, "low": 19.05, "open": 20.05, "timestamp": 1793300700000, "volume": 100}, {"close": 20.56, "high": 21.06, "low": 19.06, "open": 20.06, "timestamp": 1793300760000, "volume": 100}, {"close": 20.57, "high": 21.07, "low": 19.07, "open": 20.07, "timestamp": 1793300820000, "volume": 100}, {"close": 20.58, "high": 21.08, "low": 19.08, "open": 20.08, "timestamp": 1793300880000, "volume": 100}, {"close": 20.59, "high": 21.09, "low": 19.09, "open": 20.09, "timestamp": 1793300940000, "volume": 100}, …], "priceSource": "market_data", "receivedAtMs": 1793304010000, "signalId": "clock-analysis:exit", "symbol": "RIOT", "timeframe": "1m", "traceId": "clock-analysis"},
+
+    Number of calls: 1
+
+       96 |   if (route === 'exit_only') await loop._checkExitsOnly('RIOT');
+       97 |   else await loop._analyze('RIOT', 'clock-analysis', '1m');
+    >  98 |   expect(checker).toHaveBeenCalledWith(trade, 20, expect.objectContaining({ currentTime: mode === 'paper' ? now : T0 }));
+          |                   ^
+       99 | });
+      100 | afterEach(() => spies.forEach(spy => spy.mockRestore()));
+      101 |
+
+      at toHaveBeenCalledWith (test/fixtures/order-executor-clock.test.js:98:19)
+
+  ● paper BUY records its execution clock through entry, close and learning
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1793304010000
+    Received: 1793217600000
+
+      113 |   const trade = [...positions.values()][0];
+      114 |   const expectedEntry = mode === 'paper' ? now : T0;
+    > 115 |   expect(trade.entryTime).toBe(expectedEntry);
+          |                           ^
+      116 |   now += 60000;
+      117 |   frame.marketData = { ...frame.marketData, timestamp: mode === 'paper' ? T0 : T0 + 60000 };
+      118 |   // Other streams can advance while this exit awaits reservation. The replay
+
+      at toBe (test/fixtures/order-executor-clock.test.js:115:27)
+
+  ● paper SELL_SHORT records its execution clock through entry, close and learning
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1793304010000
+    Received: 1793217600000
+
+      113 |   const trade = [...positions.values()][0];
+      114 |   const expectedEntry = mode === 'paper' ? now : T0;
+    > 115 |   expect(trade.entryTime).toBe(expectedEntry);
+          |                           ^
+      116 |   now += 60000;
+      117 |   frame.marketData = { ...frame.marketData, timestamp: mode === 'paper' ? T0 : T0 + 60000 };
+      118 |   // Other streams can advance while this exit awaits reservation. The replay
+
+      at toBe (test/fixtures/order-executor-clock.test.js:115:27)
+
+  ● backtest BUY records its execution clock through entry, close and learning
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1793304000000
+    Received: 1793217600000
+
+      113 |   const trade = [...positions.values()][0];
+      114 |   const expectedEntry = mode === 'paper' ? now : T0;
+    > 115 |   expect(trade.entryTime).toBe(expectedEntry);
+          |                           ^
+      116 |   now += 60000;
+      117 |   frame.marketData = { ...frame.marketData, timestamp: mode === 'paper' ? T0 : T0 + 60000 };
+      118 |   // Other streams can advance while this exit awaits reservation. The replay
+
+      at toBe (test/fixtures/order-executor-clock.test.js:115:27)
+
+  ● backtest SELL_SHORT records its execution clock through entry, close and learning
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1793304000000
+    Received: 1793217600000
+
+      113 |   const trade = [...positions.values()][0];
+      114 |   const expectedEntry = mode === 'paper' ? now : T0;
+    > 115 |   expect(trade.entryTime).toBe(expectedEntry);
+          |                           ^
+      116 |   now += 60000;
+      117 |   frame.marketData = { ...frame.marketData, timestamp: mode === 'paper' ? T0 : T0 + 60000 };
+      118 |   // Other streams can advance while this exit awaits reservation. The replay
+
+      at toBe (test/fixtures/order-executor-clock.test.js:115:27)
+
+Test Suites: 1 failed, 1 total
+Tests:       6 failed, 2 passed, 8 total
+Snapshots:   0 total
+Time:        2.951 s
+Ran all test suites matching test/fixtures/order-executor-clock.test.js.
+
+SOURCE: ogz-meta/inbox/codex/2026-10-30/runtime-error-repairs/clock-candidate-tests.log
+[helper isolation] disposable source snapshot; host runtime, credentials and network excluded
+  console.log
+    [FeatureFlagManager] Initialized: mode=paper, tier=ml
+
+      at new log (core/FeatureFlagManager.js:74:13)
+
+  console.log
+    [FeatureFlagManager] Enabled features: [ 'PATTERN_EXIT_MODEL', 'TRAI_INFERENCE', 'OGZ_TPO' ]
+
+      at new log (core/FeatureFlagManager.js:75:13)
+
+PASS test/fixtures/order-executor-clock.test.js
+  ✓ paper exit_only supplies the matching clock to the exit timer (18 ms)
+  ✓ paper analysis supplies the matching clock to the exit timer (28 ms)
+  ✓ backtest exit_only supplies the matching clock to the exit timer (3 ms)
+  ✓ backtest analysis supplies the matching clock to the exit timer (3 ms)
+  ✓ paper BUY records its execution clock through entry, close and learning (37 ms)
+  ✓ paper SELL_SHORT records its execution clock through entry, close and learning (8 ms)
+  ✓ backtest BUY records its execution clock through entry, close and learning (6 ms)
+  ✓ backtest SELL_SHORT records its execution clock through entry, close and learning (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       8 passed, 8 total
+Snapshots:   0 total
+Time:        3.011 s
+Ran all test suites matching test/fixtures/order-executor-clock.test.js.
+
+SOURCE: ogz-meta/inbox/codex/2026-10-30/runtime-error-repairs/clock-review-manifest.json
+{
+  "head": "61e32973c6aca775a73320d0a15f86e3d8d4df88",
+  "candidateTree": "845efcccbe78f3d5450e7ceabd56c20c3fb3281e",
+  "baselineTree": "8615793e4c3e4f02e890a07f30f48a59d0e31507",
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--reviewers=mercury,astra",
+    "--max-tokens=7750",
+    "--review-ref=845efcccbe78f3d5450e7ceabd56c20c3fb3281e",
+    "--review-base=61e32973c6aca775a73320d0a15f86e3d8d4df88",
+    "Mercury, break my fix."
+  ],
+  "executingHarnessHashes": {
+    "trai_brain/mercury-bridge/explicit-continuation.js": "fc3a6e133ec9a630e85d2813ae5a6edce88a08f2bf8b65365fff457e5bc52ce5",
+    "trai_brain/mercury-bridge/ask.js": "e2364112c6bf00581b057ad689c7161c9d22cf52902e81d48d03d8d003019199",
+    "trai_brain/mercury-bridge/evidence-ingestion.js": "3f33e1d264baff528e4c364a230134f5915ce7ce92d17929969e2235a8285348",
+    "trai_brain/mercury-bridge/llm-client.js": "f0bbafaeef8f930a6596886eb5df664c2be0013896be4ebd58ba09ee2cee28bd",
+    "trai_brain/mercury-bridge/config.js": "c77428c891e8da4d5610e0322770934cb6b38d2e29d45410107860de1bbde2a7",
+    "trai_brain/mercury-bridge/substrate-digest.js": "2a85f65ab68ccfb5da7b09fb0296e07317b454bbe2e47c5b13851c802011eb56",
+    "trai_brain/mercury-bridge/codex-challenger.js": "e1e90c3f3f1b8adac0388583501478901676f09c653debb8671ce2ef9b20410e",
+    "trai_brain/mercury-bridge/adversarial-review.js": "dd2b66c873ffd4cd7cdc196ab867e74d56d3ec036e2d1895d9d31fb365993394",
+    "trai_brain/mercury-bridge/trace-memory.js": "d2585884030459bf40f5e3f5476c4c6b8527dba62e4ff6ad54a893dd949cadeb",
+    "trai_brain/mercury-bridge/doctrine-review.js": "37b6df4bebbb0af630b3a29f0b0fad706decd99b0273ab31fab03b71fdfc8ea4",
+    "trai_brain/mercury-bridge/mongo-store.js": "713cd35af4c49ce552ab9417cccdb2500851bea0d37ba82ac5941bb3a79e4e12",
+    "trai_brain/mercury-bridge/react-loop.js": "986e0352526dbe648098757c5d10c7f165e16a0b79932505428feda95acb1bc3",
+    "trai_brain/mercury-bridge/searcher.js": "173ee606ea91034777a37b964c85d17451a53bfbe8811df45a7bbe0ad18cf697",
+    "trai_brain/mercury-bridge/tool-adapter.js": "8673007afff311876b072755e42e0c2e7053ef3ea1fe37ec0d57b8022b748c85",
+    "trai_brain/mercury-bridge/provider-preflight.js": "fc8f98359e123ba42aa21c72bdc99c98e95473a535a189a00df16f1fbc3046ac",
+    "trai_brain/mercury-bridge/direct-question.js": "ea34e11d1228eb11fb7ac58e9afe8a754d06b2753bfbf329b125bc75fae00f11",
+    "trai_brain/mercury-bridge/run-ledger.js": "acf94d59396e787bb07b64192c6a8bd06568d44104d080e34612e5f762f10b95",
+    "trai_brain/mercury-bridge/cost-accounting.js": "6c645d84866aa1534639c63f260676764fba5c31ce36caaf507013209703b364",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "a3c5d3bf0c247f002c3052120c800852fd69bed692afd59483932b044ad523c3",
+    "trai_brain/mercury-bridge/query-router.js": "6f608a88475d6365fc86f20311f41af54627a973b3f238a22eccde2e09752e3b",
+    "trai_brain/mercury-bridge/consensus.js": "874b6f51598b92876aec64e3bfc6031931ab2ae1fd27cb9acd080e9976e18502",
+    "trai_brain/mercury-bridge/indexer.js": "8a59bba7c2176ff8aba7414e9d06328c20968d75440d8f766af14c32652e2e10"
+  },
+  "sourceHashes": {
+    "core/OrderExecutor.js": "4b10ddae3ce09d3b74fe193c81d3ddb1023e6ad0569bb9029c6c1238e1daec29",
+    "core/TradingLoop.js": "82285a6ef60bc4f24d39ac6dc8612d8b21431c363ab531dd503f50477e268e40",
+    "test/fixtures/order-executor-clock.test.js": "4e805bf70f621d70e4c75da1ad35af4ad9efcf9c332356bbeb5ffad6f511f36a"
+  },
+  "tests": {
+    "working": "8 passed",
+    "preEdit": "6 failed on clock assertions, 2 historical-timer cases passed",
+    "candidate": "8 passed with all dirty tracked production JS/JSON dependencies restored to HEAD inside isolation"
+  },
+  "runtimeActivated": false
+}
