@@ -1,0 +1,19 @@
+{
+  "observedAt": "2026-10-30T12:36:02.586Z",
+  "database": "ogz_knowledge",
+  "collection": "chunks_local_nomic",
+  "provider": "openai-compatible",
+  "model": "text-embedding-3-large",
+  "dimensions": 3072,
+  "activeChunks": 0,
+  "totalChunks": 0,
+  "stagingCollections": [],
+  "latestStats": [
+    {
+      "runAt": "2026-10-03T03:26:00.549Z",
+      "chunksEmbedded": 9565,
+      "indexedHead": "aef7969da3ebcb16e2aa331cb7e5744fc6eb891e"
+    }
+  ],
+  "statsObservationCorrection": "Stats use run_at; the initial read incorrectly sorted the absent indexed_at field. Chunk counts were unaffected."
+}

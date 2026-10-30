@@ -1,3 +1,9 @@
+## 2026-10-30 — Verify the OpenAI rebuild after index-preservation delivery
+
+- Delivery: index-preservation fix a7d1a094d57bd1f790009b699b9850b0b8db15c2 was committed and pushed; the remote branch returned that exact SHA. The fix passed 19 tests, Mercury recheck no_break_found and Astra pass as recorded below.
+- Rebuild: the authorized post-push run started at 12:34:26 UTC, found 432 files / 11,480 chunks and stopped on embedding batch 1/1,004 with OpenAI HTTP 429 credit_balance_exhausted. It did not reach publication. OpenAI text-embedding-3-large / 3,072 dimensions remains selected, using OPENAI_API_KEY from .env:19 without an inherited override.
+- Verification: a fresh read at 12:36:02 UTC found zero active/total chunks and no building collections. The latest successful stats still describe October 3, not this failed attempt. Receipt: ogz-meta/inbox/codex/2026-10-30/adversarial-recovery/index-final-state.json. The initial stats inspection used the absent indexed_at field; it was corrected to the producer's run_at field before reporting. Existing September recovery databases were not modified. RAG restoration remains blocked by the embedding quota response; no fresh retrieval claim or PM2 change is made.
+
 ## 2026-10-30 — Preserve Mercury's published index until replacement succeeds
 
 - Problem: the October 3 indexing log records deletion of 9,565 published chunks before credit exhaustion at batch 810/826; subsequent attempts cleared zero. Current source remains available and separate September recovery databases retain older vectors. No recovery collection was deleted or presented as current.
