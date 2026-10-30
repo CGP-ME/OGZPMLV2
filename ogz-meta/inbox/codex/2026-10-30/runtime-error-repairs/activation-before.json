@@ -1,0 +1,85 @@
+{
+  "observedAt": "2026-10-30T08:31:35.360932+00:00",
+  "head": "4db2c39011577747cbf76e8aa13e6aa1e931e714",
+  "process": {
+    "pid": 46342,
+    "status": "online",
+    "profile": "paper",
+    "startedAt": "2026-10-29T04:25:44.673000+00:00",
+    "restartCount": 1
+  },
+  "session": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "crypto",
+    "scopeComplete": true,
+    "freezeNewEntries": false,
+    "safeModeReason": null,
+    "lastEventAt": "2026-10-29T20:00:48.196Z"
+  },
+  "state": {
+    "activeTrades": 0,
+    "quarantinedTrades": 0,
+    "pauseReason": null
+  },
+  "sourceHashes": {
+    "core/OrderExecutor.js": "721c255d877ee4d0d2d6b74faa0c93ed71037665fa4a62408db148aa07fa912f",
+    "core/TradingLoop.js": "91924e0f36cee06444d76600a13370dc7b204da1aa9c7287c26e0be84dc5272c",
+    "brokers/AlpacaAdapter.js": "bbd236ca1a8d0c42d152b5ab4c3dbf5d5e28af3ec7e5996238829e62a86401c4",
+    "foundation/ResilientWebSocket.js": "aa3ceb00c034dd43496f6c62d3aa541cc7058459eae6f70bb5ff6d1751612d72",
+    "config/settings.json": "5d6e7a3f31e647ae97919274816e9129dffcd52bd5af801472b7482945d971c5",
+    "config/internals.json": "f0c9ea6fd8221c79dd13ee6edb410aff0689603f38f8f03d64948ce61c9d107f",
+    "ecosystem.config.js": "2ec8b590edcf91b46bfbd43b1eb1b78643399464c43fa86845bb3a0699a58166"
+  },
+  "logs": {
+    "out": {
+      "startByte": 3094478948,
+      "endByte": 3094478948,
+      "events": {
+        "CANDLE_ACCEPTED": 0,
+        "ANALYSIS_START": 0,
+        "STRATEGY_DECISION": 0,
+        "SESSION_TARGET_ACTIVATED": 0,
+        "SESSION_RECOVERY_HOLD": 0,
+        "FEATURE_VECTOR_UNAVAILABLE": 0,
+        "Data stream went silent": 0,
+        "Backfill failed": 0,
+        "Failed to backfill": 0,
+        "stock_share_range_impossible": 0,
+        "PATTERN SYSTEM UNHEALTHY": 0,
+        "[PATTERN][OUTCOME] skipped": 0,
+        "NTFY_TRACE_NOTIFY_ERROR": 0,
+        "EADDRINUSE": 0,
+        "TypeError": 0,
+        "ReferenceError": 0,
+        "SyntaxError": 0,
+        "UnhandledPromiseRejection": 0
+      },
+      "fingerprints": []
+    },
+    "error": {
+      "startByte": 216190373,
+      "endByte": 216190373,
+      "events": {
+        "CANDLE_ACCEPTED": 0,
+        "ANALYSIS_START": 0,
+        "STRATEGY_DECISION": 0,
+        "SESSION_TARGET_ACTIVATED": 0,
+        "SESSION_RECOVERY_HOLD": 0,
+        "FEATURE_VECTOR_UNAVAILABLE": 0,
+        "Data stream went silent": 0,
+        "Backfill failed": 0,
+        "Failed to backfill": 0,
+        "stock_share_range_impossible": 0,
+        "PATTERN SYSTEM UNHEALTHY": 0,
+        "[PATTERN][OUTCOME] skipped": 0,
+        "NTFY_TRACE_NOTIFY_ERROR": 0,
+        "EADDRINUSE": 0,
+        "TypeError": 0,
+        "ReferenceError": 0,
+        "SyntaxError": 0,
+        "UnhandledPromiseRejection": 0
+      },
+      "fingerprints": []
+    }
+  }
+}
