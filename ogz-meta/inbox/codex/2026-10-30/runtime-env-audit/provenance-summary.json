@@ -1,0 +1,191 @@
+{
+  "observedAt": "2026-10-30T06:56:46.248564+00:00",
+  "pid": 46342,
+  "profile": "paper",
+  "configFingerprintMatchesLive": true,
+  "fingerprint": "232954cce3ad2ddf5e5b60078461d05f7802d731b75664fc66b43fafc63e9721",
+  "revisions": {
+    "settings": 21,
+    "internals": 10,
+    "settingsHash": "cdf7e3f36cd67ae06105290f819bb69d5fe8d684496c5234e676a6b49a304d57",
+    "internalsHash": "99f7179de6ec0b5d610930af4327157543f483f3f2764ba06936ab6ff6d141a2"
+  },
+  "projectedLeafFields": 3197,
+  "projectedSources": 3755,
+  "missingSourceLabels": 0,
+  "jsonFieldOwners": {
+    "config/settings.json": 1963,
+    "config/internals.json": 1204
+  },
+  "derivedBootstrapAndCredentialFields": 30,
+  "initialEnvironmentKeys": 56,
+  "initialEnvironmentSecretNames": 0,
+  "dotenvKeys": 22,
+  "dotenvUsedByCurrentBot": [
+    "ALPACA_API_KEY",
+    "ALPACA_API_SECRET",
+    "BRIGHTDATA_API_KEY",
+    "DID_API_KEY",
+    "DISCORD_STATS_WEBHOOK_URL",
+    "DISCORD_STATUS_WEBHOOK_URL",
+    "ELEVENLABS_API_KEY",
+    "INCEPTION_API_KEY",
+    "KRAKEN_API_KEY",
+    "KRAKEN_API_SECRET",
+    "NTFY_TOPIC",
+    "POLYGON_API_KEY",
+    "SIGNALSTACK_WEBHOOK_URL",
+    "WEBSOCKET_AUTH_TOKEN"
+  ],
+  "dotenvNotUsedByCurrentBot": [
+    "ANTHROPIC_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "GITHUB_TOKEN",
+    "INCEPTION_API_KEY_DEV",
+    "MOONSHOT_API_KEY",
+    "OPENAI_API_KEY",
+    "STRIPE_SECRET_KEY",
+    "ZAI_API_KEY"
+  ],
+  "missingCredentials": [
+    "BROKER_ACCOUNT_ID",
+    "SENTRY_DSN",
+    "TAVILY_API_KEY",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID"
+  ],
+  "environmentInventoryRows": 85,
+  "scope": "current bot role snapshot plus initial process environment and private credential-file key inventory; not a heap dump, credential-byte comparison, or exhaustive execution of every branch",
+  "sources": {
+    "foundation/ConfigLoader.js": "0aafa763bf13b8d4df698c5d526658fe0d8a15bb4af95f5f409ee9e9d9c2a18f",
+    "ecosystem.config.js": "2ec8b590edcf91b46bfbd43b1eb1b78643399464c43fa86845bb3a0699a58166",
+    "config/settings.json": "5d6e7a3f31e647ae97919274816e9129dffcd52bd5af801472b7482945d971c5",
+    "config/internals.json": "f0c9ea6fd8221c79dd13ee6edb410aff0689603f38f8f03d64948ce61c9d107f"
+  },
+  "rowsWhoseConfigSourceIsUncommitted": 287,
+  "mappedRowsWhoseValueDiffersFromHEAD": 29,
+  "uniqueCanonicalOwnersDifferingFromHEAD": 29,
+  "valueDifferencesFromHEAD": [
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "revision"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "positionSizing.maxTotalExposure"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.LiquiditySweep.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.BreakRetest.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.MADynamicSR.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.CandlePattern.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.OpeningRangeBreakout.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.SmartMoneySweep.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.PropSafeEMAPullback.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "exitContracts.EMATrendRetest.invalidationConditions"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "strategyBehavior.regimeBoostMinConfidence"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "entryLogic.warmupCandles"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "entryLogic.sizing.absoluteCapPercent"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "orchestrator.minCandlesSmartMoneySweep"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "fees.model"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "fees.perShare"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "fees.minOrderFee"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "fees.totalRoundTrip"
+    },
+    {
+      "sourceFile": "config/settings.json",
+      "sourcePath": "fees.safetyBuffer"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "revision"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "confidenceSizing.minMultiplier"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "confidenceSizing.maxMultiplier"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "confidenceSizing.baseMultiplier"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "confidenceSizing.confidencePivot"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "confidenceSizing.multiplierSlope"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "telemetry.enabled"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "telemetry.logToConsole"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "telemetry.logFile"
+    },
+    {
+      "sourceFile": "config/internals.json",
+      "sourcePath": "telemetry.metricsFile"
+    }
+  ],
+  "sourceValueVerification": {
+    "exactOwnerMatches": 3166,
+    "derivedPath": "paths.journalDataDir",
+    "unexplainedMismatches": 0
+  }
+}

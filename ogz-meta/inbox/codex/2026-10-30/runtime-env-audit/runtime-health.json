@@ -1,0 +1,144 @@
+{
+  "observedAtUTC": "2026-10-30T07:11:16.240750+00:00",
+  "process": {
+    "name": "ogz-prime-v2",
+    "pid": 46342,
+    "status": "online",
+    "profile": "paper",
+    "restartCount": 1,
+    "startedAtUTC": "2026-10-29T04:25:44.673000+00:00",
+    "uptimeHours": 26.76
+  },
+  "session": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "crypto",
+    "scopeComplete": true,
+    "freezeNewEntries": false,
+    "safeModeReason": null,
+    "lastEventSeq": 676,
+    "lastEventAt": "2026-10-29T20:00:48.196Z"
+  },
+  "paperState": {
+    "pauseReason": null,
+    "activeTrades": 0,
+    "quarantinedTrades": 0
+  },
+  "latestDecision": {
+    "timestamp": "2026-10-30T07:11:01.309Z",
+    "executionMode": "paper",
+    "symbol": "BTC-USD",
+    "fingerprint": "232954cce3ad2ddf5e5b60078461d05f7802d731b75664fc66b43fafc63e9721"
+  },
+  "fixedLogWindow": {
+    "startUTC": "2026-10-29T04:25:31Z",
+    "approximateEndUTC": "2026-10-30T06:48:03Z",
+    "byteRanges": {
+      "out": {
+        "startByte": 2221622142,
+        "endByte": 3043045868,
+        "path": "/home/linuxuser/.pm2/logs/ogz-prime-v2-out.log"
+      },
+      "error": {
+        "startByte": 194766997,
+        "endByte": 214914542,
+        "path": "/home/linuxuser/.pm2/logs/ogz-prime-v2-error.log"
+      }
+    },
+    "note": "Counts are for fixed byte ranges, not the later process-status observation. Start includes the previous process shutdown immediately before the approved restart."
+  },
+  "events": {
+    "CANDLE_ACCEPTED": 378645,
+    "ANALYSIS_START": 3604,
+    "STRATEGY_DECISION": 3599,
+    "ORDER_EXECUTE_START": 339,
+    "ORDER_PLAN": 123,
+    "ORDER_BLOCKED": 93,
+    "SESSION_ROUTER_ENTRY_HALT": 212
+  },
+  "scheduledTransitions": [
+    {
+      "at": "2026-10-29T13:30:47.970Z",
+      "seq": 670,
+      "event": "SESSION_TARGET_ACTIVATED",
+      "activeSession": "stocks",
+      "from": "crypto",
+      "to": "stocks",
+      "scopeComplete": true
+    },
+    {
+      "at": "2026-10-29T20:00:48.196Z",
+      "seq": 676,
+      "event": "SESSION_TARGET_ACTIVATED",
+      "activeSession": "crypto",
+      "from": "stocks",
+      "to": "crypto",
+      "scopeComplete": true
+    }
+  ],
+  "errorsAndWarnings": {
+    "patternOutcomeRejected": 99,
+    "patternHealthError": 99,
+    "featureVectorUnavailable": 354,
+    "alpacaStaleReconnect": 563,
+    "krakenWatchdogReconnect": 37,
+    "gapDetected": 853,
+    "backfillFailed": 71,
+    "stockSizingRejected": 93,
+    "ntfyTraceNotificationError": 254,
+    "discordStatsError": 2,
+    "intentionalNonActiveTimeframeDrop": 149372
+  },
+  "recordedPaperClosures": {
+    "count": 123,
+    "zeroHoldingTime": 99,
+    "positiveHoldingTime": 24,
+    "uniqueTradeIds": 123,
+    "allOrderIdsSimulated": true,
+    "actions": {
+      "SELL": 32,
+      "COVER": 91
+    },
+    "files": [
+      "logs/trades/trades_2026-10-29.json",
+      "logs/trades/trades_2026-10-30.json"
+    ],
+    "exampleTimesOnly": {
+      "timestamp": "2026-10-30T06:00:06.158Z",
+      "entryTime": "2026-10-29T20:00:00.000Z",
+      "exitTime": "2026-10-29T20:00:00.000Z",
+      "holdTime": 0
+    }
+  },
+  "sourceEvidence": {
+    "sharedClockProducer": [
+      "core/CandleProcessor.js:1089-1093",
+      "run-empire-v2.js:3198"
+    ],
+    "tradeClockConsumers": [
+      "core/OrderExecutor.js:3776",
+      "core/OrderExecutor.js:3896",
+      "core/OrderExecutor.js:4061",
+      "core/OrderExecutor.js:4167",
+      "core/OrderExecutor.js:4325",
+      "core/OrderExecutor.js:4435-4436",
+      "core/OrderExecutor.js:5044-5045"
+    ],
+    "learningRejectsZeroDuration": [
+      "core/OrderExecutor.js:1861-1873"
+    ],
+    "inactiveAlpacaWatchdogLead": [
+      "core/SessionRouter.js:1693-1700",
+      "brokers/AlpacaAdapter.js:860-874",
+      "brokers/AlpacaAdapter.js:1091-1097"
+    ]
+  },
+  "limitations": [
+    "Recorded SIM closures are not broker fills or a validated profitability report.",
+    "Alpaca stale, stale-error and broker-truth-unavailable messages describe the same 563 events; do not sum them.",
+    "Pattern outcome and pattern health errors describe the same learning rejection episodes; do not sum them.",
+    "Session entry halt messages in this window identify scheduled wind-down phases, not a renewed missing-accountId recovery hold.",
+    "Inactive Alpaca subscriptions with a running watchdog are a source-supported reconnect lead; each reconnect was not individually correlated to session timestamps.",
+    "The missing feature-vector inputs and every backfill/notification failure have not been individually diagnosed.",
+    "No production code, configuration, credentials, broker orders, PM2 environment or process lifecycle was changed by this audit."
+  ]
+}
