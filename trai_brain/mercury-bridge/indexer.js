@@ -9,7 +9,7 @@
  *
  * Runtime tunables: mercury.config.json
  *
- * MVP behavior: full reindex every run (clears all chunks first).
+ * Full reindex: retain the published index until its replacement is built.
  * v2 will add incremental reindex via git diff.
  */
 
@@ -866,12 +866,6 @@ async function main() {
   const store = new MongoStore();
   await store.connect();
 
-  // Clear previous index
-  console.log('[MERCURY-BRIDGE] Clearing previous index...');
-  const cleared = await store.clearAll();
-  console.log(`[MERCURY-BRIDGE] Cleared ${cleared.deleted} old chunks`);
-  console.log('');
-
   // Walk repo
   console.log('[MERCURY-BRIDGE] Walking repo...');
   const files = walkRepo(config.REPO_ROOT);
@@ -986,7 +980,7 @@ async function main() {
 
   // Store
   console.log('[MERCURY-BRIDGE] Storing chunks in MongoDB...');
-  const inserted = await store.bulkInsert(embedded);
+  const inserted = await store.replaceAll(embedded);
   console.log(`[MERCURY-BRIDGE] Inserted ${inserted.inserted} chunks`);
 
   // Record run metadata
@@ -1020,6 +1014,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  main,
   walkRepo,
   chunkJavaScript,
   chunkMarkdown,

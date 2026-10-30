@@ -1,0 +1,107 @@
+{
+  "change": "Preserve the published Mercury embedding index across failed and overlapping rebuilds",
+  "recordedAt": "2026-10-30T12:33:51.637735+00:00",
+  "baselineCommit": "29f8451a60f314069cbcd6a5210dfffc04578e36",
+  "reviewTree": "2f6707d9da94010f97b9bcac3879e430db1836cc",
+  "sourceSha256": {
+    "trai_brain/mercury-bridge/indexer.js": "524ca2f949be149fe4f3caa3a17545b57f0524145af287155c924a3797aab20f",
+    "trai_brain/mercury-bridge/mongo-store.js": "cf1042ecf6e905ef0c61ffd297930a0626679065d7b58638fc95708f5b5d5e6c",
+    "test/fixtures/mercury-index-replacement.test.js": "6851508a8e7ff72916f5c5ba368b4ba5f5c6c74f5af807c5d8a191f8a69311ff"
+  },
+  "executingHarnessSha256": {
+    "trai_brain/mercury-bridge/explicit-continuation.js": "fc3a6e133ec9a630e85d2813ae5a6edce88a08f2bf8b65365fff457e5bc52ce5",
+    "trai_brain/mercury-bridge/ask.js": "e2364112c6bf00581b057ad689c7161c9d22cf52902e81d48d03d8d003019199",
+    "trai_brain/mercury-bridge/evidence-ingestion.js": "3f33e1d264baff528e4c364a230134f5915ce7ce92d17929969e2235a8285348",
+    "trai_brain/mercury-bridge/llm-client.js": "f0bbafaeef8f930a6596886eb5df664c2be0013896be4ebd58ba09ee2cee28bd",
+    "trai_brain/mercury-bridge/config.js": "c77428c891e8da4d5610e0322770934cb6b38d2e29d45410107860de1bbde2a7",
+    "trai_brain/mercury-bridge/substrate-digest.js": "2a85f65ab68ccfb5da7b09fb0296e07317b454bbe2e47c5b13851c802011eb56",
+    "trai_brain/mercury-bridge/codex-challenger.js": "e1e90c3f3f1b8adac0388583501478901676f09c653debb8671ce2ef9b20410e",
+    "trai_brain/mercury-bridge/adversarial-review.js": "dd2b66c873ffd4cd7cdc196ab867e74d56d3ec036e2d1895d9d31fb365993394",
+    "trai_brain/mercury-bridge/trace-memory.js": "d2585884030459bf40f5e3f5476c4c6b8527dba62e4ff6ad54a893dd949cadeb",
+    "trai_brain/mercury-bridge/doctrine-review.js": "37b6df4bebbb0af630b3a29f0b0fad706decd99b0273ab31fab03b71fdfc8ea4",
+    "trai_brain/mercury-bridge/mongo-store.js": "cf1042ecf6e905ef0c61ffd297930a0626679065d7b58638fc95708f5b5d5e6c",
+    "trai_brain/mercury-bridge/react-loop.js": "986e0352526dbe648098757c5d10c7f165e16a0b79932505428feda95acb1bc3",
+    "trai_brain/mercury-bridge/searcher.js": "173ee606ea91034777a37b964c85d17451a53bfbe8811df45a7bbe0ad18cf697",
+    "trai_brain/mercury-bridge/tool-adapter.js": "8673007afff311876b072755e42e0c2e7053ef3ea1fe37ec0d57b8022b748c85",
+    "trai_brain/mercury-bridge/provider-preflight.js": "fc8f98359e123ba42aa21c72bdc99c98e95473a535a189a00df16f1fbc3046ac",
+    "trai_brain/mercury-bridge/direct-question.js": "ea34e11d1228eb11fb7ac58e9afe8a754d06b2753bfbf329b125bc75fae00f11",
+    "trai_brain/mercury-bridge/run-ledger.js": "acf94d59396e787bb07b64192c6a8bd06568d44104d080e34612e5f762f10b95",
+    "trai_brain/mercury-bridge/cost-accounting.js": "6c645d84866aa1534639c63f260676764fba5c31ce36caaf507013209703b364",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "a3c5d3bf0c247f002c3052120c800852fd69bed692afd59483932b044ad523c3",
+    "trai_brain/mercury-bridge/query-router.js": "6f608a88475d6365fc86f20311f41af54627a973b3f238a22eccde2e09752e3b",
+    "trai_brain/mercury-bridge/consensus.js": "874b6f51598b92876aec64e3bfc6031931ab2ae1fd27cb9acd080e9976e18502",
+    "trai_brain/mercury-bridge/indexer.js": "32ac097995c8712b1fa51fdd2895d2e6d9baa1ccea5bb665aae779df27dca7e3"
+  },
+  "verification": {
+    "launcher": "python3 scripts/test-isolated.py",
+    "server": "MongoDB 8.2.12 in disposable namespaces",
+    "suitesPassed": 2,
+    "testsPassed": 19,
+    "testsFailed": 0,
+    "logSha256": "8848380cb3b68159c05f6dbfefe948bb6274748427d01918af0506f7c225fb47",
+    "concurrencyBeforeRepair": "Failed: older build replaced secondReplacement with the old other document",
+    "concurrencyBeforeLogSha256": "fdd81f01fcfe946a954cd3e364358ba9ed3f1469a9b2e4bb514816961de0e8b4",
+    "coveredFailures": [
+      "embedding quota",
+      "second insert batch",
+      "unique index creation",
+      "server rename rejection",
+      "overlapping full rebuild publication"
+    ]
+  },
+  "review": {
+    "runId": "2026-10-30T12-31-34-679Z-000269fc0b42",
+    "ledgerPath": "ogz-meta/cognition-history/mercury-runs/2026-10-30.jsonl",
+    "logSha256": "acbf7ecd693051e2f7a1954f9664dc3ec02a4c15c164fcae35cec80f4d393c19",
+    "mercuryInitial": "found_break",
+    "mercuryAfterRecheck": "no_break_found",
+    "astra": "pass",
+    "astraAttempts": [
+      {
+        "status": "succeeded",
+        "requested_model": "gpt-6-astra",
+        "applied_model": "gpt-6-astra",
+        "parse_status": "complete",
+        "exit_code": 0,
+        "termination": "stop",
+        "error": null
+      }
+    ],
+    "resolution": [
+      "connect creates the target collection before replaceAll",
+      "MongoDB stable dropTarget field accepts a UUID; the direct admin command preserves BSON type",
+      "19 real MongoDB tests passed, including the reproduced stale-build overwrite"
+    ],
+    "reportingDiagnostics": [
+      "review_receipt_incomplete"
+    ],
+    "harnessLimitations": [
+      "Inherited working-tree react-loop adds a default 24-call review ceiling and literal receipt-format check; neither was introduced in this index repair. No iteration limit passed by this command."
+    ],
+    "iterations": 11,
+    "recheckIterations": [
+      5
+    ]
+  },
+  "activation": {
+    "rebuildAttemptUtc": "2026-10-30T12:12:29Z",
+    "status": "failed before publication",
+    "httpStatus": 429,
+    "error": "credit_balance_exhausted",
+    "provider": "openai-compatible",
+    "model": "text-embedding-3-large",
+    "dimensions": 3072,
+    "sourceFiles": 432,
+    "sourceChunks": 11477,
+    "keySource": ".env:19 OPENAI_API_KEY",
+    "creditRecheckUtc": "2026-10-30T12:17:36Z",
+    "creditRecheckResult": "same HTTP 429",
+    "pm2Changed": false
+  },
+  "limitations": [
+    "No refreshed RAG claim until embedding rebuild and retrieval verification succeed",
+    "Arbitrary direct writes and unused incremental storage methods are not serialized by full-build publication",
+    "Rename can invalidate active cursors; metadata recording follows chunk publication",
+    "Failed staging collections are retained for diagnosis"
+  ]
+}

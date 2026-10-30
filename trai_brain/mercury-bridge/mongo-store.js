@@ -15,6 +15,7 @@
 'use strict';
 
 const { MongoClient } = require('mongodb');
+const { randomUUID } = require('crypto');
 const config = require('./config');
 
 function activeEmbedQuery(extra = {}) {
@@ -109,6 +110,41 @@ class MongoStore {
       total += result.insertedCount;
     }
     return { inserted: total };
+  }
+
+  /**
+   * Publish a fully built replacement without exposing an empty/partial index.
+   * Other embedding identities sharing the collection retain their documents.
+   * Failed staging collections remain available for diagnosis/recovery.
+   */
+  async replaceAll(chunks) {
+    this.assertActiveEmbedChunks(chunks);
+    const published = await this.db.listCollections({ name: config.MONGO_COLLECTION_CHUNKS }).next();
+    const stagingName = `${config.MONGO_COLLECTION_CHUNKS}__building_${randomUUID()}`;
+    console.log(`[MERCURY-BRIDGE] Building replacement collection: ${stagingName}`);
+    const indexes = (await this.chunks.indexes())
+      .filter(index => index.name !== '_id_')
+      .map(({ v, ns, ...index }) => index);
+    await this.chunks.aggregate([
+      { $match: { $nor: [activeEmbedQuery()] } },
+      { $out: stagingName },
+    ]).toArray();
+    const staging = this.db.collection(stagingName);
+    let inserted = 0;
+    for (let i = 0; i < chunks.length; i += 500) {
+      const result = await staging.insertMany(chunks.slice(i, i + 500), { ordered: true });
+      inserted += result.insertedCount;
+    }
+    if (indexes.length > 0) await staging.createIndexes(indexes);
+    // The expected target UUID prevents an older build replacing a newer one.
+    // MongoDB checks it under the same locks as the atomic drop/rename.
+    await this.db.admin().command({
+      renameCollection: `${this.db.databaseName}.${stagingName}`,
+      to: `${this.db.databaseName}.${config.MONGO_COLLECTION_CHUNKS}`,
+      dropTarget: published.info.uuid,
+    });
+    this.chunks = this.db.collection(config.MONGO_COLLECTION_CHUNKS);
+    return { inserted };
   }
 
   /**
