@@ -857,7 +857,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         });
     }
 
-    unsubscribeAll() {
+    async unsubscribeAll() {
         const trades = [], quotes = [], bars = [];
         for (const [key] of this.subscriptions) {
             const [type, sym] = key.split('-');
@@ -871,6 +871,21 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
         this.subscriptions.clear();
         this.barSubscriptions.clear();
+        // The session has no market-data consumers. Retire its reconnect and
+        // watchdog ownership; the next subscription creates a fresh stream.
+        if (this.rws) {
+            const stream = this.rws;
+            this.rws = null;
+            const result = await stream.stop();
+            if (result?.success === false) {
+                this._recordStreamTruthUnavailable('ALPACA_DATA_STREAM_STOP_FAILED', 'alpaca_data_stream_stop_failed', {
+                    operation: 'unsubscribeAll',
+                    error: result.reason,
+                });
+            }
+            return result;
+        }
+        return { success: true };
     }
 
     // =========================================================================

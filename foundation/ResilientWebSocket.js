@@ -182,6 +182,9 @@ class ResilientWebSocket extends EventEmitter {
       this.emit('stopped');
       return { success: true, skipped: true };
     }
+    // A retired socket cannot authenticate again or feed a replacement stream.
+    // Keep close/error listeners until transport shutdown has completed.
+    for (const event of ['open', 'message', 'pong']) socket.removeAllListeners(event);
     if (socket.readyState === WebSocket.CLOSED) {
       this.ws = null;
       this.emit('stopped');
