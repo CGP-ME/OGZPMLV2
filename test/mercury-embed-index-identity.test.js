@@ -294,7 +294,7 @@ describe('Mercury embedding index identity', () => {
 
       expect(() => store.assertActiveEmbedChunks([{
         ...activeChunk,
-        embed_provider: 'ollama',
+        embed_provider: config.EMBED_PROVIDER === 'ollama' ? 'openai-compatible' : 'ollama',
       }])).toThrow(/embed_provider=.*does not match active/);
 
       expect(() => store.assertActiveEmbedChunks([{
