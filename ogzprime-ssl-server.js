@@ -12,7 +12,7 @@ const ConfigLoader = require('./foundation/ConfigLoader');
  * and communicates via WebSocket.
  *
  * ENDPOINTS:
- * - GET /               → Dashboard HTML (unified-dashboard.html)
+ * - GET /               → Marketing homepage (index.html)
  * - POST /api/ollama/chat → Proxy to TRAI/Ollama for AI chat
  * - WS /                → Real-time trading data stream
  *
@@ -198,7 +198,16 @@ app.get(['/control-panel.html', '/control-panel.html/'], (req, res) => serveDash
   'control-panel.html', 'Control panel HTML unavailable - current disk template could not be loaded.'
 ));
 
-app.get(['/', '/index.html', '/index.html/', '/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2);
+app.get(['/', '/index.html', '/index.html/'], (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  // Keep relative homepage assets and links rooted correctly on the slash alias.
+  if (req.path.toLowerCase() === '/index.html/') {
+    return res.redirect(308, '/index.html' + req.url.slice(req.path.length));
+  }
+  return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get(['/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2);
 
 app.post('/api/dashboard/session', (req, res) => {
   const validToken = dashboardAuthToken;
