@@ -487,12 +487,12 @@ class ResilientWebSocket extends EventEmitter {
     );
     this.reconnectAttempts++;
 
-    this.emit('reconnecting', { attempt: this.reconnectAttempts, delayMs });
-
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this._open();
     }, delayMs);
+
+    this.emit('reconnecting', { attempt: this.reconnectAttempts, delayMs });
   }
 
   // =========================================================================
@@ -521,8 +521,7 @@ class ResilientWebSocket extends EventEmitter {
 
     // Arm pong-timeout. If pong doesn't arrive in pongTimeoutMs, declare
     // half-open and force-close. The on('close') handler reconnects.
-    if (this.pongTimeoutMs > 0) {
-      this._clearTimer('pongTimer');
+    if (this.pongTimeoutMs > 0 && !this.pongTimer) {
       this.pongTimer = setTimeout(() => {
         this.pongTimer = null;
         this.emit('pong-timeout');
