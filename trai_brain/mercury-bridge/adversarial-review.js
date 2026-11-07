@@ -1396,6 +1396,7 @@ function adversarialReviewFailure(err, { role = 'challenger', quarantines = null
 }
 
 module.exports = {
+  reviewerEvidenceSources,
   adversarialReviewRequested,
   reviewModeRequested,
   normalizeReviewIntent,

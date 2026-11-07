@@ -172,7 +172,11 @@ function assessDoctrineReview({
     addAbsence('pre_answer_scan_absent');
   }
 
-  if (changedFiles.length > 0 && !completeWholeFileReads(changedFiles, telemetry, evidenceSources)) {
+  const explicitSourceCoverage = structuredCandidateSet && structuredCandidateSet.explicitContinuation;
+  const wholeFilesRead = explicitSourceCoverage
+    ? changedFiles.every(file => explicitSourceCoverage.source_coverage.some(read => read.path === file && read.complete === true))
+    : completeWholeFileReads(changedFiles, telemetry, evidenceSources);
+  if (changedFiles.length > 0 && !wholeFilesRead) {
     addAbsence('whole_file_read_absent');
   }
   const filesOpened = Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened : [];

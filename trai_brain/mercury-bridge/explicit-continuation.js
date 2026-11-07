@@ -27,31 +27,64 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
     .flatMap(result => result.shardedReview?.continuation?.discovered_claims || []);
   const sources = new Map(corpus.artifacts.filter(artifact => artifact.kind === 'source')
     .map(artifact => [artifact.target, artifact]));
-  const selectedTrees = new Set(targets.map(target => target.source_ref));
-  const selectedTree = selectedTrees.size === 1 ? [...selectedTrees][0] : null;
   const windows = new Map();
   const requests = [];
   const attempts = [];
   const archivedExchanges = [];
+  const archivedToolResults = new Map();
   let activeEvidence = [];
   let observation = null;
+  let archiveWindowCatalog = false;
   let fixedMessageCount = null;
   let pendingDelivery = null;
   const testimony = new Map([...previous.shardedReview.map, ...previous.shardedReview.candidates,
     ...previous.shardedReview.synthesis_attempts].filter(receipt => receipt.raw_output)
     .map(receipt => [receipt.request_id || receipt.shard_id, receipt.raw_output]));
+  const archivedFixedRecords = [];
+  function archiveFixedRecord(label, value) {
+    if (value == null) return value;
+    const original = JSON.stringify(value), rendered = JSON.stringify(value, null, 2);
+    const rows = rendered.split('\n').flatMap((line, index) => {
+      const points = Array.from(line), segments = [];
+      for (let offset = 0; offset < points.length; offset += 1000) {
+        segments.push({ line: index + 1, segment: segments.length, text: points.slice(offset, offset + 1000).join('') });
+      }
+      return segments.length ? segments : [{ line: index + 1, segment: 0, text: '' }];
+    });
+    const text = rows.map(row => JSON.stringify(row)).join('\n');
+    const id = label + ':' + sha256(original);
+    testimony.set(id, text);
+    const descriptor = { receipt_id: id, original_sha256: sha256(original), rendered_sha256: sha256(rendered),
+      receipt_sha256: sha256(text), lines: rows.length, format: 'json_line_segments',
+      reconstruction: 'Group by line, join text by segment, join lines with newline, then JSON.parse.',
+      authority: 'archived_reviewer_testimony' };
+    archivedFixedRecords.push({ ...descriptor, original_content: original, content: text });
+    return descriptor;
+  }
+  const priorReviewerReceipts = new Map();
+  for (const source of require('./adversarial-review').reviewerEvidenceSources({
+    mercuryResult: previous, review: { rechecks: previous.continuationRechecks || [] }
+  })) {
+    const archived = archiveFixedRecord('prior-panel-evidence', source.excerpt);
+    testimony.set(source.path, testimony.get(archived.receipt_id));
+    priorReviewerReceipts.set(source.path, { ...archived, receipt_id: source.path,
+      panel_excerpt_sha256: sha256(source.excerpt), panel_excerpt_bytes: Buffer.byteLength(source.excerpt) });
+  }
+  const priorReceiptIndex = archiveFixedRecord('prior-reviewer-receipts', [...priorReviewerReceipts.values()]);
   const fixedInventory = {
+    prior_reviewer_receipts: { ...priorReceiptIndex, entries: priorReviewerReceipts.size },
     original_query: originalQuery,
     inherited_evidence_absences: previous.candidateSet.coverage.unresolved,
-    prior_continuation_decision: previous.shardedReview.continuation?.observation || previous.shardedReview.continuation?.final || null,
-    prior_recheck_decisions: (previous.continuationRechecks || []).map(recheck => ({
+    prior_continuation_decision: archiveFixedRecord('prior-review', previous.shardedReview.continuation?.observation || previous.shardedReview.continuation?.final || null),
+    prior_recheck_decisions: (previous.continuationRechecks || []).map(recheck => archiveFixedRecord('prior-recheck', {
       candidate: recheck.candidateSet?.content || null,
       final: recheck.shardedReview?.continuation?.observation || recheck.shardedReview?.continuation?.final || null,
       termination: recheck.termination })),
     corpus_sha256: corpus.corpus_sha256,
-    targets,
+    targets: targets.map(target => ({ ...target, claims: target.claims.map(claim => ({ claim_id: claim.claim_id })),
+      claim_details: target.claims.length ? archiveFixedRecord('claim-details', target.claims) : null })),
     original_claim_ids: originalClaimIds,
-    inherited_discoveries: discoveries,
+    inherited_discoveries: discoveries.length ? archiveFixedRecord('inherited-discoveries', discoveries) : [],
     fourth_shape_addition_count: previous.shardedReview.coverage.fourthShapeAdditionCount ?? null,
     fourth_shape_leads: (() => {
       const text = (previous.shardedReview.coverage.fourthShapeAdditions || [])
@@ -96,7 +129,9 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
         authority: 'archived_reviewer_testimony' };
     });
   const instruction = [
-    'EXPLICIT REVIEW CONTINUATION: earlier failed envelopes remain recorded; continue the original review.',
+    previous.termination === 'not_started'
+      ? 'EXPLICIT SOURCE REVIEW: investigate the original question using the available repository tools. No prior reviewer findings exist.'
+      : 'EXPLICIT REVIEW CONTINUATION: earlier failed envelopes remain recorded; continue the original review.',
     'The inventory preserves the original targets, claims and prior testimony. Assess them and report your actual findings, including new discoveries in your own answer.',
     'Use selected-tree source tools as needed. State what you examined and what remains unread or unresolved; do not infer a clean result from missing evidence.',
     'Archived testimony is rereadable by exact receipt ID and line range with read_review_receipt. It is not current source.',
@@ -106,10 +141,13 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
 
   function sourceWindow(entry) {
     const result = entry.toolResult;
-    if (entry.toolName !== 'open_file' || !result || result.error || typeof result.text !== 'string') return null;
-    const source = sources.get(result.file);
-    if (!selectedTree || result.source_ref !== selectedTree
-        || (source && (result.source_ref !== source.source_ref || sha256(source.content) !== source.sha256))) return null;
+    if (!['open_file', 'git_show'].includes(entry.toolName) || !result || result.error || typeof result.text !== 'string') return null;
+    const file = entry.toolName === 'git_show' ? result.path : result.file;
+    const ref = entry.toolName === 'git_show' ? result.ref : result.source_ref;
+    if (!file || !ref || !result.source_sha256) return null;
+    const captured = sources.get(file);
+    const source = captured && captured.source_ref === ref && captured.sha256 === result.source_sha256
+      ? captured : null;
     const start = entry.toolDelivery && entry.toolDelivery.startLine;
     const end = entry.toolDelivery && entry.toolDelivery.endLine;
     if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) return null;
@@ -122,13 +160,13 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
     });
     if (lines.some((line, index) => line === null || (sourceLines && line !== sourceLines[start - 1 + index]))) return null;
     const content = lines.join('\n');
-    return { citation: `${result.file}:${start}-${end}`, file: result.file,
-      line_start: start, line_end: end, source_ref: result.source_ref,
-      source_total_lines: result.total_lines, source_sha256: source ? source.sha256 : null, excerpt_sha256: sha256(content), content,
+    return { citation: `${file}:${start}-${end}`, file,
+      line_start: start, line_end: end, source_ref: ref,
+      source_total_lines: result.total_lines, source_sha256: result.source_sha256, excerpt_sha256: sha256(content), content,
       tool_call_id: entry.toolCallId, tool_window_id: entry.toolWindowId };
   }
 
-  function prepare(messages, tools, options, history) {
+  function prepare(messages, tools, options, history, finalizationPrompt = null) {
     if (!Number.isInteger(maxRequestBytes) || maxRequestBytes <= 0) {
       return { error: 'explicit_continuation_request_limit_missing' };
     }
@@ -143,8 +181,8 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
     }
     const fixed = messages.slice(0, fixedMessageCount);
     const evolving = messages.slice(fixedMessageCount);
-    // Keep assistant/tool pairs together. Everything before the last assistant
-    // may be archived; immutable raw exchanges remain in this receipt.
+    // Keep assistant/tool pairs together. Any exchange may be archived when
+    // needed; raw bytes and paged tool-result testimony remain rereadable.
     const groups = [];
     for (const message of evolving) {
       if (message.role === 'assistant' || groups.length === 0) groups.push([]);
@@ -161,8 +199,10 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
     }));
     const selected = [...groups];
     let requestMessages;
+    let latestArchivedToolResults = [];
     function assemble() {
-      const omittedIndex = archivedExchanges.map(entry => ({ receipt_id: `exchange:${entry.sha256}`, sha256: entry.sha256 }));
+      const omittedIndex = archivedExchanges.map(entry => ({ receipt_id: `exchange:${entry.sha256}`, sha256: entry.sha256,
+        tool_result_receipts: entry.tool_result_receipts || [] }));
       const indexText = omittedIndex.map(entry => JSON.stringify(entry)).join('\n');
       const indexId = `exchange-index:${sha256(indexText)}`;
       testimony.set(indexId, indexText);
@@ -182,22 +222,75 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
         }
         return { file, windows: [...unique.values()] };
       });
+      const windowCatalog = { source_window_catalog: sourceCatalog,
+        other_tool_windows: catalog().filter(entry => !entry.literal_window) };
+      let windowContext = windowCatalog;
+      if (archiveWindowCatalog) {
+        const text = [...sourceCatalog.flatMap(entry => entry.windows.flatMap(window => window.ids.map(id => ({ kind: 'source', file: entry.file, window: { ...window, ids: [id] } })))),
+          ...windowCatalog.other_tool_windows.map(entry => ({ kind: 'other_tool', ...entry }))]
+          .map(entry => JSON.stringify(entry)).join('\n');
+        const id = 'window-catalog:' + sha256(text);
+        testimony.set(id, text);
+        windowContext = { window_catalog_receipt: { receipt_id: id, sha256: sha256(text),
+          lines: text.split('\n').length, authority: 'delivery_metadata_not_source' } };
+      }
       return [...fixed,
         { role: 'user', content: instruction + '\n' + JSON.stringify(fixedInventory) },
         { role: 'user', content: `Captured diff receipts (archived reviewer testimony, reread with read_review_receipt; never current source):\n${JSON.stringify(initialDiffs)}` },
-        { role: 'user', content: JSON.stringify({ source_window_catalog: sourceCatalog,
-          other_tool_windows: catalog().filter(entry => !entry.literal_window),
+        { role: 'user', content: JSON.stringify({ ...windowContext,
+          latest_archived_tool_results: latestArchivedToolResults,
+          archived_tool_instruction: latestArchivedToolResults.length ? 'The latest tool result could not fit inline. Read these exact receipt IDs with read_review_receipt in line ranges; their records reconstruct the original tool output. Do not repeat the same broad tool call to retrieve the same bytes.' : null,
           omitted_exchange_manifest: { receipt_id: indexId, sha256: sha256(indexText), entries: omittedIndex.length } }) },
-        ...selected.flat()];
+        ...selected.flat(),
+        ...(finalizationPrompt ? [{ role: 'user', content: finalizationPrompt }] : [])];
     }
     requestMessages = assemble();
-    while (providerRequestBytes(requestMessages, tools, options) > maxRequestBytes && selected.length > 1) {
+    while (providerRequestBytes(requestMessages, tools, options) > maxRequestBytes && selected.length > 0) {
+      // Prefer delivering the latest result over repeating a growing metadata catalog.
+      if (selected.length === 1 && !archiveWindowCatalog) {
+        archiveWindowCatalog = true;
+        requestMessages = assemble();
+        if (providerRequestBytes(requestMessages, tools, options) <= maxRequestBytes) break;
+      }
       const omitted = selected.shift();
       const hash = sha256(JSON.stringify(omitted));
       if (!archivedExchanges.some(entry => entry.sha256 === hash)) {
-        archivedExchanges.push({ sha256: hash, messages: omitted });
+        const toolResults = [];
+        for (const message of omitted.filter(entry => entry.role === 'tool')) {
+          const occurrence = [...windows.entries()].find(([, window]) => window.message === message);
+          const original = occurrence && history.find(entry => entry.toolWindowId === occurrence[0]);
+          const raw = original ? (typeof original.toolResult === 'string' ? original.toolResult : JSON.stringify(original.toolResult)) : message.content;
+          if (typeof raw !== 'string') continue;
+          let rendered, inputFormat = 'json', parseError = null;
+          try { rendered = JSON.stringify(JSON.parse(raw), null, 2); }
+          catch (error) { rendered = raw; inputFormat = 'text'; parseError = error.message; }
+          // Wrap long display lines into lossless segments. The JSON receipt is
+          // testimony, not source; join segment texts to reconstruct each line.
+          const segments = rendered.split('\n').flatMap((line, index) => {
+            const points = Array.from(line), chunks = [];
+            for (let start = 0; start < points.length; start += 1000) chunks.push(points.slice(start, start + 1000).join(''));
+            if (chunks.length === 0) chunks.push('');
+            return chunks.map((text, segment) => ({ line: index + 1, segment, text }));
+          });
+          const paged = segments.map(segment => JSON.stringify(segment)).join('\n');
+          const id = `tool-result:${sha256(raw)}`;
+          testimony.set(id, paged);
+          const descriptor = { receipt_id: id, original_sha256: sha256(raw),
+            rendered_sha256: sha256(rendered), receipt_sha256: sha256(paged),
+            lines: segments.length, format: 'json_line_segments', input_format: inputFormat, json_parse_error: parseError,
+            reconstruction: 'Group records by line, join text by segment, then join lines with newline. For input_format=json, parse as JSON; for text, reconstructed bytes equal original.',
+            authority: 'archived_reviewer_testimony' };
+          archivedToolResults.set(id, { ...descriptor, original_content: raw, rendered_content: rendered, content: paged });
+          toolResults.push(descriptor);
+        }
+        archivedExchanges.push({ sha256: hash, messages: omitted, tool_result_receipts: toolResults });
         testimony.set(`exchange:${hash}`, JSON.stringify(omitted));
       }
+      if (selected.length === 0) latestArchivedToolResults = archivedExchanges.find(entry => entry.sha256 === hash).tool_result_receipts;
+      requestMessages = assemble();
+    }
+    if (providerRequestBytes(requestMessages, tools, options) > maxRequestBytes && selected.length === 0 && !archiveWindowCatalog) {
+      archiveWindowCatalog = true;
       requestMessages = assemble();
     }
     const bytes = providerRequestBytes(requestMessages, tools, options);
@@ -242,10 +335,12 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
 
   function evidenceTargets() {
     return targets.map(target => {
+      const matchesTarget = evidence => evidence.file === target.path
+        && evidence.source_ref === target.source_ref && evidence.source_sha256 === target.source_sha256;
       const delivered = [...windows.values()].filter(window => window.delivered
-        && window.evidence && window.evidence.file === target.path).map(window => window.evidence);
+        && window.evidence && matchesTarget(window.evidence)).map(window => window.evidence);
       return { ...target, source_evidence: activeEvidence,
-        accepted_source_ranges: activeEvidence.filter(evidence => evidence.file === target.path),
+        accepted_source_ranges: activeEvidence.filter(matchesTarget),
         source_coverage_complete: rangesCover(delivered, target.source_total_lines),
         diff_coverage_complete: target.diff_coverage_complete === true };
     });
@@ -270,6 +365,7 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
   function finish(continued) {
     const snapshot = receipt();
     return { ...previous, ...continued,
+      parsed: continued.parsed,
       candidateSet: { ...previous.candidateSet, ...(continued.candidateSet || {}),
         claimInventory: continued.candidateSet?.claimInventory?.length
           ? continued.candidateSet.claimInventory : previous.candidateSet.claimInventory,
@@ -281,7 +377,7 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
       providerAttempts: [...(recheck ? [] : previous.providerAttempts), ...(continued.providerAttempts || [])],
       shardedReview: { ...previous.shardedReview, continuation: { ...snapshot,
         original_termination: previous.termination, termination: continued.termination,
-        stage: recheck ? 'recheck' : 'initial_continuation',
+        stage: recheck ? 'recheck' : previous.termination === 'not_started' ? 'initial_investigation' : 'initial_continuation',
         inherited_provider_attempt_count: recheck ? previous.providerAttempts.length : 0,
         failed_envelope_request_ids: fixedInventory.failed_envelopes.map(entry => entry.request_id),
         failed_envelopes: fixedInventory.failed_envelopes.map(entry => ({
@@ -297,7 +393,8 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
 
   function receipt() {
     return { corpus_sha256: corpus.corpus_sha256, requests, attempts,
-      archived_exchanges: archivedExchanges, observation,
+      prior_reviewer_receipts: [...priorReviewerReceipts.values()],
+      archived_exchanges: archivedExchanges, archived_tool_results: [...archivedToolResults.values()], archived_fixed_records: archivedFixedRecords, observation,
       original_claim_ids: originalClaimIds, original_claim_count: originalClaimIds.length,
       discovered_claims: discoveries, discovered_claim_count: new Set(discoveries.map(entry => entry.claim?.claim_id)).size,
       inherited_discovery_record_count: discoveries.length,
@@ -318,7 +415,7 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
       return { error: 'review_receipt_range_invalid', receipt_id: args.receipt_id,
         total_lines: lines.length, read_ranges: boundedEvidenceRanges(lines.length), evidence_kind: 'archived_reviewer_testimony' };
     }
-    return { receipt_id: args.receipt_id, receipt_sha256: sha256(text),
+    return { ...(priorReviewerReceipts.get(args.receipt_id) || {}), receipt_id: args.receipt_id, receipt_sha256: sha256(text),
       evidence_kind: 'archived_reviewer_testimony', start_line: args.start_line,
       end_line: args.end_line, total_lines: lines.length,
       text: lines.slice(args.start_line - 1, args.end_line).map((line, index) => `${args.start_line + index}\t${line}`).join('\n') };
