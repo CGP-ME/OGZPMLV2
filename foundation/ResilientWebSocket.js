@@ -38,34 +38,6 @@ const ConfigLoader = require('./ConfigLoader');
 const EventEmitter = require('events');
 const WebSocket = require('ws');
 
-const DEFAULTS = Object.freeze({
-  // Initial reconnect delay before exponential backoff is applied.
-  initialReconnectDelayMs: 1000,
-  // Backoff caps at 30s by default. Adapters can override (Kraken used 5min).
-  maxBackoffMs:    30000,
-  // Heartbeat tick — adapter usually maps this to a protocol-level ping.
-  // Set to 0 to disable.
-  heartbeatPingMs: 30000,
-  // Pong overdue threshold — fires `pong-timeout` event and force-closes
-  // the socket. Set to 0 to disable.
-  pongTimeoutMs:   10000,
-  // No-message-received-for-N-ms = data-stale + force-close + reconnect.
-  // Catches half-open sockets where TCP is alive but the server stopped
-  // sending. Set to 0 to disable.
-  dataWatchdogMs:  60000,
-  // Hard cap on incoming WS frame size. Default 1 MB; broker frames are
-  // typically <1 KB. Bounds memory exposure to malformed/hostile servers.
-  maxPayload:      1024 * 1024,
-  // Mercury Audit A Task 1A follow-up (2026-04-27): per-second byte-rate cap.
-  // maxPayload only bounds a SINGLE message size. A flood of sub-cap frames
-  // can still grow memory unboundedly inside the ws library's queue if
-  // _onMessage cannot drain fast enough. This is the circuit-breaker — when
-  // exceeded, force-close the socket (reconnect path takes over). Default
-  // 10 MB/s; broker peak rates are well under 1 MB/s, so 10x headroom for
-  // legitimate market-event bursts. Set to 0 to disable.
-  maxBytesPerSecond: 10 * 1024 * 1024,
-});
-
 class ResilientWebSocket extends EventEmitter {
   /**
    * @param {Object} config
@@ -86,7 +58,7 @@ class ResilientWebSocket extends EventEmitter {
    * @param {(rws: ResilientWebSocket) => void} [config.sendHeartbeat] —
    *   callback to send a protocol-level ping. If absent, uses ws.ping()
    *   (RFC 6455 PING frame).
-   * @param {Object} [config.options] — backoff/heartbeat/watchdog overrides
+   * @param {Object} config.options — complete backoff/heartbeat/watchdog policy supplied by the canonical broker owner
    * @param {string} [config.label] — log prefix (e.g., '[Alpaca]')
    */
   constructor(config) {
@@ -103,7 +75,7 @@ class ResilientWebSocket extends EventEmitter {
     this.sendHeartbeatFn = config.sendHeartbeat || null;
     this.label = config.label || '[ResilientWS]';
 
-    const opts = Object.assign({}, DEFAULTS, config.options || {});
+    const opts = config.options;
     this.maxBackoffMs    = opts.maxBackoffMs;
     this.initialReconnectDelayMs = opts.initialReconnectDelayMs;
     this.heartbeatPingMs = opts.heartbeatPingMs;

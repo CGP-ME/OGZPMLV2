@@ -154,6 +154,15 @@ function record(name, pass, reason) {
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const TEST_OPTIONS = {
+  initialReconnectDelayMs: 1000,
+  maxBackoffMs: 30000,
+  heartbeatPingMs: 30000,
+  pongTimeoutMs: 10000,
+  dataWatchdogMs: 60000,
+  maxPayload: 1024 * 1024,
+  maxBytesPerSecond: 10 * 1024 * 1024,
+};
 
 /* ===== individual scenarios ============================================== */
 
@@ -171,7 +180,7 @@ async function scenario1_serverInitiatedClose(server) {
       if (!isReconnect) firstReady = true;
       else reconnected = true;
     },
-    options: { maxBackoffMs: 1500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 1500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s1]',
   });
 
@@ -198,7 +207,7 @@ async function scenario2_networkDropTCPRST(server) {
     authSuccessPredicate: (m) => m.T === 'success',
     onMessage: () => {},
     onAuthenticated: ({ isReconnect }) => { if (isReconnect) reconnected = true; },
-    options: { maxBackoffMs: 1500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 1500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s2]',
   });
 
@@ -225,7 +234,7 @@ async function scenario3_authFailureDoesNotSpin(server) {
     authSuccessPredicate: (m) => m.T === 'success',
     onMessage: () => {},
     onAuthenticated: () => {},
-    options: { maxBackoffMs: 500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s3]',
   });
 
@@ -271,6 +280,7 @@ async function scenario5_dataWatchdog(server) {
     onMessage: () => {},
     onAuthenticated: ({ isReconnect }) => { if (isReconnect) reconnected = true; },
     options: {
+      ...TEST_OPTIONS,
       maxBackoffMs: 1500,
       heartbeatPingMs: 0,         // disable ping so it doesn't keep the watchdog quiet
       dataWatchdogMs: 800,        // tight for fast test
@@ -309,7 +319,7 @@ async function scenario6_subscribeReplayOnReconnect(server) {
       // {isReconnect} flag so the caller knows which path it's on.
       rws.send({ action: 'subscribe', bars: ['TSLA','SPY'] });
     },
-    options: { maxBackoffMs: 1500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 1500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s6]',
   });
 
@@ -342,7 +352,7 @@ async function scenario7_multipleSubscribesBeforeOpen() {
     authMessage: null,
     onMessage: () => {},
     onAuthenticated: () => {},
-    options: { maxBackoffMs: 100, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 100, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s7]',
   });
 
@@ -364,7 +374,7 @@ async function scenario8_gracefulStopNoReconnect(server) {
     authSuccessPredicate: (m) => m.T === 'success',
     onMessage: () => {},
     onAuthenticated: () => {},
-    options: { maxBackoffMs: 200, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 200, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s8]',
   });
 
@@ -397,7 +407,7 @@ async function scenario9_malformedFrameDoesNotCrash(server) {
       if (m && m.type === 'follow-up') stillResponsive = true;
     },
     onAuthenticated: () => {},
-    options: { maxBackoffMs: 500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 500, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s9]',
   });
 
@@ -427,7 +437,7 @@ async function scenario10_backoffMath() {
     authMessage: null,
     onMessage: () => {},
     onAuthenticated: () => {},
-    options: { maxBackoffMs: 8000, heartbeatPingMs: 0, dataWatchdogMs: 0 },
+    options: { ...TEST_OPTIONS, maxBackoffMs: 8000, heartbeatPingMs: 0, dataWatchdogMs: 0 },
     label: '[s10]',
   });
 
