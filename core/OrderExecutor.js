@@ -3003,8 +3003,9 @@ class OrderExecutor {
     }
     if (isEntryAction && dynamicSizingEnabled) {
       // Linear scale: confidence 0.5 -> multiplier 0.5, confidence 1.0 -> multiplier 2.5
-      confidenceMultiplier = Math.max(0.5, Math.min(2.5,
-        0.5 + (tradeConfidence - 0.5) * 4.0
+      const confidenceSizing = ConfigLoader.get('internals.confidenceSizing');
+      confidenceMultiplier = Math.max(confidenceSizing.minMultiplier, Math.min(confidenceSizing.maxMultiplier,
+        confidenceSizing.baseMultiplier + (tradeConfidence - confidenceSizing.confidencePivot) * confidenceSizing.multiplierSlope
       ));
       basePositionPercent = basePositionPercent * confidenceMultiplier;
     }

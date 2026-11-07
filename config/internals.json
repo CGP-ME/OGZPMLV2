@@ -1,6 +1,13 @@
 {
   "schemaVersion": 1,
-  "revision": 7,
+  "revision": 8,
+  "confidenceSizing": {
+    "minMultiplier": 0.5,
+    "maxMultiplier": 2.5,
+    "baseMultiplier": 0.5,
+    "confidencePivot": 0.5,
+    "multiplierSlope": 4.0
+  },
   "orchestrator": {
     "marketRegimeVote": {
       "aligned": 1.0,
