@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 6,
+  "revision": 7,
   "orchestrator": {
     "marketRegimeVote": {
       "aligned": 1.0,
@@ -2925,5 +2925,11 @@
       "needsImprovementThreshold": 60,
       "poorThreshold": 50
     }
+  },
+  "telemetry": {
+    "enabled": true,
+    "logToConsole": false,
+    "logFile": "logs/telemetry.jsonl",
+    "metricsFile": "logs/metrics.json"
   }
 }

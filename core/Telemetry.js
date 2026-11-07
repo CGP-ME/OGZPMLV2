@@ -5,18 +5,21 @@
 
 const fs = require('fs');
 const path = require('path');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 class Telemetry {
   constructor(options = {}) {
-    this.enabled = options.enabled ?? true;
-    this.logToConsole = options.logToConsole ?? false; // Don't spam console
-    this.logFile = options.logFile || path.join(process.cwd(), 'logs', 'telemetry.jsonl');
-    this.metricsFile = path.join(process.cwd(), 'logs', 'metrics.json');
+    const defaults = ConfigLoader.getTelemetryConfig();
+    this.enabled = options.enabled ?? defaults.enabled;
+    this.logToConsole = options.logToConsole ?? defaults.logToConsole;
+    this.logFile = options.logFile || path.resolve(process.cwd(), defaults.logFile);
+    this.metricsFile = path.resolve(process.cwd(), defaults.metricsFile);
 
-    // Create logs directory if needed
-    const dir = path.dirname(this.logFile);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    // Event and metrics destinations may have different parent directories.
+    for (const dir of new Set([path.dirname(this.logFile), path.dirname(this.metricsFile)])) {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
     }
 
     // In-memory metrics for quick access

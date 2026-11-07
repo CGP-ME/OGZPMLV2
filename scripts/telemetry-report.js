@@ -10,10 +10,10 @@ const path = require('path');
 const ConfigLoader = require('../foundation/ConfigLoader');
 
 const internalPaths = ConfigLoader.getInternalsFileValue('paths');
-const logDirectory = path.resolve(process.cwd(), internalPaths.logDirectory);
+const telemetryConfig = ConfigLoader.getTelemetryConfig();
 const dataDirectory = path.resolve(process.cwd(), internalPaths.dataDir);
-const telemetryFile = path.join(logDirectory, 'telemetry.jsonl');
-const metricsFile = path.join(logDirectory, 'metrics.json');
+const telemetryFile = path.resolve(process.cwd(), telemetryConfig.logFile);
+const metricsFile = path.resolve(process.cwd(), telemetryConfig.metricsFile);
 
 console.log('📊 OGZPRIME TELEMETRY REPORT');
 console.log('═══════════════════════════════\n');

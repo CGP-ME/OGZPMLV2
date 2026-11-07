@@ -1148,6 +1148,7 @@ function buildConfig() {
   delete runtimeSettings.feeProfiles;
   delete runtimeSettings.services;
   const botInternals = cloneConfiguredObject(internalsConfigFile);
+  botInternals.telemetry = getTelemetryConfig();
   delete botInternals.dashboard;
   delete botInternals.deployment;
   delete botInternals.services;
@@ -4372,6 +4373,11 @@ function getConfigFileValue(configPath) {
   return value === undefined ? undefined : deepFreezePlain(clonePlain(value));
 }
 
+// Shared static owner for both bot snapshots and credential-free telemetry callers.
+function getTelemetryConfig() {
+  return getInternalsFileValue('telemetry');
+}
+
 function getInternalsFileValue(configPath) {
   ensureCanonicalFiles();
   const value = readConfiguredPath(internalsConfigFile, configPath);
@@ -4553,6 +4559,7 @@ const exported = Object.assign(ConfigLoader, {
   loadBacktestRunDescriptor,
   getConfigFileValue,
   getInternalsFileValue,
+  getTelemetryConfig,
 
 });
 
