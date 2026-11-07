@@ -1,3 +1,13 @@
+### 2026-11-07 — Deliver descriptor-owned backtest worker store paths
+
+The September 23 Backtest Input Isolation entry was not fully landed: typed workers changed their primary state/report roots while journal, transition, performance, pipeline snapshot and log paths still pointed at deployment locations. Delivered the existing ConfigLoader producer correction deriving those six paths from each descriptor's explicit data/output roots. The existing typed override contract now accepts the existing boolean trai.enabled so an offline descriptor can explicitly disable that observer. Current runner reads config.trai.enabled directly; no obsolete feature alias or new default was added.
+
+Fresh isolated before/after observation loaded two real descriptors in separate child processes and exercised actual TransitionStore event/state persistence, PerformanceAnalyzer saveToFile, PipelineSnapshot capture (with labeled synthetic snapshot contents) and TradeJournal's append writer (labeled marker, not a trade). Baseline shared all six resolved paths and worker two inherited epoch 2; candidate shared none and both began at epoch 1. Candidate trai.enabled=false was honored. Original fixture failure incorrectly expected nextEpoch alone to write a file; it was corrected to use recordTransitionEvent, with both failure tapes retained. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/worker-path-{baseline,candidate}-v2.log` and `worker-path-delivery.json`.
+
+Limits: all files were synthetic in the repository-required isolated namespace; no host state was read or written. Generic log and TrAI decision-log destinations were resolved, not exercised by a live observer. This verifies the named writers, not every backtest output, strategy, pattern bank, external service or complete runtime. No new permanent test suite, live configuration value, restart, model call or activation.
+
+Review: **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's instruction to deliver verified work while reviewers are unavailable. Source delivery does not certify a running process or fresh RAG index.
+
 ### 2026-11-07 — Deliver canonical mode to TTP direct broker-order permission
 
 Revalidated the October 18 TTP mode entry and actual callers. The runner gave TtpCutoffEnforcer permission for direct cancellation/orphan orders whenever the webhook route was inactive, including paper/backtest. Its existing permission now receives canonical executionMode === live together with the existing webhook-route condition. Read reconciliation, tracked-trade exits and existing quarantine handling are unchanged; no new guard or mode setting was introduced.

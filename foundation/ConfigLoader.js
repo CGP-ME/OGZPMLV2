@@ -664,6 +664,7 @@ const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
   /^positionSizing\.maxPositionSize$/,
   /^filters\.(atrEnabled|atrMinPercent)$/,
   /^exitContracts\.[A-Za-z0-9_]+\.profitManagement\.(beScaleOut\.(enabled|triggerType|fixedPercentTrigger|scaleOutFraction)|breakEvenStop\.(enabled|triggerPercent)|tieredExit\.(enabled|tier1ExitFraction|tier2ExitFraction|tier3ExitFraction|enableMarketAdaptation|trendingTargetMultiplier|rangingTargetMultiplier|highConfidenceThreshold|highConfidenceMultiplier|lowConfidenceThreshold|lowConfidenceMultiplier|profitTiers\.(tier1|tier2|tier3|final))|trail\.(enabled|minActivationPercent|atrMultiplier|trendWidenMultiplier|structureTightenMultiplier|structureDistanceThreshold|profitRatchetThreshold|profitRatchetRate|profitRatchetFloor|minTrailPercent|maxTrailPercent|feeBufferPercent|roundNumberProximity|roundNumberTighten)|volatilityAdjustment\.(enabled|lowThresholdPercent|highThresholdPercent|lookbackPeriods)|contractVolatilityAdjustment\.(threshold|stopMultiplier|targetMultiplier))$/,
+  /^trai\.enabled$/,
   /^pipeline\.directionFilter$/,
   /^execution\.candleTimeframe$/,
   /^orchestrator\.mtfConfluenceService\.minReadyTimeframes$/,
@@ -955,6 +956,22 @@ function applyRunDescriptor(config, sources, descriptorReceipt) {
   sources['paths.backtestOutputDir'] = `descriptor:${descriptorReceipt.path}:report.outputDir`;
   sources['paths.stateFile'] = `descriptor:${descriptorReceipt.path}:state.stateFile`;
   sources['paths.dataDir'] = `descriptor:${descriptorReceipt.path}:state.dataDir`;
+
+  // A worker's state root also owns the stores used by its real consumers.
+  // Leaving these on deployment paths shares live session/performance state
+  // even when the worker's primary state file and report directory are isolated.
+  const workerPaths = {
+    'paths.journalDataDir': path.join(descriptor.state.dataDir, 'journal'),
+    'paths.logDirectory': path.join(descriptor.report.outputDir, 'logs'),
+    'internals.sessionRouter.transitionStoreDir': path.join(descriptor.state.dataDir, 'session-router'),
+    'internals.performanceAnalysis.performanceDbPath': path.join(descriptor.state.dataDir, 'performance.json'),
+    'internals.pipelineSnapshot.outputFile': path.join(descriptor.state.dataDir, 'pipeline-snapshots.jsonl'),
+    'internals.trai.decisionLogPath': path.join(descriptor.report.outputDir, 'logs', 'trai-decisions.log'),
+  };
+  for (const [pathName, value] of Object.entries(workerPaths)) {
+    setObjectPath(config, pathName, value);
+    sources[pathName] = `descriptor:${descriptorReceipt.path}:derived-worker-path`;
+  }
 
   config.services.dashboard.enabled = descriptor.services.dashboard;
   config.services.notifications.enabled = descriptor.services.notifications;
