@@ -1,3 +1,11 @@
+### 2026-11-07 — Deliver directory-scoped reviewer search without overriding exclusions
+
+The remaining reviewer first-pass tooling edits included a concrete search producer defect: grep/regex_grep passed a directory such as src directly as a filename glob, yielding no evidence from its children. Delivered that connected tool-adapter correction: resolve an explicitly supplied directory into its recursive file pattern, report requested/effective scope, and place repository exclusion globs after the caller pattern so ripgrep precedence preserves the existing ignore policy.
+
+Fresh isolated before/after observation executed the actual tool adapter and real ripgrep with the committed ignore contract over labeled synthetic files. Baseline directory searches returned zero matches while explicit globs worked; candidate directory, trailing-slash directory and regex search returned both permitted files. Exact-file/glob behavior remains correct. Ignored inbox/archive descendants remain absent from answers and now are excluded before ripgrep scans them; the old post-filter also prevented their delivery. An outside-repository directory reports its existing boundary error explicitly. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/reviewer-directory-{baseline,candidate}.log` and `reviewer-directory-delivery.json`.
+
+Limits: offline file evidence only, no model, database, external request, policy exception or new permanent suite. No service restart or runtime activation. **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's current delivery instruction. This does not certify the remaining review lifecycle/coverage changes.
+
 ### 2026-11-07 — Deliver Trey's full-changelog indexing instruction
 
 The October 4 changelog entry records Trey's explicit instruction to remove the 800-line cutoff. That two-file source change remained uncommitted. Delivered removal of the cutoff and unused CHANGELOG_RECENT_LINES export, plus the root CHANGELOG.md exception to the generic file-size exclusion. Other files, ignore policy, chunking and provider batching retain their existing behavior.

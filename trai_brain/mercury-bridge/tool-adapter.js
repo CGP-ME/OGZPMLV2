@@ -302,6 +302,22 @@ function createToolAdapter(opts = {}) {
       return Promise.resolve({ error: 'ripgrep unavailable: install rg before using Mercury grep evidence' });
     }
 
+    const requestedFilePattern = filePattern;
+    // A directory is a search scope, not a glob matching its filename.
+    // Normalize before rg and expose both forms; exclusions still win.
+    if (filePattern && !/[?*\[\]{}!]/.test(filePattern)) {
+      try {
+        const scopedPath = ensureWithinRepo(filePattern);
+        if (fs.statSync(scopedPath, { throwIfNoEntry: false })?.isDirectory()) {
+          const relative = relativePathForPolicy(scopedPath);
+          filePattern = relative ? `${relative}/**` : '**';
+        }
+      } catch (error) {
+        return Promise.resolve({ error: `search scope could not be resolved: ${error.message}`,
+          requested_file_pattern: requestedFilePattern });
+      }
+    }
+
     // The host's file-backed ingestion requests the full stream with null.
     // Interactive tool calls retain their bounded response size.
     const matchLimit = limit === null ? Infinity
@@ -317,10 +333,12 @@ function createToolAdapter(opts = {}) {
     } else if (/\(\?[=!<]/.test(query)) {
       rgArgs.push('--pcre2');
     }
-    rgArgs.push(...buildSkipDirGlobArgs());
     if (filePattern) {
       rgArgs.push('--glob', filePattern);
     }
+    // Ripgrep gives the last matching glob precedence. Model-selected scope
+    // must not re-include directories excluded by repository policy.
+    rgArgs.push(...buildSkipDirGlobArgs());
     rgArgs.push('--', query, repoRoot);
 
     return new Promise((resolve) => {
@@ -336,7 +354,8 @@ function createToolAdapter(opts = {}) {
       const finish = (payload) => {
         if (settled) return;
         settled = true;
-        resolve(payload);
+        resolve({ ...payload, requested_file_pattern: requestedFilePattern,
+          effective_file_pattern: filePattern });
       };
 
       const consumeLine = (line) => {
