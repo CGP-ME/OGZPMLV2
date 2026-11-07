@@ -397,6 +397,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
           // need it to avoid routing Kraken candles into a stale stock context.
           this.emit('ohlc', {
             data: ohlcData,
+            priceTimestamp: data.priceTimestamp,
             timeframe: timeframe,
             symbol: canonicalSymbol,
             pair,
@@ -458,6 +459,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
         } else if (data.type === 'ohlc') {
           this.emit('ohlc', {
             data: data.data,
+            priceTimestamp: data.priceTimestamp,
             timeframe: data.timeframe || '1m',
             symbol: data.symbol,
             pair: data.pair

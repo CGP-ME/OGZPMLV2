@@ -982,11 +982,13 @@ class OGZPrimeV14Bot {
         this.lastBrokerDataTimeframe = tf;
         const activeTf = this.candleTimeframe;
         const evaluationFrame = this.evaluationTimeframes.includes(tf);
-        const markEventTimeMs = ohlcTimestampMs(ohlcData[1]);
+        // The price's observation time is distinct from its candle's scheduled end.
+        const markEventTimeMs = ohlcTimestampMs(eventData.priceTimestamp);
+        const markPrice = typeof ohlcData[5] === 'string' ? Number(ohlcData[5]) : ohlcData[5];
         const canUpdateLastPrice = Boolean(stateManager && stateManager.updateLastPrice);
         let markUpdated = false;
         if (canUpdateLastPrice) {
-          markUpdated = stateManager.updateLastPrice(sym, ohlcData[5], markEventTimeMs);
+          markUpdated = stateManager.updateLastPrice(sym, markPrice, markEventTimeMs);
         }
         emitTrace(this, 'LAST_PRICE_INFLUENCE', {
           traceId,
@@ -994,8 +996,9 @@ class OGZPrimeV14Bot {
           symbol: sym,
           sourceTimeframe: tf,
           activeTimeframe: activeTf,
-          close: ohlcData[5],
+          close: markPrice,
           eventTime: markEventTimeMs,
+          candleEndTime: ohlcTimestampMs(ohlcData[1]),
           markUpdated,
           markAttempted: canUpdateLastPrice,
           strategyEligible: evaluationFrame,
@@ -1684,6 +1687,7 @@ class OGZPrimeV14Bot {
         const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
           brokerId: broker.getBrokerName(),
         });
+        const restRequestStartedAt = Date.now();
         const rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
         const candles = (Array.isArray(rawCandles) ? rawCandles : [])
           .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
@@ -1747,7 +1751,18 @@ class OGZPrimeV14Bot {
         const symCtx = this.getSymbolTimeframeContext(symbol, timeframe);
         if (symCtx) symCtx.marketData = marketData;
         if (stateManager && stateManager.updateLastPrice) {
-          stateManager.updateLastPrice(symbol, latest.c, latest.etime || latest.t);
+          // REST can include an unfinished interval with a future scheduled end.
+          const markCandle = candles.findLast(candle => candle.etime <= restRequestStartedAt);
+          const markUpdated = markCandle
+            ? stateManager.updateLastPrice(symbol, markCandle.c, markCandle.etime)
+            : false;
+          emitTrace(this, 'LAST_PRICE_INFLUENCE', {
+            ...scopeEnvelope,
+            source: 'boot_rest_hydration', symbol, timeframe, sourceTimeframe: timeframe,
+            close: markCandle?.c ?? null, eventTime: markCandle?.etime ?? null,
+            candleEndTime: latest.etime, markUpdated, markAttempted: Boolean(markCandle),
+            influence: markCandle ? (markUpdated ? 'mark_updated' : 'mark_rejected') : 'no_completed_rest_candle',
+          });
         }
         if (timeframe === this.candleTimeframe) this._markActiveTimeframeData(symbol, timeframe);
 
@@ -2859,6 +2874,7 @@ class OGZPrimeV14Bot {
     }
 
     const feed = this.config.dataFeed;
+    const restRequestStartedAt = Date.now();
     const rawCandles = await broker.getCandles(symbol, timeframe, feed.livenessBackfillLimit);
     const timeframeMs = this.candleAggregator?.getIntervalMs(timeframe);
     if (!Number.isFinite(timeframeMs) || timeframeMs <= 0) {
@@ -2936,7 +2952,18 @@ class OGZPrimeV14Bot {
       const symCtx = this.symbolContexts?.get(symbol);
       if (symCtx) symCtx.marketData = marketData;
       if (stateManager && stateManager.updateLastPrice) {
-        stateManager.updateLastPrice(symbol, latest.c, latest.etime || latest.t);
+        // REST can include an unfinished interval with a future scheduled end.
+        const markCandle = candles.findLast(candle => candle.etime <= restRequestStartedAt);
+        const markUpdated = markCandle
+          ? stateManager.updateLastPrice(symbol, markCandle.c, markCandle.etime)
+          : false;
+        emitTrace(this, 'LAST_PRICE_INFLUENCE', {
+          ...scopeEnvelope,
+          source: 'liveness_rest_backfill', symbol, timeframe, sourceTimeframe: timeframe,
+          close: markCandle?.c ?? null, eventTime: markCandle?.etime ?? null,
+          candleEndTime: latest.etime, markUpdated, markAttempted: Boolean(markCandle),
+          influence: markCandle ? (markUpdated ? 'mark_updated' : 'mark_rejected') : 'no_completed_rest_candle',
+        });
       }
       this._markActiveTimeframeData(symbol, timeframe);
     }

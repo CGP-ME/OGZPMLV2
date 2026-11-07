@@ -883,7 +883,7 @@ class StateManager {
    * price lookup in SessionRouter._transitionToCrypto.
    */
   updateLastPrice(symbol, price, eventTimeMs = Date.now()) {
-    if (!symbol || typeof price !== 'number' || !(price > 0)) return false;
+    if (!symbol || !Number.isFinite(price) || !(price > 0)) return false;
     const incomingTime = Number(eventTimeMs);
     if (!Number.isFinite(incomingTime) || incomingTime <= 0) return false;
     if (!this.state.lastPrices) this.state.lastPrices = new Map();

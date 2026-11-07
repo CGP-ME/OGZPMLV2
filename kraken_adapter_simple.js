@@ -1159,6 +1159,7 @@ class KrakenAdapterSimple {
               onPriceUpdate({
                 type: 'ohlc',
                 data: ohlcData,
+                priceTimestamp: msg[1][0],
                 pair: pair,
                 symbol,
                 timeframe: timeframe,
