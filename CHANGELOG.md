@@ -1,3 +1,11 @@
+### 2026-10-19 — Standalone validator preserves explicit zero fee (S1-006)
+
+Existing standalone FEES_PCT parseFloat-or-default incorrectly replaced explicit0 with0.50%. Use an explicit NaN check to retain zero while preserving absent/unparseable fallback and other prior parse behavior. Exact configuration-block probe passes6 cases and retains CLI strategy filtering/dataset default. This is not full standalone simulator acceptance; bot fee owner/values unchanged. Optimizer TRADING_TIER remains label/filename input with fixed backtest FeatureFlagManager mode; BACKTEST_PORT remains separate service listen input. No unsupported retirement or bot-owner merger.
+
+Evidence: `ogz-meta/inbox/codex/2026-10-19/stop1-resume/readiness-and-standalone-dispositions.json`, per-change patches/application hashes, `readiness-owner-preserved-v2.log`, `readiness-owner-changed-v2.log` and `standalone-env-contract-proof.log`. Existing actual paper lifecycle/policy fresh-process restoration fixture also passed after migration (`readiness-retained-lifecycle.log`). All preexisting settings values compare equal; revision15→18 records three readiness migrations. No independent review run or claim; reviewer substitution remains unanswered. No commit/push or runtime activation.
+
+Delivery 2026-11-07: direct source review preserves explicit zero and the established absent/unparseable behavior, with no bot fee change. Fresh isolated execution passed the six original validator configuration assertions, preserving strategy CLI selection and dataset default; the now-separately-fixed research API assertion was excluded from this fee-only fixture. This executes the actual configuration block, not a full simulation. Receipt: ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/validator-fee-verification.log. Retroactive Mercury and Astra review required — pending per Trey; no new external review, deployment or activation.
+
 ## 2026-10-18 — Correct pattern-match win-rate accumulation and report reconstruction
 
 Problem: Telemetry incremented the match count for every outcome but updated the rate only on wins, so a win followed by a loss incorrectly remained100%. The standalone report left reconstructed pattern win rate at0 when no saved metrics existed. These are separate arithmetic defects from the already-applied read-only/saved-snapshot-precedence correction.

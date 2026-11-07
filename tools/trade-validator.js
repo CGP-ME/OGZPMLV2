@@ -45,7 +45,8 @@ const STRATEGY_FILTER = process.env.ISOLATE
   || process.argv.find(a => a.startsWith('--strategy='))?.split('=')[1]
   || (process.argv.includes('--strategy') ? process.argv[process.argv.indexOf('--strategy') + 1] : null);
 const VERBOSE = process.argv.includes('--verbose');
-const FEES_PCT = parseFloat(process.env.FEES_PCT) || 0.50;
+const configuredFeesPct = parseFloat(process.env.FEES_PCT);
+const FEES_PCT = Number.isNaN(configuredFeesPct) ? 0.50 : configuredFeesPct;
 
 // ── LOAD CANDLES ──
 const candlePath = path.resolve(projectRoot, CANDLE_FILE);
