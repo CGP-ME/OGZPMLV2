@@ -1364,6 +1364,48 @@ class SessionRouter extends EventEmitter {
     };
   }
 
+  _paperStartupRestoreCheck(transitionContext, targetSnapshot, trades) {
+    if (transitionContext.from !== 'startup' || this.activeSession !== null) {
+      return { eligible: false, reason: 'session_transfer_requires_flat_positions' };
+    }
+    const status = this._getTransitionStoreStatus();
+    const reconciledRecovery = status?.state === 'BROKER_RECONCILED' && status.from === 'operator_recovery';
+    if (!status || status.recoveryRequired || (status.state !== 'TARGET_ACTIVATED' && !reconciledRecovery)) {
+      return { eligible: false, reason: 'prior_session_not_reconciled' };
+    }
+    const events = this.transitionStore.readEvents();
+    const activated = events.filter(event => event.event === 'SESSION_TARGET_ACTIVATED').at(-1);
+    const priorScope = activated?.runtimeScope;
+    const session = transitionContext.to;
+    const brokerId = this._brokerIdForSession(session);
+    const accountId = this._cleanRuntimeAccountId(targetSnapshot.accountId);
+    if (!accountId || !priorScope || activated.activeSession !== session
+      || priorScope.brokerId !== brokerId || priorScope.accountId !== accountId
+      || priorScope.executionMode !== 'paper' || priorScope.assetClass !== this._assetClassForSession(session)) {
+      return { eligible: false, reason: 'prior_session_scope_mismatch' };
+    }
+    const intents = this.transitionStore.readBrokerIntents();
+    const latestIntents = new Map();
+    for (const intent of intents) {
+      if (intent.corrupt || !intent.intentId) return { eligible: false, reason: 'broker_intent_history_unreadable' };
+      latestIntents.set(intent.intentId, intent);
+    }
+    if (Array.from(latestIntents.values()).some(intent => intent.status !== 'COMMITTED')) {
+      return { eligible: false, reason: 'broker_intent_reconciliation_required' };
+    }
+    const symbols = this._symbolsForSession(session);
+    const timeframes = new Set([transitionContext.timeframe, ...this.ctx.evaluationTimeframes]);
+    for (const [tradeId, trade] of trades) {
+      if (!trade || trade.executionMode !== 'paper' || trade.executionRoute !== 'simulated'
+        || trade.brokerId !== brokerId || trade.accountId !== accountId
+        || trade.assetClass !== priorScope.assetClass || !symbols.includes(trade.symbol)
+        || !timeframes.has(trade.timeframe) || trade.pendingExitIntent) {
+        return { eligible: false, reason: 'persisted_trade_scope_or_exit_mismatch', tradeId };
+      }
+    }
+    return { eligible: true, reason: 'same_session_paper_restore', tradeIds: trades.map(([tradeId]) => tradeId) };
+  }
+
   async _reconcileBrokerRestBeforeActivation(sourceAdapter, targetAdapter, transitionContext, details = {}) {
     const sourceBrokerId = sourceAdapter
       ? this._brokerIdFor(sourceAdapter, details.sourceBrokerId || transitionContext.from)
@@ -1381,7 +1423,13 @@ class SessionRouter extends EventEmitter {
       const simulatedOpenPositions = paperExecution ? this._activeTradeEntries() : [];
       const unsafeParts = [];
       if (paperExecution && simulatedOpenPositions.length > 0) {
-        unsafeParts.push(`paper simulated positions=${simulatedOpenPositions.length}`);
+        const restoration = sourceAdapter
+          ? { eligible: false, reason: 'session_transfer_requires_flat_positions' }
+          : this._paperStartupRestoreCheck(transitionContext, snapshots.target, simulatedOpenPositions);
+        snapshots.target.paperPositionRestore = restoration;
+        if (!restoration.eligible) {
+          unsafeParts.push(`paper simulated positions=${simulatedOpenPositions.length} (${restoration.reason})`);
+        }
       }
       for (const [role, snapshot] of Object.entries(snapshots)) {
         if (!snapshot) continue;

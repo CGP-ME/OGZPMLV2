@@ -403,6 +403,8 @@ class AlpacaAdapter extends IBrokerAdapter {
     // =========================================================================
 
     async getBalance() {
+        this.accountId = null;
+        this.accountIdSource = null;
         try {
             const response = await axios.get(`${this.baseUrl}/v2/account`, {
                 headers: this._authHeaders()

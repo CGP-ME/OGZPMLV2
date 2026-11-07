@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-11-04T00:12:34.308840+00:00",
+  "activatedAt": "2026-11-02T00:45:18.992227+00:00",
+  "workingSources": {
+    "core/SessionRouter.js": "94947c3475a0d07c1463ed4f2e984bd769b46c4ea4f02d925cbc397bfacca4b9",
+    "brokers/AlpacaAdapter.js": "cd8ed86047a92755bdd1ad768445abef5657929d1f48dfdb0de998fdb84990c5"
+  },
+  "stateSnapshotSha256": "9b6c99d7a5c2973b866e9eceae679d95ca6cb9e5300e8dc3553acb5867284b2b",
+  "restoredTrade": {
+    "tradeId": "SIM_1793350800369_nbujyb",
+    "executionMode": "paper",
+    "simulated": true,
+    "entryPrice": 77849.95555,
+    "exitPrice": 78054.50774999999,
+    "quantity": 0.004522627874067625,
+    "quantityUnit": "base",
+    "computedPnl": -0.9251134814218149,
+    "persistedPnl": -0.9251134814218176,
+    "dashboardPnl": -0.9251134814218148,
+    "pnlMatches": true,
+    "closedAt": 1793580343698,
+    "dashboardReceivedAt": "2026-11-02T00:45:43.747Z",
+    "exitReason": "max_hold_loser",
+    "timeframe": "1h",
+    "holdMs": 229543328,
+    "lifecycleState": "full_fill"
+  },
+  "sinceActivation": {
+    "closureCount": 205,
+    "sumClosedPnl": -2818.8361225807444,
+    "realizedPnlDelta": -2818.8361225807453,
+    "pnlReconciles": true,
+    "nonpositiveHoldCount": 0,
+    "allPaperSimulated": true,
+    "activePositionCount": 1,
+    "pauseReason": null
+  },
+  "review": {
+    "candidateTree": "cbad800ccf9e166e1943276e49693316fef933d4",
+    "mercuryRecheck": "no_break_found",
+    "astraEarlierCritique": "needs_more_evidence",
+    "panelConsensusClaimed": false
+  },
+  "remainingIssues": [
+    "Restored trade has no replay entry capture after restart.",
+    "Feature extraction still reports unavailable inputs; exact fields are not logged.",
+    "Fresh dashboard capture mixes symbol/timeframe indicators through shared-engine readers."
+  ],
+  "limits": [
+    "No new tests were added or run.",
+    "Runtime accounting evidence covers observed paper closures, not live trading.",
+    "No completed consensus review is claimed."
+  ]
+}
