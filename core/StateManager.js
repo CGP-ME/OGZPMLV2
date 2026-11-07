@@ -2509,7 +2509,16 @@ class StateManager {
       pauseScope: scope
     };
 
-    const result = await this.updateState(updates, { action: 'PAUSE_TRADING', reason, source, scope });
+    await this.acquireLock();
+    let result;
+    try {
+      if (options.preserveOtherSources === true && this.isPaused() && this.state.pauseSource !== source) {
+        return { success: true, preserved: true, reason: 'pause_owned_by_other_source', pauseSource: this.state.pauseSource, pauseReason: this.state.pauseReason };
+      }
+      result = this._applyStateUpdatesLocked(updates, { action: 'PAUSE_TRADING', reason, source, scope }, { resetActiveTradeLifecycle: true });
+    } finally {
+      this.releaseLock();
+    }
     if (!result.success) return result;
 
     // Log to console with visible warning
@@ -2664,6 +2673,9 @@ class StateManager {
       }
 
       const pauseReason = String(this.state.pauseReason || this.state.lastError || '');
+      if (options.expectedPauseReason !== undefined && pauseReason !== options.expectedPauseReason) {
+        return { success: false, resumed: false, reason: 'pause_record_changed', pauseReason };
+      }
       const legacyPrefixes = Array.isArray(options.legacyReasonPrefixes)
         ? options.legacyReasonPrefixes
         : [];

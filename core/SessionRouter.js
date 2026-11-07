@@ -474,6 +474,7 @@ class SessionRouter extends EventEmitter {
         `SessionRouter wind-down ${phaseName}: ${countdown.minutesUntil} min until ${countdown.to}`,
         {
           source: SESSION_ROUTER_WIND_DOWN_SOURCE,
+          preserveOtherSources: true,
           recoverable: true,
           scope: this._windDownPauseScope(countdown.from)
         }
@@ -1482,7 +1483,7 @@ class SessionRouter extends EventEmitter {
     this.failedSafeMode = true;
     this.failedSafeReason = reason;
     this.failedSafeAt = at;
-    this.failedSafePauseConfirmed = Boolean(options.pauseConfirmed);
+    this.failedSafePauseConfirmed = this._stateManagerReportsPaused();
     this.failedSafePauseError = null;
     this.failedSafePauseFallbackApplied = false;
     this.failedSafeEntryBlockReason = `SessionRouter failed safe: ${from} -> ${to}: ${reason}`;
@@ -1533,7 +1534,7 @@ class SessionRouter extends EventEmitter {
       let pauseErr = null;
       if (this.stateManager && typeof this.stateManager.pauseTrading === 'function') {
         try {
-          await this.stateManager.pauseTrading(pauseReason);
+          await this.stateManager.pauseTrading(pauseReason, { source: 'session_router_failed_safe', preserveOtherSources: true });
         } catch (errPause) {
           pauseErr = errPause;
         }
@@ -1590,7 +1591,12 @@ class SessionRouter extends EventEmitter {
         activeSession: this.activeSession
       });
 
-      await this.stateManager.pauseTrading('SessionRouter: transitioning to stocks');
+      const transitionPauseReason = `SessionRouter: transitioning to stocks ${transitionContext.transitionId} epoch ${transitionContext.epoch}`;
+      await this.stateManager.pauseTrading(transitionPauseReason, {
+        source: SESSION_ROUTER_WIND_DOWN_SOURCE,
+        recoverable: true,
+        preserveOtherSources: true,
+      });
       pauseConfirmed = this._stateManagerReportsPaused();
       if (!pauseConfirmed) {
         throw new Error('StateManager pauseTrading did not confirm paused state');
@@ -1664,8 +1670,16 @@ class SessionRouter extends EventEmitter {
         scopeComplete: committedRuntimeScope.scopeComplete
       });
       this._releaseTransitionLock(transitionContext);
-      await this.stateManager.resumeTrading();
-      pauseConfirmed = false;
+      const resumeResult = await this.stateManager.resumeTradingIfPausedBy(SESSION_ROUTER_WIND_DOWN_SOURCE, {
+        expectedPauseReason: transitionPauseReason,
+        resumeSource: 'session_router_transition_complete',
+        reason: `SessionRouter activation confirmed stocks`,
+      });
+      pauseConfirmed = this._stateManagerReportsPaused();
+      if (resumeResult.stateMutationSucceeded === false) {
+        await this._enterFailedSafe('crypto', 'stocks', new Error(resumeResult.error), now, { pauseConfirmed, transitionContext });
+        return;
+      }
       this.emit('transition', transitionEvent);
       console.log('[SessionRouter] ACTIVE: stocks session');
 
@@ -1696,7 +1710,12 @@ class SessionRouter extends EventEmitter {
         activeSession: this.activeSession
       });
 
-      await this.stateManager.pauseTrading('SessionRouter: transitioning to crypto');
+      const transitionPauseReason = `SessionRouter: transitioning to crypto ${transitionContext.transitionId} epoch ${transitionContext.epoch}`;
+      await this.stateManager.pauseTrading(transitionPauseReason, {
+        source: SESSION_ROUTER_WIND_DOWN_SOURCE,
+        recoverable: true,
+        preserveOtherSources: true,
+      });
       pauseConfirmed = this._stateManagerReportsPaused();
       if (!pauseConfirmed) {
         throw new Error('StateManager pauseTrading did not confirm paused state');
@@ -1773,8 +1792,16 @@ class SessionRouter extends EventEmitter {
         scopeComplete: committedRuntimeScope.scopeComplete
       });
       this._releaseTransitionLock(transitionContext);
-      await this.stateManager.resumeTrading();
-      pauseConfirmed = false;
+      const resumeResult = await this.stateManager.resumeTradingIfPausedBy(SESSION_ROUTER_WIND_DOWN_SOURCE, {
+        expectedPauseReason: transitionPauseReason,
+        resumeSource: 'session_router_transition_complete',
+        reason: `SessionRouter activation confirmed crypto`,
+      });
+      pauseConfirmed = this._stateManagerReportsPaused();
+      if (resumeResult.stateMutationSucceeded === false) {
+        await this._enterFailedSafe('stocks', 'crypto', new Error(resumeResult.error), now, { pauseConfirmed, transitionContext });
+        return;
+      }
       this.emit('transition', transitionEvent);
       console.log('[SessionRouter] ACTIVE: crypto session');
 
