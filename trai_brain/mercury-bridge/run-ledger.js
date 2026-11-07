@@ -791,6 +791,7 @@ function shardedResponseLedgerReceipt(receipt = {}) {
     payload_sha256: receipt.payload_sha256 || null,
     request_sha256: receipt.request_sha256 || null,
     request_bytes: Number.isInteger(receipt.request_bytes) ? receipt.request_bytes : null,
+    request_options: receipt.request_options || null,
     unit_ids: Array.isArray(receipt.unit_ids) ? receipt.unit_ids : [],
     context_unit_ids: Array.isArray(receipt.context_unit_ids) ? receipt.context_unit_ids : [],
     context_artifact_ids: Array.isArray(receipt.context_artifact_ids) ? receipt.context_artifact_ids : [],

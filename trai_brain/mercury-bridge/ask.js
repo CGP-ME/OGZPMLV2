@@ -1309,7 +1309,7 @@ async function runAgentic(query, opts) {
               } : null,
             syntaxContext: autoBlastRadius && autoBlastRadius.ast,
             maxRequestBytes: config.AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES,
-            maxTokens, maxCalls: maxIterations,
+            maxTokens, maxCalls: maxIterations, temperature: config.MERCURY_LLM_TEMPERATURE,
             providerAuditFactory, verbose, isHardStop: isHardReviewBoundaryError,
             evidenceAbsences: evidenceQuarantines,
           }) : await runReactLoop({

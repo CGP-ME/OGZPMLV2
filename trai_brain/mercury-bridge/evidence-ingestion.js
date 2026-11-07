@@ -855,7 +855,7 @@ function makeMapRequest(query, units, index, options) {
   };
 }
 
-function packMapRequests({ corpus, query, maxRequestBytes, maxTokens, temperature = 0 } = {}) {
+function packMapRequests({ corpus, query, maxRequestBytes, maxTokens, temperature } = {}) {
   assertPositiveInteger(maxRequestBytes, 'maxRequestBytes');
   assertPositiveInteger(maxTokens, 'maxTokens');
   if (!corpus || !Array.isArray(corpus.artifacts)) throw new TypeError('corpus.artifacts must be an array');
@@ -1701,6 +1701,8 @@ function responseReceipt({ request, message, audit, status = 'succeeded', error 
     payload_sha256: request.payload_sha256,
     request_sha256: request.request_sha256,
     request_bytes: request.request_bytes,
+    request_options: { maxTokens: request.options.maxTokens,
+      temperature: request.options.temperature == null ? null : request.options.temperature },
     unit_ids: request.unit_ids || [],
     context_unit_ids: request.context_unit_ids || [],
     context_artifact_ids: request.context_artifact_ids || [],
@@ -2218,7 +2220,7 @@ async function runExplicitTargetReview({
   maxRequestBytes,
   maxTokens,
   maxCalls = null,
-  temperature = 0,
+  temperature,
   verbose = false,
   stagePrefix = 'mercury_explicit',
   verifySourceSnapshots = null,
@@ -2851,6 +2853,7 @@ async function runExplicitTargetReview({
   };
   const reportedCoverage = {
     ...coverage,
+    provider_request_options: options,
     fourthShapeAdditionCount,
     fourthShapeAdditions,
     map_shards_total: mapReceipts.length,

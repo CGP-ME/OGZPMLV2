@@ -1,3 +1,11 @@
+### 2026-11-07 — Preserve the configured reviewer temperature through explicit requests and receipts
+
+The existing Mercury ownership entry places generation settings in mercury.config.json, but explicit no-tools review omitted temperature and its mapper silently used zero. Delivered the pending producer/consumer correction: pass MERCURY_LLM_TEMPERATURE, remove the mapper's competing zero defaults, and retain actual maxTokens/temperature in response and run-ledger receipts. Canonical configuration values are unchanged.
+
+Fresh isolated observation executed the actual CLI option expression, corpus/request assembly, scripted provider calls, response receipts and run-ledger builder. With fixture owner values 0.37 and 0.61, baseline sent zero both times and omitted receipt options. Candidate sent each configured value on all three requests, retained 7750 tokens, and carried both values unchanged through map receipts and the ledger. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/reviewer-options-{baseline,candidate}.log` and `reviewer-options-delivery.json`.
+
+Limits: actual request/receipt behavior with synthetic corpus and provider responses; no external provider, billed run or reasoning-quality claim. No permanent tests, configuration edit, service restart, index rebuild or runtime activation. **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's delivery instruction.
+
 ### 2026-11-07 — Deliver native source investigation from the first explicit-review request
 
 Revalidated the October 4 first-pass tooling entry. Explicit reviews still began with tool-free mapping; the CLI only supplied native continuation for pinned adversarial runs. Delivered the connected dispatch correction: when tools are enabled, start the existing native investigation immediately across existing review intents and pinned/WORKTREE modes. Explicit no-tools retains the mapping path. Existing snapshot discrepancies enter the original unresolved evidence before investigation; no additional permission, execution tool, fallback or iteration ceiling was introduced.
