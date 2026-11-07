@@ -1298,7 +1298,7 @@ async function runAgentic(query, opts) {
           const t0 = Date.now();
           const seatResult = explicitReviewCorpus ? await runExplicitTargetReview({
             client, corpus: explicitReviewCorpus, query: userQuery,
-            continueWithTools: reviewView && reviewIntent === 'adversarial' && opts.noTools !== true
+            continueWithTools: opts.noTools !== true
               ? (explicitReviewContract, remainingCalls) => {
                 explicitContinuationFactory = previous => explicitReviewContract.fresh(previous);
                 return runReactLoop({

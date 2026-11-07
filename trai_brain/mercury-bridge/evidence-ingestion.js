@@ -2234,6 +2234,54 @@ async function runExplicitTargetReview({
   assertPositiveInteger(maxRequestBytes, 'maxRequestBytes');
   assertPositiveInteger(maxTokens, 'maxTokens');
   const callLimit = maxCalls == null ? Infinity : assertPositiveInteger(maxCalls, 'maxCalls');
+  let snapshotUnresolved = [];
+  const snapshotVerifier = typeof verifySourceSnapshots === 'function'
+    ? verifySourceSnapshots
+    : corpus.repoRoot
+      ? verifyCorpusSnapshots
+      : null;
+  if (snapshotVerifier) {
+    try {
+      const result = await snapshotVerifier({ repoRoot: corpus.repoRoot, corpus });
+      snapshotUnresolved = Array.isArray(result) ? result : [];
+    } catch (error) {
+      snapshotUnresolved = [{
+        target: '<explicit_target_corpus>',
+        scope: 'source_snapshot_verification',
+        reason: `snapshot_verification_failed:${error.message}`,
+      }];
+    }
+  }
+
+  // Start with investigation tools when the caller supplies the native loop.
+  // Mapping/synthesis remains the explicit no-tools path, not a prerequisite
+  // that must fail before the reviewer can inspect a caller or sibling file.
+  if (typeof continueWithTools === 'function') {
+    const reviewTargets = corpus.targets.map(target => ({ ...target,
+      claims: [], accepted_source_ranges: [],
+      source_coverage_complete: false, diff_coverage_complete: false }));
+    const fourthShapeAdditions = addedFourthShapeAdditions(corpus.artifacts
+      .filter(artifact => artifact.kind === 'diff').map(artifact => artifact.content).join('\n'));
+    const coverage = { expectedTotal: reviewTargets.length,
+      unresolved: [...corpus.unresolved, ...snapshotUnresolved, ...evidenceAbsences],
+      complete: false, authorityReady: false,
+      fourthShapeAdditions, fourthShapeAdditionCount: fourthShapeAdditions.length };
+    const previous = {
+      answer: '', termination: 'not_started', iterations: 0, history: [], providerAttempts: [],
+      candidateSet: { content: '', status: 'not_started', source: 'explicit_source_tools',
+        coverage, claimInventory: [] },
+      shardedReview: { schema_version: 2, mode: 'tool_investigation',
+        corpus: { corpus_sha256: corpus.corpus_sha256, targets: corpus.targets,
+          unresolved: coverage.unresolved,
+          artifacts: corpus.artifacts.map(({ content, ...artifact }) => artifact),
+          unit_manifest: corpus.unit_manifest },
+        coverage, map: [], reductions: [], candidates: [], synthesis_attempts: [] },
+    };
+    const { createExplicitContinuation } = require('./explicit-continuation');
+    const contract = createExplicitContinuation({ corpus, reviewTargets, previous,
+      maxRequestBytes, originalQuery: query });
+    return contract.finish(await continueWithTools(contract, maxCalls));
+  }
   const options = { maxTokens, toolChoice: 'none', temperature };
   let providerCallCount = 0;
   const synthesisCallReserve = Number.isFinite(callLimit) ? Math.min(4, Math.max(0, callLimit - 1)) : 0;
@@ -2285,25 +2333,6 @@ async function runExplicitTargetReview({
   const acceptedUnitIds = () => new Set(mapReceipts
     .flatMap(receipt => receipt.accepted_unit_ids || []));
   // Structured response diagnostics remain in receipts; the panel owns adjudication.
-
-  let snapshotUnresolved = [];
-  const snapshotVerifier = typeof verifySourceSnapshots === 'function'
-    ? verifySourceSnapshots
-    : corpus.repoRoot
-      ? verifyCorpusSnapshots
-      : null;
-  if (snapshotVerifier) {
-    try {
-      const result = await snapshotVerifier({ repoRoot: corpus.repoRoot, corpus });
-      snapshotUnresolved = Array.isArray(result) ? result : [];
-    } catch (error) {
-      snapshotUnresolved = [{
-        target: '<explicit_target_corpus>',
-        scope: 'source_snapshot_verification',
-        reason: `snapshot_verification_failed:${error.message}`,
-      }];
-    }
-  }
 
   const combinedUnresolved = [...corpus.unresolved, ...snapshotUnresolved, ...evidenceAbsences];
   const finalAcceptedSet = acceptedUnitIds();
