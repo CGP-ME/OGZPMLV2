@@ -1417,7 +1417,7 @@ class OGZPrimeV14Bot {
       brokerNames: ttpCutoffBrokerNames,
       brokerReconciliationEnabled: !webhookExecutionRoute,
       brokerPositionReadEnabled: isTtpStockAssetClass,
-      brokerOrderManagementEnabled: !webhookExecutionRoute,
+      brokerOrderManagementEnabled: this.config.executionMode === 'live' && !webhookExecutionRoute,
     });
 
     // REFACTOR Phase 15: TradingLoop - context with all dependencies
