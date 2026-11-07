@@ -1065,7 +1065,7 @@ class TradingLoop {
     indicators.volatility = indicators.atr ?? null;
     indicators.trend = indicators.superTrendDirection ?? null;
     let nearestFibLevel = null;
-    if (fibonacciDetector && priceHistory.length >= 30) {
+    if (fibonacciDetector) {
       const fibLevels = fibonacciDetector.update(priceHistory);
       if (fibLevels) nearestFibLevel = fibonacciDetector.getNearestLevel(price);
     }
@@ -2051,7 +2051,7 @@ class TradingLoop {
     // Fibonacci
     let fibLevels = null;
     let nearestFibLevel = null;
-    if (fibonacciDetector && priceHistory.length >= 30) {
+    if (fibonacciDetector) {
       fibLevels = fibonacciDetector.update(priceHistory);
       if (fibLevels) nearestFibLevel = fibonacciDetector.getNearestLevel(price);
     }
