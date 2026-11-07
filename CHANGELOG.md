@@ -1,3 +1,11 @@
+### 2026-11-07 — Repair the existing policy-builder check against the current configuration API
+
+Revalidated the inherited check maintenance against current ConfigLoader. The existing suite still read removed BASE_CONFIG and attempted an unconfigured default load. Use the already tracked explicitly synthetic canonical-config-snapshot and the current get('exitContracts') API. No production code, new cases, new suite or validation bypass.
+
+The same existing 22 cases ran through the required isolated launcher against pinned baseline and candidate source. Baseline: 20 passed, two failed on removed BASE_CONFIG and absent synthetic credentials. Candidate: all 22 passed. This verifies these existing policy-builder cases; it is not evidence of live trading or full runtime acceptance. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/existing-policy-check-{baseline,candidate}.log` and `existing-policy-check-delivery.json`.
+
+Reviewed the scoped test-only diff and unchanged case count. No Mercury production review requirement for this check-only delivery; earlier production changes still require their separately recorded retroactive Mercury/Astra review. No restart or activation.
+
 ### 2026-11-07 — Retain actual profit-planner absence reasons in both decision receipts
 
 Revalidated the September 23 entry-time policy requirement to carry missing legacy policy evidence into exit receipts. ExitContractManager already returns profitPlannerSkipped and profitPlannerMissing, but both TradingLoop hold-receipt producers dropped them. Delivered the existing reason propagation and carried its existing missing-field map alongside it. The actual exit decision, text details, frozen policy and trading rules are unchanged; this does not reconstruct unavailable historical policy from today's settings.

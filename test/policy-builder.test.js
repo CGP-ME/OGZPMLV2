@@ -1,5 +1,7 @@
 'use strict';
 
+require('./fixtures/canonical-config-snapshot')();
+
 const { buildPolicyHash } = require('../core/dto/FrozenExitPolicy');
 const PolicyBuilder = require('../core/PolicyBuilder');
 const ConfigLoader = require('../foundation/ConfigLoader');
@@ -366,7 +368,7 @@ describe('PolicyBuilder frozen exit policy', () => {
   });
 
   test('all base exit contracts declare structural-exit ownership explicitly', () => {
-    const contracts = ConfigLoader.BASE_CONFIG.exitContracts;
+    const contracts = ConfigLoader.get('exitContracts');
 
     for (const [strategyName, contract] of Object.entries(contracts)) {
       expect(contract).toHaveProperty('useStructuralExits');
