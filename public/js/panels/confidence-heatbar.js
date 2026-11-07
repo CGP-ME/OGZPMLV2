@@ -45,7 +45,7 @@
         return null;
     }
 
-    // Read incoming strategy list from any of the 3 supported message shapes.
+    // Keep the producer identity separate from its public display label.
     function normalizeStack(input) {
         if (!Array.isArray(input)) return [];
         return input
@@ -54,6 +54,7 @@
                 const name = s.name || s.strategyName || s.id || s.label;
                 if (!name) return null;
                 return {
+                    id: String(s.id || s.strategyName || name),
                     name: String(name),
                     confidence: normConf(s.confidence),
                     direction: directionOf(s),
@@ -251,7 +252,7 @@
         // Determine the dominant direction (from winner if known, else from top-conf entry).
         let leader = null;
         if (winnerName) {
-            leader = stack.find(s => s.name === winnerName) || null;
+            leader = stack.find(s => s.id === winnerName) || null;
         }
         if (!leader) {
             leader = [...stack].sort((a, b) => b.confidence - a.confidence)[0] || null;
@@ -261,7 +262,7 @@
         const frag = document.createDocumentFragment();
         for (const s of stack) {
             const seg = document.createElement('div');
-            const isWinner = winnerName && s.name === winnerName;
+            const isWinner = winnerName && s.id === winnerName;
             const isOpposing = leaderDir && s.direction && s.direction !== leaderDir;
             seg.className = 'hb-segment'
                 + (isWinner ? ' hb-winner' : '')
@@ -291,7 +292,8 @@
 
         if (tag) {
             if (winnerName) {
-                tag.textContent = `🏆 ${winnerName}`;
+                const winner = stack.find(s => s.id === winnerName);
+                tag.textContent = winner ? winner.name : winnerName;
                 tag.classList.add('hb-visible');
             } else {
                 tag.textContent = '';

@@ -1,3 +1,11 @@
+### 2026-11-07 — Deliver ensemble winner identity through existing dashboard rendering
+
+Revalidated the October 4 ensemble entry and current TradingLoop producer. The confidence bar discarded the strategy's stable ID and compared its public label with winner_id, losing the winner highlight and sometimes labeling it as opposing. Delivered the existing ID-preserving normalization/matching and public winner-label rendering; updated the script version in both shells that already load this panel. No layout, styling, strategy selection or confidence arithmetic was changed.
+
+Fresh isolated before/after observation executed the full actual panel registration, socket subscriptions and renderer with controlled DOM objects and synthetic producer-shaped bot_thinking/signal_analysis frames. Baseline marked Strategy-A opposing and highlighted no winner despite winner_id=RSI. Candidate highlights Strategy-A, marks Strategy-B opposing and displays the public Strategy-A label. The signal_analysis path still identifies RSI correctly. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/dashboard-heatbar-{baseline,candidate}.log` and `dashboard-heatbar-delivery.json`.
+
+Limits: controlled DOM, not a graphical browser or served-page/live-strategy observation. No browser requests, permanent test suite, backend mutation or PM2 restart. **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's delivery instruction. Static file delivery is not browser/cache verification.
+
 ### 2026-11-07 — Deliver directory-scoped reviewer search without overriding exclusions
 
 The remaining reviewer first-pass tooling edits included a concrete search producer defect: grep/regex_grep passed a directory such as src directly as a filename glob, yielding no evidence from its children. Delivered that connected tool-adapter correction: resolve an explicitly supplied directory into its recursive file pattern, report requested/effective scope, and place repository exclusion globs after the caller pattern so ripgrep precedence preserves the existing ignore policy.
