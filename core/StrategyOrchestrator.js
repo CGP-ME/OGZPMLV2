@@ -2724,23 +2724,24 @@ class StrategyOrchestrator {
       throw new Error(`[HIGH-04] regime.confidence non-finite (currentRegime=${regime.currentRegime}, got ${regime.confidence}) — RegimeDetector regression`);
     }
     const regimeConfidence = regime?.confidence ?? 0;
-    let regimeType = 'unknown';
-    if (regimeConfidence >= 0.25) {
-      if (rawRegime.includes('bull') || rawRegime.includes('uptrend') ||
-          rawRegime.includes('bear') || rawRegime.includes('downtrend') ||
-          rawRegime.includes('trending') || rawRegime.includes('momentum')) {
-        regimeType = 'trending';
-      } else if (rawRegime.includes('rang') || rawRegime.includes('sideways') ||
-                 rawRegime.includes('consolidat') || rawRegime.includes('accumulation')) {
-        regimeType = 'ranging';
-      } else if (rawRegime.includes('volat') || rawRegime.includes('chaos') ||
-                 rawRegime.includes('distribution') || rawRegime.includes('crash')) {
-        regimeType = 'volatile';
-      } else if (rawRegime.includes('dead') || rawRegime.includes('quiet') ||
-                 rawRegime.includes('low_vol') || rawRegime.includes('flat')) {
-        regimeType = 'dead';
-      }
+    let detectedRegimeType = 'unknown';
+    if (rawRegime.includes('bull') || rawRegime.includes('uptrend') ||
+        rawRegime.includes('bear') || rawRegime.includes('downtrend') ||
+        rawRegime.includes('trending') || rawRegime.includes('momentum')) {
+      detectedRegimeType = 'trending';
+    } else if (rawRegime.includes('rang') || rawRegime.includes('sideways') ||
+               rawRegime.includes('consolidat') || rawRegime.includes('accumulation')) {
+      detectedRegimeType = 'ranging';
+    } else if (rawRegime.includes('volat') || rawRegime.includes('chaos') ||
+               rawRegime.includes('distribution') || rawRegime.includes('crash')) {
+      detectedRegimeType = 'volatile';
+    } else if (rawRegime.includes('dead') || rawRegime.includes('quiet') ||
+               rawRegime.includes('low_vol') || rawRegime.includes('flat')) {
+      detectedRegimeType = 'dead';
     }
+
+    // Keep the existing confidence floor for boosts; entry eligibility has its own canonical threshold.
+    const regimeType = regimeConfidence >= 0.25 ? detectedRegimeType : 'unknown';
 
     const boosts = regimeBoosts[regimeType] || {};
     const regimePositionMultiplier = boosts._positionSizeMultiplier || 1.0;
@@ -2748,14 +2749,14 @@ class StrategyOrchestrator {
     const trendRegimeGate = getTrendRegimeGateConfig();
     const trendRegimeDropped = [];
     if (trendRegimeGate.enabled && results.length > 0) {
-      const trendRegimePassed = regimeType === 'trending' && regimeConfidence >= trendRegimeGate.minConfidence;
+      const trendRegimePassed = detectedRegimeType === 'trending' && regimeConfidence >= trendRegimeGate.minConfidence;
       for (let i = results.length - 1; i >= 0; i -= 1) {
         const result = results[i];
         if (!trendRegimeGate.strategies.has(result.strategyName)) continue;
         addDecisionContributor(result, {
           name: 'trend_regime_entry_eligibility',
           type: 'gate',
-          regimeType,
+          regimeType: detectedRegimeType,
           rawRegime,
           regimeConfidence,
           minConfidence: trendRegimeGate.minConfidence,
@@ -2765,9 +2766,9 @@ class StrategyOrchestrator {
         filteredResults.push({
           ...result,
           rejectedBy: 'trend_regime_entry_eligibility',
-          rejectReason: `trend strategy requires trending regime; got ${regimeType}`,
+          rejectReason: `trend strategy requires trending regime with confidence >= ${trendRegimeGate.minConfidence}; got ${detectedRegimeType} at ${regimeConfidence}`,
         });
-        trendRegimeDropped.push(`${result.strategyName}:${result.direction}:${regimeType}`);
+        trendRegimeDropped.push(`${result.strategyName}:${result.direction}:${detectedRegimeType}`);
         results.splice(i, 1);
       }
       if (this.strategyDiagnostics && trendRegimeDropped.length > 0) {
