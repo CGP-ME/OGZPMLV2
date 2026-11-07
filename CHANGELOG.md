@@ -1,3 +1,11 @@
+### 2026-11-07 — Deliver supplied decision reasons and percentage confidence
+
+Revalidated the October 4 decision-panel entry against TradingLoop's current signal_analysis producer. The panel read absent top-level descriptions instead of signal.reasons and guessed confidence units, so a true 1% rendered as 100%. Delivered the existing consumer correction: show each supplied nonblank reason, retain the supplied symbol, and interpret these producers' confidence as percentage. Invalid confidence stays absent. Updated the script version only in the v2 shell that actually loads this panel; no new frontend or invented explanations.
+
+Fresh isolated before/after observation ran actual handlers, addLine and renderLine. Baseline omitted all three supplied reasons and rendered the bot-thinking fixture confidence as 100%; candidate retained all three verbatim reasons with TSLA/1%, retained AAPL/1% on bot thinking, and omitted the invalid confidence badge. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/dashboard-reasons-{baseline,candidate}.log` and `dashboard-reasons-delivery.json`.
+
+Limits: synthetic producer-shaped frames and controlled DOM; fixture-only closure exports leave production logic unchanged. No mounting, graphical browser, served-page, model, full internal-trace or live-strategy claim. No permanent suite, trading/config changes or PM2 restart. **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's delivery instruction. Static file delivery is not browser/cache verification.
+
 ### 2026-11-07 — Deliver ensemble winner identity through existing dashboard rendering
 
 Revalidated the October 4 ensemble entry and current TradingLoop producer. The confidence bar discarded the strategy's stable ID and compared its public label with winner_id, losing the winner highlight and sometimes labeling it as opposing. Delivered the existing ID-preserving normalization/matching and public winner-label rendering; updated the script version in both shells that already load this panel. No layout, styling, strategy selection or confidence arithmetic was changed.

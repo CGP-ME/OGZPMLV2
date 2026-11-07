@@ -435,6 +435,14 @@
         return n > 1 ? n / 100 : n;
     }
 
+    function percentageConfidence(value) {
+        // Both TradingLoop and TRAIDecisionModule emit percentage confidence.
+        if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return undefined;
+        const n = Number(value);
+        if (!isFinite(n) || n < 0 || n > 100) return undefined;
+        return n / 100;
+    }
+
     function renderLine(line) {
         const el = document.createElement('div');
         el.className = `cot-line ${line.level || 'info'}`;
@@ -651,24 +659,24 @@
             if (!text) return;
 
             ChainOfThought.addLine(text, {
+                symbol: data.symbol,
                 level: 'decision',
-                confidence: data.confidence,
+                confidence: percentageConfidence(data.confidence),
             });
         } catch (_) { /* swallow */ }
     }
 
     function onSignalAnalysis(data) {
-        try {
-            if (!data) return;
-            const text = data.description || data.analysis;
-            if (!text) return;
-
-            ChainOfThought.addLine(String(text), {
-                symbol: data.symbol || data.ticker,
-                confidence: data.confidence,
+        const signal = data && data.signal;
+        if (!signal || !Array.isArray(signal.reasons)) return;
+        for (const text of signal.reasons) {
+            if (typeof text !== 'string' || !text.trim()) continue;
+            ChainOfThought.addLine(text, {
+                symbol: signal.symbol,
+                confidence: percentageConfidence(signal.confidence),
                 level: 'decision',
             });
-        } catch (_) { /* swallow */ }
+        }
     }
 
     function onWatchlistSelect(data) {
