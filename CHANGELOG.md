@@ -1,3 +1,11 @@
+### 2026-11-07 — Deliver Trey's full-changelog indexing instruction
+
+The October 4 changelog entry records Trey's explicit instruction to remove the 800-line cutoff. That two-file source change remained uncommitted. Delivered removal of the cutoff and unused CHANGELOG_RECENT_LINES export, plus the root CHANGELOG.md exception to the generic file-size exclusion. Other files, ignore policy, chunking and provider batching retain their existing behavior.
+
+Fresh isolated observation used the actual walker and processFile on the pinned committed changelog (1,168,318 bytes / 9,739 split lines). Baseline walker excluded it entirely at the 500,000-byte limit; direct baseline processFile also truncated history, omitted the final entry and hashed the shortened text. Candidate includes it, produces 1,800 chunks through the final source line, retains the final entry and assigns the full-source hash to every chunk. An oversized unrelated Markdown file and ignored inbox copy remain excluded. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/changelog-history-{baseline,candidate}.log` and `changelog-history-delivery.json`.
+
+Limits: source walking/chunk production only. Zero embedding/database calls; no rebuild, publication, freshness or answer-use claim. Historical entries still require interpretation against current code/doctrine and dates. No permanent tests, new default, service restart or runtime activation. **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's current delivery instruction while reviewers are unavailable.
+
 ### 2026-11-07 — Deliver subscription reviewer child-environment isolation
 
 Revalidated the October 17 reviewer-repair entry. The challenger copied the parent's deployment environment and removed only five named variables, leaving unrelated credentials and model-routing variables in its subscription child. Delivered the existing explicit OS/auth-location/proxy/certificate environment selection, retaining fixed PATH and response-model tracing. Its invocation receipt now identifies execution UID, cwd and auth-home locations. Parent environment, credential files, canonical model and authentication method are unchanged.

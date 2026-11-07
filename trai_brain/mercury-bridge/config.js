@@ -536,10 +536,6 @@ const PROVIDER_PRICING = Object.freeze({
 // ─── Skip patterns ────────────────────────────────────────────
 // Directory exclusions live in mercury.ignore so intake/history boundaries are
 // visible and shared by the indexer, Mercury grep, and legacy repo search.
-// CHANGELOG.md recency window: only the newest N lines are indexed
-// (newest-first file; Mercury has no temporal reasoning over chunks).
-const CHANGELOG_RECENT_LINES = 800;
-
 const SKIP_FILE_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico',
   '.pdf', '.zip', '.gz', '.tar', '.rar', '.7z',
@@ -676,7 +672,6 @@ module.exports = {
   TEST_FIXTURE_DIRS,
   SKIP_FILE_EXTENSIONS,
   SKIP_FILE_PATTERNS,
-  CHANGELOG_RECENT_LINES,
   INDEX_FILE_EXTENSIONS,
   MERCURY_SYSTEM_PROMPT,
   isTestFixturePath,
