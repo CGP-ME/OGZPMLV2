@@ -40,9 +40,11 @@ let metrics = {
   }
 };
 
+let hasSavedMetrics = false;
 if (fs.existsSync(metricsFile)) {
   try {
     metrics = JSON.parse(fs.readFileSync(metricsFile, 'utf8'));
+    hasSavedMetrics = true;
   } catch (e) {
     console.log('⚠️ Could not load metrics file');
   }
@@ -67,7 +69,8 @@ if (fs.existsSync(telemetryFile)) {
       recentEvents.push(event);
       if (recentEvents.length > 10) recentEvents.shift();
 
-      // Update metrics based on events
+      // Derive a report only when no writer snapshot was loaded.
+      if (!hasSavedMetrics) {
       switch(event.type) {
         case 'pattern_detected':
           metrics.patterns.detected++;
@@ -90,6 +93,7 @@ if (fs.existsSync(telemetryFile)) {
         case 'candle_processed':
           metrics.performance.candlesProcessed++;
           break;
+      }
       }
     } catch (e) {
       // Skip malformed lines
@@ -137,8 +141,7 @@ if (fs.existsSync(telemetryFile)) {
     console.log(`  [${time}] ${event.type}${event.confidence ? ` (conf: ${(event.confidence * 100).toFixed(1)}%)` : ''}`);
   });
 
-  // Save updated metrics
-  fs.writeFileSync(metricsFile, JSON.stringify(metrics, null, 2));
+  // Reporting never writes back into the telemetry writer's snapshot.
 
 } else {
   console.log('❌ No telemetry file found at:', telemetryFile);
