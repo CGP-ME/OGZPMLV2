@@ -54,11 +54,12 @@ if (fs.existsSync(metricsFile)) {
 if (fs.existsSync(telemetryFile)) {
   const lines = fs.readFileSync(telemetryFile, 'utf8').split('\n').filter(l => l);
 
-  console.log(`📁 Processing ${lines.length} telemetry events...\n`);
+  console.log(`Reading ${lines.length} telemetry lines...\n`);
 
   // Count event types
   const eventCounts = {};
   const recentEvents = [];
+  let unprocessedLines = 0;
 
   lines.forEach(line => {
     try {
@@ -96,9 +97,13 @@ if (fs.existsSync(telemetryFile)) {
       }
       }
     } catch (e) {
-      // Skip malformed lines
+      unprocessedLines++;
     }
   });
+
+  if (unprocessedLines > 0) {
+    console.log(`${unprocessedLines} telemetry lines could not be fully processed; report may be incomplete.`);
+  }
 
   // Calculate derived metrics
   if (metrics.trades.total > 0) {
