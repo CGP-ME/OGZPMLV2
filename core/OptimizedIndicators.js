@@ -34,6 +34,7 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 
 const INDICATORS_UNAVAILABLE = 'indicators_unavailable';
 function finiteNumberOrNull(value) {
+  if (value === null) return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
 }
@@ -455,7 +456,7 @@ class OptimizedIndicators {
     const votes = [];
 
     // RSI votes
-    if (marketData.rsi) {
+    if (Number.isFinite(marketData.rsi)) {
       votes.push(...this.getRSIVotes(marketData.rsi));
     }
 

@@ -117,9 +117,9 @@ describe('PineTALib TradingView goldens — RSI', () => {
     expect(PineTALib.rsi(series, length)).toBeCloseTo(tvReference, 10);
   });
 
-  test('rsi preserves the shared neutral warmup contract', () => {
-    // Lane 8's shared module deliberately returns neutral 50 until period+1 closes exist.
-    expect(PineTALib.rsi([10, 11, 12], 3)).toBe(50);
+  test('rsi preserves unavailable evidence until the Wilder seed exists', () => {
+    // Trey doctrine: unavailable evidence is null, never a fabricated neutral reading.
+    expect(PineTALib.rsi([10, 11, 12], 3)).toBeNull();
   });
 });
 

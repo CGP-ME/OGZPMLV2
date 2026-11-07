@@ -344,8 +344,8 @@ class MultiTimeframeAdapter extends EventEmitter {
       overallBias: 'neutral',
       confluenceScore: null,
       confidence: null,
-      rsiAverage: 0,
-      rsiExtreme: false,
+      rsiAverage: null,
+      rsiExtreme: null,
       trendAlignment: 0,
       timeframeSignals: {},
       shouldTrade: null,
@@ -419,7 +419,7 @@ class MultiTimeframeAdapter extends EventEmitter {
       analysis.timeframeSignals[tf] = {
         signal: signal > ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.directionThreshold') ? 'bullish' : signal < -ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.directionThreshold') ? 'bearish' : 'neutral',
         strength: Math.abs(signal),
-        rsi: ind.rsi ? Math.round(ind.rsi * 10) / 10 : null,
+        rsi: ind.rsi === null ? null : Math.round(ind.rsi * 10) / 10,
         trend: ind.trend,
         weight,
       };

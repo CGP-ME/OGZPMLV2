@@ -75,7 +75,7 @@ class IndicatorCalculator {
    * Calculate Relative Strength Index using Wilder smoothing.
    * @param {Array} candles - Array of OHLCV candles
    * @param {number} period - RSI period (default: 14)
-   * @returns {number} RSI value (0-100)
+   * @returns {number|null} RSI value (0-100), or null when unavailable
    */
   static calculateRSI(candles, period = 14) {
     return this.calculateWilderRSI(candles, period);
@@ -87,7 +87,7 @@ class IndicatorCalculator {
    */
   static calculateWilderRSI(candles, period = 14) {
     if (!candles || candles.length < period + 1) {
-      return 50; // Neutral until warm.
+      return null; // No RSI exists until the Wilder seed is available.
     }
     const closes = candles.map(candle => _c(candle));
     return this.calculateWilderRSIFromCloses(closes, period);
@@ -95,12 +95,12 @@ class IndicatorCalculator {
 
   static calculateWilderRSIFromCloses(closes, period = 14) {
     if (!Array.isArray(closes) || closes.length < period + 1) {
-      return 50; // Neutral until warm.
+      return null; // No RSI exists until the Wilder seed is available.
     }
 
     const normalizedPeriod = Number(period);
     if (!Number.isInteger(normalizedPeriod) || normalizedPeriod <= 0 || closes.length < normalizedPeriod + 1) {
-      return 50;
+      return null;
     }
 
     let avgGain = 0;
