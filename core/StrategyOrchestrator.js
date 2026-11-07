@@ -2741,7 +2741,7 @@ class StrategyOrchestrator {
     }
 
     // Keep the existing confidence floor for boosts; entry eligibility has its own canonical threshold.
-    const regimeType = regimeConfidence >= 0.25 ? detectedRegimeType : 'unknown';
+    const regimeType = regimeConfidence >= ConfigLoader.get('strategyBehavior.regimeBoostMinConfidence') ? detectedRegimeType : 'unknown';
 
     const boosts = regimeBoosts[regimeType] || {};
     const regimePositionMultiplier = boosts._positionSizeMultiplier || 1.0;

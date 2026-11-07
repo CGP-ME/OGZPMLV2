@@ -2535,6 +2535,7 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'strategyBehavior.regimeBoostMinConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'Regime boost minimum confidence', effect: 'next_strategy_evaluation' },
   'orchestrator.minCandlesSmartMoneySweep': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Smart money sweep wrapper minimum candles', effect: 'next_orchestrator_restart' },
   'strategies.SmartMoneySweep.minimumHistoryBars': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Smart money sweep module minimum history', effect: 'next_SmartMoneySweep_observation_and_entry_evaluation' },
   'fibonacci.minimumHistoryCandles': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Fibonacci minimum history candles', effect: 'next_fibonacci_detector_initialization_restart_required' },

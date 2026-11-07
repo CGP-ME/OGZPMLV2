@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 17,
+  "revision": 18,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7
@@ -3130,6 +3130,7 @@
     }
   },
   "strategyBehavior": {
+    "regimeBoostMinConfidence": 0.25,
     "trendRegimeGate": {
       "enabled": false,
       "minConfidence": 0.25,
