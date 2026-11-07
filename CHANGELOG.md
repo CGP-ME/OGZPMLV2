@@ -1,3 +1,9 @@
+### 2026-11-07 — Deliver compact duplicate scanner/reference context without dropping evidence
+
+The October 18 compact-evidence transport work left two expanded AST/reference sections pretty-printed while their parallel prompt sections were already compact. Delivered the remaining two serialization changes so indentation no longer consumes the configured review request envelope. All fields, arrays and source metadata remain present; request limits are unchanged.
+
+Isolated evaluation of the actual two serialization expressions with labeled synthetic scanner/reference objects produced JSON-identical content before/after: 9076 bytes became 4714 bytes for each sample. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/context-json-{baseline,candidate}.log` and `context-json-delivery.json`. This is serialization evidence, not a scanner/model integration or reasoning claim. No permanent tests, configuration change, new gate, restart or activation. **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's delivery instruction.
+
 ### 2026-11-07 — Repair the existing policy-builder check against the current configuration API
 
 Revalidated the inherited check maintenance against current ConfigLoader. The existing suite still read removed BASE_CONFIG and attempted an unconfigured default load. Use the already tracked explicitly synthetic canonical-config-snapshot and the current get('exitContracts') API. No production code, new cases, new suite or validation bypass.

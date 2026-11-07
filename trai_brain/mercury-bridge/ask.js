@@ -679,7 +679,7 @@ async function buildCurrentChangeBlastRadius({
           truncated: !!(result && result.truncated),
         });
         sections.push(`## find_references ${name}\n${JSON.stringify(result)}`);
-        expandedSections.push({ kind: 'find_references', target: name, content: JSON.stringify(result, null, 2) });
+        expandedSections.push({ kind: 'find_references', target: name, content: JSON.stringify(result) });
       }
     } catch (err) {
       errors.push({ symbol: name, error: err.message });
@@ -713,7 +713,7 @@ async function buildCurrentChangeBlastRadius({
         if (!parsed.has(file)) errors.push({ file, error: 'discovered_source_ast_unavailable' });
       }
       sections.push(`## PARSER CAPTURE\n${JSON.stringify(ast)}`);
-      expandedSections.push({ kind: 'ast', target: '<discovered_syntax>', content: JSON.stringify(ast, null, 2) });
+      expandedSections.push({ kind: 'ast', target: '<discovered_syntax>', content: JSON.stringify(ast) });
     } catch (error) {
       errors.push({ file: '<discovered_syntax>', error: error.message });
     }
