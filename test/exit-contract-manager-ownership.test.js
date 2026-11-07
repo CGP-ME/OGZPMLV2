@@ -1,7 +1,26 @@
 'use strict';
 
+require('./fixtures/canonical-config-snapshot')();
+
 const { ExitContractManager } = require('../core/ExitContractManager');
 const { freezePolicy } = require('../core/dto/FrozenExitPolicy');
+
+
+// Unit fixture seam only: current getter contract, no retired mutable config API.
+function installConfigFixture(overrides) {
+  const C = require('../foundation/ConfigLoader');
+  const actualGet = C.get.bind(C), actualTimeframe = C.getTimeframeConfig.bind(C);
+  const getAt = (value, key) => key.split('.').reduce((v, part) => v?.[part], value);
+  const spy = jest.spyOn(C, 'get').mockImplementation((key, fallback) => {
+    const value = getAt(overrides, key);
+    if (value === undefined) return actualGet(key, fallback);
+    const original = actualGet(key, fallback);
+    return value && typeof value === 'object' && !Array.isArray(value) ? { ...original, ...value } : value;
+  });
+  const tfSpy = overrides.timeframeConfig ? jest.spyOn(C, 'getTimeframeConfig').mockImplementation(tf => ({ ...actualTimeframe(tf), ...overrides.timeframeConfig[tf] })) : null;
+  return () => { tfSpy?.mockRestore(); spy.mockRestore(); };
+}
+afterEach(() => jest.restoreAllMocks());
 
 describe('ExitContractManager exit ownership contract', () => {
   const exitContract = (overrides = {}) => ({
@@ -122,7 +141,7 @@ describe('ExitContractManager exit ownership contract', () => {
   test('all configured exit contracts carry the Lane 5 mode schema explicitly', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
     const requiredKeys = ['stopType', 'trailType', 'tpMode', 'maxHoldMode', 'partialExit', 'profitManagement'];
-    const missing = Object.entries(ConfigLoader.BASE_CONFIG.exitContracts)
+    const missing = Object.entries(ConfigLoader.get('exitContracts'))
       .flatMap(([strategyName, contract]) => (
         requiredKeys
           .filter(key => !Object.prototype.hasOwnProperty.call(contract, key))
@@ -168,8 +187,8 @@ describe('ExitContractManager exit ownership contract', () => {
 
   test('births strategy exit geometry from the selected timeframe contract', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
-    ConfigLoader.BASE_CONFIG.exitContracts.TimeframeExitProbe = {
-      ...ConfigLoader.BASE_CONFIG.exitContracts.default,
+    const contractFixture = {
+      ...ConfigLoader.get('exitContracts').default,
       strategyName: 'TimeframeExitProbe',
       stopLossPercent: -0.5,
       takeProfitPercent: 1.2,
@@ -190,6 +209,7 @@ describe('ExitContractManager exit ownership contract', () => {
     };
 
     const manager = new ExitContractManager();
+    const restoreFixture = installConfigFixture({ exitContracts: { TimeframeExitProbe: contractFixture } });
     const oneHour = manager.createExitContract('TimeframeExitProbe', {}, { timeframe: '1h', volatility: 1 });
     const fifteenMinute = manager.createExitContract('TimeframeExitProbe', {}, { timeframe: '15m', volatility: 1 });
 
@@ -213,13 +233,13 @@ describe('ExitContractManager exit ownership contract', () => {
       timeframe: '15m',
     }));
 
-    delete ConfigLoader.BASE_CONFIG.exitContracts.TimeframeExitProbe;
+    restoreFixture();
   });
 
   test('does not let generic timeframe defaults clobber a locked strategy contract', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
     const manager = new ExitContractManager();
-    const baseContract = ConfigLoader.BASE_CONFIG.exitContracts.EMASMACrossover;
+    const baseContract = ConfigLoader.get('exitContracts').EMASMACrossover;
 
     const contract = manager.createExitContract('EMASMACrossover', {}, { timeframe: '1h', volatility: 1 });
 
@@ -235,11 +255,12 @@ describe('ExitContractManager exit ownership contract', () => {
     expect(contract.stopLossPercent).not.toBe(-2.5);
   });
 
-  test('honors runtime per-timeframe exit geometry overrides at trade birth', () => {
+  test('honors configured per-timeframe exit geometry at trade birth', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
-    ConfigLoader.setOverrides({
+    const restoreFixture = installConfigFixture({
       exitContracts: {
         RuntimeTimeframeExitProbe: {
+          ...ConfigLoader.get('exitContracts.default'),
           strategyName: 'RuntimeTimeframeExitProbe',
           timeframes: {
             '1h': {
@@ -268,13 +289,13 @@ describe('ExitContractManager exit ownership contract', () => {
         timeframe: '1h',
       }));
     } finally {
-      ConfigLoader.clearOverrides();
+      restoreFixture();
     }
   });
 
-  test('refuses runtime overrides that turn Donchian structural exits into percent exits', () => {
+  test('refuses configured Donchian geometry that replaces structural exits with percent exits', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
-    ConfigLoader.setOverrides({
+    const restoreFixture = installConfigFixture({
       exitContracts: {
         DonchianBreakout: {
           stopType: 'percent',
@@ -288,13 +309,13 @@ describe('ExitContractManager exit ownership contract', () => {
       expect(() => manager.createExitContract('DonchianBreakout', {}, { timeframe: '15m', volatility: 1 }))
         .toThrow(/DonchianBreakout contract must remain structural\/channel\/tp-off\/maxHold-off/);
     } finally {
-      ConfigLoader.clearOverrides();
+      restoreFixture();
     }
   });
 
-  test('honors runtime timeframeConfig overrides for generic strategy contracts', () => {
+  test('honors configured timeframe geometry for generic strategy contracts', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
-    ConfigLoader.setOverrides({
+    const restoreFixture = installConfigFixture({
       timeframeConfig: {
         '1h': {
           slPct: 0.031,
@@ -318,7 +339,7 @@ describe('ExitContractManager exit ownership contract', () => {
         timeframe: '1h',
       }));
     } finally {
-      ConfigLoader.clearOverrides();
+      restoreFixture();
     }
   });
 
@@ -326,7 +347,7 @@ describe('ExitContractManager exit ownership contract', () => {
     const manager = new ExitContractManager();
 
     expect(() => manager.createExitContract('RuntimeGenericTimeframeProbe', {}, { timeframe: '2h', volatility: 1 }))
-      .toThrow(/Unknown timeframeConfig '2h'; refusing 15m fallback/);
+      .toThrow(/Unknown timeframeConfig '2h'/);
   });
 
   test('routes profit-side exits through the stateless planner after safety checks', () => {
@@ -398,9 +419,9 @@ describe('ExitContractManager exit ownership contract', () => {
     expect(result.details).toContain('missing valid direction');
   });
 
-  test('uses global ATR trail multiplier when contract trailAtrMult is explicitly null', () => {
+  test('uses entry-frozen ATR trail multiplier when contract trailAtrMult is explicitly null', () => {
     const manager = new ExitContractManager();
-    manager.trailConfig = {
+    const entryTrail = {
       enabled: true,
       minActivationPercent: 1,
       atrMultiplier: 2,
@@ -413,16 +434,17 @@ describe('ExitContractManager exit ownership contract', () => {
       structureDistanceThreshold: null,
       structureTightenMultiplier: null,
     };
+    const entryContract = exitContract({ trailType: 'atr', trailAtrMult: null, atrPeriod: 14 });
     const trade = profitTrade({
-      exitContract: exitContract({
-        trailType: 'percent',
-        trailAtrMult: null,
-      }),
+      exitContract: entryContract,
+      frozenExitPolicy: frozenPolicyWithContract(entryContract, { trail: entryTrail }),
       highestPrice: 110,
       currentStop: 95,
     });
+    manager.trailConfig = { ...entryTrail, enabled: false, atrMultiplier: 999 }; // Today's defaults cannot replace entry ownership.
 
     const result = manager._updateTrailingStopState(trade, 110, 5, {
+      priceHistory: Array.from({ length: 30 }, (_, i) => ({ o: 100, h: 102, l: 99, c: 101, v: 10, t: i * 60000 })),
       indicators: { atr: 1 },
     });
 

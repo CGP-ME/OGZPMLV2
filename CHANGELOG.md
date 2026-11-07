@@ -1,3 +1,11 @@
+### 2026-11-07 — Repair existing exit-ownership checks for current entry-policy APIs
+
+Revalidated the inherited D14 maintenance. Existing exit-ownership cases referenced removed mutable ConfigLoader APIs and a retired manager-level trail setting. Updated those same cases to the existing synthetic snapshot/current getter contract and entry-frozen trail owner. Test-only scoped getter spies remain explicitly fixture seams; no production reader or trading behavior was changed, and no test case was added.
+
+Required isolated before/after execution ran the same 22 existing cases: baseline 9 passed/13 failed; candidate 22 passed. This restores the current contract checks, not proof of live fills, real persistence or complete SessionRouter operation. Earlier delivery entries separately record actual producer/persistence observations. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/existing-exit-check-{baseline,candidate}.log` and `existing-exit-check-delivery.json`.
+
+Reviewed the scoped check-only diff and unchanged case count. No Mercury production review requirement for this non-production delivery; the related production retroactive reviews remain pending. No restart or activation.
+
 ### 2026-11-07 — Deliver compact duplicate scanner/reference context without dropping evidence
 
 The October 18 compact-evidence transport work left two expanded AST/reference sections pretty-printed while their parallel prompt sections were already compact. Delivered the remaining two serialization changes so indentation no longer consumes the configured review request envelope. All fields, arrays and source metadata remain present; request limits are unchanged.
