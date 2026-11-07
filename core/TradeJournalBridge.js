@@ -323,6 +323,14 @@ function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
   };
 }
 
+function timestampOrNull(value) {
+  const numeric = finiteNumberOrNull(value);
+  if (numeric !== null) return numeric;
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalizeClosedTradeRecord(exitRecord) {
   const missing = [];
   const orderId = nonEmptyStringOrNull(exitRecord?.id)
@@ -339,6 +347,7 @@ function normalizeClosedTradeRecord(exitRecord) {
   const maxProfit = finiteNumberOrNull(exitRecord?.maxProfit ?? exitRecord?.maxProfitPercent);
   const balance = finiteNumberOrNull(exitRecord?.balance ?? exitRecord?.balanceAfter);
   const symbol = nonEmptyStringOrNull(exitRecord?.symbol);
+  const exitTimestamp = timestampOrNull(exitRecord?.exitTimestamp ?? exitRecord?.exitTime ?? exitRecord?.timestamp);
 
   if (!orderId) missing.push('orderId');
   if (!symbol) missing.push('symbol');
@@ -366,6 +375,7 @@ function normalizeClosedTradeRecord(exitRecord) {
       size,
       maxProfit,
       balance,
+      exitTimestamp,
     },
   };
 }
@@ -466,10 +476,17 @@ function resolveJournalScope(bot) {
   }, 'TradeJournalBridge.dataDir');
 }
 
-function resolveReplayPriceHistory(bot, symbol) {
+function resolveReplayPriceHistory(bot, symbol, timeframe) {
   const tradeSymbol = nonEmptyStringOrNull(symbol);
   if (!tradeSymbol) {
     return { ok: false, reason: 'missing_symbol', source: null, priceHistory: null };
+  }
+
+  if (typeof bot?.getSymbolTimeframeContext === 'function') {
+    const frame = nonEmptyStringOrNull(timeframe);
+    const ctx = frame ? bot.getSymbolTimeframeContext(tradeSymbol, frame) : null;
+    const history = Array.isArray(ctx?.priceHistory) ? ctx.priceHistory : null;
+    return { ok: !!(history && history.length), reason: history?.length ? null : 'trade_timeframe_history_unavailable', source: 'symbol_timeframe_context', symbol: tradeSymbol, timeframe: frame, priceHistory: history };
   }
 
   const symbolContexts = bot?.symbolContexts;
@@ -613,6 +630,32 @@ class TradeJournalBridge {
     return this._journalBundles ? Array.from(this._journalBundles.values()) : [{ journal: this.journal, replay: this.replay, scope: this.journal?.scope || null }];
   }
 
+  recordClosedCandle(candle) {
+    const scope = normalizePatternScope(candle, 'TradeJournalBridge.recordClosedCandle');
+    if (!scope.ok) return 0;
+    const bundle = this._journalBundles?.get(scope.scopeKey);
+    if (!bundle?.replay) return 0;
+    const result = bundle.replay.capturePostExitCandle(candle, scope);
+    for (const failure of result.failures) {
+      TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_post_exit_replay_persistence_failed', {
+        phase: 'post_exit',
+        source: 'TradeReplayCapture.capturePostExitCandle',
+        scope: failure.scope,
+        orderId: failure.orderId,
+        message: failure.message,
+        context: {
+          code: failure.code,
+          candleStart: candle.t,
+          candleEnd: candle.etime,
+          capturedCandles: failure.capturedCandles,
+          persistedCandles: failure.persistedCandles,
+          requestedCandles: failure.requestedCandles,
+        },
+      });
+    }
+    return result.captured;
+  }
+
 
   // ════════════════════════════════════════════════════════════════════════
   // TRADE EVENT WIRING
@@ -721,7 +764,7 @@ class TradeJournalBridge {
             });
           }
 
-          const replayPriceHistory = resolveReplayPriceHistory(bot, entryData.symbol);
+          const replayPriceHistory = resolveReplayPriceHistory(bot, entryData.symbol, entryData.timeframe);
           if (!replayPriceHistory.ok) {
             TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_replay_missing', {
               ...failureContext,
@@ -756,8 +799,9 @@ class TradeJournalBridge {
               confluence: entryData.confluence,
               positionSizing: entryData.positionSizing,
               exitContract: entryData.exitContract,
-              riskGates: entryData.riskGates
-            }, replayPriceHistory.priceHistory);
+              riskGates: entryData.riskGates,
+              timestamp: entryData.timestamp
+            }, replayPriceHistory.priceHistory, bundle.scope);
             if (!replayEntry) {
               TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_replay_missing', {
                 ...failureContext,
@@ -1050,6 +1094,8 @@ class TradeJournalBridge {
       return false;
     }
 
+    const progress = this._closedTradeProgress?.get(closeKey) || { journalExit: null, replayPath: null, notification: null };
+
     try {
       const bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId);
       if (!bundle?.journal || !bundle?.replay) {
@@ -1063,7 +1109,8 @@ class TradeJournalBridge {
         });
         return false;
       }
-      const journalExit = bundle.journal.recordExit({
+      const journalWriteAttempted = !progress.journalExit;
+      const journalExit = progress.journalExit || bundle.journal.recordExit({
         orderId: data.orderId,
         exitPrice: data.exitPrice,
         reason: data.reason,
@@ -1085,7 +1132,7 @@ class TradeJournalBridge {
           message: 'TradeJournal.recordExit returned null',
           context: { exitRecord: compactTradeRecord(exitRecord) },
         });
-      } else {
+      } else if (journalWriteAttempted) {
         TradeJournalBridge.prototype._recordJournalPersistenceSuccess.call(this, {
           phase: 'exit',
           source,
@@ -1095,9 +1142,14 @@ class TradeJournalBridge {
         });
       }
 
-      const replayPriceHistory = resolveReplayPriceHistory(this.bot, data.symbol || bundle.scope?.symbol);
-      let replayPath = null;
-      if (!replayPriceHistory.ok) {
+      if (journalExit) progress.journalExit = journalExit;
+
+      let replayPath = progress.replayPath;
+      // A persisted partial journal leg does not complete the trade replay.
+      let replayTerminal = journalExit?.partialExit === true;
+      if (!replayPath && !replayTerminal) {
+      const replayPriceHistory = resolveReplayPriceHistory(this.bot, data.symbol || bundle.scope?.symbol, bundle.scope?.timeframe);
+      if (!replayPriceHistory.ok && bundle.replay.pendingEntries.has(data.orderId)) {
         TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_replay_missing', {
           phase: 'exit',
           source,
@@ -1109,8 +1161,8 @@ class TradeJournalBridge {
             replayPriceHistory: replayPriceHistory,
           },
         });
-      } else {
-        replayPath = bundle.replay.captureExit(data.orderId, {
+      } else if (!replayPath) {
+        const replayResult = bundle.replay.captureExitResult(data.orderId, {
           price: data.exitPrice,
           exitPrice: data.exitPrice,
           entryPrice: data.entryPrice,
@@ -1118,30 +1170,47 @@ class TradeJournalBridge {
           pnl: data.pnl,
           pnlPercent: data.pnlPercent,
           holdTime: data.holdTime,
+          exitTimestamp: data.exitTimestamp,
           direction: data.direction,
           size: data.size
         }, replayPriceHistory.priceHistory);
+        replayPath = replayResult.path;
+        replayTerminal = replayResult.status === 'unavailable';
         if (!replayPath) {
           TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_replay_missing', {
             phase: 'exit',
             source,
             orderId: data.orderId,
             action: exitActionOrNull(exitRecord, data),
-            message: 'TradeReplayCapture.captureExit returned null',
+            message: `TradeReplayCapture exit ${replayResult.status}: ${replayResult.reason}`,
             context: {
               exitRecord: compactTradeRecord(exitRecord),
               replayPriceHistory: {
                 ok: replayPriceHistory.ok,
                 source: replayPriceHistory.source,
                 symbol: replayPriceHistory.symbol,
-                priceHistoryLength: replayPriceHistory.priceHistory.length,
+                priceHistoryLength: Array.isArray(replayPriceHistory.priceHistory) ? replayPriceHistory.priceHistory.length : null,
               },
             },
           });
         }
       }
 
-      this._pushTradeClosedNotification(data.orderId, data, replayPath, { journalRecorded: !!journalExit });
+      }
+
+      if (replayPath) progress.replayPath = replayPath;
+      // Preserve completed channel receipts before fallible ancillary delivery.
+      if (journalExit || replayPath) {
+        this._closedTradeProgress ??= new Map();
+        this._closedTradeProgress.set(closeKey, progress);
+      }
+      const notification = JSON.stringify([!!journalExit, replayPath]);
+      if (progress.notification !== notification) {
+        this._pushTradeClosedNotification(data.orderId, data, replayPath, { journalRecorded: !!journalExit });
+        progress.notification = notification;
+      }
+      if (!journalExit || (!replayPath && !replayTerminal)) return false;
+      this._closedTradeProgress?.delete(closeKey);
       this._closedTradeLogKeySet.add(closeKey);
       this._closedTradeLogKeys.push(closeKey);
       if (this._closedTradeLogKeys.length > ConfigLoader.getInternalsFileValue('journal.bridgePolicy.closedTradeLogKeyLimit')) {
@@ -1168,7 +1237,7 @@ class TradeJournalBridge {
 
   _recordVisibilityFailure(eventType, details = {}) {
     const timestamp = new Date().toISOString();
-    const scope = this.journal?.scope || null;
+    const scope = Object.hasOwn(details, 'scope') ? details.scope : (this.journal?.scope || null);
     const filepath = this.visibilityFailurePath
       || (this.journal?.paths?.dir ? path.join(this.journal.paths.dir, 'trade-visibility-failures.jsonl') : null);
     const fallbackPath = this.visibilityFailureFallbackPath

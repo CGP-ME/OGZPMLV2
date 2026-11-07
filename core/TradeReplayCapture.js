@@ -31,6 +31,7 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 const fs = require('fs');
 const { c, o, h, l, v, t } = require('./CandleHelper');
 const path = require('path');
+const { normalizePatternScope } = require('./PatternScope');
 
 function finiteNumberOrNull(value) {
   if (value === null || value === undefined || typeof value === 'boolean') return null;
@@ -73,6 +74,28 @@ function firstNonEmptyString(...values) {
   return null;
 }
 
+function copyClosedCandle(candle) {
+  const timestamp = finiteNumberOrNull(t(candle));
+  const endTimestamp = finiteNumberOrNull(candle?.etime);
+  const open = finiteNumberOrNull(o(candle));
+  const high = finiteNumberOrNull(h(candle));
+  const low = finiteNumberOrNull(l(candle));
+  const close = finiteNumberOrNull(c(candle));
+  const volume = finiteNumberOrNull(v(candle));
+  if (timestamp === null || endTimestamp === null || open === null || high === null || low === null || close === null || volume === null) {
+    return null;
+  }
+  return { o: open, h: high, l: low, c: close, v: volume, t: timestamp, etime: endTimestamp };
+}
+
+function replayScope(scope, caller) {
+  const normalized = normalizePatternScope(
+    scope && typeof scope === 'object' ? scope : {},
+    caller
+  );
+  return normalized.ok ? normalized : null;
+}
+
 class TradeReplayCapture {
   constructor(config = {}) {
     if (!config.replayDir) {
@@ -84,6 +107,7 @@ class TradeReplayCapture {
 
     // In-memory buffer of entry snapshots waiting for their exit
     this.pendingEntries = new Map();
+    this.postExitCaptures = new Map();
 
     // Ensure directory
     if (!fs.existsSync(this.replayDir)) {
@@ -99,7 +123,7 @@ class TradeReplayCapture {
    * @param {Object} entryData - { price, direction, confidence, regime, patterns, indicators }
    * @param {Array} priceHistory - Bot's current candle array [{o,h,l,c,v,t}, ...]
    */
-  captureEntry(orderId, entryData, priceHistory) {
+  captureEntry(orderId, entryData, priceHistory, scope = null) {
     const id = nonEmptyStringOrNull(orderId);
     const direction = nonEmptyStringOrNull(entryData?.direction);
     const price = positiveNumberOrNull(entryData?.price);
@@ -150,7 +174,8 @@ class TradeReplayCapture {
         exitContract: jsonCloneOrNull(entryData.exitContract),
         riskGates: jsonCloneOrNull(entryData.riskGates)
       },
-      candlesAtEntry: candleSnapshot
+      candlesAtEntry: candleSnapshot,
+      scope: replayScope(scope, 'TradeReplayCapture.captureEntry')
     });
     return this.pendingEntries.get(id);
   }
@@ -162,14 +187,18 @@ class TradeReplayCapture {
    * @param {Array} priceHistory - Bot's current candle array
    * @returns {string|null} Path to saved replay file
    */
-  captureExit(orderId, exitData, priceHistory) {
+  captureExit(orderId, exitData, priceHistory, scope = null) {
+    return this.captureExitResult(orderId, exitData, priceHistory, scope).path;
+  }
+
+  captureExitResult(orderId, exitData, priceHistory, scope = null) {
     const id = nonEmptyStringOrNull(orderId);
-    if (!id) return null;
+    if (!id) return { status: 'unavailable', reason: 'missing_order_id', path: null };
 
     const pending = this.pendingEntries.get(id);
     if (!pending) {
       console.warn(`[TradeReplayCapture] Refusing exit replay for ${id}; missing entry capture`);
-      return null;
+      return { status: 'unavailable', reason: 'missing_entry_capture', path: null };
     }
 
     const exitPrice = positiveNumberOrNull(exitData?.price ?? exitData?.exitPrice);
@@ -178,7 +207,7 @@ class TradeReplayCapture {
     const holdTimeMs = nonNegativeNumberOrNull(exitData?.holdTime) ?? nonNegativeNumberOrNull(Date.now() - pending.capturedAt);
     if (exitPrice === null || !reason || pnl === null || holdTimeMs === null) {
       console.warn(`[TradeReplayCapture] Refusing incomplete exit replay for ${id}`);
-      return null;
+      return { status: 'unavailable', reason: 'invalid_exit_input', path: null };
     }
 
     const entryCandles = pending.candlesAtEntry;
@@ -206,6 +235,10 @@ class TradeReplayCapture {
     // (exit-only trade had no entry checkpoint). Old behavior fabricated phantom
     // entry data which corrupted replay analytics. Set _noEntryCapture: true so
     // downstream consumers can filter exit-only records.
+    const resolvedScope = replayScope(scope, 'TradeReplayCapture.captureExit') || pending.scope;
+    const requestedCandles = Number.isInteger(this.candlesAfter) && this.candlesAfter >= 0
+      ? this.candlesAfter
+      : null;
     const replay = {
       orderId: id,
       direction: pending.direction,
@@ -221,6 +254,23 @@ class TradeReplayCapture {
       },
       candles: mergedCandles,
       candleCount: mergedCandles.length,
+      postExitCandles: [],
+      postExit: {
+        requestedCandles,
+        capturedCandles: 0,
+        complete: requestedCandles === 0,
+        scope: resolvedScope ? {
+          brokerId: resolvedScope.brokerId,
+          accountId: resolvedScope.accountId,
+          accountIdSource: resolvedScope.accountIdSource,
+          assetClass: resolvedScope.assetClass,
+          executionMode: resolvedScope.executionMode,
+          symbol: resolvedScope.symbol,
+          timeframe: resolvedScope.timeframe,
+          scopeKey: resolvedScope.scopeKey,
+          scopeKeyVersion: resolvedScope.scopeKeyVersion,
+        } : null,
+      },
       savedAt: Date.now()
     };
 
@@ -232,13 +282,70 @@ class TradeReplayCapture {
       console.log(`[TradeReplayCapture] Replay saved: ${id} (${mergedCandles.length} candles)`);
     } catch (err) {
       console.warn(`[TradeReplayCapture] Replay save failed: ${err.message}`);
-      return null;
+      return { status: 'retryable', reason: 'persistence_failure', path: null };
     }
 
-    // Cleanup pending
     this.pendingEntries.delete(id);
 
-    return filepath;
+    if (requestedCandles !== null && requestedCandles > 0 && resolvedScope) {
+      this.postExitCaptures.set(id, {
+        filepath,
+        replay,
+        scope: resolvedScope,
+        candleEndTimes: new Set(),
+        persistedCandleCount: 0,
+      });
+    }
+
+    return { status: 'saved', reason: null, path: filepath };
+  }
+
+  /**
+   * Appends a broker-confirmed closed candle after a recorded exit. The replay's
+   * post-exit region is deliberately separate from its entry/exit candle context.
+   */
+  capturePostExitCandle(candle, scope = null) {
+    const producerScope = replayScope(scope, 'TradeReplayCapture.capturePostExitCandle');
+    const closedCandle = copyClosedCandle(candle);
+    const result = { captured: 0, failures: [] };
+    if (!producerScope || !closedCandle) return result;
+
+    for (const [orderId, pending] of this.postExitCaptures.entries()) {
+      if (pending.scope.scopeKey !== producerScope.scopeKey) continue;
+      if (closedCandle.t < pending.replay.exit.time) continue;
+
+      if (!pending.replay.postExit.complete && !pending.candleEndTimes.has(closedCandle.etime)) {
+        pending.candleEndTimes.add(closedCandle.etime);
+        pending.replay.postExitCandles.push(closedCandle);
+      }
+      if (pending.persistedCandleCount === pending.replay.postExitCandles.length) continue;
+      pending.replay.postExit.capturedCandles = pending.replay.postExitCandles.length;
+      pending.replay.postExit.complete = pending.replay.postExit.capturedCandles >= pending.replay.postExit.requestedCandles;
+      pending.replay.savedAt = Date.now();
+
+      try {
+        const { writeJsonCompactAtomic } = require('./AtomicWrite');
+        writeJsonCompactAtomic(pending.filepath, pending.replay);
+      } catch (err) {
+        // The feed owns candle delivery, not replay persistence. Keep every
+        // captured candle so the next same-scope boundary can save it too.
+        result.failures.push({
+          orderId,
+          scope: pending.scope,
+          capturedCandles: pending.replay.postExit.capturedCandles,
+          persistedCandles: pending.persistedCandleCount,
+          requestedCandles: pending.replay.postExit.requestedCandles,
+          code: err.code || null,
+          message: err.message,
+        });
+        continue;
+      }
+
+      pending.persistedCandleCount = pending.replay.postExit.capturedCandles;
+      result.captured += 1;
+      if (pending.replay.postExit.complete) this.postExitCaptures.delete(orderId);
+    }
+    return result;
   }
 
   /**

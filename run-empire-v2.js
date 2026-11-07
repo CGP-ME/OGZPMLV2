@@ -331,6 +331,7 @@ const patternDescriptions = require('./config/pattern-descriptions.json');
 // RegimeDetector: detects market regime (trending/ranging/volatile)
 // See: ogz-meta/REFACTOR-PLAN-2026-02-27.md
 const { CandleAggregator } = require('./core/CandleAggregator');
+const { confirmedClosedCandleAtBoundary } = require('./core/ReplayClosedCandleBoundary');
 const { RegimeDetector } = require('./core/RegimeDetector');
 const { getInstance: getMarketCalendar } = require('./foundation/MarketCalendar');
 
@@ -994,6 +995,7 @@ class OGZPrimeV14Bot {
           this._visOhlcSeen.add(visKey);
           console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
+        const priorSymbolCandle = this.getSymbolTimeframeContext(sym, tf)?.priceHistory?.at(-1);
         this.storeTimeframeCandle(tf, ohlcData, sym);
         const storedCandle = this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (evaluationFrame) {
@@ -1015,6 +1017,31 @@ class OGZPrimeV14Bot {
             traceId,
             ...scopeEnvelope,
           });
+          if (storedCandle?.isNewCandle) {
+            // The next accepted broker timestamp confirms the prior canonical bar.
+            // Scope equality prevents a session handoff from crossing replay ledgers.
+            const closedReplayCandle = confirmedClosedCandleAtBoundary({
+              isNewCandle: storedCandle.isNewCandle,
+              priorCandle: priorSymbolCandle,
+              incomingCandle: storedCandle.candle,
+              incomingScope: scopeEnvelope,
+              symbol: sym,
+            });
+            if (closedReplayCandle) this.journalBridge?.recordClosedCandle(closedReplayCandle);
+            console.log(`V2: ${tf} candle closed - running trading analysis`);
+            this._trackRuntimeOperation(
+              `candle_analysis:${sym}:${traceId}`,
+              () => this.runTradingCycle(sym, traceId, tf),
+              { reportFailure: true }
+            );
+          } else if (storedCandle && !storedCandle.isNewCandle) {
+            const skipKey = `session:${sym}:${tf}`;
+            this._visActiveTfUpdateSkipped ??= new Set();
+            if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
+              this._visActiveTfUpdateSkipped.add(skipKey);
+              console.log(`[VIS][TradingCycle] waiting for new ${tf} candle boundary before analysis | symbol=${sym} etime=${storedCandle.candle?.etime || '(missing)'}`);
+            }
+          }
         } else {
           this.timeframeDiagnostics.nonActiveTimeframeDrops += 1;
           console.error(`[OHLC][TIMEFRAME-NON-ACTIVE] dropped non-active timeframe payload count=${this.timeframeDiagnostics.nonActiveTimeframeDrops} symbol=${sym} sourceTimeframe=${tf} activeTimeframe=${activeTf}`);
@@ -1026,21 +1053,6 @@ class OGZPrimeV14Bot {
             activeTimeframe: activeTf,
             reason: 'timeframe_not_selected',
           });
-        }
-        if (evaluationFrame && storedCandle?.isNewCandle) {
-          console.log(`V2: ${tf} candle closed - running trading analysis`);
-          this._trackRuntimeOperation(
-            `candle_analysis:${sym}:${traceId}`,
-            () => this.runTradingCycle(sym, traceId, tf),
-            { reportFailure: true }
-          );
-        } else if (evaluationFrame && storedCandle && !storedCandle.isNewCandle) {
-          const skipKey = `session:${sym}:${tf}`;
-          this._visActiveTfUpdateSkipped ??= new Set();
-          if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
-            this._visActiveTfUpdateSkipped.add(skipKey);
-            console.log(`[VIS][TradingCycle] waiting for new ${tf} candle boundary before analysis | symbol=${sym} etime=${storedCandle.candle?.etime || '(missing)'}`);
-          }
         }
       };
 
