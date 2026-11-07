@@ -1008,6 +1008,8 @@ class OGZPrimeV14Bot {
                 ? 'stocks'
                 : null,
             timeframe: tf,
+            sessionRouterEpoch: eventData.sessionRouterEpoch,
+            sessionRouterTransitionId: eventData.sessionRouterTransitionId,
           });
           if (tf === activeTf) this.syncDashboardRuntimeScope(sym, scopeEnvelope);
           this.handleMarketData({
@@ -2178,6 +2180,8 @@ class OGZPrimeV14Bot {
       assetClass,
       executionMode,
       timeframe,
+      sessionRouterEpoch: overrides.sessionRouterEpoch,
+      sessionRouterTransitionId: overrides.sessionRouterTransitionId,
     };
   }
 

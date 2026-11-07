@@ -1750,6 +1750,8 @@ class TradingLoop {
 
         // L1+L2: Attach full ledger data to entry decisions for StateManager.openPosition.
         const allResults = this._ledgerAllResults(orchResult);
+        decision.sessionRouterEpoch = marketData?.sessionRouterEpoch;
+        decision.sessionRouterTransitionId = marketData?.sessionRouterTransitionId;
         const filteredResults = Array.isArray(orchResult.filteredResults) ? orchResult.filteredResults : [];
         const winnerName = this._ledgerWinnerName(orchResult);
         const winnerAttribution = this._ledgerWinnerAttribution(allResults, winnerName);

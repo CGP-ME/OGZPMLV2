@@ -1078,6 +1078,8 @@ class CandleProcessor {
       price,
       timestamp: candleTimeMs,  // Use candle's actual timestamp
       timeframe: candle.timeframe,
+      sessionRouterEpoch: wrappedInput?.sessionRouterEpoch,
+      sessionRouterTransitionId: wrappedInput?.sessionRouterTransitionId,
       systemTime: Date.now(),  // Keep system time separately if needed
       volume: Number.isFinite(_parsedVolume) ? _parsedVolume : null,
       open: parseFloat(open),
