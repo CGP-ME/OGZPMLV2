@@ -3052,6 +3052,7 @@ class StrategyOrchestrator {
           confidence: publicWinnerConfidence * 100,
           winnerStrategy: winner.strategyName,
           timeframe: winnerTimeframe,
+          marketCondition: detectedRegimeType,
           exitContract: entryExitContract,
           sizingMultiplier: sizingMultiplier * entrySizingMultiplier,
           entryGroupType: entry.entryGroupType || winner.entryGroupType || null,
@@ -3093,6 +3094,7 @@ class StrategyOrchestrator {
       confidence: publicWinnerConfidence * 100,
       winnerStrategy: winner.strategyName,
       timeframe: winnerTimeframe,
+      marketCondition: detectedRegimeType,
       exitContract,
       sizingMultiplier,
       confluence: {

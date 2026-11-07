@@ -1,3 +1,13 @@
+## 2026-11-07 Delivery reconciliation: carry actual market classification into frozen entry policy
+
+The Oct 19 producer/consumer fix remained local. StrategyOrchestrator already computes the detected regime, but its accepted outputs omitted it and OrderExecutor supplied literal normal to PolicyBuilder. This delivery exports marketCondition on both accepted-result shapes and passes it to the existing policy builder. TradingLoop retains the field when forming fanout results. Classification, configuration and adaptation enablement are unchanged; no new heuristic, fallback or gate.
+
+Actual isolated behavior: the committed baseline produced no classification and saved normal with multiplier 1 for a trending input. The candidate saves trending/1.3 and ranging/0.8 when the existing adaptation setting is enabled; volatile, dead and unknown retain multiplier 1. Long and short executions with adaptation enabled and disabled run through actual StrategyOrchestrator, OrderExecutor paper entry, persisted policy, fresh-process StateManager reload, ExitContractManager exit and PerformanceAnalyzer. Frozen targets, policy hash/configuration and restored policy agree. Disabled adaptation retains multiplier 1 for every class. Sources were pinned to HEAD plus only these two changes. Evidence and raw logs: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/market-owner-behavior-runs.json` and `market-owner-delivery.json`.
+
+Limits and failed evidence: the older October lifecycle fixture initially failed replay-entry availability on both baseline and candidate after exercising the market-policy handoff. It depends on separate pending replay wiring. Those failed logs are retained, not called full passes. The successful observations use the existing focused executor fixture with actual decision-ledger assembly and explicitly exclude journal/replay. Synthetic regime inputs and paper fills do not prove scheduled fanout execution or live broker behavior. No new permanent tests were added.
+
+Current source review traced the runner/TradingLoop entry path, both accepted orchestrator shapes and PolicyBuilder's existing consumer. Retroactive Mercury and Astra review REQUIRED — PENDING under Trey's explicit exception. Only this connected producer/consumer change and this entry are delivered. No settings, activation, restart or deployment.
+
 ## 2026-11-07 Delivery reconciliation: live webhook exit receipts retain their execution mode
 
 The Oct 18 correction remained local: confirmed SELL and COVER fills were marked simulated merely because delivery used the webhook route. Both producers now classify simulation from the existing paper/backtest mode fields. Terminal fill proof, route selection, quantity and pending-unconfirmed handling are unchanged.

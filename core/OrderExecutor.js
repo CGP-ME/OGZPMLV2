@@ -2362,7 +2362,7 @@ class OrderExecutor {
       nowMs: Date.now(),
       volatility: policyVolatility,
       confidence: tradeConfidence,
-      marketCondition: 'normal',
+      marketCondition: orchResult.marketCondition,
       entryDirection: decision.action === 'BUY' ? 'long' : 'short',
       mtfConfluenceSnapshot: orchResult.mtfConfluenceSnapshot || null,
     });
