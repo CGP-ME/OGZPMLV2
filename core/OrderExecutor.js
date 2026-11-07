@@ -4540,7 +4540,7 @@ class OrderExecutor {
               exitIntent,
               confirmedAtMs,
               eventTimeMs: exitTimestamp,
-              simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true || isWebhookExecutionRoute,
+              simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true,
               recordingFailure: backtestRecordResult?.failure || null,
             }));
 
@@ -5134,7 +5134,7 @@ class OrderExecutor {
             exitIntent,
             confirmedAtMs: coverConfirmedAtMs,
             eventTimeMs: exitTimestamp,
-            simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true || isWebhookExecutionRoute,
+            simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true,
             recordingFailure: backtestRecordResult?.failure || null,
           }));
 
