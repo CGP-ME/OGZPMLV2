@@ -485,6 +485,11 @@ class ExitContractManager {
           if (!direction) {
             return { triggered: false, reason: 'active_trade_direction_unknown', refused: true };
           }
+          // An unavailable EMA is not a numeric zero or evidence of a reversal.
+          if (trade.entryIndicators?.ema9 === null || trade.entryIndicators?.ema20 === null ||
+              indicators.ema9 === null || indicators.ema20 === null) {
+            break;
+          }
           const entryEma9 = finiteOrNull(trade.entryIndicators?.ema9);
           const entryEma20 = finiteOrNull(trade.entryIndicators?.ema20);
           const currentEma9 = finiteOrNull(indicators.ema9);
