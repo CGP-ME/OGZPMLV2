@@ -873,7 +873,7 @@ class OGZPrimeV14Bot {
         apiKey: resolvedConfig.config.broker.apiKey,
         apiSecret: resolvedConfig.config.broker.apiSecret,
         tradingPair: primaryCryptoSymbol,
-        symbols: [primaryCryptoSymbol],
+        symbols: cryptoSymbols,
       }) : null;
       const alpacaAdapterOptions = sessionRouteUsesStocks
         ? buildAlpacaAdapterOptions(resolvedConfig.config.broker, resolvedConfig.config.execution, {

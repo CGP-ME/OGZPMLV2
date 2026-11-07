@@ -1,3 +1,11 @@
+## 2026-11-07 Delivery reconciliation: registered crypto symbols reach Kraken subscriptions
+
+The Oct 18 correction below was still uncommitted: the runner registered all configured crypto symbols but constructed Kraken with only the primary. The one-line producer correction supplies cryptoSymbols; the primary trading pair remains the existing primary. The actual BrokerFactory -> KrakenIBrokerAdapter -> Simple chain retains the configured list because candle subscription calls Simple with a callback, not an explicit primary-symbol override. Dashboard depth selection is a separate consumer.
+
+Fresh behavior verification through the required isolated launcher executed the actual runner option expression and Simple constructor/open handler with a synthetic socket and timers. Before: BTC/ETH/SOL configuration produced only XBT/USD in each subscription. After: ticker, all seven existing OHLC intervals and book requests contain XBT/USD, ETH/USD and SOL/USD. Single-symbol requests are unchanged. Receipts: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/crypto-owner-baseline.log`, `crypto-owner-candidate.log` and `crypto-owner-delivery.json`. The socket/auth import seams establish request construction, not network authentication, subscription acceptance, runtime transition or trading proof.
+
+Only this runner option and this entry are delivered; replay, log-filter and TTP changes remain separate. The prior bounded review is recorded in the Oct 18 entry. Retroactive Mercury and Astra review REQUIRED — PENDING for this delivery under Trey's explicit exception. No new permanent tests, configuration, fallback or gate; no restart, activation or deployment.
+
 ## 2026-11-07 Delivery reconciliation: confidence-sizing coefficient ownership
 
 Problem and authority: the 2026-10-22 migration documented below remained local. Its exact five existing sizing coefficients belong to the static internals owner; no parameter tuning was requested. This delivery moves only those literals from OrderExecutor into internals.confidenceSizing and reads that owner. The staged internals revision advances 7 to 8 from the committed base; inherited working revision 10 and other changes remain separate.
