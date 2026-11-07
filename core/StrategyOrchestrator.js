@@ -35,7 +35,6 @@ const { getNarrator } = require('./TradeNarrator');
 // hooks below check `narrator.enabled` directly; when OFF, the try/catch
 // frame is never entered (zero allocation per C1 contract).
 const narrator = getNarrator();
-const MAExtensionFilter = require('./MAExtensionFilter');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { TIMEFRAME_MS } = require('./TimeframeEngine');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
@@ -837,9 +836,6 @@ class StrategyOrchestrator {
       this.openingRangeBreakoutEntryConfigProvider,
       this.openingRangeBreakoutExitConfigProvider
     );
-
-    // MA Extension Filter for trend confirmation + first-touch skip
-    this.maExtensionFilter = new MAExtensionFilter();
 
     // FIX 2026-03-19: Self-contained signal modules
     // Each strategy owns its signal computation — no ctx.extras handoff
