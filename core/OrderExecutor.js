@@ -3530,7 +3530,7 @@ class OrderExecutor {
           success: true,
           orderId: `SIM_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           price: fillPrice,
-          amount: brokerOrderPlan?.sizeUsd ?? positionSize,
+          amount: isEntryAction ? brokerOrderPlan.orderQuantity * fillPrice : (brokerOrderPlan?.sizeUsd ?? positionSize),
           orderQuantity: brokerOrderPlan?.orderQuantity ?? null,
           quantityUnit: brokerOrderPlan?.quantityUnit ?? null,
           traceId,
