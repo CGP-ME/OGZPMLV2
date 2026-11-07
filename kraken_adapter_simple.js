@@ -1131,7 +1131,7 @@ class KrakenAdapterSimple {
             this.lastDataReceived = Date.now();
 
             // OHLC data format: [channelID, ohlcArray, channelName, pair]
-            const ohlcData = msg[1];
+            const ohlcData = [...msg[1]];
             const channelName = msg[2];  // e.g., 'ohlc-1', 'ohlc-5', 'ohlc-15'
             const pair = msg[3];
             const symbol = this.normalizeKrakenWsPair(pair);
@@ -1146,6 +1146,9 @@ class KrakenAdapterSimple {
 
             // Extract interval from channel name (ohlc-1 → 1, ohlc-60 → 60)
             const interval = parseInt(channelName.split('-')[1], 10);
+            // Kraken v1 field 0 is last-update time; canonical candles use interval start.
+            // Derive it here so stream consumers share the REST/Alpaca start-time contract.
+            ohlcData[0] = String(Number(ohlcData[1]) - interval * 60);
 
             // Map Kraken intervals to readable timeframes
             const intervalToTimeframe = {
@@ -1154,7 +1157,7 @@ class KrakenAdapterSimple {
             };
             const timeframe = intervalToTimeframe[interval] || `${interval}m`;
 
-            // Emit raw OHLC for KrakenIBrokerAdapter with timeframe info
+            // Emit canonical OHLC for KrakenIBrokerAdapter with timeframe info
             if (onPriceUpdate) {
               onPriceUpdate({
                 type: 'ohlc',
