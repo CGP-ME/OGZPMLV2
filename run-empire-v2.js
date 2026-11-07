@@ -954,7 +954,19 @@ class OGZPrimeV14Bot {
           console.error(`[VIS][OHLC][Runner] dropped ${tf} SessionRouter candle: missing symbol | session=${this.sessionRouter?.activeSession || '(none)'} contexts=${describeSymbolContexts(this.symbolContexts)}`);
           return;
         }
+        const scopeEnvelope = this.getCandleScopeEnvelope({
+          brokerId: this.sessionRouter?.activeBroker?.id || null,
+          assetClass: this.sessionRouter?.activeSession === 'crypto'
+            ? 'crypto'
+            : this.sessionRouter?.activeSession === 'stocks'
+              ? 'stocks'
+              : null,
+          timeframe: tf,
+          sessionRouterEpoch: eventData.sessionRouterEpoch,
+          sessionRouterTransitionId: eventData.sessionRouterTransitionId,
+        });
         emitTrace(this, 'CANDLE_NORMALIZED', {
+          ...scopeEnvelope,
           traceId,
           source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
           symbol: sym,
@@ -976,6 +988,7 @@ class OGZPrimeV14Bot {
           markUpdated = stateManager.updateLastPrice(sym, markPrice, markEventTimeMs);
         }
         emitTrace(this, 'LAST_PRICE_INFLUENCE', {
+          ...scopeEnvelope,
           traceId,
           source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
           symbol: sym,
@@ -1002,17 +1015,6 @@ class OGZPrimeV14Bot {
         const storedCandle = this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (evaluationFrame) {
           if (tf === activeTf) this._markActiveTimeframeData(sym, tf);
-          const scopeEnvelope = this.getCandleScopeEnvelope({
-            brokerId: this.sessionRouter?.activeBroker?.id || null,
-            assetClass: this.sessionRouter?.activeSession === 'crypto'
-              ? 'crypto'
-              : this.sessionRouter?.activeSession === 'stocks'
-                ? 'stocks'
-                : null,
-            timeframe: tf,
-            sessionRouterEpoch: eventData.sessionRouterEpoch,
-            sessionRouterTransitionId: eventData.sessionRouterTransitionId,
-          });
           if (tf === activeTf) this.syncDashboardRuntimeScope(sym, scopeEnvelope);
           this.handleMarketData({
             data: ohlcData,
