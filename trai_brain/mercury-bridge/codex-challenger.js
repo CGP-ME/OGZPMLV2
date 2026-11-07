@@ -10,8 +10,17 @@ const SUBSCRIPTION_ENDPOINT = 'https://chatgpt.com/backend-api/codex';
 const CODEX_LAUNCHER = '/usr/local/bin/codex';
 
 function subscriptionEnv(source = process.env) {
-  const env = { ...source };
-  for (const key of ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'CODEX_API_KEY', 'NODE_OPTIONS', 'NODE_PATH']) delete env[key];
+  // The parent also serves API-backed reviewers and loads deployment settings.
+  // Pass only OS/auth-location/network context; model/provider selection is
+  // explicit below. Never inherit unrelated credentials or routing overrides.
+  const allowed = ['HOME', 'USER', 'LOGNAME', 'LANG', 'LC_ALL', 'LC_CTYPE',
+    'TERM', 'NO_COLOR', 'TMPDIR', 'TMP', 'TEMP', 'CODEX_HOME',
+    'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME',
+    'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY',
+    'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy',
+    'SSL_CERT_FILE', 'SSL_CERT_DIR'];
+  const env = Object.fromEntries(allowed.filter(key => typeof source[key] === 'string')
+    .map(key => [key, source[key]]));
   env.PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
   // HTTP SSE exposes the service response model; exec JSONL alone does not.
   env.RUST_LOG = 'codex_api::sse::responses=trace';
@@ -291,6 +300,8 @@ class CodexChallengerClient {
       providerErrors: parsed.frames.filter(frame => frame.type === 'error' || frame.type === 'turn.failed'),
       authStatus: this.authStatus, executableTrust: this.executableTrust,
       invocation: { executable: CODEX_LAUNCHER, args, subscriptionEndpoint: SUBSCRIPTION_ENDPOINT,
+        executionContext: { uid: typeof process.getuid === 'function' ? process.getuid() : null,
+          cwd: this.repoRoot, home: process.env.HOME || null, codexHome: process.env.CODEX_HOME || null },
         configuredMaxTokens: this.maxTokens, outputTokenLimitEnforced: false },
     };
     // Preserve the answer and every diagnostic. Existing panel routing owns seat handling.

@@ -1,3 +1,11 @@
+### 2026-11-07 — Deliver subscription reviewer child-environment isolation
+
+Revalidated the October 17 reviewer-repair entry. The challenger copied the parent's deployment environment and removed only five named variables, leaving unrelated credentials and model-routing variables in its subscription child. Delivered the existing explicit OS/auth-location/proxy/certificate environment selection, retaining fixed PATH and response-model tracing. Its invocation receipt now identifies execution UID, cwd and auth-home locations. Parent environment, credential files, canonical model and authentication method are unchanged.
+
+Fresh isolated before/after observation executed actual challenger request assembly, supplied explicit synthetic provider tapes, and launched a real local Node child with the generated environment. Baseline inherited five unrelated fixture secret/routing keys; candidate inherited none, retained auth-home/network context and the existing read-only/model arguments, and recorded the expected execution context. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/reviewer-environment-{baseline,candidate}.log` and `reviewer-environment-delivery.json`.
+
+Limits: Codex/provider transport was an explicit fixture; this does not prove login, provider availability, or resolve the historical unsupported-model failure. No external calls, credential inspection, auth changes, permanent tests or activation. **Retroactive Mercury and Astra review REQUIRED — PENDING**, under Trey's delivery instruction while reviewers are unavailable.
+
 ### 2026-11-07 — Connect minimum entry confidence to the revisioned settings owner
 
 Revalidated September 23 Decision Settings and Feature Input Connections against the current consumer. ConfigLoader's settings API publishes minimum entry confidence for the next decision, but TradingLoop still read its cached startup copy. Delivered the existing one-line consumer correction to read confidence.minTradeConfidence from the canonical owner at decision time. This changes neither the configured value nor entry rules.
