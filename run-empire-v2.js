@@ -439,9 +439,6 @@ const { telegramNotifier, notifyTrade, notifyTradeClose, notifyAlert } = require
 // CHANGE 2026-02-02: Use singleton - was creating duplicate instances causing double messages
 const discordNotifier = require('./utils/discordNotifier');
 
-// CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade decision tree
-const TradeIntelligenceEngine = require('./core/TradeIntelligenceEngine');
-
 // CHANGE 2026-02-10: Modular Entry System (V2 Kraken format: c/o/h/l/v/t)
 const EMASMACrossoverSignal = require('./modules/EMASMACrossoverSignal');
 const MADynamicSR = require('./modules/MADynamicSR');
@@ -732,21 +729,6 @@ class OGZPrimeV14Bot {
       this.patternExitShadowMode = featureFlags.features.PATTERN_EXIT_MODEL.shadowMode !== false;
       console.log(`Pattern Exit Model: ${this.patternExitShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
     }
-
-    // CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade evaluation
-    // Each trade evaluated on 13 dimensions (regime, momentum, structure, volume, TRAI, whales, etc.)
-    this.tradeIntelligence = new TradeIntelligenceEngine({
-      // Profit/Loss thresholds (%)
-      profitTakePartial: 1.5,
-      profitTrailTight: 2.5,
-      lossWarning: 0.5,
-      lossCut: 1.5,
-      // Time thresholds (minutes)
-      minHoldTime: 2,
-      staleTradeTime: 30
-    });
-    this.tradeIntelligenceShadowMode = resolvedConfig.config.misc.tradeIntelligenceShadow;
-    console.log(`Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
     // RUN-MED-01: ?? on all strategy constructor params to preserve intentional
     // zeros (e.g., 0 decayBars = "no decay", 0 snapbackThreshold = "always
