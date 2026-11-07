@@ -102,11 +102,9 @@ class Telemetry {
 
       case 'pattern_match':
         this.metrics.patterns.matched++;
-        if (payload.result === 'win') {
-          this.metrics.patterns.winRate =
-            (this.metrics.patterns.winRate * (this.metrics.patterns.matched - 1) + 1) /
-            this.metrics.patterns.matched;
-        }
+        this.metrics.patterns.winRate =
+          (this.metrics.patterns.winRate * (this.metrics.patterns.matched - 1) + (payload.result === 'win' ? 1 : 0)) /
+          this.metrics.patterns.matched;
         break;
 
       case 'trade_executed':

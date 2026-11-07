@@ -84,6 +84,9 @@ if (fs.existsSync(telemetryFile)) {
           break;
         case 'pattern_match':
           metrics.patterns.matched++;
+          metrics.patterns.winRate =
+            (metrics.patterns.winRate * (metrics.patterns.matched - 1) + (event.result === 'win' ? 1 : 0)) /
+            metrics.patterns.matched;
           break;
         case 'trade_executed':
           metrics.trades.total++;
