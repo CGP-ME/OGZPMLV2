@@ -5458,20 +5458,8 @@ class OrderExecutor {
               exitReason: 'cover'
             });
           }
+          this.ctx.performanceAnalyzer.processTrade(completeTradeResult);
         }
-
-        // Record in performance analyzer
-        const performanceData = {
-          type: decision.action,
-          positionEffect,
-          price,
-          size: tradeResult.amount ?? positionSize,
-          confidence: decision.confidence,
-          timestamp: Date.now(),
-          result: tradeResult
-        };
-
-        this.ctx.performanceAnalyzer.processTrade(performanceData);
 
         // CHANGE 650: REMOVED DUPLICATE TRAI STORAGE - Already properly stored at line 853-861
         // This was overwriting the complete data with incomplete data
