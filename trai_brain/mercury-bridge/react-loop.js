@@ -764,7 +764,7 @@ function formatToolTelemetry(telemetry = {}) {
  * Retries on HTTP 429/502/503/504, empty responses, network errors.
  */
 async function callMercuryWithRetry(client, messages, tools, options, verbose, providerAudit = null) {
-  const maxRetries = 3;
+  const maxRetries = options.retryLimit ?? 3;
   const baseDelayMs = 500;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -939,7 +939,11 @@ async function runReactLoop(params) {
   const claimDecisionAttempts = [];
   let decisionSteerSentAt = null;
 
+  // Reserve the final review call for synthesis, within the total call cap.
+  const boundedReview = !noTools && maxIterations != null && (attackMode || Boolean(explicitReviewContract));
   const iterationLimit = noTools ? 1 : maxIterations;
+  const lifecycle = boundedReview ? { callLimit: iterationLimit, investigationLimit: Math.max(0, iterationLimit - 1),
+    finalizationRequested: false, finalizationReached: false, status: 'investigating' } : null;
   for (let iteration = 1; iterationLimit == null || iteration <= iterationLimit; iteration++) {
     if (verbose) {
       const iterationScope = iterationLimit == null ? `${iteration}` : `${iteration}/${iterationLimit}`;
@@ -947,13 +951,23 @@ async function runReactLoop(params) {
       console.error(`[REACT] Message history: ${messages.length} messages`);
     }
 
+    const finalizing = boundedReview && iteration === iterationLimit;
+    const requestTools = finalizing ? [] : tools;
+    const requestOptions = { maxTokens, toolChoice: (noTools || finalizing) ? 'none' : 'auto', temperature,
+      ...(boundedReview ? { retryLimit: 0 } : {}) };
+    let finalizationPrompt = null;
+    if (finalizing) {
+      lifecycle.finalizationRequested = true;
+      finalizationPrompt = 'FINAL REVIEW STEP: investigation budget is exhausted. No more tools or retries. Use only evidence already delivered; retain defects and uncertainty. Return VERDICT: found_break | no_break_found | cannot_verify; WHY THIS VERDICT: evidence-based rationale; MISSING EVIDENCE: exact unread files/ranges, unresolved claims or none. Include all previously requested receipt fields. found_break must identify concrete defects with source evidence. no_break_found is a bounded supported result, never a consequence of budget exhaustion. If you cannot conclude, return cannot_verify and the exact missing evidence. Do not claim archived or omitted source remains visible.';
+      if (!explicitReviewContract) messages.push({ role: 'user', content: finalizationPrompt });
+    }
     let requestMessages = messages;
     if (explicitReviewContract) {
-      const prepared = explicitReviewContract.prepare(messages, tools,
-        { maxTokens, toolChoice: 'auto', temperature }, history);
+      const prepared = explicitReviewContract.prepare(messages, requestTools, requestOptions, history, finalizationPrompt);
       if (prepared.error) return attachToolTelemetry({
         answer: `(cannot verify: ${prepared.error})`, termination: prepared.error,
         candidateSet, history, iterations: iteration - 1,
+        ...(lifecycle ? { lifecycle: { ...lifecycle, status: 'incomplete', error: prepared.error } } : {}),
         explicitContinuation: explicitReviewContract.receipt(),
         providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
       }, history);
@@ -964,8 +978,8 @@ async function runReactLoop(params) {
       assistantMsg = await callMercuryWithRetry(
         client,
         requestMessages,
-        tools,
-        { maxTokens, toolChoice: noTools ? 'none' : 'auto', temperature },
+        requestTools,
+        requestOptions,
         verbose,
         providerAudit
       );
@@ -977,7 +991,8 @@ async function runReactLoop(params) {
         answer: `(Mercury call failed: ${err.message})`,
         candidateSet,
         iterations: iteration - 1,
-        termination: 'error',
+        termination: finalizing ? 'finalization_error' : 'error',
+        ...(lifecycle ? { lifecycle: { ...lifecycle, status: 'incomplete', error: err.message } } : {}),
         ...(explicitReviewContract ? { explicitContinuation: explicitReviewContract.receipt() } : {}),
         history,
         providerAttempts: providerAudit ? providerAudit.attempts : [],
@@ -995,6 +1010,14 @@ async function runReactLoop(params) {
     // Mercury input window.
     messages.push(hasToolCalls ? compactAssistantMessageForHistory(assistantMsg) : assistantMsg);
 
+    if (hasToolCalls && finalizing) {
+      return attachToolTelemetry({ answer: '(cannot verify: finalization requested tools)',
+        rawFinalAnswer: assistantMsg, termination: 'finalization_tool_call', iterations: iteration,
+        history, candidateSet, toolsAvailable, iterationLimit,
+        lifecycle: { ...lifecycle, status: 'incomplete' },
+        providerAttempts: providerAudit ? providerAudit.attempts : [],
+        ...(explicitReviewContract ? { explicitContinuation: explicitReviewContract.receipt() } : {}) }, history);
+    }
     if (hasToolCalls && noTools) {
       const finalAnswer = '(no-tools mode rejected a provider tool call without executing it)';
       const answerQuality = assessFinalAnswerQuality(finalAnswer, history);
@@ -1087,6 +1110,10 @@ async function runReactLoop(params) {
     }
 
     const content = assistantMsg.content || '(empty content)';
+    if (lifecycle) {
+      lifecycle.finalizationReached = true;
+      lifecycle.status = 'reviewer_answer_received';
+    }
     if (noTools) {
       const answerQuality = assessFinalAnswerQuality(content, history);
       if (!answerQuality.flags.includes('missing_file_line_citation')) {
@@ -1153,6 +1180,7 @@ async function runReactLoop(params) {
       ...(explicitReviewContract ? { explicitContinuation: explicitReviewContract.receipt() } : {}),
       iterations: iteration,
       termination: 'answer_given',
+      ...(lifecycle ? { lifecycle } : {}),
       history,
       providerAttempts: providerAudit ? providerAudit.attempts : [],
       toolsAvailable,
