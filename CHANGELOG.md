@@ -1,3 +1,9 @@
+### 2026-10-19 — Explicit TRAI research enablement owns ambient precedence
+
+Fixed established exported-API defect: config.enabled=false was overridden by TRAI_RESEARCH_ENABLED=1 through logical OR. Nullish precedence preserves supplied booleans and retains the existing environment comparison for absent/null input; no new default, caller, setting, activation or search. Actual constructor/canResearch probe passes9 explicit/ambient combinations and preserves endpoint/rate-limit inputs. Evidence: `ogz-meta/inbox/codex/2026-10-19/stop1-resume/trai-research-explicit-enable-application.json`, `trai-research-explicit-enable.log`. Independent review pending; no commit/push/runtime activation.
+
+Delivery 2026-11-07: direct review matches the documented explicit-value precedence fix. Fresh isolated execution of the existing constructor/canResearch fixture passes all nine boolean/ambient combinations, with zero network calls and unchanged endpoint/rate inputs. Evidence: ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/research-enable-verification.log. Retroactive Mercury and Astra review required — pending under Trey's unavailable-reviewer delivery instruction. The standalone API remains unactivated; no bot wiring, configuration value or runtime process changed.
+
 ## 2026-10-18 - Correct native Kraken candle timestamp at its producer
 
 - Reproduced Kraken v1 last-update timestamp being treated as interval start: same-end updates created duplicate CandleStore rows and a bar spanning an exit could be counted as wholly post-exit. Official v1 contract supplies last-update seconds and interval-end seconds; the subscription channel supplies interval minutes.

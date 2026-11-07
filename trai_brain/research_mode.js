@@ -17,7 +17,7 @@ const url = require('url');
 class TRAIResearchMode {
     constructor(config = {}) {
         // OFF by default
-        this.enabled = config.enabled || process.env.TRAI_RESEARCH_ENABLED === '1';
+        this.enabled = config.enabled ?? (process.env.TRAI_RESEARCH_ENABLED === '1');
 
         // SearXNG endpoint (self-hosted preferred)
         this.searchEndpoint = config.searchEndpoint ||
