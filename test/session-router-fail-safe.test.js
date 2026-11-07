@@ -1,5 +1,7 @@
 'use strict';
 
+require('./fixtures/canonical-config-snapshot')();
+
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -29,15 +31,23 @@ describe('SessionRouter failed-safe transition behavior', () => {
 
     router.stateManager = {
       state: { activeTrades: new Map(), isTrading: true },
+      isPaused: jest.fn(() => typeof router.stateManager.state.pauseReason === 'string' && router.stateManager.state.pauseReason.trim().length > 0),
       getLastPrice: jest.fn(() => 125),
       closePosition: jest.fn().mockImplementation(async () => ({ success: true })),
-      pauseTrading: jest.fn().mockImplementation(async (reason) => {
+      pauseTrading: jest.fn().mockImplementation(async (reason, options = {}) => {
         router.stateManager.state.isTrading = false;
         router.stateManager.state.pauseReason = reason;
+        router.stateManager.state.pauseSource = options.source;
         router.stateManager.state.lastError = reason;
         return { success: true };
       }),
-      resumeTrading: jest.fn().mockResolvedValue({ success: true }),
+      resumeTrading: jest.fn(() => { throw new Error('Unexpected unconditional resume'); }),
+      resumeTradingIfPausedBy: jest.fn(async (source, options = {}) => {
+        const state = router.stateManager.state;
+        if (state.pauseSource !== source || (options.expectedPauseReason !== undefined && state.pauseReason !== options.expectedPauseReason)) return { success: false, resumed: false, reason: 'pause_record_changed' };
+        state.pauseReason = null; state.pauseSource = null; state.isTrading = true;
+        return { success: true, resumed: true };
+      }),
       setDashboardRuntimeScope: jest.fn((scope) => ({
         ...scope,
         broker: scope.brokerId,
@@ -57,6 +67,11 @@ describe('SessionRouter failed-safe transition behavior', () => {
     router.ctx = {
       riskManager: new RiskManager({ enabled: false, alertDeltaDollars: null, alertDeltaPercent: null }),
       candleTimeframe: '15m',
+      evaluationTimeframes: ['15m'],
+      tradingLoop: { waitForPendingOperations: jest.fn().mockResolvedValue(undefined) },
+      kraken: null,
+      promoteBrokerAccountIdentity: jest.fn(),
+      hydrateActiveTimeframeFromRest: jest.fn().mockResolvedValue(undefined),
       config: {
         executionMode: 'paper',
         accountId: 'acct-main',
@@ -135,9 +150,10 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafePauseError).toBe(null);
     expect(router.failedSafePauseFallbackApplied).toBe(false);
     expect(router.transitionInProgress).toBe(false);
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
     expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
-      'SessionRouter: transitioning to stocks'
+      expect.stringMatching(/^SessionRouter: transitioning to stocks .+ epoch \d+$/),
+      expect.objectContaining({ source: 'session_router_wind_down', recoverable: true, preserveOtherSources: true })
     );
     expect(router.stateManager.pauseTrading).toHaveBeenCalledTimes(1);
     expect(failedSafeEvents).toEqual([
@@ -172,9 +188,10 @@ describe('SessionRouter failed-safe transition behavior', () => {
       expect(router.failedSafeMode).toBe(true);
       expect(router.failedSafeReason).toBe('alpaca positions unavailable');
       expect(router.failedSafePauseConfirmed).toBe(true);
-      expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+      expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
       expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
-        'SessionRouter: transitioning to stocks'
+        expect.stringMatching(/^SessionRouter: transitioning to stocks .+ epoch \d+$/),
+      expect.objectContaining({ source: 'session_router_wind_down', recoverable: true, preserveOtherSources: true })
       );
       expect(router.stateManager.pauseTrading).toHaveBeenCalledTimes(1);
       expect(traces).toEqual(expect.arrayContaining([
@@ -204,9 +221,10 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafeMode).toBe(true);
     expect(router.failedSafeReason).toBe('alpaca unsubscribe failed');
     expect(router.transitionInProgress).toBe(false);
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
     expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
-      'SessionRouter: transitioning to crypto'
+      expect.stringMatching(/^SessionRouter: transitioning to crypto .+ epoch \d+$/),
+      expect.objectContaining({ source: 'session_router_wind_down', recoverable: true, preserveOtherSources: true })
     );
     expect(router.stateManager.pauseTrading).toHaveBeenCalledTimes(1);
   });
@@ -225,10 +243,10 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafeReason).toBe('SessionRouter source force-close failed for 1 position(s)');
     expect(router.activeSession).toBe('stocks');
     expect(router.stateManager.closePosition).not.toHaveBeenCalled();
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
     expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
-    expect(router.stateManager.state.isTrading).toBe(false);
+    expect(router.stateManager.isPaused()).toBe(true);
   });
 
   test('transition to crypto fails safe when force close is disabled but source positions exist', async () => {
@@ -244,10 +262,10 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafeReason).toBe('SessionRouter source force-close disabled with 1 active position(s)');
     expect(router.activeSession).toBe('stocks');
     expect(router.stateManager.closePosition).not.toHaveBeenCalled();
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
     expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
-    expect(router.stateManager.state.isTrading).toBe(false);
+    expect(router.stateManager.isPaused()).toBe(true);
   });
 
   test('transition to crypto fails safe when executeTrade does not close source state', async () => {
@@ -273,10 +291,10 @@ describe('SessionRouter failed-safe transition behavior', () => {
       'TSLA'
     );
     expect(router.stateManager.closePosition).not.toHaveBeenCalled();
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
     expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
-    expect(router.stateManager.state.isTrading).toBe(false);
+    expect(router.stateManager.isPaused()).toBe(true);
   });
 
   test('pause failure reports unconfirmed pause without local state fallback', async () => {
@@ -300,7 +318,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
       pauseError: 'state write failed',
       activeSession: 'crypto'
     }));
-    expect(router.stateManager.state.isTrading).toBe(true);
+    expect(router.stateManager.isPaused()).toBe(false);
     expect(router.stateManager.state.pauseReason).toBeUndefined();
     expect(fallbackEvents).toEqual([
       expect.objectContaining({
@@ -312,14 +330,14 @@ describe('SessionRouter failed-safe transition behavior', () => {
         pauseError: 'state write failed'
       })
     ]);
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
   });
 
-  test('partial pause failure still reports fallback instead of confirmed pause', async () => {
+  test('partial pause failure preserves actual pause and original transition failure', async () => {
     const router = makeRouter();
     router.activeSession = 'crypto';
     router.stateManager.pauseTrading.mockImplementation(async () => {
-      router.stateManager.state.isTrading = false;
+      router.stateManager.state.pauseReason = 'partial pause write failed';
       throw new Error('partial pause write failed');
     });
 
@@ -329,8 +347,9 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafeReason).toBe('partial pause write failed');
     expect(router.failedSafePauseConfirmed).toBe(true);
     expect(router.failedSafePauseFallbackApplied).toBe(false);
-    expect(router.failedSafePauseError).toBe('partial pause write failed');
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    // Actual pause state is confirmed; the transition failure remains in failedSafeReason.
+    expect(router.failedSafePauseError).toBeNull();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
   });
 
   test('pause success without paused state enters failed-safe before broker reconciliation', async () => {
@@ -345,7 +364,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.krakenAdapter.getPositions).not.toHaveBeenCalled();
     expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
   });
 
   test('transition emits only after SessionRouter writes a verified runtime scope upstream', async () => {
@@ -367,7 +386,14 @@ describe('SessionRouter failed-safe transition behavior', () => {
       timeframe: '15m'
     });
     expect(router.stateManager.setDashboardRuntimeScope.mock.invocationCallOrder[0]).toBeLessThan(
-      router.stateManager.resumeTrading.mock.invocationCallOrder[0]
+      router.stateManager.resumeTradingIfPausedBy.mock.invocationCallOrder[0]
+    );
+    expect(router.ctx.promoteBrokerAccountIdentity).toHaveBeenCalledWith(
+      router.alpacaAdapter,
+      expect.objectContaining({ source: 'session_router_transition', brokerId: 'alpaca' })
+    );
+    expect(router.ctx.promoteBrokerAccountIdentity.mock.invocationCallOrder[0]).toBeLessThan(
+      router.ctx.hydrateActiveTimeframeFromRest.mock.invocationCallOrder[0]
     );
     expect(transitionEvents).toEqual([
       expect.objectContaining({
@@ -401,7 +427,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafeMode).toBe(true);
     expect(router.failedSafeReason).toBe('SessionRouter stocks runtime scope missing required field(s): accountId, accountIdSource');
     expect(router.stateManager.setDashboardRuntimeScope).not.toHaveBeenCalled();
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
     expect(transitionSpy).not.toHaveBeenCalled();
   });
 
@@ -445,7 +471,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
       safeModeReason: expect.stringContaining('runtime scope mismatch')
     }));
     expect(router.failedSafeMode).toBe(true);
-    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTradingIfPausedBy).not.toHaveBeenCalled();
   });
 
   test('direct activation methods refuse to run while failed-safe mode is active', async () => {
@@ -606,7 +632,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.activeSession).toBe('stocks');
     expect(router.windDownPhase).toBeNull();
     expect(router.windDownDirection).toBeNull();
-    expect(router.stateManager.resumeTrading).toHaveBeenCalledTimes(1);
+    expect(router.stateManager.resumeTradingIfPausedBy).toHaveBeenCalledTimes(1);
   });
 
   test('scheduled transition interval failure routes to failed-safe halt trace instead of log-only swallow', async () => {
@@ -630,7 +656,8 @@ describe('SessionRouter failed-safe transition behavior', () => {
       expect(router.failedSafeMode).toBe(true);
       expect(router.failedSafeReason).toBe('transition store read exploded');
       expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
-        'SessionRouter failed safe: stocks -> unknown: transition store read exploded'
+        'SessionRouter failed safe: stocks -> unknown: transition store read exploded',
+        expect.objectContaining({ source: 'session_router_failed_safe', preserveOtherSources: true })
       );
       expect(traces).toEqual(expect.arrayContaining([
         expect.objectContaining({
@@ -689,7 +716,11 @@ describe('SessionRouter failed-safe transition behavior', () => {
           }),
         }),
       ]));
-      expect(router.stateManager.pauseTrading).not.toHaveBeenCalled();
+      expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
+        'SessionRouter failed safe: stocks -> crypto: transition failure',
+        expect.objectContaining({ source: 'session_router_failed_safe', preserveOtherSources: true })
+      );
+      expect(router.stateManager.isPaused()).toBe(true);
     } finally {
       unsubscribe();
     }

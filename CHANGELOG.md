@@ -1,3 +1,11 @@
+### 2026-11-07 — Repair existing router checks for the delivered pause/transition interfaces
+
+Revalidated the inherited D14 router fixture maintenance against the delivered SessionRouter. Existing checks lacked the current pause owner/readback, operation-drain and destination hydration collaborators. Updated their explicitly synthetic collaborators and assertions to the existing transition identity/conditional-resume contract. The inherited additional test was excluded; this delivery retains the original 23 cases and adds no suite or production gate.
+
+Required isolated before/after execution: baseline could not load its missing synthetic configuration; candidate ran all 23 existing cases successfully. Their controlled broker/StateManager collaborators limit this evidence to SessionRouter behavior and interaction contracts. They do not establish durable pause persistence, actual broker reconciliation or runtime recovery; separate earlier actual-StateManager observations cover their stated narrower paths. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/existing-router-check-{baseline,candidate}.log` and `existing-router-check-delivery.json`.
+
+Reviewed the scoped check-only diff and unchanged case inventory. No Mercury production review requirement for this non-production delivery; related production retroactive Mercury/Astra reviews remain pending. No restart or activation.
+
 ### 2026-11-07 — Repair existing exit-ownership checks for current entry-policy APIs
 
 Revalidated the inherited D14 maintenance. Existing exit-ownership cases referenced removed mutable ConfigLoader APIs and a retired manager-level trail setting. Updated those same cases to the existing synthetic snapshot/current getter contract and entry-frozen trail owner. Test-only scoped getter spies remain explicitly fixture seams; no production reader or trading behavior was changed, and no test case was added.
