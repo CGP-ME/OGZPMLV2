@@ -5,7 +5,6 @@
  * Uses paper/sandbox API keys
  */
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const fs = require('fs');
 const path = require('path');
 const ConfigLoader = require('../foundation/ConfigLoader');
@@ -52,12 +51,12 @@ function optionalText(config, key) {
   return value || null;
 }
 
-function withOptionalDownloadConfig(config, env = process.env) {
+function withOptionalDownloadConfig(config) {
   return {
     ...config,
-    startDate: optionalText(config, 'startDate') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_START'),
-    endDate: optionalText(config, 'endDate') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_END'),
-    outputFile: optionalText(config, 'outputFile') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_OUTPUT_FILE'),
+    startDate: optionalText(config, 'startDate'),
+    endDate: optionalText(config, 'endDate'),
+    outputFile: optionalText(config, 'outputFile'),
     sessionProfile: config.sessionProfile,
   };
 }
