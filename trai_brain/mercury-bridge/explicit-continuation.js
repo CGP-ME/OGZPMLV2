@@ -3,7 +3,7 @@
 // Optional source-backed continuation for an explicit review whose literal
 // candidate/final envelope cannot fit. Normal ReAct modes do not use this lane.
 const {
-  sha256, providerRequestBytes, serializeProviderRequest,
+  sha256, providerRequestBytes, serializeProviderRequest, boundedEvidenceRanges,
   claimAdjudicationReceipt,
 } = require('./evidence-ingestion');
 const { assessReviewReport } = require('./doctrine-review');
@@ -92,6 +92,7 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
       return { artifact_id: artifact.artifact_id, sha256: artifact.sha256,
         source_ref: artifact.source_ref, target: artifact.target,
         receipt_id: id, lines: artifact.content.split('\n').length,
+        read_ranges: boundedEvidenceRanges(artifact.content.split('\n').length),
         authority: 'archived_reviewer_testimony' };
     });
   const instruction = [
@@ -304,7 +305,7 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
   }
 
   const receiptTool = { type: 'function', function: { name: 'read_review_receipt',
-    description: 'Read exact immutable archived reviewer testimony by catalog receipt ID and explicit inclusive line range. Never primary source.',
+    description: 'Read exact immutable archived reviewer testimony by catalog receipt ID and explicit inclusive line range. Never primary source. Use catalog read_ranges exactly; end_line must not exceed the receipt total_lines.',
     parameters: { type: 'object', properties: { receipt_id: { type: 'string' },
       start_line: { type: 'integer', minimum: 1 }, end_line: { type: 'integer', minimum: 1 } },
       required: ['receipt_id', 'start_line', 'end_line'], additionalProperties: false } } };
@@ -315,7 +316,7 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
     if (!Number.isInteger(args.start_line) || !Number.isInteger(args.end_line)
         || args.start_line < 1 || args.end_line < args.start_line || args.end_line > lines.length) {
       return { error: 'review_receipt_range_invalid', receipt_id: args.receipt_id,
-        total_lines: lines.length, evidence_kind: 'archived_reviewer_testimony' };
+        total_lines: lines.length, read_ranges: boundedEvidenceRanges(lines.length), evidence_kind: 'archived_reviewer_testimony' };
     }
     return { receipt_id: args.receipt_id, receipt_sha256: sha256(text),
       evidence_kind: 'archived_reviewer_testimony', start_line: args.start_line,

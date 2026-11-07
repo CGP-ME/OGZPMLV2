@@ -243,6 +243,26 @@ function parseEvidenceSourceDescriptor(descriptor) {
   return { path: sourcePath, line_start: lineStart, line_end: lineEnd };
 }
 
+async function verifyCapturedEvidenceReads({ toolAdapter, evidenceSources, sourceRef }) {
+  const receipts = [];
+  for (const source of evidenceSources) {
+    const result = await toolAdapter.execute('open_file', {
+      path: source.path, start_line: source.line_start, end_line: source.line_end,
+    });
+    const text = typeof result.text === 'string'
+      ? result.text.split('\n').map(line => line.replace(/^\s*\d+\t/, '')).join('\n') : null;
+    if (result.error || result.source_ref !== sourceRef || result.source_sha256 !== source.artifact_sha256
+        || result.start_line !== source.line_start || result.end_line !== source.line_end
+        || text !== source.excerpt || !text.trim()) {
+      throw new Error(`Captured reviewer read failed: ${source.path}:${source.line_start}-${source.line_end}: ${result.error || 'identity, range or content mismatch'}`);
+    }
+    receipts.push({ path: source.path, start_line: result.start_line, end_line: result.end_line,
+      artifact_sha256: result.source_sha256, excerpt_sha256: source.excerpt_sha256,
+      authority: 'host_reader_preflight_not_model_delivery' });
+  }
+  return receipts;
+}
+
 function countExactOccurrences(text, excerpt) {
   if (excerpt === '') return 0;
   let count = 0;
@@ -1012,12 +1032,16 @@ async function runAgentic(query, opts) {
   try {
     const reviewView = pinnedReviewRequested ? captureGitReviewView({
       repoRoot: config.REPO_ROOT, ref: opts.reviewRef, baseRef: opts.reviewBase,
+      evidencePaths: (opts.evidenceSources || []).map(descriptor => parseEvidenceSourceDescriptor(descriptor).path),
       outputDir: path.join(config.REPO_ROOT, RUN_LEDGER_DIR, rawRunId),
     }) : null;
     const reviewRoot = reviewView ? reviewView.sourceRoot : config.REPO_ROOT;
     evidenceSources = resolveEvidenceSources({
       repoRoot: reviewRoot, query, descriptors: opts.evidenceSources || [],
     });
+    if (reviewView && evidenceSources.quarantines.length > 0) {
+      throw new Error(`Pinned evidence validation failed after capture: ${evidenceSources.quarantines.map(entry => entry.error?.message || entry.name).join('; ')}`);
+    }
     evidenceQuarantines = await notifyReviewQuarantines(evidenceSources.quarantines);
     inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
     const reviewGit = reviewView ? (_root, args) => execFileSync('git', args, {
@@ -1119,6 +1143,12 @@ async function runAgentic(query, opts) {
       reviewSource: reviewView && { tree: reviewView.tree, baseTree: reviewView.baseTree },
       mongoStore: store,
     });
+
+    if (reviewView) {
+      reviewView.evidenceReadPreflight = await verifyCapturedEvidenceReads({
+        toolAdapter, evidenceSources, sourceRef: reviewView.tree,
+      });
+    }
 
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Tool adapter ready. Tools: ${Object.keys(toolAdapter.tools).join(', ')}`);
@@ -2042,6 +2072,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  verifyCapturedEvidenceReads,
   parseArgs,
   parseEvidenceSourceDescriptor,
   resolveEvidenceSources,

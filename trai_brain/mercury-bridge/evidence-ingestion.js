@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { addedFourthShapeAdditions, assessReviewReport, MERCURY_DOCTRINE_PROMPT } = require('./doctrine-review');
-const { isPathIgnoredByMercury: isRepositoryPathIgnored } = require('../repository-policy');
+const { isPathIgnoredByMercury: isRepositoryPathIgnored, isExplicitIgnoredToolReadAllowed } = require('../repository-policy');
 
 // Retain the recovered explicit-target secret boundary even for root files.
 function isPathIgnoredByMercury(file) {
@@ -419,9 +419,23 @@ function unresolvedTarget(targetPath, status, reason, scope = 'source') {
   };
 }
 
+function boundedEvidenceRanges(totalLines) {
+  return Array.from({ length: Math.ceil(totalLines / 150) }, (_, index) => ({
+    start_line: index * 150 + 1, end_line: Math.min(totalLines, (index + 1) * 150),
+  }));
+}
+
 // A read-only evidence view, not a checkout: no .git, executable loading, or
 // working-tree copies. Both revisions are resolved before any source is read.
-function captureGitReviewView({ repoRoot, ref, baseRef, outputDir, git = defaultGit }) {
+function captureGitReviewView({ repoRoot, ref, baseRef, outputDir, evidencePaths = [], git = defaultGit }) {
+  const requestedEvidence = new Set(Array.isArray(evidencePaths) && evidencePaths.length === 0
+    ? [] : normalizeExplicitPaths(evidencePaths));
+  for (const file of requestedEvidence) {
+    const basename = path.posix.basename(file);
+    if (basename === ".env" || basename.startsWith(".env.") || (isPathIgnoredByMercury(file) && !isExplicitIgnoredToolReadAllowed(file))) {
+      throw new Error(`Explicit review evidence blocked by repository policy: ${file}`);
+    }
+  }
   const tree = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${ref}^{tree}`]).toString().trim();
   const baseTree = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${baseRef}^{tree}`]).toString().trim();
   fs.mkdirSync(outputDir, { recursive: true });
@@ -433,7 +447,7 @@ function captureGitReviewView({ repoRoot, ref, baseRef, outputDir, git = default
     const tab = record.indexOf('\t');
     const [mode, type, object] = record.slice(0, tab).split(' ');
     const file = normalizeExplicitPaths([record.slice(tab + 1)])[0];
-    if (isPathIgnoredByMercury(file) || type !== 'blob' || mode === '120000') {
+    if ((isPathIgnoredByMercury(file) && !requestedEvidence.has(file)) || type !== 'blob' || mode === '120000') {
       excluded.push({ file, mode, type });
       continue;
     }
@@ -443,7 +457,19 @@ function captureGitReviewView({ repoRoot, ref, baseRef, outputDir, git = default
     fs.writeFileSync(destination, bytes, { mode: 0o444 });
     files.push({ file, object, sha256: sha256(bytes), bytes: bytes.length });
   }
-  const manifest = { tree, baseTree, files, excluded };
+  const evidenceFiles = [...requestedEvidence].map(file => {
+    const captured = files.find(entry => entry.file === file);
+    if (!captured) throw new Error(`Explicit review evidence missing from captured tree: ${file}`);
+    const destination = path.join(sourceRoot, file);
+    const bytes = fs.readFileSync(destination);
+    if (sha256(bytes) !== captured.sha256) throw new Error(`Captured evidence hash mismatch: ${file}`);
+    const text = new (require('util').TextDecoder)('utf-8', { fatal: true }).decode(bytes);
+    const lines = text.split('\n');
+    if (text.endsWith('\n')) lines.pop();
+    if (!lines.length || !text.trim()) throw new Error(`Captured evidence is empty: ${file}`);
+    return { ...captured, total_lines: lines.length, read_ranges: boundedEvidenceRanges(lines.length) };
+  });
+  const manifest = { tree, baseTree, files, excluded, evidenceFiles };
   const manifestPath = path.join(outputDir, path.basename(sourceRoot) + '.json');
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   return { ...manifest, sourceRoot, manifestPath, manifestSha256: sha256(fs.readFileSync(manifestPath)) };
@@ -2896,6 +2922,7 @@ async function runExplicitTargetReview({
 }
 
 module.exports = {
+  boundedEvidenceRanges,
   captureGitReviewView,
   MAP_SYSTEM_PROMPT,
   REDUCE_SYSTEM_PROMPT,

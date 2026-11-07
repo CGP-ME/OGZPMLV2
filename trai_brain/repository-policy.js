@@ -66,7 +66,20 @@ function isPathIgnoredByMercury(pathLike, skipDirs = SKIP_DIRS) {
   return parts.some(part => skipDirs.has(part)) || isTestFixturePath(pathLike);
 }
 
+const EXPLICIT_IGNORED_TOOL_READ_PREFIXES = Object.freeze([
+  'ogz-meta/cognition-history/mercury-runs/',
+  'ogz-meta/cognition-history/mercury-execution/',
+  'ogz-meta/cognition-history/session-router-phase05/',
+]);
+
+function isExplicitIgnoredToolReadAllowed(pathLike) {
+  const normalized = String(pathLike).replace(/\\/g, '/');
+  return EXPLICIT_IGNORED_TOOL_READ_PREFIXES.some(prefix =>
+    normalized === prefix.slice(0, -1) || normalized.startsWith(prefix));
+}
+
 module.exports = {
+  isExplicitIgnoredToolReadAllowed,
   REPO_ROOT,
   MERCURY_IGNORE_FILE,
   SKIP_DIRS,

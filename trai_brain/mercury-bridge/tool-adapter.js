@@ -24,6 +24,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { spawn, spawnSync } = require('child_process');
 
 const config = require('./config');
@@ -144,11 +145,7 @@ const RUN_CHECK_SENSITIVE_ENV_PATTERNS = [
   /WEBHOOK/i,
   /CREDENTIAL/i,
 ];
-const EXPLICIT_IGNORED_TOOL_READ_PREFIXES = Object.freeze([
-  'ogz-meta/cognition-history/mercury-runs/',
-  'ogz-meta/cognition-history/mercury-execution/',
-  'ogz-meta/cognition-history/session-router-phase05/',
-]);
+const { isExplicitIgnoredToolReadAllowed: explicitEvidenceReadAllowed } = require('../repository-policy');
 
 // ─── Ripgrep availability check ──────────────────────────────
 // Warn loudly if rg is not installed. Grep fails closed without ripgrep so
@@ -246,12 +243,7 @@ function createToolAdapter(opts = {}) {
 
   function isExplicitIgnoredToolReadAllowed(absPath) {
     const relPath = relativePathForPolicy(absPath);
-    const dirLikePath = relPath.endsWith('/') ? relPath : `${relPath}/`;
-    return EXPLICIT_IGNORED_TOOL_READ_PREFIXES.some((prefix) => (
-      relPath === prefix.slice(0, -1)
-      || relPath.startsWith(prefix)
-      || dirLikePath.startsWith(prefix)
-    ));
+    return explicitEvidenceReadAllowed(relPath);
   }
 
   function ensureNotIgnored(absPath, toolName) {
@@ -727,6 +719,8 @@ function createToolAdapter(opts = {}) {
 
     return {
       file: path.relative(repoRoot, absPath),
+      source_ref: reviewSource ? reviewSource.tree : 'WORKTREE',
+      source_sha256: crypto.createHash('sha256').update(text).digest('hex'),
       start_line: startLine,
       end_line: actualEnd,
       total_lines: totalLines,
@@ -1035,6 +1029,7 @@ function createToolAdapter(opts = {}) {
     return {
       ref,
       path: filePath,
+      source_sha256: crypto.createHash('sha256').update(result.stdout).digest('hex'),
       start_line: returnedStart,
       end_line: returnedEnd,
       total_lines: totalLines,
