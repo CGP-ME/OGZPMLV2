@@ -888,6 +888,7 @@ class StrategyOrchestrator {
     this.minCandlesEMA = ConfigLoader.get('orchestrator.minCandlesEMA');
     this.minCandlesMASR = ConfigLoader.get('orchestrator.minCandlesMASR');
     this.minCandlesSweep = ConfigLoader.get('orchestrator.minCandlesSweep');
+    this.minCandlesSmartMoneySweep = ConfigLoader.get('orchestrator.minCandlesSmartMoneySweep');
     this.minCandlesMTF = ConfigLoader.get('orchestrator.minCandlesMTF');
     this.minCandlesTPO = ConfigLoader.get('orchestrator.minCandlesTPO');
     this.fibDistanceEMA = ConfigLoader.get('orchestrator.fibDistanceEMA');
