@@ -12,8 +12,8 @@
 'use strict';
 
 const { getInstance: getStateManager } = require('./StateManager');
-const { get: getConfigValue } = require('../foundation/ConfigLoader');
-const { createTraceId, emitTrace } = require('./TraceSpine');
+const { get: getConfigValue, getReceipt: getConfigurationReceipt } = require('../foundation/ConfigLoader');
+const { createTraceId, emitTrace, subscribeTrace } = require('./TraceSpine');
 const { toTimestampMs } = require('../foundation/ohlc-normalize');
 const { randomUUID } = require('crypto');
 const BacktestRecorder = require('./BacktestRecorder');
@@ -156,6 +156,15 @@ class BacktestRunner {
 
     const fs = require('fs').promises;
     // path already required above for state isolation
+    // A processed candle can still contain a refused state mutation. Preserve
+    // those existing execution receipts instead of calling that run complete.
+    const executionFailures = [];
+    const windowEndFailures = [];
+    const unsubscribeTrace = subscribeTrace(payload => {
+      if (payload.event === 'STATE_MUTATION' && payload.fields.success === false) {
+        executionFailures.push(payload);
+      }
+    });
 
     try {
       // The typed run descriptor is validated before the bot snapshot is frozen.
@@ -276,6 +285,7 @@ class BacktestRunner {
           const tradeDirection = this._activeTradeDirectionForWindowEnd(trade);
           if (!tradeDirection) {
             console.error(`[BacktestRunner] BACKTEST_END_CLOSE refused for trade ${tradeId || '<unknown>'}: active_trade_direction_unknown`);
+            windowEndFailures.push({ tradeId, reason: 'active_trade_direction_unknown' });
             windowEndPositions.push(this._windowEndDirectionRefusal(trade, lastPrice, exitTimestamp));
             continue;
           }
@@ -322,9 +332,14 @@ class BacktestRunner {
                 scopeKey: trade.scopeKey,
                 scopeKeyVersion: trade.scopeKeyVersion,
               });
+            } else {
+              const reason = closed?.error || closed?.reason || 'state_close_not_successful';
+              windowEndFailures.push({ tradeId, reason });
+              console.error(`[BacktestRunner] BACKTEST_END_CLOSE failed for trade ${tradeId}: ${reason}`);
             }
           } catch (err) {
-            console.error(`❌ BACKTEST_END_CLOSE failed for trade ${trade.orderId || trade.id}: ${err.message}`);
+            windowEndFailures.push({ tradeId, reason: err.message });
+            console.error(`BACKTEST_END_CLOSE failed for trade ${tradeId}: ${err.message}`);
           }
         }
       }
@@ -361,7 +376,9 @@ class BacktestRunner {
       // L8: Flush any buffered decision ledger entries
       try { require('./DecisionLedgerLogger').flush(); } catch (_) {}
 
-      console.log(`\n✅ BACKTEST COMPLETE!`);
+      const candlesComplete = errorCount === 0 && processedCount === historicalCandles.length;
+      const executionComplete = candlesComplete && executionFailures.length === 0 && windowEndFailures.length === 0;
+      console.log(`\n${executionComplete ? 'BACKTEST PROCESSING COMPLETE' : 'BACKTEST PROCESSING INCOMPLETE'}: ${processedCount}/${historicalCandles.length} candles, ${errorCount} candle errors, ${executionFailures.length} state mutation failures, ${windowEndFailures.length} window-close failures`);
       console.log(`   📊 Candles processed: ${processedCount.toLocaleString()}`);
       console.log(`   ⏱️  Duration: ${totalTime}s`);
       console.log(`   ⚡ Rate: ${(processedCount / totalTime).toFixed(0)} candles/sec`);
@@ -428,6 +445,7 @@ class BacktestRunner {
         ? this.ctx.backtestRecorder.getSummary()
         : {};
       const report = {
+        configuration: getConfigurationReceipt(),
         summary: {
           ...recorderSummary,
           initialBalance: initialBalance,
@@ -436,8 +454,13 @@ class BacktestRunner {
           totalPnL: totalPnL,
           duration: `${totalTime}s`,
           candlesProcessed: processedCount,
-          errors: errorCount
+          errors: errorCount,
+          executionErrors: executionFailures.length,
+          windowEndErrors: windowEndFailures.length,
+          executionComplete,
         },
+        executionFailures,
+        windowEndFailures,
         dataCoverage: {
           dataFile: dataPath,
           symbol,
@@ -448,7 +471,7 @@ class BacktestRunner {
           endTimestamp: lastCoverageCandle.t,
           startIso: new Date(firstCoverageCandle.t).toISOString(),
           endIso: new Date(lastCoverageCandle.t).toISOString(),
-          complete: processedCount === historicalCandles.length,
+          complete: candlesComplete,
         },
         metrics: {
           totalTrades: trades.length,
@@ -476,18 +499,20 @@ class BacktestRunner {
 
       // Write report FIRST (sync to prevent 0-byte files on timeout/exit)
       // FIX 2026-02-19: Try/catch with console fallback to prevent losing results on EMFILE
+      let reportSaved = false;
       try {
         require('./AtomicWrite').writeJsonAtomic(reportPath, report);
+        reportSaved = true;
+        console.log(`\nReport saved: ${reportPath}`);
       } catch (err) {
-        console.error('⚠️ Could not write report file: ' + err.message);
-        console.log('📊 === BACKTEST RESULTS (CONSOLE DUMP) ===');
+        console.error('Could not write report file: ' + err.message);
+        console.log('=== BACKTEST RESULTS (CONSOLE DUMP; REPORT NOT SAVED) ===');
         console.log('Final Balance: $' + report.summary.finalBalance);
         console.log('Total P&L: $' + report.summary.totalPnL + ' (' + report.summary.totalReturn + '%)');
         console.log('Total Trades: ' + (report.metrics.totalTrades || 'N/A'));
         console.log('Win Rate: ' + (report.metrics.winRate || 'N/A'));
-        console.log('📊 === END CONSOLE DUMP ===');
+        console.log('=== END CONSOLE DUMP ===');
       }
-      console.log(`\n📄 Report saved: ${reportPath}`);
 
       // 🤖 TRAI Analysis of Backtest Results (Change 586)
       // Run AFTER report is saved so we always have results even if TRAI hangs
@@ -523,8 +548,18 @@ class BacktestRunner {
       }
 
       // Exit after backtest
-      console.log('\nBacktest complete - exiting...');
-      return { success: true, exitCode: 0 };
+      const success = executionComplete && reportSaved;
+      console.log(`\nBACKTEST ${success ? 'COMPLETE' : 'INCOMPLETE'} - exiting...`);
+      return {
+        success,
+        exitCode: success ? 0 : 1,
+        errors: errorCount,
+        executionErrors: executionFailures.length,
+        windowEndErrors: windowEndFailures.length,
+        reportSaved,
+        candlesProcessed: processedCount,
+        expectedCandles: historicalCandles.length,
+      };
 
     } catch (err) {
       console.error('BACKTEST FAILED:', err.message);
@@ -535,6 +570,8 @@ class BacktestRunner {
         error: err.message,
         code: err.code || null,
       };
+    } finally {
+      unsubscribeTrace();
     }
   }
 }

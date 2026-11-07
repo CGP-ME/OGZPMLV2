@@ -139,6 +139,8 @@ if (resolvedConfig.config.backtest.silent ||
         msg.includes('[SMS-') ||
         msg.includes('[BOOT]') ||
         msg.includes('BACKTEST COMPLETE') ||
+        msg.includes('BACKTEST INCOMPLETE') ||
+        msg.includes('BACKTEST PROCESSING ') ||
         msg.includes('PATTERN LEARNING') ||
         msg.includes('Final Balance') ||
         msg.includes('Total P&L') ||
