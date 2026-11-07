@@ -2535,6 +2535,7 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'entryLogic.warmupCandles': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Global analysis warmup candles', effect: 'next_entry_evaluation' },
   ...Object.fromEntries([
     ['maxTokens', 'TRAI LLM maximum request tokens', { type: 'number', min: 1, max: 200000, integer: true, unit: 'tokens' }],
     ['minimumTokens', 'TRAI LLM minimum request tokens', { type: 'number', min: 0, max: 200000, integer: true, unit: 'tokens' }],

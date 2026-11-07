@@ -499,10 +499,11 @@ class TradingLoop {
   }
 
   _entryRiskGates(finalDirection, directionFilter, priceHistory, activeTrades, maxPositions, minConfidence, confidence, riskGates = [], decisionInstantKey = null) {
+    const warmupCandles = ConfigLoader.get('entryLogic.warmupCandles');
     const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter);
     const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades, decisionInstantKey);
     return [
-      { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
+      { gate: 'warmup', threshold: warmupCandles, value: priceHistory.length, passed: priceHistory.length >= warmupCandles },
       { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
       { gate: 'direction_filter', threshold: directionFilter, value: finalDirection, passed: executionDirectionGate.filterPassed },
       {
@@ -1279,18 +1280,19 @@ class TradingLoop {
     }
 
     // ─── WARMUP CHECK ───
-    if (priceHistory.length < 15) {
+    const warmupCandles = ConfigLoader.get('entryLogic.warmupCandles');
+    if (priceHistory.length < warmupCandles) {
       this._diag('WARMUP_BLOCK', {
         symbol,
         priceHistory: priceHistory.length,
-        required: 15
+        required: warmupCandles
       });
       emitTrace(this.ctx, 'ANALYSIS_SKIP', {
         traceId,
         symbol,
         reason: 'warmup',
         priceHistory: priceHistory.length,
-        required: 15,
+        required: warmupCandles,
       });
       this._writeDecisionAutopsy({
         traceId,
@@ -1299,7 +1301,7 @@ class TradingLoop {
         priceHistory,
         marketData,
         decision: { action: 'HOLD' },
-        riskGates: [{ gate: 'warmup', threshold: 15, value: priceHistory.length, passed: false }],
+        riskGates: [{ gate: 'warmup', threshold: warmupCandles, value: priceHistory.length, passed: false }],
         skipReason: 'warmup',
         source: 'trading_loop',
         timeframe: analysisTimeframe,

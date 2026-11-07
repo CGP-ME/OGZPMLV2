@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 15,
+  "revision": 16,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7
@@ -3150,6 +3150,7 @@
     }
   },
   "entryLogic": {
+    "warmupCandles": 15,
     "sizing": {
       "absoluteCapPercent": 0.15,
       "stockShareRange": {
