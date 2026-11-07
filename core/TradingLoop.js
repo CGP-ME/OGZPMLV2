@@ -1373,7 +1373,7 @@ class TradingLoop {
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
     const directionFilter = ConfigLoader.get('pipeline.directionFilter');
-    const minConfidence = this.ctx.config.minTradeConfidence;
+    const minConfidence = ConfigLoader.get('confidence.minTradeConfidence');
 
     // ─── LOG ───
     const cleanPrice = Math.round(price).toLocaleString();

@@ -1,3 +1,11 @@
+### 2026-11-07 — Connect minimum entry confidence to the revisioned settings owner
+
+Revalidated September 23 Decision Settings and Feature Input Connections against the current consumer. ConfigLoader's settings API publishes minimum entry confidence for the next decision, but TradingLoop still read its cached startup copy. Delivered the existing one-line consumer correction to read confidence.minTradeConfidence from the canonical owner at decision time. This changes neither the configured value nor entry rules.
+
+Fresh isolated before/after observation used real ConfigLoader.saveSettings, atomic disk persistence/readback and the exact TradingLoop threshold, entry-check and action-builder source. Starting with a cached 20% threshold, saving 70% still produced BUY/SELL_SHORT for a 60% signal before the fix; afterward both directions HOLD. Saving 10% then permits both directions using 10%, while the constructor copy remains 20%. Evidence: `ogz-meta/inbox/codex/2026-11-07/delivery-reconciliation/entry-confidence-{baseline,candidate}.log` and `entry-confidence-delivery.json`.
+
+Limits: explicit empty-position/clock collaborators; no whole-cycle scheduling, other risk-rule, broker or deployed-state claim. No permanent test suite, new default, new gate, throw, live settings mutation or restart. **Retroactive Mercury and Astra review REQUIRED — PENDING**, per Trey's instruction while reviewers are unavailable.
+
 ### 2026-11-07 — Deliver descriptor-owned backtest worker store paths
 
 The September 23 Backtest Input Isolation entry was not fully landed: typed workers changed their primary state/report roots while journal, transition, performance, pipeline snapshot and log paths still pointed at deployment locations. Delivered the existing ConfigLoader producer correction deriving those six paths from each descriptor's explicit data/output roots. The existing typed override contract now accepts the existing boolean trai.enabled so an offline descriptor can explicitly disable that observer. Current runner reads config.trai.enabled directly; no obsolete feature alias or new default was added.
