@@ -1100,7 +1100,7 @@ function buildConfig() {
   const configuredPaths = internal('paths');
   const paths = {
     ...configuredPaths,
-    envFile: remember('paths.envFile', envSource().DOTENV_CONFIG_PATH || '.env', valueSource('DOTENV_CONFIG_PATH')),
+    envFile: remember('paths.envFile', envSource().DOTENV_CONFIG_PATH, valueSource('DOTENV_CONFIG_PATH')),
   };
   if (paths.journalDataDir) {
     paths.journalDataDir = path.resolve(process.cwd(), paths.journalDataDir);
@@ -2239,20 +2239,20 @@ function buildSnapshot(sourceEnv = process.env, opts = {}) {
     internalsHash,
   };
   const processRole = opts.role || 'bot';
-  const envPath = sourceEnv.DOTENV_CONFIG_PATH || '.env';
+  const envPath = sourceEnv.DOTENV_CONFIG_PATH || readConfiguredPath(internalsConfigFile, 'paths.envFile');
   const dotenvValues = opts.loadDotenv === false ? {} : loadDotenvValues(envPath);
   const descriptorPath = opts.runDescriptorPath || sourceEnv.BACKTEST_RUN_DESCRIPTOR_PATH || '';
   const descriptorReceipt = processRole === 'bot' ? loadBacktestRunDescriptor(descriptorPath) : null;
   const bootstrapEnv = {
     PROFILE: descriptorReceipt?.value?.launchProfile || sourceEnv.PROFILE,
-    DOTENV_CONFIG_PATH: sourceEnv.DOTENV_CONFIG_PATH,
+    DOTENV_CONFIG_PATH: envPath,
     BACKTEST_RUN_DESCRIPTOR_PATH: descriptorPath || undefined,
   };
   const bootstrapSources = {
     PROFILE: descriptorReceipt
       ? `descriptor:${descriptorReceipt.path}:launchProfile`
       : (sourceEnv.PROFILE === undefined ? 'config:settings.json:launchProfiles.defaultProfile' : 'env:PROFILE'),
-    DOTENV_CONFIG_PATH: sourceEnv.DOTENV_CONFIG_PATH === undefined ? 'default:.env' : 'env:DOTENV_CONFIG_PATH',
+    DOTENV_CONFIG_PATH: sourceEnv.DOTENV_CONFIG_PATH ? 'env:DOTENV_CONFIG_PATH' : 'config:internals.json:paths.envFile',
     BACKTEST_RUN_DESCRIPTOR_PATH: descriptorPath ? 'env:BACKTEST_RUN_DESCRIPTOR_PATH' : 'not-applicable',
   };
   const launchProfiledEnv = processRole === 'bot'

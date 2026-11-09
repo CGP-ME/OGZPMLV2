@@ -49,7 +49,9 @@ if (checkoutAuditSink) {
 }
 
 const { load: loadConfig } = require('../foundation/ConfigLoader');
-const checkoutConfig = loadConfig({ silent: true, role: 'checkout' }).config.services.checkout;
+const checkoutConfigSnapshot = loadConfig({ silent: true, role: 'checkout' });
+if (checkoutAuditSink) checkoutAuditSink.bindConfiguration(checkoutConfigSnapshot);
+const checkoutConfig = checkoutConfigSnapshot.config.services.checkout;
 if (checkoutAuditSink) checkoutAuditSink.setPhase('service_initialization');
 const express = require('express');
 const cors = require('cors');

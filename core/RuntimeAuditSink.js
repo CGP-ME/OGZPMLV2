@@ -370,6 +370,18 @@ class RuntimeAuditSink {
     };
   }
 
+  bindConfiguration(snapshot) {
+    const credentials = {};
+    for (const [configPath, source] of Object.entries(snapshot.sources)) {
+      if (!source.startsWith('dotenv:') && !source.startsWith('explicit:')) continue;
+      const value = configPath.split('.').reduce((current, key) => current?.[key], snapshot.config);
+      if (typeof value === 'string' && value.length > 0) credentials[`credential:${configPath}`] = value;
+    }
+    // Redaction consumes the same role-scoped values as the application.
+    // This is private diagnostic context; process.env is never modified.
+    this.env = { ...this.env, ...credentials };
+  }
+
   setPhase(phase) {
     this.phase = cleanAuditScopeValue(phase) || this.phase;
   }

@@ -78,7 +78,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const { load: loadConfig } = require('./foundation/ConfigLoader');
-const dashboardRuntimeConfig = loadConfig({ silent: true, role: 'dashboard' }).config;
+const dashboardConfigSnapshot = loadConfig({ silent: true, role: 'dashboard' });
+runtimeAuditSink.bindConfiguration(dashboardConfigSnapshot);
+const dashboardRuntimeConfig = dashboardConfigSnapshot.config;
 const dashboardConfig = dashboardRuntimeConfig.services.dashboard;
 runtimeAuditSink.setPhase('service_initialization');
 const express = require('express');

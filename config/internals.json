@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 11,
+  "revision": 12,
   "confidenceSizing": {
     "minMultiplier": 0.5,
     "maxMultiplier": 2.5,
@@ -49,6 +49,7 @@
     "freshStart": false
   },
   "paths": {
+    "envFile": ".env",
     "stateFile": "data/state-paper.json",
     "dataDir": "data",
     "journalDataDir": "data/journal",
@@ -2525,6 +2526,13 @@
   },
   "deployment": {
     "pm2": {
+      "launchEnvironment": {
+        "PATH": "/usr/local/bin:/usr/bin:/bin",
+        "HOME": "/home/linuxuser",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8"
+      },
+      "filterEnv": [""],
       "websocket": {
         "autorestart": true,
         "maxRestarts": 16,

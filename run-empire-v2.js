@@ -119,6 +119,7 @@ placeTerminatingBootstrapListenersAtTail();
 const ConfigLoader = require('./foundation/ConfigLoader');
 const { load: loadConfig } = ConfigLoader;
 resolvedConfig = loadConfig({ silent: true, role: 'bot' }); // Silent here, verbose logging comes later
+runtimeAuditSink.bindConfiguration(resolvedConfig);
 runtimeAuditSink.setDataDir(resolvedConfig.config.paths.dataDir);
 runtimeAuditSink.setSourceReceiptId(`config:${resolvedConfig.fingerprint}`);
 runtimeAuditSink.setPhase('service_initialization');
@@ -1113,6 +1114,7 @@ class OGZPrimeV14Bot {
     this.dashboardWsConnected = false;
     this.onSettingsApplied = (snapshot, receipt) => {
       resolvedConfig = snapshot;
+      runtimeAuditSink.bindConfiguration(snapshot);
       runtimeAuditSink.setSourceReceiptId(`config:${snapshot.fingerprint}`);
       logRuntimeConfigProof(snapshot, ConfigLoader);
       console.log('[SETTINGS_APPLIED]', JSON.stringify({

@@ -17,7 +17,12 @@ module.exports = {
       max_restarts: PM2.websocket.maxRestarts,
       restart_delay: PM2.websocket.restartDelayMs,
       min_uptime: PM2.websocket.minUptimeMs,
+      // Empty prefix filters all inherited keys on a fresh PM2 registration.
+      // Existing registrations must first be migrated; restart merges old env.
+      filter_env: PM2.filterEnv,
       env: {
+        ...PM2.launchEnvironment,
+        PM2_HOME: ConfigLoader.getInternalsFileValue('services.supervisor.pm2Home'),
         NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.websocket.nodeEnv')
       }
     },
@@ -30,7 +35,12 @@ module.exports = {
       max_restarts: PM2.checkout.maxRestarts,
       restart_delay: PM2.checkout.restartDelayMs,
       min_uptime: PM2.checkout.minUptimeMs,
+      // Empty prefix filters all inherited keys on a fresh PM2 registration.
+      // Existing registrations must first be migrated; restart merges old env.
+      filter_env: PM2.filterEnv,
       env: {
+        ...PM2.launchEnvironment,
+        PM2_HOME: ConfigLoader.getInternalsFileValue('services.supervisor.pm2Home'),
         NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.checkout.nodeEnv')
       }
     },
@@ -43,7 +53,12 @@ module.exports = {
       max_restarts: PM2.bot.maxRestarts,
       restart_delay: PM2.bot.restartDelayMs,
       min_uptime: PM2.bot.minUptimeMs,
+      // Empty prefix filters all inherited keys on a fresh PM2 registration.
+      // Existing registrations must first be migrated; restart merges old env.
+      filter_env: PM2.filterEnv,
       env: {
+        ...PM2.launchEnvironment,
+        PM2_HOME: ConfigLoader.getInternalsFileValue('services.supervisor.pm2Home'),
         NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.bot.nodeEnv'),
         PROFILE: ConfigLoader.getInternalsFileValue('deployment.pm2.bot.launchProfile')
       }
@@ -75,7 +90,12 @@ module.exports = {
       // the restart counter — daemon should bind sockets + register
       // subsystems within 2s on a healthy host.
       min_uptime: PM2.supervisor.minUptimeMs,
+      // Empty prefix filters all inherited keys on a fresh PM2 registration.
+      // Existing registrations must first be migrated; restart merges old env.
+      filter_env: PM2.filterEnv,
       env: {
+        ...PM2.launchEnvironment,
+        PM2_HOME: ConfigLoader.getInternalsFileValue('services.supervisor.pm2Home'),
         NODE_ENV: ConfigLoader.getInternalsFileValue('deployment.pm2.supervisor.nodeEnv')
       }
     }
