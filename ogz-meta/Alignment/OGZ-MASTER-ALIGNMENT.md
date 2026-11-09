@@ -323,8 +323,9 @@ All rules in this section are also encoded as hookify files in `.claude/`. The h
 - **Never commit files > 1MB** without explicit intent. Never commit `.env`, API keys, brain files, LLM dumps, or scratch files.
 - **Always check `.gitignore`** before staging.
 - **One change, one commit.** No bundled commits.
-- **Push after every commit.** Never batch commits without pushing.
-- **Before every push:** Trey approved this commit, AND Mercury was dispatched with attack framing and returned clean.
+- **Completed, verified work must be committed and pushed.** Trey reaffirmed this standing instruction on 2026-11-09: "when you get done with your work and its verified you push it periood". Record the logical change in `CHANGELOG.md`, push after its atomic commit, verify the remote SHA, and report delivery. Never leave completed work local-only or batch commits without pushing.
+- **Before every push:** inspect the scoped staged diff, preserve unrelated work, and complete the applicable behavior verification and adversarial review under `AGENTS.md` / `ogz-meta/AGENTS.md`. Standing delivery approval replaces per-commit permission within the authorized scope; it does not authorize a runtime restart or weaken verification. An unavailable reviewer remains a named absence under Trey's current review instructions.
+- **Current recovery branch:** `codex/archive-legacy-env`, explicitly selected by Trey on 2026-11-09; the earlier `astra-era` reference is superseded.
 
 ## Scope creep — instant rejection
 

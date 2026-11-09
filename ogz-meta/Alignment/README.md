@@ -4,6 +4,22 @@ This folder is the cold-start doorway for an AI agent entering OGZPMLV2.
 
 It is not, by itself, the source of truth. The source of truth is live repo state verified in the current session. These docs tell you what to read, what to distrust, and how to become useful without inventing project state.
 
+## Delivery instruction — reaffirmed by Trey, 2026-11-09
+
+"when you get done with your work and its verified you push it periood"
+
+Completed, verified work within Trey's authorized scope must be recorded in
+`CHANGELOG.md`, committed as one logical change, and pushed immediately. Verify
+the remote commit and report it. Do not leave completed work in a dirty tree or
+ask again for permission to deliver it. Preserve unrelated edits; source review,
+verification and separate runtime-activation requirements still apply. This
+reaffirms the standing delivery instruction in `AGENTS.md` and
+`ogz-meta/AGENTS.md`.
+
+Trey selected `codex/archive-legacy-env` for the current recovery on 2026-11-09,
+superseding the older `astra-era` branch reference. Verify the checkout before
+delivery; do not switch branches or include unrelated work implicitly.
+
 ## Cold-Start Order
 
 Before answering questions or touching files, walk this path:

@@ -1,3 +1,9 @@
+### 2026-11-09 — Record current recovery branch and mandatory delivery
+
+Trey selected the existing codex/archive-legacy-env checkout for this recovery and reaffirmed: "when you get done with your work and its verified you push it periood". Updated ogz-meta/AGENTS.md to supersede the stale astra-era branch reference. Added the standing delivery instruction and current branch to the Alignment entry point, and replaced the master alignment's obsolete per-commit permission sentence with the existing scoped verification/delivery policy. Completed, verified work is recorded here, committed atomically, pushed immediately and checked against the remote; runtime activation remains separately evidenced.
+
+Verification: read the current branch and all affected instruction sections; reviewed the exact documentation diff. Bootstrap AGENTS.md already contained the standing delivery rule and needed no duplicate edit. This documentation-only commit includes its own changelog entry and the three instruction files; no source code, inherited dirty hunks, candidate tapes, Jest files, credentials or runtime state are included. No service restart or notification request was performed by this documentation edit. The separate supervisor implementation remains a separately reviewed logical delivery.
+
 ### 2026-11-07 — Delivery reconciliation: actual runner evidence and remaining work
 
 Coverage: classified all 20 remaining tracked dirty files at aa06ead88508c62ffe5ed9faf1ec0864ec71311e against their current diffs, relevant changelog entries and current rulings. This is a checkpoint, not completion of every inherited proposal. Each completed logical change has its own preceding entry and atomic delivery. HEAD and the remote named branch matched. Stop 1 closure f677c74ed7d4e8ab3d143a690ada4ac723d946f4 is already an ancestor of that remote history; migration delivery is not runtime acceptance.
