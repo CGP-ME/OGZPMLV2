@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 8,
+  "revision": 11,
   "confidenceSizing": {
     "minMultiplier": 0.5,
     "maxMultiplier": 2.5,
@@ -2583,7 +2583,14 @@
       "botProcess": "ogz-prime-v2",
       "relayProcess": "ogz-websocket",
       "ledgerPath": "data/supervisor-ledger.jsonl",
-      "alertHookPath": null
+      "alertHookPath": null,
+      "pm2Home": "/home/linuxuser/.pm2",
+      "recovery": {
+        "socketPath": "data/supervisor-control/recovery.sock",
+        "dashboardUrl": "https://www.ogzprime.com/control-panel.html",
+        "requestTimeoutMs": 20000,
+        "maximumBodyBytes": 4096
+      }
     },
     "news": {
       "edgar": {

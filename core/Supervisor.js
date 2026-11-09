@@ -36,7 +36,7 @@
  *       failureReason: null | string,
  *     }),
  *     selfHeal: async () => true | false,    // optional
- *     escalate: async () => true | false,    // optional (e.g., PM2 restart)
+ *     escalate: async () => true | false | { skipped: true, reason: string }, // optional
  *   }
  *
  * @date 2026-04-26
@@ -615,12 +615,16 @@ class Supervisor extends EventEmitter {
     try {
       // (2) Bounded wait — promise resolves to whatever onAlert returns.
       // Wrapping with Promise.resolve handles both sync and async hooks.
-      await this._withTimeout(
+      const delivery = await this._withTimeout(
         Promise.resolve().then(() => this.onAlert(name, event)),
         this.alertTimeoutMs,
         `${name}.onAlert`
       );
 
+      if (delivery?.loggedOnly === true) {
+        this._writeLedger('alert_logged_only', { ...event, alertFor: name, reason: delivery.reason });
+        return;
+      }
       // (3) Success — reset failure counter, durable success record.
       entry._alertFailures = 0;
       this._writeLedger('alert_delivered', { ...event, alertFor: name });
@@ -698,16 +702,28 @@ class Supervisor extends EventEmitter {
       return;
     }
 
-    entry.lastEscalateAt = now;
-    entry.restartHistory.push(now);
     let ok = false;
     try {
       // Call as method to preserve `this` for class-method escalate impls.
-      ok = !!(await entry.def.escalate());
+      const outcome = await entry.def.escalate();
+      if (outcome?.skipped === true) {
+        this._writeLedger('escalate_skipped', {
+          timestamp: this.clock(),
+          subsystem: name,
+          reason: outcome.reason,
+        });
+        console.log(`${this.label} ${name}: escalation skipped (${outcome.reason})`);
+        return;
+      }
+      ok = !!outcome;
     } catch (err) {
       console.error(`${this.label} ${name}.escalate threw:`, err.message);
       ok = false;
     }
+    // _pollOne holds this entry's mutex across the await. Only attempted
+    // recovery consumes the cooldown/budget; an explicit skip does not.
+    entry.lastEscalateAt = now;
+    entry.restartHistory.push(now);
     this._writeLedger('escalate', {
       // Wall-clock for ledger; `now` is monotonic-ms for restart-window math.
       timestamp: this.clock(),
@@ -876,7 +892,7 @@ class Supervisor extends EventEmitter {
     return crypto.timingSafeEqual(expectedBuf, actualBuf);
   }
 
-  _writeLedger(eventType, payload) {
+  _writeLedger(eventType, payload, durable = false) {
     // Mercury Audit B1 Finding 1-5 fix (2026-04-27): every entry carries
     //   - pid + pidStartTime: process identity that survives PID rollover
     //   - hmac: HMAC-SHA256 over the rest of the entry
@@ -905,16 +921,25 @@ class Supervisor extends EventEmitter {
       monoMs: this._monoMs(),
     }, payload);
     const hmac = this._signEntry(entry);
+    if (durable && !hmac) return false;
     if (hmac) entry.hmac = hmac;
     const line = JSON.stringify(entry) + '\n';
     try {
-      fs.appendFileSync(this.ledgerPath, line);
+      if (durable) {
+        const fd = fs.openSync(this.ledgerPath, 'a', 0o600);
+        try { fs.writeFileSync(fd, line); fs.fsyncSync(fd); }
+        finally { fs.closeSync(fd); }
+      } else {
+        fs.appendFileSync(this.ledgerPath, line);
+      }
+      return true;
     } catch (err) {
       // Surface err.code (ENOSPC/EACCES/ENOENT) so operator monitors can
       // route alerts. Don't let ledger failure crash the supervisor —
       // its core duty (watching subsystems) takes precedence over its
       // own postmortem trail.
       console.error(`${this.label} ledger append failed [${err.code || 'unknown'}]:`, err.message, '(path:', this.ledgerPath + ')');
+      return false;
     }
   }
 
@@ -938,6 +963,32 @@ class Supervisor extends EventEmitter {
    * yet, permissions) log a warning and return — supervisor continues
    * with empty history (worst case = same as today, no regression).
    */
+  readBotStartRequest() {
+    let raw;
+    try { raw = fs.readFileSync(this.ledgerPath, 'utf8'); }
+    catch (error) {
+      return error.code === 'ENOENT' ? { request: null } : { error: `ledger_read_${error.code || 'failed'}` };
+    }
+    let request = null;
+    for (const line of raw.split('\n')) {
+      if (!line) continue;
+      let entry;
+      try { entry = JSON.parse(line); }
+      catch (_) { return { error: 'ledger_contains_unreadable_entry' }; }
+      if (entry.event !== 'bot_start_request') continue;
+      if (!this._verifyEntry(entry)) return { error: 'bot_start_receipt_signature_invalid' };
+      request = entry.request;
+    }
+    return { request };
+  }
+
+  recordBotStartRequest(request) {
+    return this._writeLedger('bot_start_request', {
+      timestamp: this.clock(), subsystem: 'pm2-bot', request,
+    }, true);
+  }
+
+
   _replayRestartHistory() {
     if (!fs.existsSync(this.ledgerPath)) {
       console.log(`${this.label} no ledger yet at ${this.ledgerPath}; restartHistory empty`);

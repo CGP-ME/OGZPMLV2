@@ -254,6 +254,60 @@ app.post('/api/dashboard/logout', (req, res) => {
   return res.json({ ok: true });
 });
 
+// Stopped-bot notices use the existing dashboard session and remain available
+// without the bot connection. This endpoint only acknowledges; it cannot start.
+function supervisorRecoveryRequest(method, requestPath, body) {
+  const config = dashboardRuntimeConfig.services.supervisor.recovery;
+  return new Promise(resolve => {
+    let finished = false;
+    let deadline;
+    const finish = result => { if (!finished) { finished = true; clearTimeout(deadline); resolve(result); } };
+    const call = http.request({ socketPath: path.resolve(config.socketPath), path: requestPath, method,
+      headers: { 'Content-Type': 'application/json' } }, response => {
+      let data = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => {
+        data += chunk;
+        if (Buffer.byteLength(data) > config.maximumBodyBytes) {
+          finish({ status: 502, body: { error: 'supervisor_response_too_large' } }); call.destroy();
+        }
+      });
+      response.on('error', () => finish({ status: 502, body: { error: 'supervisor_response_interrupted' } }));
+      response.on('end', () => {
+        try { finish({ status: response.statusCode, body: JSON.parse(data) }); }
+        catch (_) { finish({ status: 502, body: { error: 'supervisor_response_invalid' } }); }
+      });
+    });
+    call.on('error', () => finish({ status: 503, body: { error: 'supervisor_unavailable' } }));
+    deadline = setTimeout(() => {
+      finish({ status: 504, body: { error: 'supervisor_response_timeout',
+        message: 'Refresh the request receipt before acknowledging again.' } });
+      call.destroy();
+    }, config.requestTimeoutMs);
+    call.end(body ? JSON.stringify(body) : undefined);
+  });
+}
+
+app.get('/api/supervisor/recovery', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!dashboardAuthToken || !dashboardSessionAuth.sessionFromRequest(req))
+    return res.status(401).json({ error: 'dashboard_session_required' });
+  const result = await supervisorRecoveryRequest('GET', '/recovery');
+  return res.status(result.status).json(result.body);
+});
+
+app.post('/api/supervisor/recovery/:id', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!dashboardAuthToken || !dashboardSessionAuth.sessionFromRequest(req))
+    return res.status(401).json({ error: 'dashboard_session_required' });
+  if (!isSameOriginDashboardRequest(req)) return res.status(403).json({ error: 'same_origin_required' });
+  if (!/^[a-f0-9-]{36}$/.test(req.params.id) || req.body?.decision !== 'acknowledge')
+    return res.status(400).json({ error: 'acknowledgment_only' });
+  const result = await supervisorRecoveryRequest('POST', `/recovery/${req.params.id}`, { decision: req.body.decision });
+  return res.status(result.status).json(result.body);
+});
+
+
 function denyStaticBackup(req, res) {
   res.status(404).type('text').send('Not found');
 }

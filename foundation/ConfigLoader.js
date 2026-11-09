@@ -386,7 +386,7 @@ const PROCESS_CREDENTIAL_KEYS = Object.freeze({
     'ANTHROPIC_API_KEY',
   ]),
   checkout: new Set(['STRIPE_SECRET_KEY']),
-  supervisor: new Set(['SUPERVISOR_DEADMAN_URL']),
+  supervisor: new Set(['SUPERVISOR_DEADMAN_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'NTFY_TOPIC']),
   'market-data-tool': new Set(['ALPACA_API_KEY', 'ALPACA_API_SECRET', 'POLYGON_API_KEY']),
 });
 
@@ -584,7 +584,7 @@ function buildRoleConfig(role) {
       config: {
         schemaVersion: settingsConfigFile.schemaVersion,
         revision: settingsConfigFile.revision,
-        services: { dashboard, news },
+        services: { dashboard, news, supervisor: { recovery: cloneInternal('services.supervisor.recovery') } },
         broker,
         mode,
         trai,
@@ -611,13 +611,17 @@ function buildRoleConfig(role) {
   if (role === 'supervisor') {
     const supervisor = cloneInternal('services.supervisor');
     supervisor.deadmanUrl = credentialForRole(role, 'SUPERVISOR_DEADMAN_URL', sources, 'services.supervisor.deadmanUrl');
+    const notifications = { ...cloneSetting('services.notifications'), ...cloneInternal('services.notifications') };
+    notifications.telegramBotToken = credentialForRole(role, 'TELEGRAM_BOT_TOKEN', sources, 'services.notifications.telegramBotToken');
+    notifications.telegramChatId = credentialForRole(role, 'TELEGRAM_CHAT_ID', sources, 'services.notifications.telegramChatId');
+    notifications.ntfyTopic = credentialForRole(role, 'NTFY_TOPIC', sources, 'services.notifications.ntfyTopic');
     sources.schemaVersion = 'config:internals.json:schemaVersion';
     sources.revision = 'config:internals.json:revision';
     return {
       config: {
         schemaVersion: internalsConfigFile.schemaVersion,
         revision: internalsConfigFile.revision,
-        services: { supervisor },
+        services: { supervisor, notifications },
       },
       sources,
     };
@@ -1449,6 +1453,7 @@ function optionalRoleString(errors, config, pathName) {
 }
 
 function validateDashboardRole(config, errors) {
+  validateSupervisorRecovery(config, errors);
   const dashboard = requireRoleObject(errors, config, 'services.dashboard');
   if (dashboard) {
     requireRoleBoolean(errors, config, 'services.dashboard.enabled');
@@ -1558,7 +1563,27 @@ function validateCheckoutRole(config, errors) {
   }
 }
 
+function validateSupervisorRecovery(config, errors) {
+  const base = 'services.supervisor.recovery';
+  if (!requireRoleObject(errors, config, base)) return;
+  for (const key of ['socketPath']) {
+    requireRoleString(errors, config, `${base}.${key}`);
+  }
+  for (const key of ['requestTimeoutMs', 'maximumBodyBytes']) {
+    requireRolePositiveInteger(errors, config, `${base}.${key}`);
+  }
+  requireRoleUrl(errors, config, `${base}.dashboardUrl`, ['https:']);
+}
+
 function validateSupervisorRole(config, errors) {
+  validateSupervisorRecovery(config, errors);
+  requireRoleBoolean(errors, config, 'services.notifications.enabled');
+  for (const key of ['botProcess', 'relayProcess']) {
+    const name = roleConfigValue(config, `services.supervisor.${key}`);
+    if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(name) || name === 'all') {
+      roleError(errors, `services.supervisor.${key}`, 'must be a literal application name, not a PM2 selector');
+    }
+  }
   const supervisor = requireRoleObject(errors, config, 'services.supervisor');
   if (!supervisor) return;
   for (const pathName of [
@@ -1576,7 +1601,10 @@ function validateSupervisorRole(config, errors) {
     requireRoleNonNegativeInteger(errors, config, `services.supervisor.${pathName}`);
   }
   requireRoleUrl(errors, config, 'services.supervisor.healthUrl', ['http:', 'https:']);
-  for (const pathName of ['botProcess', 'relayProcess', 'ledgerPath']) {
+  if (supervisor.botProcess === supervisor.relayProcess) {
+    roleError(errors, 'services.supervisor.relayProcess', 'must differ from botProcess; supervisor recovery is relay-only');
+  }
+  for (const pathName of ['botProcess', 'relayProcess', 'ledgerPath', 'pm2Home']) {
     requireRoleString(errors, config, `services.supervisor.${pathName}`);
   }
   optionalRoleString(errors, config, 'services.supervisor.deadmanUrl');

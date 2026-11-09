@@ -26,7 +26,8 @@ function parseCookieHeader(header) {
     const key = part.slice(0, index).trim();
     const value = part.slice(index + 1).trim();
     if (!key) continue;
-    cookies[key] = decodeURIComponent(value);
+    try { cookies[key] = decodeURIComponent(value); }
+    catch (_) { return {}; } // Malformed client cookies do not authenticate a session.
   }
   return cookies;
 }
