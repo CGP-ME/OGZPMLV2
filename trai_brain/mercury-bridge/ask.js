@@ -61,12 +61,12 @@ const {
   reviewModeRequested,
   parseAdversarialReviewAnswer,
   runAstraAdversarialReview,
-  runKimiFinalAdjudication,
+  runFableFinalAdjudication,
   buildAttestedPromptProvenance,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
   isHardReviewBoundaryError,
-  kimiTieBreakerRequired,
+  fableTieBreakerRequired,
   notifyReviewQuarantines,
   reviewQuarantine,
   sendMaxPriorityNtfy,
@@ -767,7 +767,7 @@ function priorPanelResult(query, outputs) {
 }
 
 function finalizeMercuryEvidenceResult(result) {
-  // Same explicit-field contract as Astra and Kimi. Never infer a verdict
+  // Same explicit-field contract as Astra and Fable. Never infer a verdict
   // from successful transport, a prose conclusion, or a partial tool loop.
   if (!result.parsed && hasReviewerAnswer(result)) {
     const parsed = parseAdversarialReviewAnswer(result.answer);
@@ -1280,7 +1280,7 @@ async function runAgentic(query, opts) {
     let client = null;
     let mercuryResult = null;
     let astraReview = null;
-    let kimiReview = null;
+    let fableReview = null;
     const outputs = new Map();
     const panelRun = await runReviewerPanel({
       selected: reviewerSelection.selected,
@@ -1377,7 +1377,7 @@ async function runAgentic(query, opts) {
           // A rejected primary answer still needs the source checks Astra
           // requested. Preserve its failed evidence status; do not skip repair.
           if (mercuryResult && typeof mercuryResult.answer === 'string' && mercuryResult.answer.trim()
-              && kimiTieBreakerRequired(astraReview, reviewIntent)) {
+              && fableTieBreakerRequired(astraReview, reviewIntent)) {
             const recheckPrompts = buildMercuryRecheckPrompts({
               originalQuery: query,
               mercuryAnswer: mercuryResult.answer,
@@ -1450,24 +1450,24 @@ async function runAgentic(query, opts) {
           panelSourceLabel: 'Earlier selected reviewer evidence (no prior Astra seat)',
           panelSourcePath: 'panel://prior-reviewer-evidence',
         };
-        kimiReview = await runKimiFinalAdjudication({
+        fableReview = await runFableFinalAdjudication({
           query, mercuryResult: prior, review,
           persistRaw: persistReviewRaw, evidenceSources, hostEvidenceSources,
         });
-        kimiReview.doctrineReview = assessDoctrineReview({
-          answer: kimiReview.answer,
+        fableReview.doctrineReview = assessDoctrineReview({
+          answer: fableReview.answer,
           changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
           diff: autoBlastRadius ? autoBlastRadius.diff : '',
           telemetry: mercuryResult ? mercuryResult.toolTelemetry : {},
           autoScan: autoBlastRadius,
           evidenceSources,
-          reviewerId: 'kimi',
+          reviewerId: 'fable',
           answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
         });
-        kimiReview.quarantines = await notifyReviewQuarantines(kimiReview.quarantines || []);
-        outputs.set('kimi', { id: 'kimi', ...kimiReview });
+        fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
+        outputs.set('fable', { id: 'fable', ...fableReview });
         const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
-        const metadata = panelSeatMetadata('kimi', kimiReview, {
+        const metadata = panelSeatMetadata('fable', fableReview, {
           evidenceSources: [...evidenceSources, ...hostEvidenceSources],
           inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
           inputDependencies: priorSeats.map(seat => ({
@@ -1557,15 +1557,15 @@ async function runAgentic(query, opts) {
     if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
     if (astraReview) {
       const astraSeat = panelRun.seats.find(seat => seat.id === 'astra' && seat.status === 'succeeded');
-      const kimiSeat = panelRun.seats.find(seat => seat.id === 'kimi' && seat.status === 'succeeded');
-      if (canAttachFinalReview(astraSeat, kimiSeat)) {
-        astraReview.finalReview = kimiReview;
+      const fableSeat = panelRun.seats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
+      if (canAttachFinalReview(astraSeat, fableSeat)) {
+        astraReview.finalReview = fableReview;
         result.reviewerPanel.diagnostics = recomputePanelDiagnostics(panelRun);
       }
       result.adversarialReview = astraReview;
       result.consensus = astraReview;
       result.adversarialReviewPacket = formatAdversarialReviewPacket({
-        originalQuery: query, mercuryResult: mercuryResult || priorPanelResult(query, outputs),
+        originalQuery: query, mercuryResult,
         review: astraReview, panel: result.reviewerPanel, reviewIntent,
       });
     }
@@ -1786,7 +1786,7 @@ function printDispatchReceipt(result) {
     if (reviewEntry.final_review) {
       const final = reviewEntry.final_review;
       const finalStatus = final.ok ? 'ok' : 'FAILED';
-      console.log(`final adjud.:    ${finalStatus} — ${final.mode || 'kimi_final_adjudication'} verdict=${final.effective_verdict || 'n/a'}`);
+      console.log(`final adjud.:    ${finalStatus} — ${final.mode || (final.provider === 'claude-code' ? 'fable_final_adjudication' : 'kimi_final_adjudication')} verdict=${final.effective_verdict || 'n/a'}`);
       const sharedSupport = final.parsed && (final.parsed.consensus || final.parsed.sharedConclusion);
       if (sharedSupport) {
         console.log(`shared support:  ${sharedSupport}`);
@@ -1809,7 +1809,7 @@ function printDispatchReceipt(result) {
     ['mercury', entry.stages && entry.stages.mercury],
     [reviewEntry && reviewEntry.provider === 'codex-subscription' ? 'astra' : 'fable', reviewEntry],
     ...((reviewEntry && reviewEntry.rechecks) || []).map((recheck, index) => [`mercury_recheck_${index + 1}`, recheck]),
-    ['kimi', reviewEntry && reviewEntry.final_review],
+    [reviewEntry && reviewEntry.final_review && reviewEntry.final_review.provider === 'claude-code' ? 'fable' : 'kimi', reviewEntry && reviewEntry.final_review],
   ];
   for (const [label, unit] of selfReportUnits) {
     if (unit && Array.isArray(unit.named_absences) && unit.named_absences.includes('self_report_absent')) {

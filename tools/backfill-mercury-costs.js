@@ -62,6 +62,9 @@ function receiptFromRaw(absPath, attempt) {
   } else if (/^fable_challenger-/.test(base)) {
     provider = 'claude-code';
     requestedModel = 'fable';
+  } else if (/^fable_tie_breaker-/.test(base)) {
+    provider = 'claude-code';
+    requestedModel = 'claude-fable-5';
   } else if (/^opus_challenger-/.test(base)) {
     provider = 'claude-code';
     requestedModel = 'opus';

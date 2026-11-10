@@ -5,7 +5,7 @@ const config = require('./config');
 const {
   createMercuryLlmClient,
   createAstraChallengerClient,
-  createKimiTieBreakerClient,
+  createFableTieBreakerClient,
 } = require('./llm-client');
 const { stampedIdentityPosture } = require('./adversarial-review');
 const {
@@ -233,7 +233,7 @@ async function checkClient(label, createClient, { attempt = 1, repoRoot = null, 
 async function runProviderPreflight({
   createMercuryClient = () => createMercuryLlmClient({ systemPrompt: 'Respond tersely.' }),
   createAstraClient = () => createAstraChallengerClient(),
-  createKimiClient = () => createKimiTieBreakerClient(),
+  createFableClient = () => createFableTieBreakerClient(),
   repoRoot = null,
 } = {}) {
   const startedAt = new Date();
@@ -243,16 +243,16 @@ async function runProviderPreflight({
   attempts.push(mercury.attemptReceipt);
   const astra = await checkClient('astra_challenger', createAstraClient, { attempt: 2, repoRoot, runId });
   attempts.push(astra.attemptReceipt);
-  const kimi = await checkClient('kimi_tie_breaker', createKimiClient, {
+  const fable = await checkClient('fable_tie_breaker', createFableClient, {
     attempt: attempts.length + 1, repoRoot, runId,
   });
-  attempts.push(kimi.attemptReceipt);
+  attempts.push(fable.attemptReceipt);
   const challengerReady = astra.ok === true;
   const result = {
     ok: mercury.ok === true && challengerReady,
     challengerReady,
-    tieBreakerReady: kimi.ok === true,
-    checks: [mercury, astra, kimi],
+    tieBreakerReady: fable.ok === true,
+    checks: [mercury, astra, fable],
     attempts,
   };
   if (repoRoot) {

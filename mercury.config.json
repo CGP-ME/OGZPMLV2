@@ -169,19 +169,12 @@
     ]
   },
   "tieBreaker": {
-    "provider": "openai",
-    "baseUrl": "https://api.moonshot.ai/v1",
-    "model": "kimi-k3",
-    "apiKeyEnv": "MOONSHOT_API_KEY",
+    "provider": "claude-code",
+    "model": "claude-fable-5",
     "clientMaxTokens": 4096,
     "clientMinTokens": 200,
     "requestTimeoutMs": 600000,
-    "temperature": 0.6,
-    "openaiExtraBody": {
-      "thinking": {
-        "type": "disabled"
-      }
-    }
+    "temperature": 0.6
   },
   "directQuestion": {
     "systemPrompt": [

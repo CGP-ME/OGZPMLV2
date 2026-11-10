@@ -7,7 +7,7 @@ const {
   claudeAppliedModelMatchesAlias,
   classifyClaudeCodeIdentity,
   createAstraChallengerClient,
-  createKimiTieBreakerClient,
+  createFableTieBreakerClient,
 } = require('./llm-client');
 const { formatFixedEvidenceInputs, formatToolTelemetry, serializeToolResultForHistory } = require('./react-loop');
 const { MERCURY_DOCTRINE_PROMPT } = require('./doctrine-review');
@@ -149,7 +149,7 @@ function normalizeReviewIntent(value) {
   return 'adversarial';
 }
 
-function kimiTieBreakerRequired(review, reviewIntent = 'adversarial') {
+function fableTieBreakerRequired(review, reviewIntent = 'adversarial') {
   return normalizeReviewIntent(reviewIntent) === 'adversarial'
     && !!(review && review.ok === true && review.parsed && review.parsed.blocking === true);
 }
@@ -416,14 +416,17 @@ function formatFinalReview(finalReview) {
       '<not adjudicated>',
       'Astra supported:',
       '<not adjudicated>',
-      'Kimi supported:',
+      'Fable supported:',
       '<not adjudicated>',
-      'Full Kimi answer:',
+      'Full Fable answer:',
       '<missing>',
     ].join('\n');
   }
 
   const parsed = finalReview.parsed || parseAdversarialReviewAnswer(finalReview.answer);
+  const legacyKimi = finalReview.mode === 'kimi_final_adjudication'
+    || (finalReview.provider === 'openai' && String(finalReview.model || '').startsWith('kimi'));
+  const finalLabel = legacyKimi ? 'Kimi' : 'Fable';
   return [
     'Consensus:',
     parsed.consensus || '<not specified>',
@@ -442,12 +445,12 @@ function formatFinalReview(finalReview) {
     'Mercury supported:',
     parsed.mercurySupported || '<not specified>',
     'Astra supported:',
-    parsed.astraSupported || parsed.fableSupported || '<not specified>',
-    'Kimi supported:',
-    parsed.kimiSupported || '<not specified>',
+    parsed.astraSupported || (legacyKimi ? parsed.fableSupported : null) || '<not specified>',
+    `${finalLabel} supported:`,
+    (legacyKimi ? parsed.kimiSupported : parsed.fableSupported) || '<not specified>',
     'Cited reasoning:',
     parsed.citedReasoning || '<not specified>',
-    'Full Kimi answer:',
+    `Full ${finalLabel} answer:`,
     String(finalReview.answer || '').trim() || '<empty>',
   ].join('\n');
 }
@@ -458,7 +461,7 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
       return {
         verdict: parsedFirstReview.verdict || 'pass',
         decision: 'pass_pending_local_proof',
-        why: 'Astra did not identify a blocking challenge, so Kimi tie-break adjudication was not required.',
+        why: 'Astra did not identify a blocking challenge, so Fable tie-break adjudication was not required.',
         residualRisk: 'Local tests/gates still control commit approval.',
         nextAction: parsedFirstReview.nextCheck || '<none>',
       };
@@ -466,7 +469,7 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
     return {
       verdict: 'needs_more_evidence',
       decision: 'needs_more_evidence',
-      why: 'Kimi final adjudication did not complete.',
+      why: 'Fable final adjudication did not complete.',
       residualRisk: 'Mercury and Astra disagreement remains unresolved.',
       nextAction: parsedFirstReview.nextCheck || parsedFirstReview.requiredRecheck || '<rerun final adjudication>',
     };
@@ -478,7 +481,7 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
     return {
       verdict,
       decision: 'models_disagree',
-      why: parsedFinal.sharedConclusion || 'No shared conclusion across Mercury, Astra, and Kimi.',
+      why: parsedFinal.sharedConclusion || 'No shared conclusion across the supplied reviewers.',
       residualRisk: 'Do not treat this review as green; inspect each model-supported claim separately.',
       nextAction: parsedFinal.nextCheck || parsedFirstReview.nextCheck || '<operator adjudication required>',
     };
@@ -488,7 +491,7 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
     return {
       verdict,
       decision: verdict === 'found_break' ? 'found_break' : 'needs_more_evidence',
-      why: parsedFinal.citedReasoning || parsedFinal.disagreement || 'Kimi final adjudication remained blocking.',
+      why: parsedFinal.citedReasoning || parsedFinal.disagreement || 'Final adjudication remained blocking.',
       residualRisk: parsedFinal.sharedConclusion || 'Blocking adjudication remains unresolved.',
       nextAction: parsedFinal.nextCheck || parsedFirstReview.nextCheck || '<resolve final blocking finding>',
     };
@@ -498,8 +501,8 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
     verdict,
     decision: verdict === 'found_break' ? 'found_break' : 'pass_pending_local_proof',
     why: parsedFinal.citedReasoning || (rechecks.length > 0
-      ? 'Kimi adjudicated the Astra challenge after Mercury recheck evidence.'
-      : 'Astra did not identify a blocking challenge and Kimi found no unresolved disagreement.'),
+      ? 'The final reviewer adjudicated the Astra challenge after Mercury recheck evidence.'
+      : 'Astra did not identify a blocking challenge and the final reviewer found no unresolved disagreement.'),
     residualRisk: parsedFinal.sharedConclusion || 'Local tests/gates still control commit approval.',
     nextAction: parsedFinal.nextCheck || '<none>',
   };
@@ -524,7 +527,7 @@ function formatAdversarialReviewPacket({
       '1. Original Prompt',
       String(originalQuery || '').trim() || '<empty>',
       '',
-      '2. Mercury Pass 1',
+      mercuryResult ? '2. Mercury Pass 1' : '2. Mercury — no completed pass',
       `Verdict: ${mercuryResult && mercuryResult.termination ? mercuryResult.termination : 'unknown'}`,
       'Claims:',
       String(mercuryResult && mercuryResult.answer || '').trim() || '<empty>',
@@ -576,7 +579,7 @@ function formatAdversarialReviewPacket({
     '1. Original Prompt',
     String(originalQuery || '').trim() || '<empty>',
     '',
-    '2. Mercury Pass 1',
+    mercuryResult ? '2. Mercury Pass 1' : '2. Mercury — no completed pass',
     `Verdict: ${mercuryResult && mercuryResult.termination ? mercuryResult.termination : 'unknown'}`,
     'Claims:',
     String(mercuryResult && mercuryResult.answer || '').trim() || '<empty>',
@@ -617,7 +620,8 @@ function formatAdversarialReviewPacket({
 
   sections.push(
     '',
-    '5. Kimi Final Adjudication',
+    `5. ${finalReview && (finalReview.mode === 'kimi_final_adjudication'
+      || (finalReview.provider === 'openai' && String(finalReview.model || '').startsWith('kimi'))) ? 'Kimi' : 'Fable'} Final Adjudication`,
     formatFinalReview(finalReview),
     '',
     '6. Final Resolution',
@@ -788,7 +792,7 @@ function buildAdversarialReviewPrompt({
   ].join('\n');
 }
 
-function buildKimiFinalAdjudicationPrompt({
+function buildFableFinalAdjudicationPrompt({
   query,
   mercuryResult,
   review,
@@ -796,13 +800,13 @@ function buildKimiFinalAdjudicationPrompt({
   hostEvidenceSources = [],
 } = {}) {
   if (typeof query !== 'string' || query.trim() === '') {
-    throw new Error('Kimi final adjudication prompt requires the original query');
+    throw new Error('Fable final adjudication prompt requires the original query');
   }
   if (!mercuryResult || typeof mercuryResult !== 'object') {
-    throw new Error('Kimi final adjudication prompt requires a Mercury result object');
+    throw new Error('Fable final adjudication prompt requires a Mercury result object');
   }
   if (!review || typeof review !== 'object') {
-    throw new Error('Kimi final adjudication prompt requires the Astra review object');
+    throw new Error('Fable final adjudication prompt requires the Astra review object');
   }
 
   const rechecks = Array.isArray(review.rechecks)
@@ -838,7 +842,7 @@ function buildKimiFinalAdjudicationPrompt({
   return [
     'READ-ONLY FINAL ADJUDICATION. Do not edit code.',
     MERCURY_DOCTRINE_PROMPT,
-    'You are Kimi, the reasoning adjudicator for the OGZPrime adversarial layer.',
+    'You are Fable, the reasoning adjudicator for the OGZPrime adversarial layer.',
     '',
     `Your job is not to agree with ${priorLabel} or Astra. Compare the supplied answers before verdict and decide whether the end state is supported by cited evidence.`,
     `Use only the material below: the original prompt, host-produced scan and tool evidence, ${priorLabel}, its tool telemetry and answer-quality flags when present, Astra critique when present, and rechecks.`,
@@ -1068,7 +1072,7 @@ function stageAttemptReceipt({
     exit_code: metadata.exitCode == null ? null : metadata.exitCode,
     retry_status: role === 'opus_challenger'
       ? 'emergency_replacement'
-      : (role === 'kimi_tie_breaker' && attemptNumber > 1 ? 'truncation_retry' : 'primary_attempt'),
+      : (role === 'fable_tie_breaker' && attemptNumber > 1 ? 'truncation_retry' : 'primary_attempt'),
     input_provenance: { ...(inputProvenance || buildAttestedPromptProvenance(prompt, suppliedSources)),
       // Original request attestation remains separate from actual CLI delivery.
       delivery: metadata.inputDelivery || { mode: 'provider_prompt', status: 'supplied_inline' },
@@ -1140,7 +1144,7 @@ async function executePromptOnlyStage({
     receipt.claimed_file_citations = extractClaimedFileCitations(response.answer);
     return { answer: response.answer, receipt };
   } catch (error) {
-    const roleIdentity = role === 'kimi_tie_breaker'
+    const roleIdentity = role === 'fable_tie_breaker'
       ? { provider: config.TIE_BREAKER_PROVIDER, requestedModel: config.TIE_BREAKER_MODEL }
       : {
         provider: config.CONSENSUS_PROVIDER,
@@ -1278,17 +1282,17 @@ async function runAstraAdversarialReview({
   };
 }
 
-async function runKimiFinalAdjudication({
+async function runFableFinalAdjudication({
   query,
   mercuryResult,
   review,
-  createClient = createKimiTieBreakerClient,
+  createClient = createFableTieBreakerClient,
   persistRaw = () => null,
   now = Date.now,
   evidenceSources = [],
   hostEvidenceSources = [],
 } = {}) {
-  const prompt = buildKimiFinalAdjudicationPrompt({ query, mercuryResult, review, evidenceSources, hostEvidenceSources });
+  const prompt = buildFableFinalAdjudicationPrompt({ query, mercuryResult, review, evidenceSources, hostEvidenceSources });
   const rechecks = Array.isArray(review.rechecks) ? review.rechecks : [];
   const suppliedSources = [
     { path: 'input://original-query', excerpt: query.trim() },
@@ -1318,14 +1322,14 @@ async function runKimiFinalAdjudication({
   for (let attemptNumber = 1; attemptNumber <= 2; attemptNumber += 1) {
     try {
       stage = await executePromptOnlyStage({
-        role: 'kimi_tie_breaker', prompt, suppliedSources, createClient, persistRaw, attemptNumber,
+        role: 'fable_tie_breaker', prompt, suppliedSources, createClient, persistRaw, attemptNumber,
       });
       attempts.push(stage.receipt);
       break;
     } catch (error) {
       if (error.stageAttempt) attempts.push(error.stageAttempt);
       const termination = String(error.providerMetadata && error.providerMetadata.termination || '').toLowerCase();
-      const truncated = ['length', 'max_tokens'].includes(termination);
+      const truncated = error.absence !== 'identity_conflict' && ['length', 'max_tokens'].includes(termination);
       if (!truncated || attemptNumber === 2) {
         error.reviewerAttempts = attempts;
         error.challengerAttempts = attempts;
@@ -1337,7 +1341,7 @@ async function runKimiFinalAdjudication({
   const quarantines = stage.receipt.identity_posture.status === 'identity_conflict'
     ? [reviewQuarantine({
       unit: 'identity',
-      name: 'kimi_tie_breaker',
+      name: 'fable_tie_breaker',
       absence: 'identity_conflict',
       loadBearing: true,
       attempts,
@@ -1345,7 +1349,7 @@ async function runKimiFinalAdjudication({
     : [];
 
   return {
-    mode: 'kimi_final_adjudication',
+    mode: 'fable_final_adjudication',
     enabled: true,
     ok: true,
     provider: stage.receipt.requested_provider,
@@ -1364,32 +1368,32 @@ async function runKimiFinalAdjudication({
 
 function adversarialReviewFailure(err, { role = 'challenger', quarantines = null } = {}) {
   const stageAttempt = err && err.stageAttempt ? err.stageAttempt : null;
-  const kimiFailure = role === 'kimi_tie_breaker';
+  const fableFailure = role === 'fable_tie_breaker';
   const failureQuarantines = Array.isArray(quarantines) ? quarantines : [reviewQuarantine({
-    unit: kimiFailure ? 'tie_breaker' : 'challenger',
-    name: kimiFailure ? 'kimi_tie_breaker' : 'astra_challenger',
-    absence: kimiFailure ? 'tie_breaker_answer_absent' : 'challenger_answer_absent',
+    unit: fableFailure ? 'tie_breaker' : 'challenger',
+    name: fableFailure ? 'fable_tie_breaker' : 'astra_challenger',
+    absence: fableFailure ? 'tie_breaker_answer_absent' : 'challenger_answer_absent',
     error: err,
     attempts: err && Array.isArray(err.challengerAttempts)
       ? err.challengerAttempts
       : (stageAttempt ? [stageAttempt] : []),
   })];
   return {
-    mode: kimiFailure ? 'kimi_final_adjudication' : 'adversarial_review',
+    mode: fableFailure ? 'fable_final_adjudication' : 'adversarial_review',
     enabled: true,
     ok: false,
     provider: stageAttempt && stageAttempt.requested_provider
       ? stageAttempt.requested_provider
-      : (kimiFailure ? config.TIE_BREAKER_PROVIDER : config.CONSENSUS_PROVIDER),
+      : (fableFailure ? config.TIE_BREAKER_PROVIDER : config.CONSENSUS_PROVIDER),
     model: stageAttempt && stageAttempt.requested_model
       ? stageAttempt.requested_model
-      : (kimiFailure ? config.TIE_BREAKER_MODEL : config.CONSENSUS_MODEL),
+      : (fableFailure ? config.TIE_BREAKER_MODEL : config.CONSENSUS_MODEL),
     attempts: err && Array.isArray(err.challengerAttempts)
       ? err.challengerAttempts
       : (stageAttempt ? [stageAttempt] : []),
     stageReceipt: stageAttempt,
     quarantines: failureQuarantines,
-    kimiSkipped: !kimiFailure,
+    fableSkipped: !fableFailure,
     repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
     error: cleanStageError(err),
   };
@@ -1400,14 +1404,14 @@ module.exports = {
   adversarialReviewRequested,
   reviewModeRequested,
   normalizeReviewIntent,
-  kimiTieBreakerRequired,
+  fableTieBreakerRequired,
   extractField,
   parseAdversarialReviewAnswer,
   buildMercuryRecheckPrompt,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
   buildAdversarialReviewPrompt,
-  buildKimiFinalAdjudicationPrompt,
+  buildFableFinalAdjudicationPrompt,
   buildAttestedPromptProvenance,
   evidenceManifest,
   OPUS_ELIGIBLE_CLAUDE_CODES,
@@ -1422,6 +1426,6 @@ module.exports = {
   notifyReviewQuarantines,
   executePromptOnlyStage,
   runAstraAdversarialReview,
-  runKimiFinalAdjudication,
+  runFableFinalAdjudication,
   adversarialReviewFailure,
 };

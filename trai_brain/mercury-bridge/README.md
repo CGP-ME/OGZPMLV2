@@ -73,34 +73,39 @@ echo $INCEPTION_API_KEY
 ```
 If empty, add to `.env`: `INCEPTION_API_KEY=sk_xxx`
 
-### 3b. Local Fable adversarial review through Claude Code
-Fable is the adversarial reviewer for agentic Mercury asks. Set
-`MERCURY_ADVERSARIAL_REVIEW=true` or pass `ask.js --adversarial-review` to run
-the canonical `adversarial_review` mode. Legacy `consensus.defaultEnabled=true`
-and `ask.js --consensus` remain as compatibility aliases, but new output and
-ledger consumers should use `adversarial_review`.
+### 3b. Subscription reviewers: Astra and Fable
 
-The review flow is Mercury pass 1, Fable critique, bounded Mercury recheck, then
-final evidence packet. Fable does not receive repo tools in this critique role;
-it attacks Mercury's evidence, unsupported claims, missing file:line proof,
-missing tests, stale context, and scope drift. If Fable returns
-`CONSENSUS_BLOCKING: yes`, the bridge launches Mercury rechecks with Fable's
-exact `RECHECK_PROMPT`, capped by `adversarialReview.maxRechecks` at 2 by
-default. Use `ask.js --no-adversarial-review` to suppress the new mode for a
-run, or `ask.js --no-consensus` only when suppressing the legacy alias.
+The reviewer panel accepts `mercury`, `astra`, and `fable` in the requested order.
+Astra remains the challenger through the Codex/ChatGPT subscription. Fable takes
+the final-adjudication seat through the installed Claude Code subscription.
+Kimi is no longer a panel selection; its independent direct-question catalog and
+historical receipts are retained.
+
+`consensus` configures Astra. `tieBreaker` configures Fable with
+`provider=claude-code`, `model=claude-fable-5`, and no API key or endpoint. The existing
+Claude adapter checks first-party subscription auth, disables reviewer tools,
+strips API routing overrides, and records requested/applied models and errors.
+A missing login or failed Fable response remains a failed Fable seat; the host does
+not call Kimi or request an alternative model. Only an applied `claude-fable-5`
+identity matches this pinned request. A different model, including Fable 5.1,
+remains an identity conflict even if the provider reports a transition.
+The pinned seat excludes user/project CLI settings and supplies no fallback chain;
+a flagged request stays a refusal instead of silently changing models. These
+settings apply to that reviewer invocation and do not edit your Claude settings.
 
 ```bash
-claude --version
-claude -p --model fable --permission-mode dontAsk --output-format json "Reply with exactly: FABLE_OK"
+claude auth login
+claude auth status --json
+node trai_brain/mercury-bridge/ask.js --agentic --reviewers=astra,fable "Review the supplied evidence."
 ```
 
-Do not add `ANTHROPIC_API_KEY` for the default Fable path. The local
-Claude Code provider uses the logged-in Claude Code subscription and strips
-`ANTHROPIC_API_KEY`, `CLAUDE_API_KEY`, and `LLM_API_KEY` from the child process
-so a stale API key cannot override the subscription-backed CLI auth.
-
-The direct Anthropic API provider still exists for explicit experiments:
-configure `consensus.provider=claude` and a dedicated `consensus.apiKeyEnv`.
+Explicit selections such as `astra,fable` or `mercury` invoke only those seats.
+There are no Mercury rechecks without a Mercury result. The all-provider
+`--preflight` still checks every provider; its per-seat receipts distinguish
+authentication readiness from a completed model review. Subscription login alone
+does not prove model access; inspect the actual response and provider receipts.
+Mercury 3 is available again. Decide adds a separate advisory classification after
+the selected reviews, with no seat, vote, verdict replacement or action authority.
 
 ### 4. npm dependency (one-time)
 ```bash

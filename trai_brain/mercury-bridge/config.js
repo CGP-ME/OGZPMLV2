@@ -493,24 +493,13 @@ if (CONSENSUS_EMERGENCY_MODEL) {
 }
 
 const TIE_BREAKER_PROVIDER = requiredString(MERCURY_CONFIG, 'tieBreaker.provider').toLowerCase();
-const TIE_BREAKER_BASE_URL = requiredString(MERCURY_CONFIG, 'tieBreaker.baseUrl');
 const TIE_BREAKER_MODEL = requiredString(MERCURY_CONFIG, 'tieBreaker.model').toLowerCase();
-const TIE_BREAKER_API_KEY_ENV = requiredString(MERCURY_CONFIG, 'tieBreaker.apiKeyEnv');
 const TIE_BREAKER_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.clientMaxTokens', { integer: true, min: 1 });
 const TIE_BREAKER_CLIENT_MIN_TOKENS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.clientMinTokens', { integer: true, min: 0 });
 const TIE_BREAKER_REQUEST_TIMEOUT_MS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.requestTimeoutMs', { integer: true, min: 1000 });
 const TIE_BREAKER_TEMPERATURE = requiredNumber(MERCURY_CONFIG, 'tieBreaker.temperature', { min: 0 });
-const TIE_BREAKER_OPENAI_EXTRA_BODY = optionalPlainObject(MERCURY_CONFIG, 'tieBreaker.openaiExtraBody', {});
-if (TIE_BREAKER_PROVIDER !== 'openai' || TIE_BREAKER_MODEL !== 'kimi-k3') {
-  throw new Error('tieBreaker must remain the OpenAI-compatible kimi-k3 role and cannot satisfy challenger readiness');
-}
-try {
-  const tieBreakerUrl = new URL(TIE_BREAKER_BASE_URL);
-  if (tieBreakerUrl.username || tieBreakerUrl.password || tieBreakerUrl.search || tieBreakerUrl.hash) {
-    throw new Error('tieBreaker.baseUrl must not contain credentials, query parameters, or fragments');
-  }
-} catch (err) {
-  throw new Error(`Invalid mercury.config.json value: tieBreaker.baseUrl: ${err.message}`);
+if (TIE_BREAKER_PROVIDER !== 'claude-code' || TIE_BREAKER_MODEL !== 'claude-fable-5') {
+  throw new Error('tieBreaker must use claude-fable-5 through the first-party Claude Code subscription');
 }
 
 function requiredModelPricing(provider, model) {
@@ -535,8 +524,9 @@ const PROVIDER_PRICING = Object.freeze({
       .filter(model => model !== MERCURY_LLM_MODEL)
       .map(model => [model, requiredModelPricing('inception', model)])),
   }),
+  // Historical Kimi accounting is independent of the active reviewer seat.
   moonshot: Object.freeze({
-    [TIE_BREAKER_MODEL]: requiredModelPricing('moonshot', TIE_BREAKER_MODEL),
+    'kimi-k3': requiredModelPricing('moonshot', 'kimi-k3'),
   }),
 });
 
@@ -660,14 +650,11 @@ module.exports = {
   CONSENSUS_OPENAI_EXTRA_BODY,
   CONSENSUS_SYSTEM_PROMPT,
   TIE_BREAKER_PROVIDER,
-  TIE_BREAKER_BASE_URL,
   TIE_BREAKER_MODEL,
-  TIE_BREAKER_API_KEY_ENV,
   TIE_BREAKER_CLIENT_MAX_TOKENS,
   TIE_BREAKER_CLIENT_MIN_TOKENS,
   TIE_BREAKER_REQUEST_TIMEOUT_MS,
   TIE_BREAKER_TEMPERATURE,
-  TIE_BREAKER_OPENAI_EXTRA_BODY,
   PROVIDER_PRICING,
   listDirectQuestionProviders,
   resolveDirectQuestionProvider,

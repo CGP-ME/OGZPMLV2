@@ -383,7 +383,8 @@ function classifyClaudeCodeIdentity(requestedModel, frames) {
       authorized.add(transition.from_model);
     }
   }
-  let changed = true;
+  // A pinned Fable 5 request cannot acquire authority from a model transition.
+  let changed = requestedModel !== 'claude-fable-5';
   while (changed) {
     changed = false;
     for (const transition of transitions) {
@@ -405,6 +406,10 @@ function classifyClaudeCodeIdentity(requestedModel, frames) {
     status = 'identity_conflict';
     authority = 'unverified';
     reason = 'undocumented_model_mismatch';
+  } else if (requestedModel === 'claude-fable-5' && verdictModels.length === 0) {
+    status = 'identity_conflict';
+    authority = 'unverified';
+    reason = 'verdict_model_identity_absent';
   } else if (appliedModels.some(model => !claudeAppliedModelMatchesAlias(requestedModel, model))) {
     status = 'documented_transition';
   }
@@ -432,6 +437,7 @@ function extractClaudeCodeAppliedModel(frames) {
 function claudeAppliedModelMatchesAlias(requestedModel, appliedModel) {
   const requested = String(requestedModel || '').toLowerCase();
   const applied = String(appliedModel || '').toLowerCase();
+  if (requested === 'claude-fable-5') return applied === requested;
   if (!['fable', 'opus'].includes(requested)) return false;
   return new RegExp(`(^|[-_.])${requested}($|[-_.])`).test(applied);
 }
@@ -445,6 +451,7 @@ class ClaudeCodeIncompleteResponseError extends Error {
     this.subcondition = conditions[0];
     this.subconditions = conditions;
     this.providerMetadata = providerMetadata;
+    if (conditions.includes('identity_conflict')) this.absence = 'identity_conflict';
   }
 }
 
@@ -621,6 +628,14 @@ class ClaudeCodeConsensusClient {
       '--strict-mcp-config',
       '--system-prompt', systemPrompt,
     ];
+    if (this.model === 'claude-fable-5') {
+      // Trey authorized only Fable 5. Do not inherit user/project model
+      // overrides or automatically reroute a refusal to another model.
+      args.push('--setting-sources', '', '--settings', JSON.stringify({
+        switchModelsOnFlag: false,
+        fallbackModel: [],
+      }));
+    }
     const startedAt = new Date();
     const startedMs = Date.now();
     let stdout = Buffer.alloc(0);
@@ -649,6 +664,10 @@ class ClaudeCodeConsensusClient {
     if (!metadata.termination) incompleteSubconditions.push('missing_termination');
     if (metadata.termination === 'provider_error') incompleteSubconditions.push('provider_error_termination');
     if (metadata.toolsAvailable.length > 0) incompleteSubconditions.push('unexpected_exposed_tools');
+    if (this.model === 'claude-fable-5' && metadata.identityPosture.status === 'identity_conflict') {
+      incompleteSubconditions.push('identity_conflict');
+      metadata.stoppedBecause = 'identity_conflict';
+    }
     if (incompleteSubconditions.length > 0) {
       throw new ClaudeCodeIncompleteResponseError(incompleteSubconditions, metadata);
     }
@@ -758,22 +777,16 @@ function resolveConsensusLlmClientOptions({
   };
 }
 
-function resolveKimiTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
-  const apiKey = process.env[config.TIE_BREAKER_API_KEY_ENV];
-  if (!apiKey) throw new Error(`Configured Kimi tie-breaker key env is missing: ${config.TIE_BREAKER_API_KEY_ENV}`);
+function resolveFableTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
   return {
     provider: config.TIE_BREAKER_PROVIDER,
-    baseUrl: config.TIE_BREAKER_BASE_URL,
     model: config.TIE_BREAKER_MODEL,
-    apiKey,
-    authRequired: true,
+    permissionMode: 'dontAsk',
     maxTokens: config.TIE_BREAKER_CLIENT_MAX_TOKENS,
     minimumTokens: config.TIE_BREAKER_CLIENT_MIN_TOKENS,
     temperature: config.TIE_BREAKER_TEMPERATURE,
     requestTimeoutMs: config.TIE_BREAKER_REQUEST_TIMEOUT_MS,
-    openaiExtraBody: config.TIE_BREAKER_OPENAI_EXTRA_BODY,
     systemPrompt,
-    skipWarmup: true,
   };
 }
 
@@ -845,42 +858,8 @@ function createAstraChallengerClient({ repoRoot = config.REPO_ROOT, ...options }
     repoRoot });
 }
 
-function createKimiTieBreakerClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
-  const clientOptions = resolveKimiTieBreakerClientOptions({ systemPrompt });
-  const client = new PersistentLLMClient(clientOptions);
-
-  if (client.providerName !== clientOptions.provider) {
-    throw new Error(`Consensus LLM provider mismatch: expected ${clientOptions.provider}, got ${client.providerName}`);
-  }
-  if (client.baseUrl !== clientOptions.baseUrl) {
-    throw new Error(`Consensus LLM baseUrl mismatch: expected ${clientOptions.baseUrl}, got ${client.baseUrl}`);
-  }
-  if (client.model !== clientOptions.model) {
-    throw new Error(`Consensus LLM model mismatch: expected ${clientOptions.model}, got ${client.model}`);
-  }
-  if (client.maxTokens !== clientOptions.maxTokens) {
-    throw new Error(`Consensus LLM maxTokens mismatch: expected ${clientOptions.maxTokens}, got ${client.maxTokens}`);
-  }
-  if (client.minimumTokens !== clientOptions.minimumTokens) {
-    throw new Error(`Consensus LLM minimumTokens mismatch: expected ${clientOptions.minimumTokens}, got ${client.minimumTokens}`);
-  }
-  if (client.temperature !== clientOptions.temperature) {
-    throw new Error(`Consensus LLM temperature mismatch: expected ${clientOptions.temperature}, got ${client.temperature}`);
-  }
-  if (client.requestTimeoutMs !== clientOptions.requestTimeoutMs) {
-    throw new Error(`Consensus LLM requestTimeoutMs mismatch: expected ${clientOptions.requestTimeoutMs}, got ${client.requestTimeoutMs}`);
-  }
-  if (JSON.stringify(client.openaiExtraBody) !== JSON.stringify(clientOptions.openaiExtraBody)) {
-    throw new Error('Consensus LLM OpenAI extra body was not sourced from mercury.config.json');
-  }
-  if (client.systemPrompt !== clientOptions.systemPrompt) {
-    throw new Error('Consensus LLM system prompt was not sourced from mercury.config.json');
-  }
-  if (client.apiKey !== clientOptions.apiKey) {
-    throw new Error('Consensus LLM API key was not sourced from the configured key env');
-  }
-
-  return client;
+function createFableTieBreakerClient(options = {}) {
+  return new ClaudeCodeConsensusClient(resolveFableTieBreakerClientOptions(options));
 }
 
 function createDirectModelClient(providerId) {
@@ -941,9 +920,9 @@ module.exports = {
   createMercuryLlmClient,
   resolveConsensusLlmClientOptions,
   createConsensusLlmClient,
-  resolveKimiTieBreakerClientOptions,
+  resolveFableTieBreakerClientOptions,
   resolveDirectModelClientOptions,
   createAstraChallengerClient,
-  createKimiTieBreakerClient,
+  createFableTieBreakerClient,
   createDirectModelClient,
 };

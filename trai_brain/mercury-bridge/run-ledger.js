@@ -609,7 +609,7 @@ function buildFinalReviewLedgerSummary(finalReview) {
   const parsed = parsedReviewClassification(finalReview.parsed);
   const attempts = Array.isArray(finalReview.attempts) ? finalReview.attempts : [];
   return {
-    mode: finalReview.mode || 'kimi_final_adjudication',
+    mode: finalReview.mode || (finalReview.provider === 'claude-code' ? 'fable_final_adjudication' : 'kimi_final_adjudication'),
     enabled: finalReview.enabled === true,
     ok: finalReview.ok === true,
     provider: finalReview.provider || null,
@@ -743,7 +743,7 @@ function providerAttemptGroups(result) {
     }));
     if (review.finalReview) {
       groups.push({
-        id: 'kimi',
+        id: review.finalReview.provider === 'claude-code' ? 'fable' : 'kimi',
         attempts: Array.isArray(review.finalReview.attempts) ? review.finalReview.attempts : [],
       });
     }
@@ -768,12 +768,15 @@ function panelSeatLedger(panel, result) {
     seats: (panel.seats || []).map((seat) => {
       let attempts = Array.isArray(seat.providerAttempts) ? seat.providerAttempts : [];
       if (seat.id === 'mercury') attempts = Array.isArray(result && result.providerAttempts) ? result.providerAttempts : attempts;
-      if (['astra', 'fable'].includes(seat.id) && review) {
+      const challengerId = review && (review.provider === 'codex-subscription' ? 'astra' : 'fable');
+      if (seat.id === challengerId && review) {
         attempts = seat.evaluationSource === 'mercury_recheck' && review.recheck
           ? (review.recheck.providerAttempts || [])
           : (review.attempts || []);
       }
-      if (seat.id === 'kimi' && review && review.finalReview) attempts = review.finalReview.attempts || [];
+      const finalId = review && review.finalReview
+        && (review.finalReview.provider === 'claude-code' ? 'fable' : 'kimi');
+      if (seat.id === finalId) attempts = review.finalReview.attempts || [];
       return {
         ...seat,
         ...seatReceiptFields(seat.answer, attempts, seat.status === 'failed' ? 'reviewer_failed' : null),
@@ -1026,7 +1029,8 @@ function buildRunLedgerEntry({
     decide_advisory: result && result.decideAdvisory ? result.decideAdvisory : null,
     doctrine_review: result && result.doctrineReview ? result.doctrineReview : null,
     stages: {
-      mercury: result ? {
+      mercury: result && (!result.reviewerPanel
+        || (result.reviewerPanel.seats || []).some(seat => seat.id === 'mercury')) ? {
         provider_attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [],
         ...seatReceiptFields(
           result.answer ? redactSensitiveText(result.answer) : null,
