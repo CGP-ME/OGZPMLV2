@@ -1,436 +1,185 @@
-# Mercury Bridge — OGZPrime In-House Code Knowledge
+# Mercury Bridge — repository knowledge and engineering review
 
-**Purpose:** Give Mercury-2 full awareness of the OGZPrime codebase via RAG.
-Replaces `scripts/mercury-analyze.js` which could only see 3 hardcoded files.
+Mercury retrieves indexed repository passages and uses read-only repository tools
+to investigate engineering questions. Retrieval supplies evidence; an answer is
+not verified merely because a model returned it. Check its citations, source
+version, tool receipts and stated limitations.
 
-**Scope:** RAG-backed adversarial verifier with native ReAct tools.
-Mercury retrieves repo memory, reads current code, checks git evidence, and can
-run isolated proof commands without write access to live repo code.
+This bridge is separate from the TrAI trading inference path. It does not own
+trading settings, positions or permission to stop or restart the bot.
 
----
+## Configuration and credentials
 
-## What this does
+`mercury.config.json` is the bridge configuration contract, loaded by `config.js`.
+It owns the embedding provider/model/dimensions, MongoDB collections, chunking,
+retrieval and reviewer configuration. `MERCURY_CONFIG_FILE` can explicitly select
+another configuration file; it is not an implicit fallback. The trading runtime's
+Stop 1 files remain `config/settings.json` and `config/internals.json`.
 
-1. Walks the OGZPrime repo and chunks source files intelligently
-2. Embeds each chunk with `nomic-embed-text` via local Ollama (CPU-friendly)
-3. Stores chunks + embeddings + metadata in MongoDB
-4. Query time: embeds the question, runs cosine similarity, retrieves top-K chunks
-5. Builds a prompt with retrieved chunks as context + the question
-6. Calls Mercury-2 via existing `core/persistent_llm_client.js`
-7. Returns Mercury's answer with inline file:line citations
+The current repository configuration selects:
 
-**Before this bridge:** Mercury hallucinated answers about files it had never seen.
-**After this bridge:** Mercury answers with the actual code loaded as context.
+| Purpose | Configuration |
+| --- | --- |
+| Query and source embeddings | Local Ollama, `nomic-embed-text`, 768 dimensions |
+| Embedding endpoint | `http://localhost:11434/api/embed` |
+| Indexed knowledge | `ogz_knowledge.chunks_local_nomic` |
+| Index build records | `ogz_knowledge.index_stats_local_nomic` |
+| Engineering inference | `mercury-3`, `reasoning_effort: low` |
+| Engineering API credential | `INCEPTION_API_KEY_DEV` |
+| Astra reviewer | Codex subscription, `gpt-6-astra` |
+| Fable reviewer | Claude Code subscription, `claude-fable-5` |
+| Decide advisory | `mercury-decide`, engineering credential |
 
----
+`INCEPTION_API_KEY` belongs to TrAI. Do not substitute it for the engineering key.
+The indexer and query CLI load the repository `.env` for configured credential
+names; dotenv does not replace an already-set process environment value. Inspect
+credential presence and provenance without printing credential values.
 
-## Prerequisites (verify before running the indexer)
+Local Nomic embeddings do not require `OPENAI_API_KEY`. The supported
+OpenAI-compatible embedding transport is a separate configured provider option,
+not the active default. Old instructions to tune the bridge through `EMBED_*`
+or `MONGO_URI` environment variables do not describe the current configuration
+loader. Provider/model/dimension/index identity must stay coherent when changing
+an embedding provider; vectors from different identities are not interchangeable.
 
-### 1. MongoDB running on VPS
-```bash
-sudo systemctl status mongod
-# if not installed:
-sudo apt-get install -y mongodb-org
-sudo systemctl start mongod
-sudo systemctl enable mongod
-```
+MongoDB, Ollama with the configured model, and the repository's Node dependencies
+must be available before indexing. Actual build time, chunk count and provider
+usage come from that run's receipts. Prices in the configuration are accounting
+estimates, not the provider's invoice.
 
-Default: local MongoDB on `mongodb://localhost:27017`. Override via
-`MONGO_URI` env var if using Atlas or a remote instance.
+## Retrieval and repository tools
 
-### 2. OpenAI API key (for embeddings)
-The bridge uses OpenAI's `text-embedding-3-small` by default. You need
-an OpenAI API account at `platform.openai.com` (separate from ChatGPT).
+The existing hybrid search combines BM25 keyword ranking with cosine similarity
+of embeddings and applies query-dependent content-type weighting. Keyword search
+matches stored words; semantic search compares vectors. The AST tools inspect
+JavaScript structure and callers. These are different evidence sources.
 
-Add to `.env`:
-```
-OPENAI_API_KEY=<required-openai-api-key>
-```
+`ask.js` defaults to the agentic loop. Its tools include literal/regex search,
+file reads, indexed chunk reads, Git reads, Serena dependency/AST inspection, and
+policy-bounded web lookup. `find_definition` and `find_references` are regex-backed
+and report uncertainty; they must not be described as AST proof. There is no
+arbitrary shell or proof-command tool in the model's tool schema.
 
-Cost: ~1-2 cents per full repo reindex. Query embeddings are fractions
-of a cent. Effectively unlimited rate (Tier 1: 3000 RPM, 1M TPM).
+`--single-shot` uses retrieved passages in one model call without repository
+tools. It cannot independently establish that an indexed passage is still the
+current source. Even an agentic answer needs its individual citations checked.
 
-**Alternative — GitHub Models (free, rate-limited):**
-If you'd rather not use OpenAI direct, swap to GitHub Models free tier:
-```
-EMBED_ENDPOINT=https://models.github.ai/inference/embeddings
-EMBED_MODEL=openai/text-embedding-3-small
-EMBED_API_KEY=<required-github-models-token>
-EMBED_MIN_INTERVAL_MS=4500
-EMBED_BATCH_MAX_CHUNKS=30
-EMBED_BATCH_MAX_TOKENS=50000
-```
-GitHub Models free tier limits: 150 req/day, 15 req/min. Full repo reindex
-fits in ~114 batches (about 76% of daily quota), so you can do ~1 full
-reindex per day with ~36 query requests left over. Generate the PAT at
-`https://github.com/settings/personal-access-tokens` — fine-grained, no
-special permissions needed for the free tier.
+## Query and review commands
 
-### 3. Mercury API key for inference
-Already set up from earlier TRAI work. Verify:
-```bash
-echo $INCEPTION_API_KEY
-```
-If empty, add to `.env`: `INCEPTION_API_KEY=sk_xxx`
-
-### 3b. Subscription reviewers: Astra and Fable
-
-The reviewer panel accepts `mercury`, `astra`, and `fable` in the requested order.
-Astra remains the challenger through the Codex/ChatGPT subscription. Fable takes
-the final-adjudication seat through the installed Claude Code subscription.
-Kimi is no longer a panel selection; its independent direct-question catalog and
-historical receipts are retained.
-
-`consensus` configures Astra. `tieBreaker` configures Fable with
-`provider=claude-code`, `model=claude-fable-5`, and no API key or endpoint. The existing
-Claude adapter checks first-party subscription auth, disables reviewer tools,
-strips API routing overrides, and records requested/applied models and errors.
-A missing login or failed Fable response remains a failed Fable seat; the host does
-not call Kimi or request an alternative model. Only an applied `claude-fable-5`
-identity matches this pinned request. A different model, including Fable 5.1,
-remains an identity conflict even if the provider reports a transition.
-The pinned seat excludes user/project CLI settings and supplies no fallback chain;
-a flagged request stays a refusal instead of silently changing models. These
-settings apply to that reviewer invocation and do not edit your Claude settings.
+Run commands from the repository root. Engineering requests use the configured
+reviewer defaults unless explicitly selected otherwise.
 
 ```bash
-claude auth login
+node trai_brain/mercury-bridge/ask.js --agentic --reviewers=mercury --max-tokens=7750 "Where does the engineering API credential come from? Cite its producer and consumer."
+node trai_brain/mercury-bridge/ask.js --single-shot "Summarize the indexed embedding configuration."
+```
+
+For an authorized change, stage only its files/hunks and pin the source comparison:
+
+```bash
+candidate=$(git write-tree)
+node trai_brain/mercury-bridge/ask.js --agentic --reviewers=mercury,astra,fable --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD "Mercury, break my fix."
+```
+
+The refs resolve to immutable trees before evidence capture. The run records those
+trees and a source manifest. Initial evidence, file/search/AST tools and Mercury
+rechecks use that captured source view. Explicit history reads retain their
+requested ref. Invalid refs do not silently select the working tree.
+`--change-path=P` without a pinned comparison uses working-tree evidence.
+
+Dispatch one review question at a time. Do not add `--max-iterations` unless Trey
+sets a limit. Selected seats execute in order. An unavailable reviewer remains
+unavailable; another model's answer does not complete that seat. A zero CLI exit
+code, provider success or a reporter's word `pass` does not certify the code;
+read the complete conclusion, disagreement, supporting evidence and missing work.
+
+Architecture and planning are explicit synthesis modes:
+
+```bash
+node trai_brain/mercury-bridge/ask.js --agentic --architecture --adversarial-review --max-tokens=7750 "Assess the supplied architecture question."
+node trai_brain/mercury-bridge/ask.js --agentic --planning --adversarial-review --max-tokens=7750 "Plan the supplied implementation question."
+```
+
+These modes provide synthesis and critiques rather than a code-approval verdict.
+The operator selects any resulting implementation scope.
+
+## Subscription reviewers and readiness
+
+Astra is the Codex/ChatGPT subscription challenger. Fable occupies the final
+adjudication seat through the installed Claude Code subscription. The panel
+accepts `mercury`, `astra` and `fable`. Kimi is not a panel selection; independent
+direct-question configuration and historical receipts are separate.
+
+`consensus` configures Astra. `tieBreaker` pins `provider=claude-code` and
+`model=claude-fable-5`, with no API key or endpoint. The adapter verifies first-party
+subscription auth, disables reviewer tools, strips API-routing overrides and
+records requested/applied models. The pinned invocation excludes user/project CLI
+settings and supplies no fallback chain. A flagged request remains a refusal.
+These invocation settings do not edit the user's Claude settings.
+
+A missing login, failed response or different applied model is not a successful
+Fable 5 review. Fable 5.1 is not an authorized substitute.
+
+```bash
 claude auth status --json
-node trai_brain/mercury-bridge/ask.js --agentic --reviewers=astra,fable "Review the supplied evidence."
+node trai_brain/mercury-bridge/ask.js --check-providers
 ```
 
-Explicit selections such as `astra,fable` or `mercury` invoke only those seats.
-There are no Mercury rechecks without a Mercury result. The all-provider
-`--preflight` still checks every provider; its per-seat receipts distinguish
-authentication readiness from a completed model review. Subscription login alone
-does not prove model access; inspect the actual response and provider receipts.
-Mercury 3 is available again. Decide adds a separate advisory classification after
-the selected reviews, with no seat, vote, verdict replacement or action authority.
+`--check-providers` makes actual provider calls to Mercury, Astra and Fable. Its
+current aggregate `ok` covers Mercury and Astra; inspect `tieBreakerReady` and the
+Fable attempt independently. A successful process exit does not establish all-seat
+readiness. Login status alone also does not prove model access or remaining quota.
 
-### 4. npm dependency (one-time)
-```bash
-npm install mongodb
-```
+Decide classifies the supplied review reports after the selected seats. It has no
+reviewer seat, vote, authority to replace a verdict, or permission to take action.
 
-That's the only new dep. Everything else uses built-in Node modules or
-existing files in the repo.
+## Indexing and trace memory
 
----
-
-## Cost / rate-limit math
-
-**Default config — OpenAI direct:**
-- Full ~3000-chunk repo reindex: ~795,000 tokens × $0.02/M = **~1.6 cents**
-- Query embedding: ~10-50 tokens × $0.02/M = fraction of a cent
-- Reindex daily for a month: **~50 cents/month total**
-- Rate limits: Tier 1 OpenAI account = 3000 RPM, 1M TPM (effectively unlimited)
-- No pacing needed (`EMBED_MIN_INTERVAL_MS=0`)
-
-**Alternative config — GitHub Models free tier:**
-- 15 req/min, 150 req/day, 64K tokens/req
-- Full repo reindex: ~114 batches at 4.5s pacing = ~8.6 minutes wall clock
-- ~76% of daily quota for one reindex
-- ~36 query requests/day remaining for asking Mercury questions
-- Free, but reindex frequency and query volume both constrained
-
-The indexer paces requests automatically via `EMBED_MIN_INTERVAL_MS`. Default
-0 (no pacing) for OpenAI direct. Set to 4500 for GitHub Models free tier.
-
----
-
-## File layout
-
-```
-trai_brain/mercury-bridge/
-├── README.md          This file
-├── config.js          Env-driven config (Mongo URI, Ollama URL, collection names)
-├── mongo-store.js     MongoDB wrapper: init, insert chunks, cosine retrieve, stats
-├── indexer.js         Entry: walk repo → chunk → embed → store. Run once + on changes.
-├── searcher.js        Entry: embed query → retrieve → prompt assembly → Mercury call
-└── ask.js             CLI entry for one-off questions
-```
-
----
-
-## Usage
-
-### Build the index (one-time + on repo changes)
 ```bash
 node trai_brain/mercury-bridge/indexer.js
 ```
 
-RAG/chunk memory writes are explicit. `ask.js` reads the indexed chunks but does
-not update the chunk collection. Only run the indexer after the repo/docs state is
-approved for Mercury retrieval.
+This is an explicit full rebuild. Run it only when the repository content is
+approved for indexing. `ask.js` reads the published chunk collection; ordinary
+queries do not rebuild it. Check successful publication, active nonzero chunks,
+embedding identity, freshness and actual retrieval before claiming the RAG is
+current. A pushed commit alone does not update stored knowledge.
 
-Expected output:
-```
-[MERCURY-BRIDGE] Indexer starting...
-[MERCURY-BRIDGE] MongoDB: mongodb://localhost:27017
-[MERCURY-BRIDGE] Ollama:  http://localhost:11434
-[MERCURY-BRIDGE] Walking repo from /opt/ogzprime/OGZPMLV2/
-[MERCURY-BRIDGE] Found 234 files to index
-[MERCURY-BRIDGE] Chunking... 2847 chunks total
-[MERCURY-BRIDGE] Embedding chunks (this takes 2-7 min on CPU)...
-[MERCURY-BRIDGE] [####################] 2847/2847 chunks embedded
-[MERCURY-BRIDGE] Storing to MongoDB...
-[MERCURY-BRIDGE] Done. 2847 chunks indexed in ogz_knowledge.chunks
-```
+Investigation traces are a separate collection and write decision. Ordinary asks
+may retrieve prior trace hints; `--capture-trace` explicitly permits capturing an
+answer. Capture only an answer that is suitable to teach a later investigation.
 
-### Ask a question
-```bash
-node trai_brain/mercury-bridge/ask.js "How does MaxProfitManager handle BE scale-out?"
-```
+The file walker applies `mercury.ignore`, repository policy, supported extensions
+and the configured size limit. It does not use `.gitignore` as its index policy.
+Within `ogz-meta`, the indexer's explicit targets are
+`Alignment/OGZ-MASTER-ALIGNMENT.md`, `Alignment/TREY-RULINGS.md`, and `specs/`;
+other repository policy restrictions still apply.
 
-### Ask Mercury with Fable adversarial review
-```bash
-MERCURY_ADVERSARIAL_REVIEW=true node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 "Mercury, break my fix."
-```
+JavaScript chunking finds structural boundaries with regex and brace matching.
+Markdown splits at H1-H6 headings. Oversized sections use configured character
+windows; JSONL records are rendered separately. Current settings are 1,000-character
+windows, 100-character overlap, a 1,500-character section threshold and a
+500,000-byte file limit. A JavaScript file receives whole-file window fallback only
+when no structural chunks were found. Unmatched text in a partially matched file
+is not guaranteed coverage. No percentage coverage claim is established.
 
-The adversarial review pass receives Mercury's prompt, answer, run telemetry,
-and cited evidence summary. It does not get repo tools in this critique pass, so
-it must mark gaps as `needs_more_evidence` instead of inventing new current-code
-claims. Fable's structured `CONSENSUS_BLOCKING` field controls whether Mercury
-rechecks run; missing or malformed blocking fields trigger a bounded recheck.
+Chunk records include `file_path`, source span, kind/name, text, embedding identity,
+vector, source hash and indexing time. `file_sha` is SHA-1 of the source text, not a
+Git blob hash. Scoring runs in JavaScript over the active identity's MongoDB
+records. Check actual run observations instead of assuming a fixed latency or
+repository size.
 
-To suppress adversarial review for a specific agentic run:
+## Where the evidence lives
 
-```bash
-node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 --no-adversarial-review "Mercury, break my fix."
-```
+- `config.js` and `mercury.config.json`: bridge configuration and credential names.
+- `indexer.js` and `mongo-store.js`: source collection, embedding and publication.
+- `searcher.js`: retrieval and single-shot prompt assembly.
+- `ask.js` and `react-loop.js`: agentic dispatch and evidence use.
+- `tool-adapter.js`: actual model tool registry and schema.
+- `adversarial-review.js` and `reviewer-panel.js`: reviewer contracts and sequencing.
+- `provider-preflight.js`: provider readiness and its aggregation semantics.
+- `run-ledger.js` and `ogz-meta/cognition-history/mercury-runs/`: durable run receipts.
+- `CHANGELOG.md`: changes, observed failures, verification and unresolved work.
 
-### Review a selected Git candidate amid dirty work
-
-Stage only the authorized logical change, then pin the comparison explicitly:
-
-```bash
-candidate=$(git write-tree)
-node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD "Mercury, break my fix."
-```
-
-Both refs resolve to immutable tree IDs before capture. The bridge derives the
-changed targets from that comparison and captures policy-permitted Git blobs.
-Initial evidence, file/search/AST tools and Mercury rechecks use that same source
-view. Explicit Git history reads retain their requested ref. The run records the
-tree IDs and source manifest hash. Missing or invalid refs do not select WORKTREE.
-
-Without these flags, existing ordinary reviews retain their behavior;
-`--change-path=P` alone still captures WORKTREE. These source-selection flags do
-not change the adversarial, architecture or planning purpose of a review.
-Do not supply `--max-iterations` unless Trey sets a limit for that run.
-
-### Ask for architecture or planning synthesis
-Architecture and planning prompts are not break-my-fix verdict runs. Use these
-when the operator needs a longform system answer, design review, or lane plan
-that Mercury attacks with repo tools and Fable critiques as a second synthesis
-tier.
-
-```bash
-node trai_brain/mercury-bridge/ask.js --agentic --architecture --adversarial-review --max-tokens=7750 "Principal architecture prompt..."
-node trai_brain/mercury-bridge/ask.js --agentic --planning --adversarial-review --max-tokens=7750 "Plan this lane..."
-```
-
-These modes change both halves of the bridge:
-
-- Mercury receives explicit architecture/planning framing and is told not to
-  compress the answer into a short verdict.
-- Fable receives an architecture/planning review contract and returns evolved
-  synthesis sections instead of `CONSENSUS_BLOCKING` / `RECHECK_PROMPT`.
-- The final packet is advisory. It does not launch Mercury rechecks and does not
-  produce commit-blocking semantics. The operator turns selected recommendations
-  into scoped implementation lanes.
-
-### Check provider access before a full run
-```bash
-node trai_brain/mercury-bridge/ask.js --check-providers
-```
-
-This performs minimal warm-up calls for Mercury and Fable, returns structured
-provider/model status, and exits non-zero if either provider is blocked by
-auth, billing/quota, model availability, or network errors.
-
-Investigation trace memory is also manual-write. Normal asks may retrieve prior
-trace hints, but a successful answer is not saved as a new trace unless
-`--capture-trace` is supplied. Treat the two write decisions independently:
-reindex RAG with `indexer.js` only when repo/docs content should be refreshed,
-and use `--capture-trace` only when the specific Mercury answer should teach
-future investigations.
-
-Expected output:
-```
-[MERCURY-BRIDGE] Embedding query...
-[MERCURY-BRIDGE] Retrieving top-8 chunks by cosine similarity...
-[MERCURY-BRIDGE] Top matches:
-  1. core/MaxProfitManager.js:432-467 (function: BE_SCALE_OUT_BLOCK) sim=0.847
-  2. core/MaxProfitManager.js:628-656 (function: executePartialExit)  sim=0.723
-  3. core/TradingConfig.js:654-680 (section: exitLogic)               sim=0.691
-  ...
-[MERCURY-BRIDGE] Calling Mercury-2 with 8 chunks as context...
-[MERCURY-BRIDGE] Mercury responded in 1247ms
-
-ANSWER:
-MaxProfitManager handles BE scale-out in the update() method between lines 432-467.
-When profit crosses the trigger threshold (1:1 R by default from
-core/MaxProfitManager.js:437), it sets beScaleOutFired = true, computes
-scaleOutSize as remainingSize * scaleOutFraction (default 0.5), and returns
-an action object with exitSize and reason: 'be_scaleout'.
-
-NOTE: The returned exitSize is in absolute units, not a normalized fraction.
-This creates a contract mismatch with OrderExecutor.js:561 which checks
-exitSize < 1. See SESSION-HANDOFF-2026-04-07.md for the fix plan.
-```
-
----
-
-## How chunking works
-
-### JavaScript files
-- Regex finds `function name()`, `const name = () =>`, `async function name()`, `class Name`, `methodName() {`
-- Extracts from the match to the matching closing brace
-- Each function/class/method becomes one chunk with metadata: `{kind: 'function'|'class'|'method', name, startLine, endLine}`
-- Files with no matched functions fall back to a 1500-char sliding window with 150-char overlap
-- Comments immediately above a function are attached as header context
-
-### Markdown files
-- Split by `## ` and `### ` headers
-- Each section = one chunk with `{kind: 'doc_section', headerText, startLine, endLine}`
-- Files with no headers fall back to the sliding window
-
-### Files skipped
-- `node_modules/`, `.git/`, `data/`, `backtest-results/`, `logs/`, `dist/`, `build/`
-- Binary files (`.png`, `.jpg`, `.zip`, `.gz`, `.pdf`)
-- Files over 500KB (huge generated files aren't useful context)
-- Files matching `.gitignore` patterns
-
-### Known limitation (documented, not a bug)
-The regex chunker misses some edge cases like functions defined inside object
-literals, dynamically-named methods, or unusual arrow function patterns. For
-MVP this is acceptable — the sliding window fallback catches whatever the
-regex misses. If accuracy becomes an issue, upgrade to AST parsing with
-`acorn` or `@babel/parser` in a v2 commit.
-
----
-
-## MongoDB collections
-
-### `ogz_knowledge.chunks`
-```js
-{
-  _id: ObjectId,
-  file_path: "core/MaxProfitManager.js",
-  kind: "function",              // 'function' | 'class' | 'method' | 'doc_section' | 'window'
-  name: "update",                // function name, class name, or header text
-  start_line: 368,
-  end_line: 505,
-  text: "update(currentPrice, options = {}) { ... }",
-  embedding: [0.0234, -0.0871, ...],   // 768-dim Float32 from nomic-embed-text
-  file_sha: "a1b2c3d4...",       // git blob hash for incremental reindex
-  indexed_at: ISODate("2026-04-07T22:14:33Z")
-}
-```
-
-Indexes:
-- `{file_path: 1}` — for incremental updates
-- `{kind: 1}` — for filtered queries
-- `{indexed_at: -1}` — for recency queries
-
-**No vector index for MVP.** Cosine is computed in JS after retrieving candidates.
-At ~3000 chunks this is <100ms on CPU — fine for MVP. Move to Atlas Vector
-Search ($vectorSearch) later if scale demands it.
-
----
-
-## Design choices (and why)
-
-### Why MongoDB (not LanceDB / Chroma / Postgres)
-Trey requested MongoDB explicitly. Tradeoffs:
-- **Pro:** Document-oriented, flexible schema, familiar, runs locally on VPS with no extra infra
-- **Pro:** Incremental updates are trivial (filter by file_path, replace chunks)
-- **Con:** No native vector index without Atlas (Atlas Vector Search is paid)
-- **Con:** Must compute cosine in JS for self-hosted
-- **Verdict for MVP:** fine. Cosine-in-JS over <10K chunks is fast enough. Upgrade later.
-
-### Why `nomic-embed-text` (not OpenAI embeddings / sentence-transformers)
-- Free, local, runs on CPU via existing Ollama setup
-- 768 dims, solid quality for code
-- Zero API cost, zero rate limits, zero data leaving VPS
-- No GPU required — important because VPS is downgrading GPU → CPU
-
-### Why regex chunker (not AST)
-- MVP speed. AST adds dependency, more failure modes, slower
-- Regex covers 85%+ of JavaScript function definitions in this codebase
-- Sliding window fallback catches the rest
-- Upgrade to AST in v2 if accuracy is measurably worse
-
-### Why cosine-in-JS (not $vectorSearch)
-- Self-hosted Mongo doesn't have $vectorSearch (Atlas only)
-- Cosine over 3000 768-dim vectors: ~50ms on CPU
-- Zero new infrastructure
-- Can swap to $vectorSearch later by adding a Mongo Atlas deployment
-
-### Why extend existing persistent_llm_client.js (not new HTTP client)
-- Already handles Mercury auth, error handling, provider abstraction
-- Already has fallback for content filter errors
-- Matches existing TRAI patterns
-- Extension is just adding a method that accepts a messages array instead of a prompt string
-
----
-
-## What's NOT in MVP (deferred to v2)
-
-1. **TRAI hot-path integration** — Mercury via this bridge is not yet wired into TRAI's `processDecision` flow. v2 does that wiring once the bridge proves out.
-
-2. **Incremental reindex** — MVP reindexes the whole repo each run. v2 adds git diff detection + selective reindex on post-commit hook.
-
-3. **Reranking** — MVP returns top-K by cosine only. v2 can add BM25 hybrid rerank or lexical boost for filename matches.
-
-4. **Multi-turn conversation history** — MVP is single-turn: one question, one answer. v2 adds conversation context across follow-ups.
-
-5. **Streaming responses** — MVP waits for the full Mercury response. v2 can stream tokens back to the CLI.
-
-6. **Cross-encoder rerank** — Not needed at this scale.
-
----
-
-## Testing checklist
-
-After indexing, verify the following queries return accurate answers:
-
-1. **Direct file question:** "What does StopLossChecker.js do?"
-   - Should cite `core/exit/StopLossChecker.js` with line numbers
-   - Should describe hard stop + account drawdown + strategy SL with BE
-
-2. **Cross-file question:** "How does MPM's BE scale-out interact with OrderExecutor's partial close logic?"
-   - Should cite both `core/MaxProfitManager.js` and `core/OrderExecutor.js`
-   - Should identify the contract mismatch (exitSize absolute vs fraction)
-
-3. **Architecture question:** "What are the exit logic modules and which one is the authority?"
-   - Should cite ExitContractManager + MaxProfitManager + BreakEvenManager
-   - Should describe the current split (ECM safety + MPM profit)
-
-4. **Concept question:** "Explain the per-trade sealed environment concept"
-   - Should pull from SESSION-HANDOFF-2026-04-07.md architecture spec
-   - Should describe trade.exitEnv + trade.exitState
-
-If Mercury gets any of these wrong, the bridge isn't working — debug before trusting it for architecture review.
-
----
-
-## Integration with architecture refactor (the whole point)
-
-During the 8-phase architecture refactor:
-
-**Before executing any phase:**
-```bash
-node trai_brain/mercury-bridge/ask.js "For the phase [N] changes to [file], identify any dependencies I'm missing"
-```
-
-**After each phase commit:**
-```bash
-node trai_brain/mercury-bridge/indexer.js   # reindex with the new code
-node trai_brain/mercury-bridge/ask.js "Review the changes in [file] and flag any new edge cases"
-```
-
-Mercury becomes a second pair of eyes at every commit. Claudito executes, Mercury
-validates, Trey decides. Three AIs in their proper roles — Mercury is in-house,
-grounded, and can cite file:line for every claim.
+Do not treat old example answers or historical receipts as current source facts.
+Verify the referenced lines and the source identity that produced each answer.
