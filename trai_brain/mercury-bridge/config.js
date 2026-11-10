@@ -406,6 +406,9 @@ const MERCURY_LLM_PROVIDER = requiredString(MERCURY_CONFIG, 'llm.provider').toLo
 const MERCURY_LLM_BASE_URL = requiredString(MERCURY_CONFIG, 'llm.baseUrl');
 const MERCURY_LLM_MODEL = requiredString(MERCURY_CONFIG, 'llm.model');
 const MERCURY_LLM_OPENAI_EXTRA_BODY = optionalPlainObject(MERCURY_CONFIG, 'llm.openaiExtraBody', {});
+// Advisory validation belongs to its receipt stage, so invalid Decide settings
+// cannot prevent the existing reviewers from loading and reporting.
+const MERCURY_DECIDE_ADVISORY = MERCURY_CONFIG.decideAdvisory ?? null;
 const MERCURY_LLM_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'llm.apiKeyEnv');
 const MERCURY_LLM_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMaxTokens', { integer: true, min: 1 });
 const MERCURY_LLM_CLIENT_MIN_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMinTokens', { integer: true, min: 0 });
@@ -635,6 +638,7 @@ module.exports = {
   MERCURY_LLM_BASE_URL,
   MERCURY_LLM_MODEL,
   MERCURY_LLM_OPENAI_EXTRA_BODY,
+  MERCURY_DECIDE_ADVISORY,
   MERCURY_LLM_API_KEY_ENV,
   MERCURY_LLM_CLIENT_MAX_TOKENS,
   MERCURY_LLM_CLIENT_MIN_TOKENS,

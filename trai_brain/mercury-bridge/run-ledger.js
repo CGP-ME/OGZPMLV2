@@ -730,6 +730,9 @@ function buildReviewLedgerSummary(review) {
 function providerAttemptGroups(result) {
   if (!result) return [];
   const groups = [{ id: 'mercury', attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [] }];
+  if (result.decideAdvisory) {
+    groups.push({ id: 'mercury_decide_advisory', attempts: result.decideAdvisory.providerAttempts || [] });
+  }
   const review = result.adversarialReview || result.consensus;
   if (review) {
     groups.push({ id: review.provider === 'codex-subscription' ? 'astra' : 'fable', attempts: Array.isArray(review.attempts) ? review.attempts : [] });
@@ -1020,6 +1023,7 @@ function buildRunLedgerEntry({
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
     reviewer_panel: result && result.reviewerPanel ? panelSeatLedger(result.reviewerPanel, result) : null,
+    decide_advisory: result && result.decideAdvisory ? result.decideAdvisory : null,
     doctrine_review: result && result.doctrineReview ? result.doctrineReview : null,
     stages: {
       mercury: result ? {

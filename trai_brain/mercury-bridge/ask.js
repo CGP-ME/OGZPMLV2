@@ -101,6 +101,7 @@ const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
 const { getBlastRadius, formatForMercury } = require('../../tools/serena-bridge');
 const { accountProviderAttempt } = require('./cost-accounting');
+const { runDecideAdvisory } = require('./mercury-decide');
 
 const UNTRACKED_SERENA_SOURCE_PATHS = Object.freeze([
   'core',
@@ -1569,6 +1570,11 @@ async function runAgentic(query, opts) {
       });
     }
 
+    result.decideAdvisory = await runDecideAdvisory({
+      query, result, settings: config.MERCURY_DECIDE_ADVISORY,
+      providerAudit: providerAuditFactory('mercury_decide_advisory'),
+    });
+
     // 6. Mark trace as used if we injected one
     if (mercuryResult && traceUsed && result.termination === 'answer_given') {
       await markTraceUsed({ store, traceId: traceUsed._id });
@@ -1699,6 +1705,11 @@ function printDispatchReceipt(result) {
       console.log(`    reported verdict=${seat.parsed?.verdict || 'absent'} evidence=${seat.evidenceChecksPassed === true ? 'observed' : 'missing_or_failed'} identity=${seat.identityConflict ? 'conflict' : 'see_provider_receipt'}`);
       console.log(`    review findings: ${(seat.doctrineReview?.namedAbsences || []).join(',') || 'none'}${seat.recheckDiagnostics ? `; recheck=${seat.recheckDiagnostics.namedAbsences.join(',') || 'none'}` : ''}`);
     }
+  }
+
+  if (entry.decide_advisory) {
+    const advisory = entry.decide_advisory;
+    console.log(`Decide advisory: ${advisory.status}; ${advisory.absence || JSON.stringify(advisory.answers)}; advisory only, no action authority`);
   }
 
   for (const [index, recheck] of (entry.adversarial_review?.rechecks || []).entries()) {
