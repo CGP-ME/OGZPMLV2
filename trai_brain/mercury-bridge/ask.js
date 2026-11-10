@@ -97,8 +97,7 @@ const {
   RUN_LEDGER_DIR,
 } = require('./run-ledger');
 const MongoStore = require('./mongo-store');
-const { embedText } = require('./indexer');
-const { retrieveTopK } = require('./searcher');
+const { retrieveQuery } = require('./searcher');
 const { getBlastRadius, formatForMercury } = require('../../tools/serena-bridge');
 const { accountProviderAttempt } = require('./cost-accounting');
 const { runDecideAdvisory } = require('./mercury-decide');
@@ -965,7 +964,7 @@ async function notifyRunAlerts(entry, { notify = sendMaxPriorityNtfy } = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Agentic mode — hybrid retrieval (current semantic-only) + ReAct loop
+// Agentic mode — hybrid or keyword retrieval + ReAct loop
 // ─────────────────────────────────────────────────────────────
 
 async function runAgentic(query, opts) {
@@ -1029,6 +1028,8 @@ async function runAgentic(query, opts) {
   let explicitContinuationFactory = null;
   let starterContext = [];
   let indexFreshness = null;
+  let queryEmbedding;
+  let retrieval = { method: explicitTargetReview ? 'source_snapshot' : 'not_started', embedding: { status: 'not_requested', error: null } };
 
   try {
     const reviewView = pinnedReviewRequested ? captureGitReviewView({
@@ -1071,45 +1072,23 @@ async function runAgentic(query, opts) {
       throw new Error('No chunks in index. Run indexer.js first.');
     }
 
-    // Index freshness for the receipt: a stale RAG index silently narrows
-    // coverage routing. Surface it on every dispatch, not on archaeology.
-    try {
-      const latestStats = await store.stats.find().sort({ _id: -1 }).limit(1).toArray();
-      if (latestStats.length > 0) {
-        const statsDoc = latestStats[0];
-        indexFreshness = {
-          indexed_at: (statsDoc.index_freshness && statsDoc.index_freshness.indexed_at) || statsDoc.run_at || null,
-          index_head_sha: (statsDoc.index_freshness && statsDoc.index_freshness.head_sha) || null,
-          files_walked: statsDoc.files_walked == null ? null : statsDoc.files_walked,
-          chunks: statsDoc.chunks_embedded == null ? statsDoc.chunks_produced : statsDoc.chunks_embedded,
-        };
-      }
-    } catch (freshnessErr) {
-      indexFreshness = { error: freshnessErr.message };
-    }
-
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Index contains ${health.chunkCount} chunks`);
       console.log(`[MERCURY-BRIDGE] Query router: type=${route.queryType} mode=${mode} boost=${boostType || 'none'} top-k=${topK}`);
       console.log(`[MERCURY-BRIDGE] Rationale: ${route.rationale}`);
     }
 
-    if (topK > 0) {
-      if (verbose) console.log('[MERCURY-BRIDGE] Embedding query for starter context...');
-      const queryEmbedding = await embedText(query);
-      starterContext = await retrieveTopK(store, queryEmbedding, topK, query, {
-        retrievalMode: mode,
-        boostType: boostType,
-      });
-    } else {
-      if (verbose) console.log('[MERCURY-BRIDGE] Starter context: skipped (router policy=skip)');
-    }
+    const retrieved = await retrieveQuery(store, query, { topK, retrievalMode: mode, boostType });
+    starterContext = retrieved.chunks;
+    queryEmbedding = retrieved.queryEmbedding;
+    retrieval = retrieved.receipt;
+    indexFreshness = retrieval.index;
 
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Starter context: ${starterContext.length} chunks`);
       starterContext.forEach((c, idx) => {
         console.log(`  ${idx + 1}. ${c.file_path}:${c.start_line}-${c.end_line} ` +
-          `(${c.kind}: ${c.name || 'unnamed'}) sim=${c.similarity.toFixed(3)}`);
+          `(${c.kind}: ${c.name || 'unnamed'}) method=${c.retrieval_mode} sim=${c.similarity == null ? 'unavailable' : c.similarity.toFixed(3)}`);
       });
     }
 
@@ -1125,19 +1104,26 @@ async function runAgentic(query, opts) {
       await ensureTraceIndexes(store);
       await evictStaleTraces({ store, verbose });
 
-      const traceResult = await retrieveSimilarTrace({ store, query });
-      if (traceResult) {
+      const traceResult = await retrieveSimilarTrace({ store, query, queryEmbedding });
+      retrieval.trace_memory = { status: traceResult?.status || (traceResult?.trace ? 'matched' : 'no_match'), error: traceResult?.error || null };
+      if (traceResult?.trace) {
         traceHintText = formatTraceAsHint(traceResult);
         traceUsed = traceResult.trace;
         if (verbose) {
           console.log(`[MERCURY-BRIDGE] Prior trace hint found (similarity: ${traceResult.similarity.toFixed(2)}, ${traceResult.trace.iterations} iters, used ${traceResult.trace.usage_count}x)`);
         }
+      } else if (traceResult?.status === 'unavailable') {
+        console.error(`[MERCURY-BRIDGE] Prior trace retrieval unavailable: ${traceResult.error}`);
       } else if (verbose) {
         console.log('[MERCURY-BRIDGE] No similar prior trace found');
       }
     }
 
     // 3. Build the tool adapter with both repo access and mongo (for get_chunk)
+    if (store) {
+      mercuryQuery += `\n\nHOST RETRIEVAL RECEIPT (source availability, not a verdict):\n${JSON.stringify(retrieval)}`;
+      inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
+    }
     const toolAdapter = createToolAdapter({
       repoRoot: reviewRoot,
       gitRepoRoot: config.REPO_ROOT,
@@ -1555,6 +1541,8 @@ async function runAgentic(query, opts) {
       if (mercurySeat) mercurySeat.recheckDiagnostics = latestDoctrine;
     }
     if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
+    result.retrieval = retrieval;
+    result.indexFreshness = indexFreshness;
     if (astraReview) {
       const astraSeat = panelRun.seats.find(seat => seat.id === 'astra' && seat.status === 'succeeded');
       const fableSeat = panelRun.seats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
@@ -1591,6 +1579,7 @@ async function runAgentic(query, opts) {
       const captureResult = await captureTrace({
         store,
         query,
+        queryEmbedding,
         toolCallSequence,
         finalAnswer: result.answer,
         captureRequested: opts.captureTrace === true,
@@ -1601,6 +1590,7 @@ async function runAgentic(query, opts) {
           captureRequested: opts.captureTrace === true,
         },
       });
+      retrieval.trace_capture = captureResult;
 
       if (verbose) {
         if (captureResult.captured) {
@@ -1640,11 +1630,15 @@ async function runAgentic(query, opts) {
     // everything the ledger knows (verdict, quality evidence, tool failures) —
     // the ledger dir is gitignored and bridge-blocked for session reads.
     result.runLedgerEntry = ledgerEntry;
-    result.indexFreshness = indexFreshness;
 
     return result;
 
   } catch (err) {
+    if (err.retrieval) {
+      retrieval = err.retrieval;
+      indexFreshness = retrieval.index;
+    }
+    err.retrieval = retrieval;
     const ledgerEntry = buildRunLedgerEntry({
       repoRoot: config.REPO_ROOT,
       query,
@@ -1655,6 +1649,8 @@ async function runAgentic(query, opts) {
         decisionSteerIteration: config.AGENTIC_DECISION_STEER_ITERATION,
       },
       error: err,
+      retrieval,
+      indexFreshness,
       startedAt,
       finishedAt: new Date(),
       autoBlastRadius,
@@ -1830,7 +1826,13 @@ function printDispatchReceipt(result) {
     ? `tree state:      DIRTY — ${dirty.split('\n').map((line) => line.trim()).join(', ')}`
     : 'tree state:      clean');
 
-  const freshness = result.indexFreshness;
+  const retrieval = entry.retrieval || result.retrieval;
+  if (retrieval) {
+    console.log(`retrieval:       ${retrieval.method} (requested ${retrieval.requested_method || 'none'})`);
+    if (retrieval.embedding?.error) console.log(`embedding error: ${JSON.stringify(retrieval.embedding.error)}`);
+    if (retrieval.trace_memory) console.log(`trace retrieval: ${JSON.stringify(retrieval.trace_memory)}`);
+  }
+  const freshness = entry.index_freshness || result.indexFreshness;
   if (freshness && !freshness.error) {
     const idxSha = String(freshness.index_head_sha || '').slice(0, 8) || 'unknown';
     const headSha = String(entry.head_sha || '').slice(0, 8) || 'unknown';
@@ -1908,7 +1910,7 @@ async function main() {
       await store.connect();
       await ensureTraceIndexes(store);
       const traceResult = await retrieveSimilarTrace({ store, query: args.query });
-      if (traceResult) {
+      if (traceResult?.trace) {
         console.log(`Similarity: ${traceResult.similarity.toFixed(3)}`);
         console.log(`Prior query: "${traceResult.trace.query}"`);
         console.log(`Iterations: ${traceResult.trace.iterations}`);
@@ -1917,6 +1919,9 @@ async function main() {
         console.log(`Tool calls: ${traceResult.trace.tool_call_sequence.length}`);
         console.log('');
         console.log(formatTraceAsHint(traceResult));
+      } else if (traceResult?.status === 'unavailable') {
+        console.error(`Prior trace retrieval unavailable: ${traceResult.error}`);
+        process.exitCode = 1;
       } else {
         console.log('No similar prior trace found (threshold: ' + config.TRACE_INJECT_THRESHOLD + ')');
       }
@@ -2011,7 +2016,7 @@ async function main() {
       }
 
     } else {
-      // Explicit legacy single-shot mode — unchanged
+      // Explicit single-shot mode uses the same retrieval operation and receipt.
       const result = await ask(args.query, {
         topK: args.topK,
         maxTokens: args.maxTokens,
@@ -2023,7 +2028,7 @@ async function main() {
         console.log('─── RETRIEVED CHUNKS ───');
         result.chunks.forEach((c, idx) => {
           console.log('');
-          console.log(`### [${idx + 1}] ${c.file_path}:${c.start_line}-${c.end_line} (sim=${c.similarity.toFixed(3)})`);
+          console.log(`### [${idx + 1}] ${c.file_path}:${c.start_line}-${c.end_line} (method=${c.retrieval_mode}, sim=${c.similarity == null ? 'unavailable' : c.similarity.toFixed(3)})`);
           console.log(c.text);
           console.log('');
         });
@@ -2036,6 +2041,7 @@ async function main() {
       console.log(result.answer);
       console.log('');
       console.log(`[latency: ${result.latencyMs}ms | chunks used: ${result.chunks.length}]`);
+      console.log(`retrieval receipt: ${JSON.stringify(result.retrieval)}`);
     }
 
   } catch (err) {
@@ -2046,6 +2052,7 @@ async function main() {
     console.error(`verdict:     tool_failure`);
     console.error(`error:       ${err.message}`);
     console.error(`error name:  ${err.name || 'Error'}`);
+    if (err.retrieval) console.error(`retrieval receipt: ${JSON.stringify(err.retrieval)}`);
     if (err.mercuryRunLedger) {
       console.error(`run ledger:  ${err.mercuryRunLedger.citation}`);
     }

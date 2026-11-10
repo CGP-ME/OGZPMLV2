@@ -560,13 +560,6 @@ function slidingWindow(text, windowSize, overlap) {
  * Call the configured embeddings endpoint with a BATCH of strings.
  * Returns an array of embedding vectors in the same order as the input.
  */
-function embedBatch(texts) {
-  if (config.EMBED_PROVIDER === 'ollama') {
-    return embedBatchOllama(texts);
-  }
-  return embedBatchOpenAICompatible(texts);
-}
-
 function assertEmbeddingDimensions(embeddings, expectedCount) {
   if (!Array.isArray(embeddings) || embeddings.length !== expectedCount) {
     throw new Error(`Embed response count mismatch: expected ${expectedCount}, got ${Array.isArray(embeddings) ? embeddings.length : 'non-array'}`);
@@ -575,69 +568,19 @@ function assertEmbeddingDimensions(embeddings, expectedCount) {
     if (!Array.isArray(embedding) || embedding.length !== config.EMBED_DIMENSIONS) {
       throw new Error(`Embedding ${idx} length mismatch: expected ${config.EMBED_DIMENSIONS}, got ${Array.isArray(embedding) ? embedding.length : 'non-array'}`);
     }
+    if (!embedding.every(Number.isFinite) || !embedding.some(value => value !== 0)) {
+      throw new Error(`Embedding ${idx} has non-finite values or zero norm`);
+    }
   });
 }
 
-function embedBatchOllama(texts) {
+function embedBatch(texts) {
   return new Promise((resolve, reject) => {
     if (!Array.isArray(texts) || texts.length === 0) {
       return reject(new Error('embedBatch requires a non-empty array of strings'));
     }
-
-    const url = new URL(config.EMBED_ENDPOINT);
-    const payload = JSON.stringify({
-      model: config.EMBED_MODEL,
-      input: texts,
-    });
-
-    const reqOptions = {
-      hostname: url.hostname,
-      port: url.port || (url.protocol === 'https:' ? 443 : 80),
-      path: url.pathname + (url.search || ''),
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        'Accept': 'application/json',
-      },
-    };
-
-    const transport = url.protocol === 'https:' ? https : http;
-    const req = transport.request(reqOptions, (res) => {
-      let data = '';
-      res.on('data', (chunk) => (data += chunk));
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          return reject(new Error(`Ollama embed endpoint returned ${res.statusCode}: ${data.slice(0, 500)}`));
-        }
-        try {
-          const parsed = JSON.parse(data);
-          if (Array.isArray(parsed.embeddings)) {
-            if (parsed.embeddings.length !== texts.length) {
-              return reject(new Error(`Ollama embed response count mismatch: expected ${texts.length}, got ${parsed.embeddings.length}`));
-            }
-            return resolve(parsed.embeddings);
-          }
-          if (Array.isArray(parsed.embedding) && texts.length === 1) {
-            return resolve([parsed.embedding]);
-          }
-          reject(new Error(`Unrecognized Ollama embed response shape: ${data.slice(0, 300)}`));
-        } catch (err) {
-          reject(new Error(`Failed to parse Ollama embed response: ${err.message}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
-  });
-}
-
-function embedBatchOpenAICompatible(texts) {
-  return new Promise((resolve, reject) => {
-    if (!Array.isArray(texts) || texts.length === 0) {
-      return reject(new Error('embedBatch requires a non-empty array of strings'));
+    if (config.EMBED_PROVIDER === 'openai-compatible' && !config.EMBED_API_KEY) {
+      return reject(new Error(`Configured embedding API key env is missing: ${config.EMBED_API_KEY_ENV}`));
     }
 
     const url = new URL(config.EMBED_ENDPOINT);
@@ -662,37 +605,53 @@ function embedBatchOpenAICompatible(texts) {
       reqOptions.headers['Authorization'] = `Bearer ${config.EMBED_API_KEY}`;
     }
 
+    let settled = false;
+    let deadline;
+    const finish = (error, embeddings) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      if (error) reject(error);
+      else resolve(embeddings);
+    };
     const transport = url.protocol === 'https:' ? https : http;
     const req = transport.request(reqOptions, (res) => {
       let data = '';
       res.on('data', (chunk) => (data += chunk));
+      res.on('error', finish);
+      res.on('aborted', () => finish(Object.assign(new Error('Embedding response aborted before completion'), { code: 'EMBED_RESPONSE_ABORTED' })));
       res.on('end', () => {
         if (res.statusCode === 429) {
-          return reject(new Error(`Rate limited (429): ${data.slice(0, 300)}`));
+          return finish(new Error(`Rate limited (429): ${data.slice(0, 300)}`));
         }
         if (res.statusCode !== 200) {
-          return reject(new Error(`Embed endpoint returned ${res.statusCode}: ${data.slice(0, 500)}`));
+          return finish(new Error(`Embed endpoint returned ${res.statusCode}: ${data.slice(0, 500)}`));
         }
         try {
           const parsed = JSON.parse(data);
-          // OpenAI-compatible response: { data: [{ embedding: [...], index: 0 }, ...] }
-          if (parsed.data && Array.isArray(parsed.data)) {
-            // Sort by index to guarantee order matches input
-            const sorted = [...parsed.data].sort((a, b) => (a.index || 0) - (b.index || 0));
-            const embeddings = sorted.map((d) => d.embedding);
-            if (embeddings.length !== texts.length) {
-              return reject(new Error(`Embed response count mismatch: expected ${texts.length}, got ${embeddings.length}`));
-            }
-            return resolve(embeddings);
+          let embeddings;
+          if (config.EMBED_PROVIDER === 'ollama') {
+            embeddings = Array.isArray(parsed.embeddings) ? parsed.embeddings
+              : (Array.isArray(parsed.embedding) && texts.length === 1 ? [parsed.embedding] : null);
+          } else if (Array.isArray(parsed.data)) {
+            embeddings = [...parsed.data].sort((a, b) => (a.index || 0) - (b.index || 0)).map(d => d.embedding);
           }
-          reject(new Error(`Unrecognized embed response shape: ${data.slice(0, 300)}`));
+          assertEmbeddingDimensions(embeddings, texts.length);
+          finish(null, embeddings);
         } catch (err) {
-          reject(new Error(`Failed to parse embed response: ${err.message}`));
+          finish(err);
         }
       });
     });
 
-    req.on('error', reject);
+    // An absolute deadline covers connection, headers and the entire response
+    // body. Socket inactivity timeouts alone cannot cancel a trickling response.
+    deadline = setTimeout(() => {
+      const error = Object.assign(new Error(`Embedding request deadline exceeded after ${config.EMBED_REQUEST_TIMEOUT_MS}ms`), { code: 'EMBED_TIMEOUT' });
+      req.destroy(error);
+      finish(error);
+    }, config.EMBED_REQUEST_TIMEOUT_MS);
+    req.on('error', finish);
     req.write(payload);
     req.end();
   });
@@ -874,7 +833,7 @@ async function main() {
   console.log(`[MERCURY-BRIDGE] Endpoint: ${config.EMBED_ENDPOINT}`);
   console.log(`[MERCURY-BRIDGE] Model:    ${config.EMBED_MODEL}`);
   console.log(`[MERCURY-BRIDGE] Batching: max ${config.EMBED_BATCH_MAX_CHUNKS} chunks or ${config.EMBED_BATCH_MAX_TOKENS} tokens per request`);
-  console.log(`[MERCURY-BRIDGE] Batch failure mode: ${config.EMBED_FAIL_ON_BATCH_ERROR ? 'fatal' : 'skip failed chunks'}`);
+  console.log('[MERCURY-BRIDGE] Failed embedding batches preserve the published index');
 
   // Pack all chunks into batches that respect both per-request token limit
   // and per-request chunk count limit. Then send them with rate-limit pacing.
@@ -922,20 +881,8 @@ async function main() {
       embedErrors += batchIndices.length;
       const failureMessage = `Batch ${batchesSent + 1}/${batches.length} failed: ${err.message}`;
       console.warn(`\n[MERCURY-BRIDGE] ${failureMessage}`);
-      if (config.EMBED_FAIL_ON_BATCH_ERROR) {
-        await store.disconnect();
-        throw new Error(`${failureMessage}; refusing to write partial index`);
-      }
-      // Mark these chunks as un-embeddable; they will be skipped during storage
-      batchIndices.forEach((chunkIdx) => {
-        allChunks[chunkIdx].embedding = null;
-      });
-
-      // If we hit a rate limit, back off harder
-      if (err.message.includes('429') || err.message.includes('Rate limited')) {
-        console.warn('[MERCURY-BRIDGE] Rate limited — backing off 60s');
-        await new Promise((r) => setTimeout(r, 60000));
-      }
+      await store.disconnect();
+      throw new Error(`${failureMessage}; refusing to write partial index`);
     }
 
     lastRequestAt = Date.now();
@@ -949,27 +896,14 @@ async function main() {
   }
   console.log('\n');
 
-  const embedded = allChunks.filter((c) => c.embedding !== null);
+  const embedded = allChunks;
   if (embedded.length === 0) {
     console.error(`[MERCURY-BRIDGE] FATAL: no chunks successfully embedded. Check embed provider=${config.EMBED_PROVIDER} model=${config.EMBED_MODEL}.`);
     await store.disconnect();
     process.exit(1);
   }
 
-  if (embedErrors > 0) {
-    if (config.EMBED_FAIL_ON_BATCH_ERROR) {
-      await store.disconnect();
-      throw new Error(`${embedErrors} chunks failed to embed; refusing to write partial index`);
-    }
-    console.warn(`[MERCURY-BRIDGE] WARNING: ${embedErrors} chunks failed to embed and will be skipped`);
-  }
-
-  // Store
-  console.log('[MERCURY-BRIDGE] Storing chunks in MongoDB...');
-  const inserted = await store.replaceAll(embedded);
-  console.log(`[MERCURY-BRIDGE] Inserted ${inserted.inserted} chunks`);
-
-  // Record run metadata
+  // The publisher stages provenance with the chunks before the atomic rename.
   const elapsedMs = Date.now() - startTime;
   const indexMetadata = buildIndexRunMetadata({
     repoRoot: config.REPO_ROOT,
@@ -978,7 +912,9 @@ async function main() {
     embedErrors,
     elapsedMs,
   });
-  await store.recordIndexRun(indexMetadata);
+  console.log('[MERCURY-BRIDGE] Storing chunks in MongoDB...');
+  const inserted = await store.replaceAll(embedded, indexMetadata);
+  console.log(`[MERCURY-BRIDGE] Published ${inserted.inserted} chunks`);
   console.log(`[MERCURY-BRIDGE] Index freshness: branch=${indexMetadata.index_freshness.branch} head=${indexMetadata.index_freshness.head_sha} dirtyTracked=${indexMetadata.index_freshness.dirty_tracked}`);
 
   await store.disconnect();

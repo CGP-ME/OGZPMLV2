@@ -35,6 +35,7 @@
 
 const { embedText } = require('./indexer');
 const config = require('./config');
+const { redactSensitiveText } = require('./run-ledger');
 
 const TRACE_COLLECTION = config.TRACE_COLLECTION;
 const CURRENT_FIX_QUERY_PATTERN = /\b(break my fix|current fix|current change|staged fix|staged change|uncommitted|working tree|latest committed|last commit)\b/i;
@@ -95,14 +96,15 @@ function shouldCaptureTrace({ query, toolCallSequence, metadata, captureRequeste
  *    - If existing trace has better or equal quality, SKIP capture.
  * 4. If no near-duplicate, INSERT new trace.
  */
-async function captureTrace({ store, query, toolCallSequence, finalAnswer, metadata, captureRequested = false }) {
+async function captureTrace({ store, query, queryEmbedding, toolCallSequence, finalAnswer, metadata, captureRequested = false }) {
   const captureGate = shouldCaptureTrace({ query, toolCallSequence, finalAnswer, metadata, captureRequested });
   if (!captureGate.capture) {
     return { captured: false, reason: captureGate.reason };
   }
+  if (queryEmbedding === null) return { captured: false, reason: 'query_embedding_unavailable' };
 
   try {
-    const queryEmbedding = await embedText(query);
+    if (queryEmbedding === undefined) queryEmbedding = await embedText(query);
     const traceCollection = store.db.collection(TRACE_COLLECTION);
     const newQuality = computeQualityScore(metadata);
 
@@ -180,8 +182,11 @@ async function captureTrace({ store, query, toolCallSequence, finalAnswer, metad
  * Retrieve the most similar prior trace for a query, above the
  * injection threshold. Returns null if nothing qualifies.
  */
-async function retrieveSimilarTrace({ store, query, threshold }) {
+async function retrieveSimilarTrace({ store, query, queryEmbedding, threshold }) {
   const minSim = threshold != null ? threshold : config.TRACE_INJECT_THRESHOLD;
+  if (queryEmbedding === null) {
+    return { status: 'unavailable', error: 'query_embedding_unavailable' };
+  }
 
   try {
     const traceCollection = store.db.collection(TRACE_COLLECTION);
@@ -189,7 +194,7 @@ async function retrieveSimilarTrace({ store, query, threshold }) {
 
     if (allTraces.length === 0) return null;
 
-    const queryEmbedding = await embedText(query);
+    if (queryEmbedding === undefined) queryEmbedding = await embedText(query);
 
     let best = null;
     for (const trace of allTraces) {
@@ -205,8 +210,9 @@ async function retrieveSimilarTrace({ store, query, threshold }) {
     }
     return null;
   } catch (err) {
-    console.error(`[TRACE-MEMORY] Retrieve failed: ${err.message}`);
-    return null;
+    const error = redactSensitiveText(err.message);
+    console.error(`[TRACE-MEMORY] Retrieve failed: ${error}`);
+    return { status: 'unavailable', error };
   }
 }
 
@@ -232,7 +238,7 @@ async function markTraceUsed({ store, traceId }) {
 // ─── Format hint ──────────────────────────────────────────────
 
 function formatTraceAsHint(traceResult) {
-  if (!traceResult) return null;
+  if (!traceResult || !traceResult.trace) return null;
 
   const { trace, similarity } = traceResult;
   const lines = [];

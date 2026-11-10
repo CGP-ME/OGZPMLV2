@@ -117,8 +117,17 @@ class MongoStore {
    * Other embedding identities sharing the collection retain their documents.
    * Failed staging collections remain available for diagnosis/recovery.
    */
-  async replaceAll(chunks) {
+  async replaceAll(chunks, indexMetadata) {
     this.assertActiveEmbedChunks(chunks);
+    const publication = {
+      id: randomUUID(),
+      indexed_at: indexMetadata.index_freshness.indexed_at,
+      head_sha: indexMetadata.index_freshness.head_sha,
+      branch: indexMetadata.index_freshness.branch,
+      dirty_tracked: indexMetadata.index_freshness.dirty_tracked,
+      files_walked: indexMetadata.files_walked,
+      chunks: chunks.length,
+    };
     const published = await this.db.listCollections({ name: config.MONGO_COLLECTION_CHUNKS }).next();
     const stagingName = `${config.MONGO_COLLECTION_CHUNKS}__building_${randomUUID()}`;
     console.log(`[MERCURY-BRIDGE] Building replacement collection: ${stagingName}`);
@@ -132,10 +141,20 @@ class MongoStore {
     const staging = this.db.collection(stagingName);
     let inserted = 0;
     for (let i = 0; i < chunks.length; i += 500) {
-      const result = await staging.insertMany(chunks.slice(i, i + 500), { ordered: true });
+      const result = await staging.insertMany(
+        chunks.slice(i, i + 500).map(chunk => ({ ...chunk, index_publication: publication })),
+        { ordered: true }
+      );
       inserted += result.insertedCount;
     }
     if (indexes.length > 0) await staging.createIndexes(indexes);
+    // Persist the build audit before publication. Its existence is not proof
+    // of publication: only the metadata carried by the published chunks is.
+    await this.recordIndexRun({
+      ...indexMetadata,
+      publication_id: publication.id,
+      publication_status: 'prepared',
+    });
     // The expected target UUID prevents an older build replacing a newer one.
     // MongoDB checks it under the same locks as the atomic drop/rename.
     await this.db.admin().command({
@@ -144,7 +163,7 @@ class MongoStore {
       dropTarget: published.info.uuid,
     });
     this.chunks = this.db.collection(config.MONGO_COLLECTION_CHUNKS);
-    return { inserted };
+    return { inserted, publication };
   }
 
   /**
@@ -158,32 +177,11 @@ class MongoStore {
   /**
    * Retrieve all chunks into memory for cosine similarity search.
    * At ~3000 chunks of 768-dim vectors, this is about 10MB in memory — fine.
-   * Projection excludes the text field to keep memory lean during scoring;
-   * we fetch full text only for the top-K winners via fetchById().
+   * Scoring, returned text and publication provenance use this same read.
+   * Re-reading winners after a rename could mix two different publications.
    */
   async fetchAllForScoring() {
-    const cursor = this.chunks.find(
-      activeEmbedQuery(),
-      {
-        projection: {
-          _id: 1,
-          file_path: 1,
-          kind: 1,
-          name: 1,
-          content_type: 1,
-          start_line: 1,
-          end_line: 1,
-          embedding: 1,
-          embed_index_id: 1,
-          embed_provider: 1,
-          embed_endpoint_id: 1,
-          embed_model: 1,
-          embed_dimensions: 1,
-          text: 1,
-          // text included for BM25 scoring in Layer 2 hybrid retrieval
-        },
-      }
-    );
+    const cursor = this.chunks.find(activeEmbedQuery());
     const chunks = await cursor.toArray();
     this.assertActiveEmbedChunks(chunks);
     return chunks;
@@ -219,16 +217,54 @@ class MongoStore {
    * Get collection stats for observability.
    */
   async getStats() {
-    const chunkCount = await this.chunks.countDocuments(activeEmbedQuery());
-    const latestRun = await this.stats
-      .find(activeEmbedQuery())
-      .sort({ run_at: -1 })
-      .limit(1)
-      .toArray();
-
+    const chunks = await this.chunks.find(activeEmbedQuery(), {
+      projection: { index_publication: 1 },
+    }).toArray();
+    const publication = MongoStore.describePublication(chunks);
     return {
-      chunkCount,
-      latestRun: latestRun[0] || null,
+      chunkCount: chunks.length,
+      publication,
+      latestRun: publication.status === 'available' ? {
+        publication_id: publication.publication_id,
+        run_at: publication.indexed_at,
+        files_walked: publication.files_walked,
+        chunks_embedded: publication.chunks,
+        index_freshness: {
+          indexed_at: publication.indexed_at,
+          head_sha: publication.index_head_sha,
+          branch: publication.branch,
+          dirty_tracked: publication.dirty_tracked,
+        },
+      } : null,
+    };
+  }
+
+  static describePublication(chunks) {
+    const observedAt = new Date();
+    const receipt = {
+      status: 'unavailable', observed_at: observedAt.toISOString(),
+      publication_id: null, indexed_at: null, index_head_sha: null,
+      age_ms: null, files_walked: null, chunks: chunks.length,
+    };
+    const publication = chunks[0]?.index_publication;
+    if (!publication?.id) {
+      return { ...receipt, error: chunks.length === 0 ? 'empty_index' : 'publication_metadata_absent; reindex required for attested freshness' };
+    }
+    const identity = JSON.stringify(publication);
+    if (chunks.some(chunk => JSON.stringify(chunk.index_publication) !== identity)
+        || publication.chunks !== chunks.length) {
+      return { ...receipt, error: 'publication_metadata_mismatch' };
+    }
+    const indexedAt = new Date(publication.indexed_at);
+    if (!Number.isFinite(indexedAt.getTime())) {
+      return { ...receipt, error: 'publication_timestamp_invalid' };
+    }
+    return {
+      ...receipt, status: 'available', publication_id: publication.id,
+      indexed_at: indexedAt.toISOString(), index_head_sha: publication.head_sha,
+      branch: publication.branch, dirty_tracked: publication.dirty_tracked,
+      age_ms: observedAt.getTime() - indexedAt.getTime(),
+      files_walked: publication.files_walked,
     };
   }
 

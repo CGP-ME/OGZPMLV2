@@ -906,6 +906,8 @@ function buildRunLedgerEntry({
   autoBlastRadius = null,
   evidenceSources = [],
   inputProvenance = null,
+  retrieval = null,
+  indexFreshness = null,
 } = {}) {
   const startedIso = isoTimestamp(startedAt || finishedAt);
   const finishedIso = isoTimestamp(finishedAt);
@@ -943,6 +945,8 @@ function buildRunLedgerEntry({
     prompt_hash: hashText(query),
     prompt_excerpt: truncateText(redactSensitiveText(query), PROMPT_EXCERPT_MAX),
     prompt_provenance: promptProvenance,
+    retrieval: result?.retrieval || retrieval,
+    index_freshness: result?.indexFreshness || indexFreshness,
     attack_scope: opts.attackScope || 'agentic_query',
     source_refs: {
       current_change_evidence_bundle: autoBlastRadius && autoBlastRadius.evidenceBundle

@@ -18,6 +18,7 @@ const config = require('./config');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { createMercuryLlmClient } = require('./llm-client');
+const { redactSensitiveText } = require('./run-ledger');
 
 function optionalPositiveInteger(value, name) {
   if (value == null) return null;
@@ -85,7 +86,9 @@ function tokenize(text) {
  */
 function buildBM25Index(chunks) {
   const N = chunks.length;
-  const df = {};  // document frequency: term -> count of docs containing it
+  // Source identifiers such as constructor and __proto__ are literal terms.
+  // Counts must not inherit JavaScript object properties.
+  const df = Object.create(null);  // term -> count of docs containing it
   const docTermFreqs = [];  // per-doc term frequencies
   const docLengths = [];
   let totalLength = 0;
@@ -95,7 +98,7 @@ function buildBM25Index(chunks) {
     docLengths.push(terms.length);
     totalLength += terms.length;
 
-    const tf = {};
+    const tf = Object.create(null);
     const seen = new Set();
     for (const t of terms) {
       tf[t] = (tf[t] || 0) + 1;
@@ -110,7 +113,7 @@ function buildBM25Index(chunks) {
   const avgDl = totalLength / N;
 
   // IDF: log((N - df + 0.5) / (df + 0.5) + 1)
-  const idf = {};
+  const idf = Object.create(null);
   for (const [term, docFreq] of Object.entries(df)) {
     idf[term] = Math.log((N - docFreq + 0.5) / (docFreq + 0.5) + 1);
   }
@@ -266,8 +269,14 @@ function rrfMerge(semanticRanked, bm25Ranked, boosts, k) {
  * opts.boostType: manual content_type to boost (e.g. 'recent_changes'). Takes
  * priority over classifyQuery auto-detection.
  */
-async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
+async function retrieveTopK(store, queryEmbedding, k, query, opts = {}, retrievalReceipt = null) {
   const fetchedChunks = await store.fetchAllForScoring();
+  if (retrievalReceipt) {
+    retrievalReceipt.index = MongoStore.describePublication(fetchedChunks);
+    if (retrievalReceipt.index.status !== 'available') {
+      console.error(`[MERCURY-BRIDGE] Index freshness unavailable: ${retrievalReceipt.index.error}`);
+    }
+  }
   for (const chunk of fetchedChunks) {
     if (!chunk || !chunk.file_path) {
       const id = chunk && chunk._id ? String(chunk._id) : 'unknown';
@@ -281,11 +290,12 @@ async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
   const pool = config.HYBRID_CANDIDATE_POOL;
 
   // Determine effective mode
-  let mode = opts.retrievalMode || (config.HYBRID_ENABLED ? 'hybrid-classified' : 'semantic');
+  const requestedMode = opts.retrievalMode || (config.HYBRID_ENABLED ? 'hybrid-classified' : 'semantic');
+  const mode = queryEmbedding ? requestedMode : 'keyword';
 
-  // --- Semantic scoring (always needed) ---
+  // Semantic retrieval needs a query vector; BM25 uses the stored text directly.
   const semanticScored = [];
-  for (let i = 0; i < allChunks.length; i++) {
+  for (let i = 0; queryEmbedding && i < allChunks.length; i++) {
     const chunk = allChunks[i];
     if (!chunk.embedding || chunk.embedding.length !== queryEmbedding.length) continue;
     const sim = cosineSimilarity(queryEmbedding, chunk.embedding);
@@ -297,13 +307,8 @@ async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
   // --- Pure semantic mode ---
   if (mode === 'semantic' || !query) {
     const topK = semanticTop.slice(0, k);
-    const topIds = topK.map(s => allChunks[s.idx]._id);
-    const fullDocs = await store.fetchByIds(topIds);
-    fullDocs.forEach((chunk) => assertRetrievableChunkPath(chunk, 'hydration'));
-    const fullById = new Map(fullDocs.map(d => [String(d._id), d]));
-
     return topK.map(s => ({
-      ...fullById.get(String(allChunks[s.idx]._id)),
+      ...allChunks[s.idx],
       similarity: s.sim,
       retrieval_mode: 'semantic',
     }));
@@ -327,7 +332,7 @@ async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
   if (opts.boostType) {
     // Manual boost takes priority
     boosts[opts.boostType] = config.CONTENT_TYPE_BOOST_STRONG;
-  } else if (mode === 'hybrid-classified') {
+  } else if (requestedMode === 'hybrid-classified') {
     // Auto-classify only in hybrid-classified mode
     boosts = classifyQuery(query);
   }
@@ -349,28 +354,64 @@ async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
 
   const topK = merged.slice(0, k);
 
-  // Hydrate winners with full text
-  const topIds = topK.map(s => allChunks[s.idx]._id);
-  const fullDocs = await store.fetchByIds(topIds);
-  fullDocs.forEach((chunk) => assertRetrievableChunkPath(chunk, 'hydration'));
-  const fullById = new Map(fullDocs.map(d => [String(d._id), d]));
-
+  // Return the exact documents scored, even if another publication follows.
   return topK.map(s => {
-    const full = fullById.get(String(allChunks[s.idx]._id)) || {};
     return {
-      ...full,
-      similarity: semanticScored.find(ss => ss.idx === s.idx)?.sim || 0,
+      ...allChunks[s.idx],
+      similarity: semanticScored.find(ss => ss.idx === s.idx)?.sim ?? null,
       rrf_score: s.score,
       retrieval_mode: mode,
     };
   });
 }
 
+// Both query entry points use this operation so an embedding failure cannot
+// prevent lexical retrieval or be reported as successful semantic retrieval.
+async function retrieveQuery(store, query, opts = {}) {
+  const topK = opts.topK ?? config.RETRIEVE_TOP_K;
+  const requestedMode = opts.retrievalMode || (config.HYBRID_ENABLED ? 'hybrid-classified' : 'semantic');
+  const receipt = {
+    requested_method: requestedMode,
+    method: topK === 0 ? 'skipped' : null,
+    embedding: {
+      status: 'not_requested', provider: config.EMBED_PROVIDER, model: config.EMBED_MODEL,
+      index_id: config.EMBED_INDEX_ID, dimensions: config.EMBED_DIMENSIONS,
+      deadline_ms: config.EMBED_REQUEST_TIMEOUT_MS, elapsed_ms: null, error: null,
+    },
+    index: null,
+    chunks_retrieved: 0,
+  };
+  if (topK === 0) return { chunks: [], queryEmbedding: undefined, receipt };
+
+  let queryEmbedding = null;
+  const started = Date.now();
+  try {
+    queryEmbedding = await embedText(query);
+    receipt.embedding.status = 'available';
+  } catch (error) {
+    receipt.embedding.status = 'unavailable';
+    receipt.embedding.error = {
+      name: error.name, code: error.code || null, message: redactSensitiveText(error.message),
+    };
+    console.error(`[MERCURY-BRIDGE] Query embedding unavailable; retrieving stored text with BM25: ${receipt.embedding.error.message}`);
+  }
+  receipt.embedding.elapsed_ms = Date.now() - started;
+  receipt.method = queryEmbedding ? requestedMode : 'keyword';
+  try {
+    const chunks = await retrieveTopK(store, queryEmbedding, topK, query, opts, receipt);
+    receipt.chunks_retrieved = chunks.length;
+    return { chunks, queryEmbedding, receipt };
+  } catch (error) {
+    error.retrieval = receipt;
+    throw error;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // PROMPT ASSEMBLY (unchanged from Layer 1)
 // ─────────────────────────────────────────────────────────────
 
-function buildPrompt(userQuery, retrievedChunks) {
+function buildPrompt(userQuery, retrievedChunks, retrieval = null) {
   const lines = [];
   const suppliedChunks = Array.isArray(retrievedChunks) ? retrievedChunks : [];
   for (const chunk of suppliedChunks) {
@@ -386,12 +427,13 @@ function buildPrompt(userQuery, retrievedChunks) {
 
   lines.push(config.MERCURY_SYSTEM_PROMPT);
   lines.push('');
+  if (retrieval) lines.push(`RETRIEVAL RECEIPT: ${JSON.stringify(retrieval)}`, '');
   lines.push('─── RETRIEVED CODE CONTEXT ───');
   lines.push('');
 
   productionChunks.forEach((chunk, idx) => {
     const header = `### [${idx + 1}] ${chunk.file_path}:${chunk.start_line}-${chunk.end_line}`;
-    const subheader = `[kind: ${chunk.kind} | name: ${chunk.name} | similarity: ${(chunk.similarity || 0).toFixed(3)}]`;
+    const subheader = `[kind: ${chunk.kind} | name: ${chunk.name} | method: ${chunk.retrieval_mode || 'unspecified'} | similarity: ${chunk.similarity == null ? 'unavailable' : chunk.similarity.toFixed(3)}]`;
     lines.push(header);
     lines.push(subheader);
     lines.push('```');
@@ -426,6 +468,7 @@ async function ask(query, opts = {}) {
   const t0 = Date.now();
   const store = new MongoStore();
   await store.connect();
+  let retrieval = null;
 
   try {
     const health = await store.healthCheck();
@@ -438,13 +481,13 @@ async function ask(query, opts = {}) {
       console.log('[MERCURY-BRIDGE] Embedding query...');
     }
 
-    const queryEmbedding = await embedText(query);
-
     if (verbose) console.log(`[MERCURY-BRIDGE] Retrieving top ${topK} chunks...`);
-    const topChunks = await retrieveTopK(store, queryEmbedding, topK, query);
+    const retrieved = await retrieveQuery(store, query, { topK });
+    const topChunks = retrieved.chunks;
+    retrieval = retrieved.receipt;
 
     if (topChunks.length === 0) {
-      return { answer: 'No matching chunks found in the index.', chunks: [], latencyMs: Date.now() - t0 };
+      return { answer: 'No matching chunks found in the index.', chunks: [], retrieval, indexFreshness: retrieval.index, latencyMs: Date.now() - t0 };
     }
 
     if (verbose) {
@@ -452,11 +495,11 @@ async function ask(query, opts = {}) {
       topChunks.forEach((c, idx) => {
         const rrfTag = c.rrf_score ? ` rrf=${c.rrf_score.toFixed(4)}` : '';
         console.log(`  ${idx + 1}. ${c.file_path}:${c.start_line}-${c.end_line} ` +
-          `(${c.kind}: ${c.name}) sim=${(c.similarity || 0).toFixed(3)}${rrfTag}`);
+          `(${c.kind}: ${c.name}) method=${c.retrieval_mode} sim=${c.similarity == null ? 'unavailable' : c.similarity.toFixed(3)}${rrfTag}`);
       });
     }
 
-    const prompt = buildPrompt(query, topChunks);
+    const prompt = buildPrompt(query, topChunks, retrieval);
 
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Prompt length: ${prompt.length} chars`);
@@ -470,11 +513,14 @@ async function ask(query, opts = {}) {
     const latencyMs = Date.now() - t0;
     if (verbose) console.log(`[MERCURY-BRIDGE] Mercury responded in ${latencyMs}ms`);
 
-    return { answer, chunks: topChunks, latencyMs };
+    return { answer, chunks: topChunks, retrieval, indexFreshness: retrieval.index, latencyMs };
 
+  } catch (error) {
+    if (!error.retrieval) error.retrieval = retrieval;
+    throw error;
   } finally {
     await store.disconnect();
   }
 }
 
-module.exports = { ask, retrieveTopK, buildPrompt, cosineSimilarity, isCodeFlavoredQuery };
+module.exports = { ask, retrieveTopK, retrieveQuery, buildPrompt, cosineSimilarity, isCodeFlavoredQuery };

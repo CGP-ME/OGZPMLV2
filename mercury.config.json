@@ -10,12 +10,12 @@
     "endpoint": "http://localhost:11434/api/embed",
     "model": "nomic-embed-text",
     "dimensions": 768,
+    "requestTimeoutMs": 120000,
     "apiKeyEnv": null
   },
   "batching": {
     "maxChunks": 64,
     "maxTokens": 2000,
-    "failOnBatchError": true,
     "minIntervalMs": 0
   },
   "chunking": {

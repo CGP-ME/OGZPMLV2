@@ -87,7 +87,7 @@ function optionalEnvBoolean(envName) {
   return false;
 }
 
-function requiredNumber(config, dottedPath, { integer = false, min = Number.NEGATIVE_INFINITY } = {}) {
+function requiredNumber(config, dottedPath, { integer = false, min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY } = {}) {
   const value = getConfigValue(config, dottedPath);
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be a finite number`);
@@ -97,6 +97,9 @@ function requiredNumber(config, dottedPath, { integer = false, min = Number.NEGA
   }
   if (value < min) {
     throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be >= ${min}`);
+  }
+  if (value > max) {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be <= ${max}`);
   }
   return value;
 }
@@ -287,6 +290,7 @@ const MONGO_COLLECTION_STATS = requiredString(MERCURY_CONFIG, 'mongo.statsCollec
 
 const EMBED_ENDPOINT = requiredString(MERCURY_CONFIG, 'embeddings.endpoint');
 const EMBED_MODEL = requiredString(MERCURY_CONFIG, 'embeddings.model');
+const EMBED_REQUEST_TIMEOUT_MS = requiredNumber(MERCURY_CONFIG, 'embeddings.requestTimeoutMs', { integer: true, min: 1, max: 2147483647 });
 const EMBED_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'embeddings.apiKeyEnv');
 let EMBED_API_KEY = '';
 
@@ -298,10 +302,7 @@ if (EMBED_PROVIDER === 'openai-compatible') {
   if (!EMBED_API_KEY_ENV) {
     throw new Error('embeddings.apiKeyEnv is required when EMBED_PROVIDER=openai-compatible');
   }
-  EMBED_API_KEY = process.env[EMBED_API_KEY_ENV];
-  if (!EMBED_API_KEY) {
-    throw new Error(`Configured embedding API key env is missing: ${EMBED_API_KEY_ENV}`);
-  }
+  EMBED_API_KEY = process.env[EMBED_API_KEY_ENV] || '';
 } else if (EMBED_API_KEY_ENV) {
   throw new Error('embeddings.apiKeyEnv must be empty when EMBED_PROVIDER=ollama');
 }
@@ -349,7 +350,6 @@ const EMBED_INDEX_ID = [
 // ─── Batching ─────────────────────────────────────────────────
 const EMBED_BATCH_MAX_CHUNKS = requiredNumber(MERCURY_CONFIG, 'batching.maxChunks', { integer: true, min: 1 });
 const EMBED_BATCH_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'batching.maxTokens', { integer: true, min: 1 });
-const EMBED_FAIL_ON_BATCH_ERROR = requiredBoolean(MERCURY_CONFIG, 'batching.failOnBatchError');
 const EMBED_MIN_INTERVAL_MS = requiredNumber(MERCURY_CONFIG, 'batching.minIntervalMs', { integer: true, min: 0 });
 
 // ─── Ollama local embedder metadata ──────────────────────────
@@ -595,12 +595,13 @@ module.exports = {
   EMBED_ENDPOINT,
   EMBED_ENDPOINT_ID,
   EMBED_MODEL,
+  EMBED_REQUEST_TIMEOUT_MS,
   EMBED_DIMENSIONS,
   EMBED_INDEX_ID,
   EMBED_API_KEY,
+  EMBED_API_KEY_ENV,
   EMBED_BATCH_MAX_CHUNKS,
   EMBED_BATCH_MAX_TOKENS,
-  EMBED_FAIL_ON_BATCH_ERROR,
   EMBED_MIN_INTERVAL_MS,
   OLLAMA_URL,
   OLLAMA_EMBED_MODEL,
