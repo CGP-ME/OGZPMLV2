@@ -60,8 +60,8 @@ Read these first:
 Common bug classes:
 
 - Mercury answers from RAG or prior trace without opening current files.
-- Tool descriptions push the wrong tool or recreate a hidden current-diff-first
-  cage for broad `Mercury, break my fix.` reviews.
+- Tool descriptions preselect the answer or expand one question into a whole-diff
+  audit. Let Mercury choose the evidence path for the actual question.
 - A run_check claim cites no execution artifact.
 - A broad test failure is attributed to the active diff without isolating the
   failing suite.
@@ -77,5 +77,6 @@ Proof hints:
 - For schema/tool-description changes, run focused Mercury bridge tests before
   any broad suite.
 - For executable bridge changes, run Mercury adversarial review before commit.
-- For current-diff review prompts, preserve the visible attack frame
-  `Mercury, break my fix.` and let tools provide structure.
+- Trey retired the generic review phrase on 2026-11-10. Ask one specific, neutral
+  question without a diagnosis or desired verdict; let Mercury investigate and
+  decide independently. Current usage: `trai_brain/mercury-bridge/README.md`.

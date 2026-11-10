@@ -132,9 +132,13 @@ does not match current doctrine.
 
 For changes on the trading/backtest execution path:
 
-- Run Mercury as an adversarial attack before commit.
-- Use one focused Mercury question at a time.
-- Use attack framing, not confirmation framing.
+- Run Mercury as an independent evidence-based review before commit.
+- Ask one specific, neutral question about one behavior per dispatch. A generic
+  request to review a whole repair or work summary is not one focused question.
+- Do not supply a diagnosis, preferred fix, expected answer or desired verdict.
+  State observations and source identity; let Mercury choose the evidence path,
+  examine relevant alternatives, and reach its own conclusion. Require current
+  file:line evidence and named gaps. Read the complete answer before proceeding.
 - Use `--max-tokens=7750`. Mercury has no default iteration ceiling; use
   `--max-iterations=N` only when Trey explicitly sets a limit for that run.
 - For an atomic pre-commit review amid unrelated dirty work, stage only the
@@ -143,22 +147,19 @@ For changes on the trading/backtest execution path:
   tree IDs and source manifest in the receipt. `--change-path` alone captures
   WORKTREE; it does not isolate the staged candidate. If the Mercury harness
   itself has inherited dirty edits, qualify the exact implementation used too.
-  This source selection does not authorize narrowing a broad audit prompt.
+  Pinning a source tree identifies the evidence; it does not broaden the question.
   Usage and verification: `ogz-meta/inbox/codex/2026-09-29/mercury-source-identity/`.
-- For broad Mercury/current-diff audits, do not pre-steer the prompt with
-  agent-selected file paths, line ranges, hidden current-diff instructions, or
-  prior-trace opening strategies. Use the visible attack frame
-  `Mercury, break my fix.` unless Trey explicitly narrows the target; require
-  evidence in Mercury's answer. Sources:
-  `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:288-304`,
-  `ogz-meta/sessions/session-2026-06-25-mercury-deconstraint-handoff.md:33-41,98-105`.
+- Trey's 2026-11-10 correction retires the generic `Mercury, break my fix.`
+  prompt and supersedes the older broad-review wording. Keep relevant producer
+  and consumer evidence available without dumping the entire work summary into
+  one request or steering Mercury toward the implementer's conclusion.
+  See `trai_brain/mercury-bridge/README.md` for usage and a neutral example.
 - After an approved push, do not claim Mercury has fresh repo context until
   `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code.
   Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
 - Mercury now has durable run-ledger, compass, rules-as-greps, and Serena AST
   evidence tools. Treat those as routing/evidence surfaces only; current
-  file:line proof still wins, and broad `Mercury, break my fix.` reviews must
-  not be re-caged with hidden targets. Source:
+  file:line proof still wins. Do not add hidden targets or conclusions. Source:
   `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
 - `ogz-meta/gates/runs/multi-runtime-latest.json` is expected to update after
   each multi-runtime gate run. If it ever predates the current terminal PASS,

@@ -22,6 +22,13 @@ delivery; do not switch branches or include unrelated work implicitly.
 
 ## Cold-Start Order
 
+Mercury usage correction from Trey, 2026-11-10: retire the generic
+`Mercury, break my fix.` prompt. Ask one specific, neutral question per dispatch,
+provide observations without a diagnosis or desired verdict, and let Mercury
+choose its evidence and conclusion. Read the complete answer before the next
+question. The current usage guide is `trai_brain/mercury-bridge/README.md`;
+this instruction supersedes historical broad-review wording in older records.
+
 Before answering questions or touching files, walk this path:
 
 0. Apply the Fourth Shape before any throw doctrine is used:

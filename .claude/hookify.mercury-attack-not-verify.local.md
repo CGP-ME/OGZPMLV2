@@ -12,17 +12,18 @@ conditions:
     pattern: (verify|verification|is\s+(it\s+)?correct|is\s+(this\s+)?equivalent|are\s+these\s+equivalent|confirm|please\s+check|sanity\s+check)
 ---
 
-**Mercury dispatched with verification framing — switch to attack framing.**
+**Mercury: one neutral question; no prescribed answer.**
 
-Trey's rule (feedback-mercury-attack-not-verify):
-> Verification framing ("is it correct?", "are these equivalent?") returns soft findings. Adversarial framing ("find a state that LIES", "construct a CRASH", "use this as a WEAPON") finds real bugs. Mercury is rarely wrong — soft prompts get soft answers.
+Trey's 2026-11-10 correction supersedes the old attack-word instructions and
+retires the generic review phrase. Do not replace a request for approval with a
+request for a predetermined defect.
 
-Rewrite the prompt with attack framing:
-- "Find a state where this code returns a value that LIES about the real position"
-- "Construct an input sequence that CRASHES this handler"
-- "Use this race window as a WEAPON to corrupt state"
-- "Identify every assumption this code makes and falsify each one"
+State the behavior or uncertainty and relevant raw observations. Do not provide
+your diagnosis, preferred fix, expected answer or desired verdict. Let Mercury
+choose the tools, inspect relevant producers and consumers, compare alternatives
+and reach its own answer. Require current citations and named missing evidence.
 
-Don't bias Mercury toward agreement. Let Mercury hunt freely. Mercury agreement comes from correct code, not prompt engineering.
-
-C2 case study (2026-04-27): verification missed a CRITICAL crash that adversarial re-dispatch found in 12 iterations.
+A whole repair or work-summary checklist is not one focused question. Read the
+complete answer before the next dispatch. This warning detects some wording; it
+cannot establish that a question is unbiased. Inspect the question and added
+context yourself. Usage: `trai_brain/mercury-bridge/README.md`.

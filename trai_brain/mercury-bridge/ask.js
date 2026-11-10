@@ -14,7 +14,7 @@
  * Flags:
  *   --agentic              Explicitly select the default ReAct loop
  *   --single-shot          Select one-call RAG with no repository tools
- *   --attack               Apply attack framing without "break my fix"
+ *   --attack               Request independent review with evidence receipts
  *   --top-k=N              Retrieve N starter-context chunks
  *   --max-iterations=N     Agentic mode only: max tool-call iterations
  *   --max-tokens=N         Mercury max tokens per turn
@@ -409,7 +409,7 @@ function buildMercuryIntentPrompt(query, reviewIntent = 'adversarial') {
   if (reviewIntent === 'architecture') {
     return [
       'MERCURY ARCHITECTURE MODE.',
-      'This is not a break-my-fix verdict run and not a commit gate.',
+      'This is architecture synthesis, not a code-review verdict or commit gate.',
       'Use repo tools to build a broad architecture review with evidence, ownership boundaries, data flow, invariants, build-vs-buy analysis, migration path, risks, and strongest criticisms.',
       'Do not compress into a short answer. If evidence is missing, label the gap instead of inventing current repo facts.',
       '',
@@ -421,7 +421,7 @@ function buildMercuryIntentPrompt(query, reviewIntent = 'adversarial') {
   if (reviewIntent === 'planning') {
     return [
       'MERCURY PLANNING MODE.',
-      'This is not a break-my-fix verdict run and not a commit gate.',
+      'This is planning synthesis, not a code-review verdict or commit gate.',
       'Use repo tools to produce an implementation plan with prior art, ownership boundaries, sequencing, required proofs, rollback shape, risks, and open decisions.',
       'Do not edit code. If evidence is missing, label the gap instead of inventing current repo facts.',
       '',
@@ -465,6 +465,9 @@ function usage() {
   console.log('Usage:');
   console.log('  node trai_brain/mercury-bridge/ask.js "your question here"');
   console.log('  node trai_brain/mercury-bridge/ask.js --single-shot "your question here"');
+  console.log('  Ask one specific, neutral question per dispatch. State observations, not a diagnosis or desired verdict.');
+  console.log('  Let Mercury choose the evidence and conclusion; read the complete answer before the next question.');
+  console.log('  Usage and review rules: trai_brain/mercury-bridge/README.md');
   console.log('');
   console.log('Modes:');
   console.log('  (default)      Agentic ReAct loop — Mercury reads files and uses repo tools');
@@ -477,7 +480,7 @@ function usage() {
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Single-shot only: print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
-  console.log('  --attack               Agentic only: apply break-my-fix attack framing');
+  console.log('  --attack               Agentic only: independent review with evidence receipts (legacy flag name)');
   console.log('  --no-tools             Agentic only: empty tool schema and exactly one Mercury turn');
   console.log('  --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt; repeatable, max 150 lines');
   console.log('  --change-path=P        Agentic source/diff ingestion for explicit operator targets; repeatable');
@@ -495,7 +498,7 @@ function usage() {
   console.log('');
   console.log('Examples:');
   console.log('  node trai_brain/mercury-bridge/ask.js "What does StopLossChecker do?"');
-  console.log('  node trai_brain/mercury-bridge/ask.js --agentic --show-history "Find the partial-close contract bug"');
+  console.log('  node trai_brain/mercury-bridge/ask.js --agentic --show-history "How are partial-close quantities recorded?"');
   console.log('');
 }
 

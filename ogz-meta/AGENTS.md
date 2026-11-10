@@ -186,32 +186,38 @@ Pipeline order:
 - "False positive", "intended", "by-design", "out of scope", and "theoretical" require grep-verified evidence. Without proof, treat the finding as real or surface it.
 
 ## Mercury Rules
-- Mercury is for adversarial attack, not soft confirmation.
-- Do not ask Mercury "is this correct?" Ask it to break assumptions.
-- Use prompts like:
-  - Find a state where this code lies about the real position.
-  - Construct an input sequence that crashes this handler.
-  - Use this race window to corrupt state.
-  - Identify every assumption and falsify each one.
+- Trey's 2026-11-10 correction retires `Mercury, break my fix.` and the older
+  broad-review prompt requirement. Mercury independently investigates one
+  specific question at a time; it is not asked to validate the author's answer
+  or to produce a predetermined defect.
+- State the observed behavior and source identity without a diagnosis, preferred
+  fix, expected answer or desired verdict. Let Mercury choose its tools, collect
+  relevant evidence and alternatives, then decide for itself. Do not preload
+  another reviewer's conclusion as fact or hide contrary evidence.
+- Example: "What happens to a queued entry decision's input values when another
+  candle arrives before execution? Cite the relevant producers and consumers."
 - Dispatch Mercury audits one at a time.
 - Always read the full answer before moving on.
-- Use exact file:line ranges in prompts.
-- Exception for broad `break my fix` / current-diff audits: do not narrow
-  Mercury with agent-selected file paths, line ranges, hidden current-diff
-  instructions, or prior-trace opening strategies unless Trey or the task
-  explicitly narrows the target. Let Mercury choose the evidence path and
-  require code/file evidence in the answer. Sources:
-  `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:288-304`;
-  `ogz-meta/sessions/session-2026-06-25-mercury-deconstraint-handoff.md:33-41,98-105`.
+- Relevant source locations and raw observations are context, not an answer or
+  a whitelist of places Mercury may inspect. Follow the question's producers,
+  consumers and dependencies. Require current file:line proof in the answer.
+- A pinned review tree establishes source identity, not a mandate to investigate
+  every change in the tree. Keep the question and initial evidence scoped to one
+  behavior. Usage: `trai_brain/mercury-bridge/README.md`.
 - Mercury answer-quality problems should be visible as warning/flag metadata
   with the tool ledger, not hidden by final-answer suppression. Safety still
   belongs at mutation and host-boundary edges. Source:
   `ogz-meta/sessions/session-2026-06-25-mercury-deconstraint-handoff.md:342-372,587-602`.
 - Use `--max-tokens=7750`. Mercury has no default iteration ceiling; use
   `--max-iterations=N` only when Trey explicitly sets a limit for that run.
-- If Mercury output is wrong-path or truncated, re-dispatch with better context instead of manually hand-waving it away.
+- If a run is incomplete or follows the wrong context, inspect its request,
+  provider receipt and evidence routing before another paid dispatch. Preserve
+  the failure; do not repeat the same oversized request or call it a verdict.
 - Before deleting learned state, ledgers, logs, pattern banks, or history, propose Mercury forensic extraction to a new path first.
-- One Mercury dispatch equals one question and one answer. Do not bundle multiple hunt vectors in one prompt, and do not run Mercury in shell-level parallel.
+- One Mercury dispatch equals one question and one answer. Do not bundle multiple
+  behaviors, the entire repair, or a work-summary checklist into one request.
+  One sentence or one atomic commit does not establish one-question scope.
+  Do not run Mercury in shell-level parallel.
 - If a prompt is over 150 lines or covers more than a few concerns, chunk it into sequential single-target dispatches.
 - Before dispatching, grep/read enough to name the exact file:line ranges and any similar blocks Mercury must avoid.
 - Mercury does not terminate on an iteration count unless Trey explicitly supplied
@@ -219,12 +225,14 @@ Pipeline order:
   If it returns `CANNOT VERIFY`, do direct mechanical enumeration with shell/tools
   and cite file:line evidence.
 - Mercury attack is blocking for hot-path production code: `core/`, `brokers/`, `modules/`, `run-empire-v2.js`, dashboard runtime, and runtime-driving schemas/config. It is not required for markdown/rule files unless those files execute.
-- Always include the architecture question for fixes: did this close the underlying mechanism, or only the symptom, and what new failure modes did it introduce?
+- Investigate mechanism and downstream effects relevant to the current question.
+  Separate independent architecture questions into later dispatches; do not append
+  a second review task to every prompt.
 - After an approved push, do not claim Mercury has fresh repo context until `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code. Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
 - Mercury's newer DeepSearch substrate adds durable run-ledger, compass,
   rules-as-greps, and Serena AST evidence tools. Use them to improve recall and
   observability, not as authority over current file:line proof; broad
-  `Mercury, break my fix.` reviews still must not be narrowed by hidden targets.
+  reviews must not be steered by hidden targets or predetermined conclusions.
   Source:
   `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
 - Mercury agentic reviews have a Claude Code Fable consensus lane with provider

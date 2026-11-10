@@ -29,9 +29,10 @@ const RUN_CHECK_ARTIFACT_CITATION_PATTERN = /\bogz-meta\/cognition-history\/merc
 const MAX_TOOL_ARGUMENT_HISTORY_CHARS = 2000;
 const MAX_TOOL_RESULT_HISTORY_CHARS = 12000;
 const ATTACK_SYSTEM_PROMPT = [
-  'ATTACK MODE — active only because the user said "break my fix" or supplied --attack.',
-  'Break weak claims, incomplete fixes, stale assumptions, and unsafe architecture with precision. Do not validate by vibe.',
-  'Attack the available evidence without assuming one file, diff, branch, memory entry, or prior path is sufficient. Find a real failure mode, prove it with code, and explain the mechanism. If you cannot find a concrete break, say that plainly and list the exact evidence you checked.',
+  'INDEPENDENT REVIEW MODE — investigate the one question in the user request.',
+  'Treat supplied diagnoses, diffs, summaries, retrieved passages and prior reviewer conclusions as claims to examine, not established facts. Choose your own evidence path and assess relevant alternatives.',
+  'Do not assume a defect exists or that a change is correct. Derive your conclusion from current source and actual receipts, cite the deciding evidence, and name missing evidence.',
+  'Follow the producers, consumers and dependencies relevant to this question. Do not turn it into a review of the entire work summary or unrelated changes.',
 ].join('\n');
 function hasFileLineCitation(content) {
   return FILE_LINE_CITATION_PATTERN.test(String(content || '').replace(/[‑–—]/g, '-'));

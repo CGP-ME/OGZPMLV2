@@ -8,6 +8,7 @@ const { REPO_ROOT } = require('./policy');
 const { readHookInput } = require('./hook-input');
 const editLedger = require('./edit-ledger');
 const taskContract = require('./task-contract');
+const { mercuryQuestionIssue } = require('../shared/mercury-question');
 
 const PROOF_PATH = path.join(REPO_ROOT, '.claude', 'session-state', 'hot-path-proof.json');
 const HOT_PATH_PREFIXES = [
@@ -22,27 +23,6 @@ const HOT_PATH_PREFIXES = [
   'kraken_adapter_simple.js',
   'ogzprime-ssl-server.js',
   'start-ogzprime.sh',
-];
-
-const ADVERSARIAL_TERMS = [
-  /break my fix/i,
-  /find a (concrete )?state/i,
-  /construct/i,
-  /crash/i,
-  /lie|lies|lying/i,
-  /bypass/i,
-  /corrupt/i,
-  /silent/i,
-  /new failure modes?/i,
-  /underlying mechanism|root mechanism/i,
-];
-
-const SOFT_VERIFY_TERMS = [
-  /is this correct/i,
-  /verify (that )?(this|the fix)/i,
-  /confirm (that )?(this|the fix)/i,
-  /does this look/i,
-  /beam me up/i,
 ];
 
 const SUSPICIOUS_ADDED_LINE = [
@@ -178,10 +158,9 @@ function readProofText(proofSection, fieldName) {
 function isAdversarialMercuryProof(proof) {
   const mercury = proof?.mercury || {};
   const promptText = readProofText(mercury, 'promptPath');
-  if (!promptText) return false;
-  if (SOFT_VERIFY_TERMS.some((term) => term.test(promptText))) return false;
-  const hitCount = ADVERSARIAL_TERMS.filter((term) => term.test(promptText)).length;
-  return hitCount >= 3 && mercury.completed === true;
+  // Keep the existing API; attack-word counts never establish review quality.
+  // Result presence, evidence paths and current-diff checks run separately.
+  return mercuryQuestionIssue(promptText) === null && mercury.completed === true;
 }
 
 function hasMercuryResult(proof) {
@@ -275,7 +254,7 @@ function proofFailuresForHotFiles(proof, hotFiles) {
       failures.push(`stale_hot_path_file_proof:${file}`);
     }
     if (!isAdversarialMercuryProof(fileProof) || !hasMercuryResult(fileProof)) {
-      failures.push(`missing_adversarial_mercury_break_my_fix_proof:${file}`);
+      failures.push(`missing_independent_mercury_review_proof:${file}`);
     }
     for (const fieldName of invalidEvidencePathFields(fileProof)) {
       failures.push(`invalid_proof_evidence_path:${file}:${fieldName}`);

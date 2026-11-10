@@ -34,14 +34,13 @@ Examples:
    structured object as the markdown prompt section Mercury sees. Capped at
    the first 30 callers per the spec to prevent context overflow.
 
-3. **Mercury attack pass.** Dispatch via `trai_brain/mercury-bridge/ask.js`
-   programmatically by importing `runAgentic` and calling with
-   `{blastRadius: formatted}`. Use ATTACK framing per
-   `feedback-mercury-attack-not-verify.md`:
-   - "REGRESS the change against each caller listed in blast radius"
-   - "WEAPONIZE the new failure modes the change introduces"
-   - "HUNT the state where the change LIES to its callers"
-   - Never use verify framing ("is it correct?", "are these equivalent?")
+3. **Independent Mercury review.** Trey's 2026-11-10 correction supersedes
+   the old attack wording. Dispatch one specific, neutral question through
+   `trai_brain/mercury-bridge/ask.js`. Supply observations and source identity,
+   not the implementer's diagnosis, preferred fix or desired verdict. Mercury
+   chooses the relevant tools, callers and evidence, then derives its own answer.
+   Do not turn the change description or caller list into a bundle of questions.
+   Current invocation guidance: `trai_brain/mercury-bridge/README.md`.
 
 4. **Report.** Surface Mercury's verdict to the user with file:line citations
    and the blast radius summary. Distinguish real bugs / re-flags / false
@@ -65,18 +64,16 @@ const br = await getBlastRadius(filePath);
 const blastRadius = formatForMercury(br);
 
 const attackPrompt = [
-  `Adversarial review of proposed change to ${filePath}.`,
-  `Change description: ${changeDescription}`,
-  ``,
-  `Read the file. For each caller in the blast radius, hunt for a state`,
-  `where the proposed change BREAKS that caller's contract. Construct a`,
-  `concrete failure mode with file:line citations. Don't verify; attack.`,
+  question, // One specific, neutral behavior question, not the work summary.
+  `Relevant source location: ${filePath}; follow other evidence as needed.`,
+  `Derive your own answer from current evidence. Cite the deciding source and name gaps.`,
 ].join('\n');
 
 const result = await runAgentic(attackPrompt, {
   blastRadius,
   maxTokens: 7750,
-  maxIterations: 60,
+  attack: true, // Existing flag enables independent-review evidence receipts.
+  // No iteration limit unless Trey sets one for this run.
 });
 ```
 

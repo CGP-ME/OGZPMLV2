@@ -69,6 +69,27 @@ current source. Even an agentic answer needs its individual citations checked.
 Run commands from the repository root. Engineering requests use the configured
 reviewer defaults unless explicitly selected otherwise.
 
+### One neutral question at a time — Trey, 2026-11-10
+
+The generic `Mercury, break my fix.` prompt is retired. One dispatch investigates
+one behavior or uncertainty. A single sentence asking for the entire repair,
+every changed file, or the whole work summary still bundles multiple questions.
+
+State the question, relevant observations and source identity. Do not supply the
+implementer's diagnosis, preferred fix, expected answer or desired verdict. Do
+not tell Mercury a defect must exist, ask it to approve your work, or present an
+earlier model's conclusion as fact. Let Mercury select its tools, follow relevant
+producers and consumers, compare competing explanations, and reach its own
+answer. Source pointers help locate evidence; they do not forbid contradictory
+evidence or necessary dependency reads.
+
+Keep initial context relevant to that question. Do not paste a session summary
+or a list of independent checks into the prompt. Read the complete answer and
+check its citations, unresolved claims and receipt before the next dispatch.
+One question's result is not approval of the entire change. If reviewers disagree
+about a concrete claim, bring that claim and each reviewer's evidence back for
+re-examination; missing or incomplete answers are not disagreement or approval.
+
 ```bash
 node trai_brain/mercury-bridge/ask.js --agentic --reviewers=mercury --max-tokens=7750 "Where does the engineering API credential come from? Cite its producer and consumer."
 node trai_brain/mercury-bridge/ask.js --single-shot "Summarize the indexed embedding configuration."
@@ -78,7 +99,7 @@ For an authorized change, stage only its files/hunks and pin the source comparis
 
 ```bash
 candidate=$(git write-tree)
-node trai_brain/mercury-bridge/ask.js --agentic --reviewers=mercury,astra,fable --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD "Mercury, break my fix."
+node trai_brain/mercury-bridge/ask.js --agentic --attack --reviewers=mercury,astra,fable --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD --change-path=core/TradingLoop.js "What happens to a queued entry decision's input values when another candle arrives before execution? Cite the relevant producers and consumers."
 ```
 
 The refs resolve to immutable trees before evidence capture. The run records those
@@ -86,12 +107,23 @@ trees and a source manifest. Initial evidence, file/search/AST tools and Mercury
 rechecks use that captured source view. Explicit history reads retain their
 requested ref. Invalid refs do not silently select the working tree.
 `--change-path=P` without a pinned comparison uses working-tree evidence.
+The example's question and initial source target concern queued decision inputs;
+choose the question and relevant target for the actual task. The captured tree
+remains available for dependency reads. Pinning the tree does not request a
+whole-tree audit. `--attack` is the existing flag name for independent review
+and evidence receipts; it does not prescribe a defect or any other conclusion.
 
 Dispatch one review question at a time. Do not add `--max-iterations` unless Trey
 sets a limit. Selected seats execute in order. An unavailable reviewer remains
 unavailable; another model's answer does not complete that seat. A zero CLI exit
 code, provider success or a reporter's word `pass` does not certify the code;
 read the complete conclusion, disagreement, supporting evidence and missing work.
+For a failed or incomplete run, inspect the actual request and provider receipt
+before another paid dispatch. Correct the question/context problem instead of
+repeating the same request or increasing limits without Trey's instruction.
+The CLI and hook checks cannot mechanically prove that a question is focused or
+unbiased. The dispatching agent must inspect both its visible question and added
+context. Review completion and source/evidence checks remain required.
 
 Architecture and planning are explicit synthesis modes:
 

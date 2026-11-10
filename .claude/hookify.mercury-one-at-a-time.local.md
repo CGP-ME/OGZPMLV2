@@ -20,7 +20,9 @@ Two violation shapes:
 Sibling discipline of `hookify.git-commit-no-bundling.local.md`. Same mental model: one unit of work = one cleanly-verifiable outcome.
 
 **How to apply:**
-- ONE question per dispatch
+- ONE specific, neutral question about one behavior per dispatch
+- Do not send the whole repair or work summary under a generic review sentence
+- Supply observations, not your diagnosis or preferred verdict; Mercury chooses its evidence and answer
 - Sequential, with verdict checkpoint between each
 - Log dispatch flags to a `.cmd` sibling file so the dispatch shape is recoverable later
 - If your prompt has "find any of the following," split it

@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { BREAK_MY_FIX_FRAME } = require('../shared/break-my-fix-frame');
+const { mercuryQuestionIssue } = require('../shared/mercury-question');
 const policy = require('./policy');
 const finishGate = require('./finish-gate');
 const taskContract = require('./task-contract');
@@ -29,16 +29,6 @@ const INLINE_RUNTIME = /(^|\s|\||;|&&|\|\||\(|`|\$\()(node|python|python3|perl|r
 const OUTPUT_REDIRECT = /(^|[^<>])>{1,2}(?![>&])/;
 const IN_PLACE_EDIT = /(^|\s|\||;|&&|\|\||\(|`|\$\()(sed|awk|perl|ruby)\s+[^|;&`]*\s-i\b/;
 const MERCURY_ASK_SCRIPT = /(^|\s)(node\s+)?(\.\/)?trai_brain[\/\\]mercury-bridge[\/\\]ask\.js\b/;
-const MERCURY_REQUIRED_FRAME = BREAK_MY_FIX_FRAME;
-const MERCURY_VERIFICATION_FRAMES = [
-  { reason: 'verify', pattern: /\bverify\b/i },
-  { reason: 'confirm', pattern: /\bconfirm\b/i },
-  { reason: 'what_changed', pattern: /\bwhat\s+changed\b/i },
-  { reason: 'is_closed', pattern: /\bis\b[^"'`;&|]{0,80}\bclosed\b/i },
-  { reason: 'is_correct', pattern: /\bis\s+(this|it|that|the\s+fix|the\s+change)\s+(correct|right|fixed|resolved|closed)\b/i },
-  { reason: 'does_this_look', pattern: /\bdoes\s+(this|it|that)\s+look\b/i },
-  { reason: 'beam_me_up', pattern: /\bbeam\s+me\s+up\b/i },
-];
 
 function shellTokens(cmd) {
   const tokens = [];
@@ -364,14 +354,7 @@ function mutationReason(cmd) {
 
 function mercuryFramingReason(cmd) {
   if (!MERCURY_ASK_SCRIPT.test(cmd)) return null;
-  const promptSegment = mercuryPromptSegment(cmd);
-  if (!MERCURY_REQUIRED_FRAME.test(promptSegment)) return 'missing_break_my_fix';
-
-  for (const frame of MERCURY_VERIFICATION_FRAMES) {
-    if (frame.pattern.test(cmd)) return `verification_framing:${frame.reason}`;
-  }
-
-  return null;
+  return mercuryQuestionIssue(mercuryPromptSegment(cmd));
 }
 
 function mercuryPromptSegment(cmd) {
@@ -434,7 +417,7 @@ function run() {
   if (mercuryFraming) {
     emit(
       `BLOCKED (claude Mercury framing): ${mercuryFraming}. ` +
-      `Mercury dispatch must visibly include "break my fix" adversarial framing and must not ask Mercury to verify, confirm, compare what changed, or declare a fix closed.`,
+      `Ask one specific, neutral question. Supply observations and source identity without a diagnosis or desired verdict; let Mercury choose its evidence and conclusion. See trai_brain/mercury-bridge/README.md.`,
       2
     );
   }
