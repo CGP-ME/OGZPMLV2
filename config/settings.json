@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 18,
+  "revision": 22,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7
@@ -3821,7 +3821,10 @@
         "enabled": true,
         "provider": "mercury",
       "baseUrl": "https://api.inceptionlabs.ai/v1",
-      "model": "mercury-2",
+      "model": "mercury-3",
+      "openaiExtraBody": {
+        "reasoning_effort": "low"
+      },
       "apiKeyEnv": "INCEPTION_API_KEY",
       "authRequired": true,
       "maxTokens": 7750,

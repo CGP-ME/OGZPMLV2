@@ -55,7 +55,7 @@ function receiptFromRaw(absPath, attempt) {
   let requestedModel = null;
   if (/^mercury(?:-|_)/.test(base)) {
     provider = 'mercury';
-    requestedModel = 'mercury-2';
+    // A response file cannot establish which model the request selected.
   } else if (/^kimi_tie_breaker-/.test(base)) {
     provider = 'openai';
     requestedModel = 'kimi-k3';
@@ -81,9 +81,10 @@ function receiptFromRaw(absPath, attempt) {
     raw_file: path.relative(REPO_ROOT, absPath).replace(/\\/g, '/'),
     requested_provider: provider,
     requested_model: requestedModel,
+    applied_model: metadata.appliedModel,
     ...accountProviderAttempt(metadata, {
       provider,
-      model: requestedModel,
+      model: provider === 'mercury' ? metadata.appliedModel : requestedModel,
       pricingCatalog: config.PROVIDER_PRICING,
     }),
   };
@@ -124,11 +125,11 @@ function costCell(cost) {
 
 function renderReport(days, rows, headSha) {
   const lines = [
-    '# Mercury bridge cost backfill — 2026-09-07 and 2026-09-08',
+    `# Mercury bridge cost backfill — ${days.join(', ')}`,
     '',
     `Built from commit: \`${headSha}\``,
     `Raw source: \`ogz-meta/cognition-history/mercury-runs/raw/{${days.join(',')}}/**/*.raw\``,
-    'Pricing: Inception Mercury-2 from the operator-supplied Jul 1 invoice; Kimi K3 from Moonshot’s 2026-07-22 announcement; Claude Code/Fable uses the terminal frame’s provider-reported `total_cost_usd`.',
+    'Pricing: Mercury uses the response-reported model and its entry in mercury.config.json; missing model identity or pricing remains unknown. Other provider estimates use their existing configured entries; provider-reported cost takes precedence. Configured estimates are not provider invoices.',
     'Unknown usage or pricing is named as incomplete and is never counted as zero.',
     '',
     '| Day | Raw run | Attempts | Input | Uncached input | Cached input | Output | Total tokens | Known USD cost | Complete | Cost absences |',

@@ -405,6 +405,7 @@ if (!supportedTraceCaptureModes.has(TRACE_CAPTURE_MODE)) {
 const MERCURY_LLM_PROVIDER = requiredString(MERCURY_CONFIG, 'llm.provider').toLowerCase();
 const MERCURY_LLM_BASE_URL = requiredString(MERCURY_CONFIG, 'llm.baseUrl');
 const MERCURY_LLM_MODEL = requiredString(MERCURY_CONFIG, 'llm.model');
+const MERCURY_LLM_OPENAI_EXTRA_BODY = optionalPlainObject(MERCURY_CONFIG, 'llm.openaiExtraBody', {});
 const MERCURY_LLM_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'llm.apiKeyEnv');
 const MERCURY_LLM_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMaxTokens', { integer: true, min: 1 });
 const MERCURY_LLM_CLIENT_MIN_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMinTokens', { integer: true, min: 0 });
@@ -527,6 +528,9 @@ function requiredModelPricing(provider, model) {
 const PROVIDER_PRICING = Object.freeze({
   inception: Object.freeze({
     [MERCURY_LLM_MODEL]: requiredModelPricing('inception', MERCURY_LLM_MODEL),
+    ...Object.fromEntries(Object.keys(MERCURY_CONFIG.pricing.inception)
+      .filter(model => model !== MERCURY_LLM_MODEL)
+      .map(model => [model, requiredModelPricing('inception', model)])),
   }),
   moonshot: Object.freeze({
     [TIE_BREAKER_MODEL]: requiredModelPricing('moonshot', TIE_BREAKER_MODEL),
@@ -630,6 +634,7 @@ module.exports = {
   MERCURY_LLM_PROVIDER,
   MERCURY_LLM_BASE_URL,
   MERCURY_LLM_MODEL,
+  MERCURY_LLM_OPENAI_EXTRA_BODY,
   MERCURY_LLM_API_KEY_ENV,
   MERCURY_LLM_CLIENT_MAX_TOKENS,
   MERCURY_LLM_CLIENT_MIN_TOKENS,

@@ -47,7 +47,7 @@ function normalizeProviderUsage(rawUsage) {
 function pricingKeyFor(provider, model) {
   const normalizedProvider = String(provider || '').trim().toLowerCase();
   const normalizedModel = String(model || '').trim().toLowerCase();
-  if (normalizedProvider === 'mercury' && normalizedModel === 'mercury-2') {
+  if (normalizedProvider === 'mercury') {
     return { provider: 'inception', model: normalizedModel };
   }
   if (normalizedProvider === 'openai' && normalizedModel === 'kimi-k3') {

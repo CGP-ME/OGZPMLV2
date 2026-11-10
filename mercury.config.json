@@ -52,6 +52,13 @@
         "cachedInputPerMillion": 0.025,
         "currency": "USD",
         "source": "operator-supplied Jul 1 invoice"
+      },
+      "mercury-3": {
+        "inputPerMillion": 0.1,
+        "outputPerMillion": 0.35,
+        "cachedInputPerMillion": 0.01,
+        "currency": "USD",
+        "source": "https://docs.inceptionlabs.ai/get-started/models — launch pricing verified 2026-11-10; estimate, not provider-reported billing"
       }
     },
     "moonshot": {
@@ -123,7 +130,10 @@
   "llm": {
     "provider": "mercury",
     "baseUrl": "https://api.inceptionlabs.ai/v1",
-    "model": "mercury-2",
+    "model": "mercury-3",
+    "openaiExtraBody": {
+      "reasoning_effort": "low"
+    },
     "apiKeyEnv": "INCEPTION_API_KEY_DEV",
     "clientMaxTokens": 7750,
     "clientMinTokens": 400,
@@ -203,7 +213,7 @@
   },
   "agentic": {
     "decisionSteerIteration": 60,
-    "explicitReviewRequestMaxBytes": 98304,
+    "explicitReviewRequestMaxBytes": 983040,
     "explicitReviewSourceShardMaxBytes": 49152,
     "maxTokens": 7750,
     "systemPrompt": [

@@ -720,6 +720,7 @@ function resolveMercuryLlmClientOptions({ systemPrompt } = {}) {
     provider: config.MERCURY_LLM_PROVIDER,
     baseUrl: config.MERCURY_LLM_BASE_URL,
     model: config.MERCURY_LLM_MODEL,
+    openaiExtraBody: config.MERCURY_LLM_OPENAI_EXTRA_BODY,
     apiKey,
     authRequired: config.MERCURY_LLM_PROVIDER !== 'ollama',
     maxTokens: config.MERCURY_LLM_CLIENT_MAX_TOKENS,

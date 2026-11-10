@@ -3,7 +3,7 @@
  * ══════════════════════════════════════════════════════════════
  * 
  * Drop-in replacement for persistent_llm_client.js
- * Supports: Mercury-2, Claude API, OpenAI-compatible, Ollama
+ * Supports: Mercury, Claude API, OpenAI-compatible, Ollama
  * 
  * Config is constructor-owned. Callers must pass an explicit provider/model/
  * endpoint/token config resolved by the runtime config layer.
@@ -23,7 +23,7 @@ const http = require('http');
 
 const PROVIDERS = {
   mercury: {
-    name: 'Mercury-2 (Inception Labs)',
+    name: 'Mercury (Inception Labs)',
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     requestFormat: 'openai',  // Mercury uses OpenAI-compatible format

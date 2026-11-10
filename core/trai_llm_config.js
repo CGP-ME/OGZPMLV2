@@ -65,6 +65,9 @@ function resolveTraiLlmConfig(options = {}) {
     provider,
     baseUrl,
     model,
+    openaiExtraBody: llmConfig.openaiExtraBody == null
+      ? {}
+      : requireObject(llmConfig.openaiExtraBody, 'trai.llm.openaiExtraBody'),
     apiKey,
     apiKeyEnv,
     authRequired,
