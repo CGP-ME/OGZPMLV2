@@ -568,6 +568,9 @@ async function buildCurrentChangeBlastRadius({
   changedFiles = null,
   currentChangedFilesFn = currentChangedFiles,
   currentDiffFn = currentChangeDiff,
+  readReferenceSource = (file, side) => side === 'after'
+    ? fs.readFileSync(path.join(repoRoot, file), 'utf8')
+    : execFileSync('git', ['show', `HEAD:${file}`], { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }),
   existsFn = fs.existsSync,
   getBlastRadiusFn = getBlastRadius,
   formatForMercuryFn = formatForMercury,
@@ -610,13 +613,16 @@ async function buildCurrentChangeBlastRadius({
 
   let diff = '';
   let referenceNames = [];
+  let referenceDiscovery = { names: [], references: [], unresolved: [] };
   try {
     const captured = currentDiffFn(repoRoot, normalizedCandidates);
     diff = typeof captured === 'string' ? captured : captured.diff;
     for (const item of captured.unresolved || []) {
       errors.push({ file: item.target, error: item.reason });
     }
-    referenceNames = extractDiffReferenceNames(diff);
+    referenceDiscovery = extractDiffReferenceNames(diff, { readSource: readReferenceSource });
+    referenceNames = referenceDiscovery.names;
+    errors.push(...referenceDiscovery.unresolved);
   } catch (err) {
     errors.push({ file: '<current_diff>', error: err.message });
   }
@@ -741,6 +747,7 @@ async function buildCurrentChangeBlastRadius({
     changedFileCount: normalizedCandidates.length,
     diff,
     referenceNames,
+    referenceDiscovery,
     referenceScans,
     source: 'current_changes',
   };
@@ -1153,6 +1160,8 @@ async function runAgentic(query, opts) {
         findReferencesFn: symbol => toolAdapter.captureReferences(symbol),
         ...(reviewView ? {
           currentDiffFn: reviewDiff,
+          readReferenceSource: (file, side) => reviewGit(null,
+            ['show', `${side === 'before' ? reviewView.baseTree : reviewView.tree}:${file}`]).toString(),
           getBlastRadiusFn: file => getBlastRadius(file, { repoRoot: reviewRoot }),
         } : {}),
       });

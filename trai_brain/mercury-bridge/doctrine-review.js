@@ -30,22 +30,91 @@ function changedDiffLines(diff) {
     .filter(line => /^[+-](?![+-])/.test(line));
 }
 
-function extractDiffReferenceNames(diff) {
-  const names = [];
-  const patterns = [
-    /\bprocess\.env\.([A-Z][A-Z0-9_]*)\b/g,
-    /\b(?:process\.)?env\[['"]([A-Z][A-Z0-9_]*)['"]\]/g,
-    /\bconfig\.([A-Za-z_$][\w$]*)\b/g,
-    /\b(?:getConfigValue|requiredString|optionalString|requiredBoolean|optionalBoolean|requiredNumber|optionalNumber|requiredText|optionalText)\([^,]+,\s*['"]([A-Za-z_$][\w$.-]*)['"]/g,
-  ];
-  for (const line of changedDiffLines(diff)) {
-    for (const pattern of patterns) {
-      pattern.lastIndex = 0;
-      let match;
-      while ((match = pattern.exec(line)) !== null) names.push(match[1]);
+function extractDiffReferenceNames(diff, { readSource } = {}) {
+  const files = [];
+  let file = null;
+  let oldLine = 0;
+  let newLine = 0;
+  let inHunk = false;
+  const diffPath = value => {
+    if (value === '/dev/null') return null;
+    const decoded = value.startsWith('"') ? JSON.parse(value) : value;
+    return decoded.replace(/^[ab]\//, '');
+  };
+  for (const line of String(diff || '').split(/\r?\n/)) {
+    if (line.startsWith('diff --git ')) inHunk = false;
+    if (!inHunk && line.startsWith('--- ')) {
+      file = { before: diffPath(line.slice(4)), after: null, removed: [], added: [] };
+      files.push(file);
+    } else if (!inHunk && file && line.startsWith('+++ ')) {
+      file.after = diffPath(line.slice(4));
+    } else if (file && /^@@ -\d/.test(line)) {
+      const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+      if (hunk) { oldLine = Number(hunk[1]); newLine = Number(hunk[2]); inHunk = true; }
+    } else if (file && inHunk) {
+      if (line.startsWith('-')) file.removed.push(oldLine++);
+      else if (line.startsWith('+')) file.added.push(newLine++);
+      else if (line.startsWith(' ')) { oldLine++; newLine++; }
     }
   }
-  return uniqueInOrder(names);
+
+  const references = [];
+  const unresolved = [];
+  const accessors = new Set(['getConfigValue', 'requiredString', 'optionalString',
+    'requiredBoolean', 'optionalBoolean', 'requiredNumber', 'optionalNumber',
+    'requiredText', 'optionalText']);
+  const isMember = node => node && ['MemberExpression', 'OptionalMemberExpression'].includes(node.type);
+  const literal = node => node && (node.type === 'StringLiteral' ? node.value
+    : node.type === 'TemplateLiteral' && node.expressions.length === 0 ? node.quasis[0].value.cooked : null);
+  const property = node => !node.computed && node.property.type === 'Identifier'
+    ? node.property.name : literal(node.property);
+  const isIdentifier = (node, name) => node && node.type === 'Identifier' && node.name === name;
+  for (const file of files) {
+    for (const [side, changed] of [['before', file.removed], ['after', file.added]]) {
+      const filename = file[side];
+      if (!filename || !/\.(?:js|mjs|cjs)$/.test(filename) || changed.length === 0) continue;
+      let ast;
+      try {
+        // Parse the complete selected source, never prose or a syntactically
+        // incomplete diff fragment. Before and after use their own coordinates.
+        ast = require('@babel/parser').parse(readSource(filename, side), {
+          sourceType: 'unambiguous', plugins: ['jsx'],
+        });
+      } catch (error) {
+        unresolved.push({ file: filename, side, error: `reference source unavailable or unparsed: ${error.message}` });
+        continue;
+      }
+      const visit = node => {
+        if (!node || typeof node !== 'object') return;
+        if (node.loc && changed.some(line => line >= node.loc.start.line && line <= node.loc.end.line)) {
+          let relevant = false;
+          let name = null;
+          if (isMember(node)) {
+            const object = node.object;
+            relevant = isIdentifier(object, 'config') || isIdentifier(object, 'env')
+              || (isMember(object) && isIdentifier(object.object, 'process') && property(object) === 'env');
+            if (relevant) name = property(node);
+          } else if (['CallExpression', 'OptionalCallExpression'].includes(node.type)
+              && node.callee.type === 'Identifier' && accessors.has(node.callee.name)) {
+            relevant = true;
+            name = literal(node.arguments[1]);
+          }
+          if (relevant) {
+            if (name) references.push({ name, file: filename, side, line: node.loc.start.line, precision: 'ast_syntax' });
+            else unresolved.push({ file: filename, side, line: node.loc.start.line,
+              error: 'dynamic configuration reference requires source inspection' });
+          }
+        }
+        for (const [key, child] of Object.entries(node)) {
+          if (['loc', 'extra', 'comments', 'tokens', 'leadingComments', 'trailingComments', 'innerComments'].includes(key)) continue;
+          if (Array.isArray(child)) child.forEach(visit);
+          else if (child && typeof child === 'object') visit(child);
+        }
+      };
+      visit(ast.program);
+    }
+  }
+  return { names: uniqueInOrder(references.map(item => item.name)), references, unresolved };
 }
 
 function countDeclaration(answer, heading) {
