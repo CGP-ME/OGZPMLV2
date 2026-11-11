@@ -22,6 +22,7 @@
 'use strict';
 
 const config = require('./config');
+const { hasAttackCommand } = require('./query-router');
 
 const REPO_FILE_PATH_PATTERN = '[^`<>"\\n\\r:]*\\.[A-Za-z0-9][A-Za-z0-9._-]*';
 const FILE_LINE_CITATION_PATTERN = new RegExp(String.raw`\b${REPO_FILE_PATH_PATTERN}:\d+(?:[-‑–—]\d+)?\b`);
@@ -894,7 +895,7 @@ async function runReactLoop(params) {
     .sort();
 
   const synthesis = ['architecture', 'planning'].includes(reviewIntent);
-  const attackMode = !synthesis && (attack === true || /\bbreak my fix\b/i.test(userQuery));
+  const attackMode = !synthesis && (attack === true || hasAttackCommand(userQuery));
   const messages = [{
     role: 'system',
     content: attackMode ? `${systemPrompt}\n\n${ATTACK_SYSTEM_PROMPT}` : systemPrompt,

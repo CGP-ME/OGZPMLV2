@@ -73,6 +73,14 @@ function matchesAny(query, patterns) {
   return patterns.some((re) => re.test(query));
 }
 
+// Recognize the documented command at the start of the request. Mentioning
+// or quoting its words in a repository question is not an attack request.
+// Other attack wording uses the existing explicit --attack option.
+function hasAttackCommand(query) {
+  return typeof query === 'string'
+    && /^\s*(?:Mercury\s*[,:]\s*)?break my fix(?:\s*[.!?](?=\s|$)|\s*$|[ \t]*\r?\n)/i.test(query);
+}
+
 // ─── Router ───────────────────────────────────────────────────
 
 /**
@@ -179,6 +187,7 @@ function routeQuery(query) {
 
 module.exports = {
   routeQuery,
+  hasAttackCommand,
   hasIdentifiers,
   matchesAny,
   HISTORICAL_PATTERNS,

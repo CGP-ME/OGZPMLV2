@@ -50,7 +50,7 @@ const { runReactLoop, formatToolTelemetry, mergeCandidateSetRechecks } = require
 const { createToolAdapter } = require('./tool-adapter');
 const { normalizeExplicitPaths, collectExplicitTargetCorpus, buildExplicitReviewCorpus, runExplicitTargetReview, captureGitReviewView } = require('./evidence-ingestion');
 const { scanRepo: scanSerenaSymbols } = require('../../tools/serena-symbol-scanner');
-const { routeQuery } = require('./query-router');
+const { routeQuery, hasAttackCommand } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
 const {
   MERCURY_DOCTRINE_PROMPT,
@@ -1008,7 +1008,7 @@ async function runAgentic(query, opts) {
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
   const pinnedReviewRequested = opts.reviewRef !== undefined || opts.reviewBase !== undefined;
   const explicitTargetReview = pinnedReviewRequested || (Array.isArray(opts.changePaths) && opts.changePaths.length > 0);
-  const attackRequested = opts.attack === true;
+  const attackRequested = opts.attack === true || hasAttackCommand(query);
   let explicitChangePaths = Array.isArray(opts.changePaths) && opts.changePaths.length > 0 ? normalizeExplicitPaths(opts.changePaths) : null;
   const reviewIntent = opts.reviewIntent || 'adversarial';
   let mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
