@@ -767,6 +767,10 @@ function createToolAdapter(opts = {}) {
         name: doc.name,
         start_line: doc.start_line,
         end_line: doc.end_line,
+        start_column: doc.start_column,
+        source_format: doc.source_format,
+        file_sha: doc.file_sha,
+        indexed_at: doc.indexed_at,
         text: doc.text,
       };
     } catch (err) {

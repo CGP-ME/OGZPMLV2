@@ -202,15 +202,16 @@ function walkRepo(rootDir) {
 /**
  * Chunk JavaScript/TypeScript source by function, class, and method.
  * Uses regex to find definitions, then brace-counting to find the body end.
- * Falls back to sliding window for files where no definitions matched.
+ * Index unmatched source ranges with sliding windows, including module setup
+ * and exports around recognized definitions.
  *
- * KNOWN LIMITATION (documented, not a bug): misses functions defined inside
- * object literals, dynamically-named methods, and unusual arrow patterns.
- * Fallback window catches whatever regex misses.
+ * Structural labels are heuristic: object-literal and dynamically named
+ * methods can remain ordinary source windows. This does not omit their text.
  */
 function chunkJavaScript(text, filePath) {
   const chunks = [];
   const lines = text.split('\n');
+  const coveredLines = new Uint8Array(lines.length);
 
   // Patterns that indicate the start of a function/method definition.
   // NOTE: NO class pattern — class containers would consume the entire class body.
@@ -278,14 +279,12 @@ function chunkJavaScript(text, filePath) {
     // Guard against chunks larger than our max
     if (chunkText.length > config.MAX_CHUNK_CHARS) {
       // Split this oversized chunk into sliding windows
-      const windows = slidingWindow(chunkText, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP);
-      windows.forEach((winText, idx) => {
+      const windows = slidingWindow(chunkText, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP, matched.startLine);
+      windows.forEach((window, idx) => {
         chunks.push({
           kind: matched.kind,
           name: `${matched.name}#part${idx + 1}`,
-          start_line: matched.startLine,
-          end_line: endLine + 1,
-          text: winText,
+          ...window,
         });
       });
     } else {
@@ -294,33 +293,36 @@ function chunkJavaScript(text, filePath) {
         name: matched.name,
         start_line: matched.startLine,
         end_line: endLine + 1,
+        start_column: 1,
         text: chunkText,
       });
     }
 
+    coveredLines.fill(1, i, endLine + 1);
     i = endLine + 1;
   }
 
-  // Fallback: if no matched chunks, use sliding window on the whole file
-  if (chunks.length === 0) {
-    const windows = slidingWindow(text, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP);
-    windows.forEach((winText, idx) => {
-      // Estimate line range for the window
-      const startChar = idx * (config.CHUNK_WINDOW_SIZE - config.CHUNK_WINDOW_OVERLAP);
-      const charsBeforeStart = text.slice(0, startChar);
-      const startLine = charsBeforeStart.split('\n').length;
-      const endLine = startLine + winText.split('\n').length - 1;
+  // Preserve every nonempty range outside the structural chunks as well.
+  // This also retains tiny/unrecognized definitions, imports and exports.
+  for (let start = 0; start < lines.length;) {
+    if (coveredLines[start]) { start++; continue; }
+    let end = start + 1;
+    while (end < lines.length && !coveredLines[end]) end++;
+    const remaining = lines.slice(start, end).join('\n');
+    const windows = remaining.trim()
+      ? slidingWindow(remaining, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP, start + 1)
+      : [];
+    windows.forEach((window, idx) => {
       chunks.push({
         kind: 'window',
-        name: `window_${idx + 1}`,
-        start_line: startLine,
-        end_line: endLine,
-        text: winText,
+        name: `source_${start + 1}#part${idx + 1}`,
+        ...window,
       });
     });
+    start = end;
   }
 
-  return chunks;
+  return chunks.sort((a, b) => a.start_line - b.start_line || a.start_column - b.start_column);
 }
 
 /**
@@ -410,18 +412,16 @@ function chunkMarkdown(text, filePath) {
   const flush = () => {
     if (currentBody.length === 0) return;
     const body = currentBody.join('\n');
-    if (body.trim().length < 20) return;  // skip trivially short sections
+    if (!body.trim()) return;  // whitespace contains no retrievable source
 
     // Oversized sections get split into sliding windows
     if (body.length > config.MAX_CHUNK_CHARS) {
-      const windows = slidingWindow(body, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP);
-      windows.forEach((winText, idx) => {
+      const windows = slidingWindow(body, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP, currentStartLine);
+      windows.forEach((window, idx) => {
         chunks.push({
           kind: 'doc_section',
           name: `${currentHeader || 'root'}#part${idx + 1}`,
-          start_line: currentStartLine,
-          end_line: currentStartLine + currentBody.length - 1,
-          text: winText,
+          ...window,
         });
       });
     } else {
@@ -430,6 +430,7 @@ function chunkMarkdown(text, filePath) {
         name: currentHeader || 'root',
         start_line: currentStartLine,
         end_line: currentStartLine + currentBody.length - 1,
+        start_column: 1,
         text: body,
       });
     }
@@ -453,16 +454,11 @@ function chunkMarkdown(text, filePath) {
   // Fallback: if no headers at all, sliding window the whole file
   if (chunks.length === 0) {
     const windows = slidingWindow(text, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP);
-    windows.forEach((winText, idx) => {
-      const charsBeforeStart = idx * (config.CHUNK_WINDOW_SIZE - config.CHUNK_WINDOW_OVERLAP);
-      const startLine = text.slice(0, charsBeforeStart).split('\n').length;
-      const endLine = startLine + winText.split('\n').length - 1;
+    windows.forEach((window, idx) => {
       chunks.push({
         kind: 'doc_section',
         name: `window_${idx + 1}`,
-        start_line: startLine,
-        end_line: endLine,
-        text: winText,
+        ...window,
       });
     });
   }
@@ -513,13 +509,13 @@ function chunkJsonl(text, filePath) {
     // Guard oversized records
     if (chunkText.length > config.MAX_CHUNK_CHARS) {
       const windows = slidingWindow(chunkText, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP);
-      windows.forEach((winText, idx) => {
+      windows.forEach((window, idx) => {
         chunks.push({
           kind: 'jsonl_record',
           name: `${record.id || `line_${i + 1}`}#part${idx + 1}`,
           start_line: i + 1,
           end_line: i + 1,
-          text: winText,
+          text: window.text,
         });
       });
     } else {
@@ -539,14 +535,37 @@ function chunkJsonl(text, filePath) {
 /**
  * Sliding window chunker for files without a structural chunker.
  */
-function slidingWindow(text, windowSize, overlap) {
+function slidingWindow(text, windowSize, overlap, firstLine = 1) {
   const chunks = [];
   const step = windowSize - overlap;
   if (step <= 0) throw new Error('overlap must be less than windowSize');
 
-  for (let start = 0; start < text.length; start += step) {
-    const end = Math.min(start + windowSize, text.length);
-    chunks.push(text.slice(start, end));
+  // BSON stores UTF-8. A half-surrogate slice would be replaced during
+  // encoding and would no longer be the source text identified by its hash.
+  const splitsCharacter = index => text.charCodeAt(index - 1) >= 0xD800
+    && text.charCodeAt(index - 1) <= 0xDBFF && text.charCodeAt(index) >= 0xDC00
+    && text.charCodeAt(index) <= 0xDFFF;
+  let startLine = firstLine;
+  let startColumn = 1;
+  let previousStart = 0;
+  for (let windowStart = 0; windowStart < text.length; windowStart += step) {
+    const start = splitsCharacter(windowStart) ? windowStart - 1 : windowStart;
+    const advanced = text.slice(previousStart, start);
+    startLine += advanced.split('\n').length - 1;
+    const lastNewline = advanced.lastIndexOf('\n');
+    startColumn = lastNewline === -1
+      ? startColumn + advanced.length
+      : advanced.length - lastNewline;
+    let end = Math.min(windowStart + windowSize, text.length);
+    if (splitsCharacter(end)) end += end - start > 1 ? -1 : 1;
+    const fragment = text.slice(start, end);
+    chunks.push({
+      text: fragment,
+      start_line: startLine,
+      end_line: startLine + fragment.split('\n').length - 1,
+      start_column: startColumn,
+    });
+    previousStart = start;
     if (end === text.length) break;
   }
   return chunks;
@@ -757,6 +776,7 @@ async function processFile(fullPath, repoRoot) {
         name: path.basename(fullPath),
         start_line: 1,
         end_line: text.split('\n').length,
+        start_column: 1,
         text,
       }];
     } else {
@@ -778,6 +798,8 @@ async function processFile(fullPath, repoRoot) {
     content_type: contentType,
     start_line: ch.start_line,
     end_line: ch.end_line,
+    start_column: ch.kind === 'jsonl_record' ? null : ch.start_column,
+    source_format: ch.kind === 'jsonl_record' ? 'jsonl_record' : 'source_text',
     text: ch.text,
     file_sha: fileSha,
     indexed_at: new Date(),

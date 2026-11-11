@@ -208,13 +208,21 @@ Within `ogz-meta`, the indexer's explicit targets are
 `Alignment/OGZ-MASTER-ALIGNMENT.md`, `Alignment/TREY-RULINGS.md`, and `specs/`;
 other repository policy restrictions still apply.
 
-JavaScript chunking finds structural boundaries with regex and brace matching.
-Markdown splits at H1-H6 headings. Oversized sections use configured character
-windows; JSONL records are rendered separately. Current settings are 1,000-character
-windows, 100-character overlap, a 1,500-character section threshold and a
-500,000-byte file limit. A JavaScript file receives whole-file window fallback only
-when no structural chunks were found. Unmatched text in a partially matched file
-is not guaranteed coverage. No percentage coverage claim is established.
+JavaScript chunking labels recognized definitions with regex and brace matching,
+then indexes every remaining nonempty source range with character windows. Imports,
+module constants, exports, tiny functions and unrecognized syntax therefore remain
+retrievable within eligible files. Structural labels are heuristic, not AST proof.
+Markdown splits at H1-H6 headings and retains short nonempty sections. Oversized
+sections use configured character windows; JSONL records are rendered separately.
+Current settings are 1,000-character windows, 100-character overlap, a
+1,500-character section threshold and a 500,000-byte file limit. These changes do
+not admit excluded files or noncanonical packets.
+
+New source chunks carry their actual first line/column, final line and file hash.
+Displayed line numbers refer to that indexed version; window boundaries can cut a
+line. JSONL display text is a rendering of its original record line, not source
+lines. Older records without this metadata remain explicitly unverified spans
+until rebuilt; open the source before claiming exact current-checkout citations.
 
 Chunk records include `file_path`, source span, kind/name, text, embedding identity,
 vector, source hash and indexing time. `file_sha` is SHA-1 of the source text, not a
