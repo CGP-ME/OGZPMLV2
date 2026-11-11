@@ -1004,113 +1004,38 @@ class StrategyOrchestrator {
     return scopedMtfAdapter;
   }
 
+  captureDecisionMtf(symbol, closedCandle) {
+    return this._getMtfConfluenceAdapter(symbol).captureDecisionSnapshot(closedCandle);
+  }
+
   _getMtfConfluenceForEvaluation(ctx) {
     if (this.mtfEvaluationCache && this.mtfEvaluationCache.evalCount === this.evalCount) {
       return this.mtfEvaluationCache.confluence;
     }
-
-    const cacheResult = (confluence, unavailableReason = null, adapter = null) => {
-      this.mtfEvaluationCache = {
-        evalCount: this.evalCount,
-        confluence,
-        adapter,
-        snapshot: confluence
-          ? this._buildMtfConfluenceSnapshot(confluence)
-          : this._buildMtfUnavailableSnapshot(unavailableReason),
-      };
-      return confluence;
-    };
-
-    const candles = ctx.priceHistory;
+    const input = ctx.extras.mtf;
     const timeframeAbsence = this._recordLatestCandleTimeframeAbsence(ctx);
-    if (timeframeAbsence) {
-      return cacheResult(null, 'mtf_missing_candle_timeframe');
-    }
-    if (!candles || candles.length < this.minCandlesMTF) {
-      if (this.strategyDiagnostics) {
-        console.log(`[DIAG] MultiTimeframe: NOT ENOUGH CANDLES (${candles?.length || 0} < ${this.minCandlesMTF})`);
-      }
-      return cacheResult(null, 'insufficient_candles');
-    }
-
-    const latestCandle = candles[candles.length - 1];
-    const scopedMtfAdapter = this._getMtfConfluenceAdapter(ctx.extras?.symbol);
-
-    try {
-      scopedMtfAdapter.ingestCandle(latestCandle, latestCandle.timeframe);
-    } catch (e) {
-      this._recordStrategyUnavailable({
-        strategyName: 'MultiTimeframe',
-        source: 'mtf_confluence.ingestCandle',
-        reason: 'mtf_ingest_unavailable',
-        error: e,
-        ctx,
-        timeframe: latestCandle.timeframe,
-      });
-      return cacheResult(null, `mtf_ingest_unavailable:${errorMessage(e)}`, scopedMtfAdapter);
-    }
-
-    let confluence;
-    try {
-      confluence = scopedMtfAdapter.crossFrameScore();
-    } catch (e) {
-      this._recordStrategyUnavailable({
-        strategyName: 'MultiTimeframe',
-        source: 'mtf_confluence.crossFrameScore',
-        reason: 'mtf_confluence_unavailable',
-        error: e,
-        ctx,
-        timeframe: latestCandle.timeframe,
-      });
-      return cacheResult(null, `mtf_confluence_unavailable:${errorMessage(e)}`, scopedMtfAdapter);
-    }
-
-    if (this.strategyDiagnostics) {
-      console.log(`[DIAG] MultiTimeframe: confluence=${confluence ? JSON.stringify({ dir: confluence.direction, score: confluence.confluenceScore ?? confluence.score }) : 'null'}`);
-    }
-    return cacheResult(confluence || null, 'no_confluence', scopedMtfAdapter);
+    const unavailableReason = timeframeAbsence ? 'mtf_missing_candle_timeframe'
+      : ctx.priceHistory.length < this.minCandlesMTF ? 'insufficient_candles' : null;
+    const confluence = unavailableReason ? null : input.confluence;
+    this.mtfEvaluationCache = {
+      evalCount: this.evalCount,
+      confluence,
+      input,
+      snapshot: confluence
+        ? this._buildMtfConfluenceSnapshot(confluence)
+        : this._buildMtfUnavailableSnapshot(unavailableReason),
+    };
+    return confluence;
   }
 
   _getMtfIndicatorsForEvaluation(ctx, timeframe) {
     this._getMtfConfluenceForEvaluation(ctx);
-    const adapter = this.mtfEvaluationCache?.evalCount === this.evalCount
-      ? this.mtfEvaluationCache.adapter
-      : null;
-    if (!adapter || typeof adapter.getTimeframeIndicators !== 'function') return null;
-    try {
-      return adapter.getTimeframeIndicators(timeframe);
-    } catch (e) {
-      this._recordStrategyUnavailable({
-        strategyName: 'MultiTimeframe',
-        source: 'mtf_indicators.getTimeframeIndicators',
-        reason: 'mtf_indicators_unavailable',
-        error: e,
-        ctx,
-        timeframe,
-      });
-      return null;
-    }
+    return this.mtfEvaluationCache.input.indicators[timeframe] ?? null;
   }
 
   _getMtfCandlesForEvaluation(ctx, timeframe) {
     this._getMtfConfluenceForEvaluation(ctx);
-    const adapter = this.mtfEvaluationCache?.evalCount === this.evalCount
-      ? this.mtfEvaluationCache.adapter
-      : null;
-    if (!adapter || typeof adapter.getCandles !== 'function') return [];
-    try {
-      return adapter.getCandles(timeframe);
-    } catch (e) {
-      this._recordStrategyUnavailable({
-        strategyName: 'MultiTimeframe',
-        source: 'mtf_candles.getCandles',
-        reason: 'mtf_candles_unavailable',
-        error: e,
-        ctx,
-        timeframe,
-      });
-      return [];
-    }
+    return this.mtfEvaluationCache.input.candles[timeframe] ?? [];
   }
 
   _resolveRsiRegimeMa(ctx, filter) {

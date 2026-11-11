@@ -47,6 +47,7 @@ class VolumeProfile {
     this.previousProfile = null;  // Previous session profile (for targets)
     this.barCount = 0;
     this.lastProfileBar = -999;
+    this.lastCandleTime = null;
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -62,7 +63,12 @@ class VolumeProfile {
     if (!priceHistory || priceHistory.length < ConfigLoader.getInternalsFileValue('volumeProfile.minimumCandles')) return;
 
     const config = this.configProvider();
-    this.barCount++;
+    const latestTime = priceHistory.at(-1).t;
+    const isNewBar = this.lastCandleTime === null || latestTime > this.lastCandleTime;
+    if (isNewBar) {
+      this.barCount++;
+      this.lastCandleTime = latestTime;
+    }
 
     // Recalculate profile periodically
     if (this.barCount - this.lastProfileBar >= config.recalcInterval) {
@@ -72,6 +78,10 @@ class VolumeProfile {
       }
       this._buildProfile(priceHistory, config);
       this.lastProfileBar = this.barCount;
+    } else if (!isNewBar && this.lastProfileBar === this.barCount) {
+      // Replace the forming bar's profile with its updated OHLCV without
+      // advancing the configured bar cadence or its previous-profile anchor.
+      this._buildProfile(priceHistory, config);
     }
   }
 

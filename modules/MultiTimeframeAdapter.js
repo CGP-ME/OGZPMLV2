@@ -217,52 +217,74 @@ class MultiTimeframeAdapter extends EventEmitter {
       const candleArr = this.candles.get(tf);
       if (!candleArr || candleArr.length < this.config.minCandlesForAnalysis) continue;
 
-      const closes = candleArr.map(candle => c(candle));
-      const highs = candleArr.map(candle => h(candle));
-      const lows = candleArr.map(candle => l(candle));
-      const volumes = candleArr.map(candle => v(candle));
-
       try {
-        const p = this.config.indicatorPeriods;
-        const snapshot = {
-          timeframe: tf,
-          timestamp: Date.now(),
-          candleCount: candleArr.length,
-          price: closes[closes.length - 1],
-          rsi: IndicatorCalculator.calculateRSI(candleArr, p.rsi),
-          smaFast: this._calcSMA(closes, p.smaFast),
-          smaSlow: this._calcSMA(closes, p.smaSlow),
-          ema: this._calcEMA(closes, p.ema),
-          macd: this._calcMACD(closes, p.macdFast, p.macdSlow),
-          atr: this._calcATR(highs, lows, closes, p.atr),
-          bollinger: this._calcBollinger(closes, p.bollingerPeriod, p.bollingerStd),
-          trend: null,
-          trendStrength: 0,
-          volumeSMA: this._calcSMA(volumes, ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.volumeSmaPeriod')),
-          volumeRatio: 0,
-        };
-
-        // Derive trend
-        if (snapshot.smaFast && snapshot.smaSlow) {
-          if (snapshot.smaFast > snapshot.smaSlow) {
-            snapshot.trend = 'bullish';
-            snapshot.trendStrength = Math.min(1, (snapshot.smaFast - snapshot.smaSlow) / snapshot.smaSlow * 100);
-          } else {
-            snapshot.trend = 'bearish';
-            snapshot.trendStrength = Math.min(1, (snapshot.smaSlow - snapshot.smaFast) / snapshot.smaFast * 100);
-          }
-        }
-
-        if (snapshot.volumeSMA && snapshot.volumeSMA > 0) {
-          snapshot.volumeRatio = volumes[volumes.length - 1] / snapshot.volumeSMA;
-        }
-
-        this.indicators.set(tf, snapshot);
-        this.stats.indicatorCalculations++;
+        this.indicators.set(tf, this._calculateIndicators(tf, candleArr));
       } catch (err) {
         this.stats.errors++;
       }
     }
+  }
+
+  _calculateIndicators(tf, candleArr) {
+    const closes = candleArr.map(candle => c(candle));
+    const highs = candleArr.map(candle => h(candle));
+    const lows = candleArr.map(candle => l(candle));
+    const volumes = candleArr.map(candle => v(candle));
+    const p = this.config.indicatorPeriods;
+    const snapshot = {
+      timeframe: tf,
+      timestamp: Date.now(),
+      candleCount: candleArr.length,
+      price: closes[closes.length - 1],
+      rsi: IndicatorCalculator.calculateRSI(candleArr, p.rsi),
+      smaFast: this._calcSMA(closes, p.smaFast),
+      smaSlow: this._calcSMA(closes, p.smaSlow),
+      ema: this._calcEMA(closes, p.ema),
+      macd: this._calcMACD(closes, p.macdFast, p.macdSlow),
+      atr: this._calcATR(highs, lows, closes, p.atr),
+      bollinger: this._calcBollinger(closes, p.bollingerPeriod, p.bollingerStd),
+      trend: null,
+      trendStrength: 0,
+      volumeSMA: this._calcSMA(volumes, ConfigLoader.getInternalsFileValue('multiTimeframe.scoring.volumeSmaPeriod')),
+      volumeRatio: 0,
+    };
+
+    // Derive trend
+    if (snapshot.smaFast && snapshot.smaSlow) {
+      if (snapshot.smaFast > snapshot.smaSlow) {
+        snapshot.trend = 'bullish';
+        snapshot.trendStrength = Math.min(1, (snapshot.smaFast - snapshot.smaSlow) / snapshot.smaSlow * 100);
+      } else {
+        snapshot.trend = 'bearish';
+        snapshot.trendStrength = Math.min(1, (snapshot.smaSlow - snapshot.smaFast) / snapshot.smaFast * 100);
+      }
+    }
+
+    if (snapshot.volumeSMA && snapshot.volumeSMA > 0) {
+      snapshot.volumeRatio = volumes[volumes.length - 1] / snapshot.volumeSMA;
+    }
+    this.stats.indicatorCalculations++;
+    return snapshot;
+  }
+
+  captureDecisionSnapshot(closedCandle) {
+    const scopeFields = ['brokerId', 'accountId', 'accountIdSource', 'assetClass', 'executionMode'];
+    const candles = {};
+    const indicators = new Map();
+    for (const [timeframe, history] of this.candles) {
+      const closed = history.filter(candle => candle.etime <= closedCandle.etime
+        && scopeFields.every(field => candle[field] === closedCandle[field]));
+      candles[timeframe] = structuredClone(closed);
+      if (closed.length >= this.config.minCandlesForAnalysis) {
+        indicators.set(timeframe, this._calculateIndicators(timeframe, closed));
+      }
+    }
+    return {
+      candleEndTime: closedCandle.etime,
+      candles,
+      indicators: Object.fromEntries(indicators),
+      confluence: this.crossFrameScore(indicators, new Set(indicators.keys())),
+    };
   }
 
   // ── Self-contained indicator math ───────────────────────────
@@ -326,14 +348,14 @@ class MultiTimeframeAdapter extends EventEmitter {
    * Get weighted confluence score across all ready timeframes.
    * @returns {Object} analysis with signed score, or null score when not ready
    */
-  crossFrameScore() {
+  crossFrameScore(indicators = this.indicators, readyTimeframes = this.readyTimeframes) {
     this.stats.confluenceChecks++;
 
     const analysis = {
       module: 'MultiTimeframe',
       source: 'MultiTimeframeAdapter.crossFrameScore',
       timestamp: Date.now(),
-      readyTimeframes: Array.from(this.readyTimeframes),
+      readyTimeframes: Array.from(readyTimeframes),
       totalTimeframes: this.config.activeTimeframes.length,
       minReadyTimeframes: this.config.minReadyTimeframes,
       available: false,
@@ -353,9 +375,9 @@ class MultiTimeframeAdapter extends EventEmitter {
       reasoning: [],
     };
 
-    if (this.readyTimeframes.size < this.config.minReadyTimeframes) {
+    if (readyTimeframes.size < this.config.minReadyTimeframes) {
       analysis.unavailableReason = 'insufficient_ready_timeframes';
-      analysis.reasoning.push(`Ready timeframes ${this.readyTimeframes.size}/${this.config.minReadyTimeframes}`);
+      analysis.reasoning.push(`Ready timeframes ${readyTimeframes.size}/${this.config.minReadyTimeframes}`);
       return analysis;
     }
 
@@ -364,8 +386,8 @@ class MultiTimeframeAdapter extends EventEmitter {
     let trendMatches = 0, trendTotal = 0;
     let primaryTrend = null;
 
-    for (const tf of this.readyTimeframes) {
-      const ind = this.indicators.get(tf);
+    for (const tf of readyTimeframes) {
+      const ind = indicators.get(tf);
       if (!ind) continue;
 
       const weight = this.config.weights[tf];

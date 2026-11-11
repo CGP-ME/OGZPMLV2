@@ -396,6 +396,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
           // Keep the canonical symbol attached; run-empire-v2/CandleProcessor
           // need it to avoid routing Kraken candles into a stale stock context.
           this.emit('ohlc', {
+            candleClosed: false,
             data: ohlcData,
             priceTimestamp: data.priceTimestamp,
             timeframe: timeframe,
@@ -458,6 +459,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
           this.emit('depth_update', data);
         } else if (data.type === 'ohlc') {
           this.emit('ohlc', {
+            candleClosed: false,
             data: data.data,
             priceTimestamp: data.priceTimestamp,
             timeframe: data.timeframe || '1m',

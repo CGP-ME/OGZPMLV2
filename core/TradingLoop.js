@@ -1014,13 +1014,41 @@ class TradingLoop {
     }
   }
 
-  async analyzeAndTrade(symbol, traceId = createTraceId('trace'), timeframe) {
+  captureDecisionInput(symbol, timeframe) {
+    const frame = this.ctx.getSymbolTimeframeContext(symbol, timeframe);
+    const priceHistory = structuredClone(frame.priceHistory);
+    const candle = priceHistory.at(-1);
+    return {
+      priceHistory,
+      marketData: {
+        ...structuredClone(frame.marketData),
+        ...candle,
+        symbol,
+        timeframe,
+        price: candle.c,
+        timestamp: candle.t,
+        volume: candle.v,
+        open: candle.o,
+        high: candle.h,
+        low: candle.l,
+      },
+      indicators: structuredClone(frame.indicatorEngine.getSnapshot().indicators),
+      structure: structuredClone(frame.indicatorEngine.getRawState().sr),
+      volumeProfile: structuredClone(frame.volumeProfile.getProfile()),
+      mtf: this.ctx.strategyOrchestrator.captureDecisionMtf(symbol, candle),
+      emaCrossoverSignal: structuredClone(frame.emaCrossoverSignal),
+      maDynamicSRSignal: structuredClone(frame.maDynamicSRSignal),
+      liquiditySweepSignal: structuredClone(this.ctx.runner?.liquiditySweepSignal || this.ctx.liquiditySweepSignal),
+    };
+  }
+
+  async analyzeAndTrade(symbol, traceId = createTraceId('trace'), timeframe, decisionInput) {
     if (typeof symbol !== 'string' || !symbol) {
       throw new Error(
         `TradingLoop.analyzeAndTrade requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
       );
     }
-    return this._enqueueSymbolOperation(symbol, () => this._analyze(symbol, traceId, timeframe));
+    return this._enqueueSymbolOperation(symbol, () => this._analyze(symbol, traceId, timeframe, decisionInput));
   }
 
   /**
@@ -1219,7 +1247,7 @@ class TradingLoop {
     }
   }
 
-  async _analyze(symbol, traceId = createTraceId('trace'), timeframe) {
+  async _analyze(symbol, traceId = createTraceId('trace'), timeframe, decisionInput) {
     // CC-C Commit 5/6: `symbol` is REQUIRED. analyzeAndTrade enforces this
     // upstream; the redundant check here is defense-in-depth in case _analyze
     // is ever called from a sibling path that bypasses analyzeAndTrade.
@@ -1230,9 +1258,9 @@ class TradingLoop {
     }
     // Resolve the history and indicators for this candle's symbol and timeframe.
     const symCtx = this.ctx.getSymbolTimeframeContext(symbol, timeframe);
-    // _gatherData re-resolves indicatorEngine/fibonacciDetector via its own
-    // symCtx pass — declaring them here too was dead code (Mercury attack #4).
-    const priceHistory = symCtx.priceHistory;
+    // Candle inputs were captured before queueing; the Fibonacci detector
+    // remains owned by this symbol/frame and consumes that captured history.
+    const priceHistory = decisionInput.priceHistory;
     const analysisTimeframe = symCtx.timeframe;
     const analysisScope = this._dashboardScope(symbol, analysisTimeframe);
     emitTrace(this.ctx, 'ANALYSIS_START', {
@@ -1243,6 +1271,8 @@ class TradingLoop {
       assetClass: analysisScope.assetClass,
       timeframe: analysisScope.timeframe,
       priceHistory: priceHistory.length,
+      candleTimestamp: decisionInput.marketData.timestamp,
+      candleEndTime: decisionInput.marketData.etime,
     });
     console.log(`[VIS][TradingLoop] analyze symbol=${symbol} route=${symCtx ? 'symbolContext' : 'global'} marketSymbol=${this.ctx.marketData?.symbol || '(missing)'} priceHistory=${priceHistory.length} broker=${analysisScope.brokerId || '(missing)'} assetClass=${analysisScope.assetClass || '(missing)'}`);
     if (symCtx && !this._firstAnalyzedSymbols) this._firstAnalyzedSymbols = new Set();
@@ -1251,8 +1281,7 @@ class TradingLoop {
       this._firstAnalyzedSymbols.add(symbol);
     }
 
-    const marketData = this._resolveSymbolMarketData(symbol, symCtx);
-    this._alertMarketDataFallback(symbol, 'analyze', traceId, symCtx, marketData);
+    const marketData = decisionInput.marketData;
     const price = Number(marketData?.price);
     if (!Number.isFinite(price) || price <= 0) {
       this._diag('ANALYSIS_NO_SCOPED_PRICE', {
@@ -1312,25 +1341,23 @@ class TradingLoop {
     }
 
     // ─── GATHER DATA ───
-    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol, marketData, analysisTimeframe);
+    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol, marketData, analysisTimeframe, decisionInput);
     const patternScope = this._patternScope(symbol, analysisTimeframe);
 
     // ─── RUN ORCHESTRATOR ───
     const orchResult = this.ctx.strategyOrchestrator.evaluate(
       indicators, patterns, regime, priceHistory,
       {
-        // CC-C Multi-Symbol Commit 4/6: prefer per-symbol signal outputs when
-        // available (populated by CandleProcessor commit 3 onto symCtx). Fall
-        // back to the legacy global runner / ctx refs for single-symbol mode.
-        emaCrossoverSignal: symCtx?.emaCrossoverSignal ?? this.ctx.runner?.emaCrossoverSignal ?? this.ctx.emaCrossoverSignal,
-        maDynamicSRSignal: symCtx?.maDynamicSRSignal ?? this.ctx.runner?.maDynamicSRSignal ?? this.ctx.maDynamicSRSignal,
+        emaCrossoverSignal: decisionInput.emaCrossoverSignal,
+        maDynamicSRSignal: decisionInput.maDynamicSRSignal,
         // 2026-05-04: breakRetestSignal removed — orchestrator now owns BreakAndRetest instance directly.
-        liquiditySweepSignal: this.ctx.runner?.liquiditySweepSignal || this.ctx.liquiditySweepSignal,
+        liquiditySweepSignal: decisionInput.liquiditySweepSignal,
         tpoResult,
         price,
         fibLevels,
         nearestFibLevel,
-        volumeProfile: symCtx?.volumeProfile ?? this.ctx.runner?.volumeProfile ?? this.ctx.volumeProfile,
+        volumeProfile: decisionInput.volumeProfile,
+        mtf: decisionInput.mtf,
         symbol,
         // HIGH-16: pass timeframe so orchestrator can validate + scale SL/TP
         // per timeframe instead of falling back to '15m' silently.
@@ -1841,6 +1868,9 @@ class TradingLoop {
       for (const item of executionItems) {
         const executionDecision = item.decision;
         const executionOrchResult = item.orchResult;
+        const executionPrice = selectedExitContext !== null
+          ? selectedExitContext.price
+          : this.ctx.backtestMode ? price : stateManager.getLastPrice(symbol);
         emitTrace(this.ctx, 'EXECUTE_HANDOFF', {
           traceId: executionDecision.traceId,
           signalId: executionDecision.signalId,
@@ -1853,6 +1883,11 @@ class TradingLoop {
           signalBasis: executionOrchResult.allResults?.find(r => r.strategyName === executionOrchResult.winnerStrategy)?.signalData?.signalBasis || null,
           crossoverCount: executionOrchResult.allResults?.find(r => r.strategyName === executionOrchResult.winnerStrategy)?.signalData?.crossoverCount ?? null,
           riskGateCount: riskGates.length,
+          candleTimestamp: marketData.timestamp,
+          candleEndTime: marketData.etime,
+          signalPrice: price,
+          executionPrice,
+          executionPriceSource: selectedExitContext !== null ? 'exit_context' : this.ctx.backtestMode ? 'backtest_close' : 'live_mark',
         });
         if (isEntryAction) {
           this._broadcastGateEvent({
@@ -1869,13 +1904,14 @@ class TradingLoop {
         const executionResult = await this.ctx.executeTrade(
           executionDecision,
           confidenceData,
-          selectedExitContext === null ? price : selectedExitContext.price,
+          executionPrice,
           selectedExitContext === null ? indicators : selectedExitContext.indicators,
           patterns,
           null,
           executionOrchResult,
           symbol,
-          selectedExitContext === null ? analysisTimeframe : selectedExitContext.exitTimeframe
+          selectedExitContext === null ? analysisTimeframe : selectedExitContext.exitTimeframe,
+          decisionInput
         );
         const executionSuccess = typeof executionResult?.success === 'boolean'
           ? executionResult.success
@@ -1942,14 +1978,12 @@ class TradingLoop {
   // DATA GATHERING — unchanged from original, just extracted
   // ═══════════════════════════════════════════════════════════════
 
-  _gatherData(price, symCtx = null, symbol = null, marketData = null, timeframe) {
-    const priceHistory = symCtx.priceHistory;
-    const indicatorEngine = symCtx.indicatorEngine;
+  _gatherData(price, symCtx = null, symbol = null, marketData = null, timeframe, decisionInput) {
+    const priceHistory = decisionInput.priceHistory;
     const fibonacciDetector = symCtx.fibonacciDetector;
 
     // Indicators
-    const dtoState = indicatorEngine.getSnapshot();
-    const indicators = dtoState.indicators;
+    const indicators = decisionInput.indicators;
     indicators.volatility = indicators.atr ?? null;
     indicators.trend = indicators.superTrendDirection ?? null;
 
@@ -2062,10 +2096,7 @@ class TradingLoop {
       if (fibLevels) nearestFibLevel = fibonacciDetector.getNearestLevel(price);
     }
 
-    const rawIndicatorState = typeof indicatorEngine.getRawState === 'function'
-      ? indicatorEngine.getRawState()
-      : null;
-    const nearestStructure = this._nearestStructure(price, nearestFibLevel, rawIndicatorState?.sr);
+    const nearestStructure = this._nearestStructure(price, nearestFibLevel, decisionInput.structure);
 
     // TPO
     let tpoResult = null;

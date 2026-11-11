@@ -99,6 +99,9 @@ class SymbolTradingContext {
         // CandleProcessor on each new candle. Per-symbol so consumers reading
         // `symCtx.marketData.price` get the right symbol's tick.
         this.marketData = null;
+        // Last completed bar dispatched for this symbol/frame. REST hydration
+        // and intrabar updates populate history without advancing this cursor.
+        this.lastDecisionCandle = null;
     }
 
     // SINGLE SOURCE OF TRUTH (Trey 2026-05-08 directive #1):

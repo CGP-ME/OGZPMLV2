@@ -494,6 +494,8 @@ class CandleProcessor {
         t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
       });
       this.ctx.strategyOrchestrator.ingestMarketCandle(candleStoreSymbol, candle);
+      if (isLegacyRootMirrorCandle && this.ctx.volumeProfile) this.ctx.volumeProfile.update(candle, this.ctx.priceHistory);
+      if (frameCtx.volumeProfile) frameCtx.volumeProfile.update(candle, frameCtx.priceHistory);
       if (traceId) {
         emitTrace(this.ctx, 'CANDLE_ACCEPTED', {
           traceId,

@@ -1011,10 +1011,24 @@ class OGZPrimeV14Bot {
           this._visOhlcSeen.add(visKey);
           console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
-        const priorSymbolCandle = this.getSymbolTimeframeContext(sym, tf)?.priceHistory?.at(-1);
+        const candleContext = this.getSymbolTimeframeContext(sym, tf);
+        const priorSymbolCandle = candleContext?.priceHistory?.at(-1);
         this.storeTimeframeCandle(tf, ohlcData, sym);
         const storedCandle = this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (evaluationFrame) {
+          const closedCandle = confirmedClosedCandleAtBoundary({
+            candleClosed: eventData.candleClosed,
+            priorCandle: priorSymbolCandle,
+            lastDecisionCandle: candleContext.lastDecisionCandle,
+            incomingCandle: { ...storedCandle?.candle, ...scopeEnvelope, symbol: sym },
+            incomingScope: scopeEnvelope,
+            symbol: sym,
+          });
+          // Snapshot Kraken's completed bar before ingesting its next forming
+          // bar. Alpaca's completed payload is captured after ingestion below.
+          let decisionInput = closedCandle && eventData.candleClosed === false
+            ? this.tradingLoop.captureDecisionInput(sym, tf)
+            : null;
           if (tf === activeTf) this._markActiveTimeframeData(sym, tf);
           if (tf === activeTf) this.syncDashboardRuntimeScope(sym, scopeEnvelope);
           this.handleMarketData({
@@ -1024,21 +1038,14 @@ class OGZPrimeV14Bot {
             traceId,
             ...scopeEnvelope,
           });
-          if (storedCandle?.isNewCandle) {
-            // The next accepted broker timestamp confirms the prior canonical bar.
-            // Scope equality prevents a session handoff from crossing replay ledgers.
-            const closedReplayCandle = confirmedClosedCandleAtBoundary({
-              isNewCandle: storedCandle.isNewCandle,
-              priorCandle: priorSymbolCandle,
-              incomingCandle: storedCandle.candle,
-              incomingScope: scopeEnvelope,
-              symbol: sym,
-            });
-            if (closedReplayCandle) this.journalBridge?.recordClosedCandle(closedReplayCandle);
+          if (closedCandle) {
+            if (eventData.candleClosed === true) decisionInput = this.tradingLoop.captureDecisionInput(sym, tf);
+            candleContext.lastDecisionCandle = { ...decisionInput.priceHistory.at(-1) };
+            this.journalBridge?.recordClosedCandle(decisionInput.priceHistory.at(-1));
             console.log(`V2: ${tf} candle closed - running trading analysis`);
             this._trackRuntimeOperation(
               `candle_analysis:${sym}:${traceId}`,
-              () => this.runTradingCycle(sym, traceId, tf),
+              () => this.runTradingCycle(sym, traceId, tf, decisionInput),
               { reportFailure: true }
             );
           } else if (storedCandle && !storedCandle.isNewCandle) {
@@ -1444,6 +1451,7 @@ class OGZPrimeV14Bot {
       orderExecutor: this.orderExecutor,
       // ConfigLoader injection - mode flags
       backtestFast: resolvedConfig.config.backtest.fast,
+      backtestMode: resolvedConfig.config.mode.backtest,
       testMode: resolvedConfig.config.mode.testMode,
       traiEnableBacktest: resolvedConfig.config.trai.enableBacktest,
       // HIGH-16: execution.candleTimeframe threaded into ctx for orchestrator validation
@@ -3147,7 +3155,7 @@ class OGZPrimeV14Bot {
     return record;
   }
 
-  async runTradingCycle(symbol, traceId, timeframe) {
+  async runTradingCycle(symbol, traceId, timeframe, decisionInput) {
     // CC-C Commit 5/6: pass single-symbol canonical explicitly. Multi-symbol
     // mode (commit 6+) will dispatch per-symbol from the OHLC handler.
     const analysisSymbol = normalizeRuntimeSymbol(symbol);
@@ -3171,10 +3179,10 @@ class OGZPrimeV14Bot {
       defaultTradingPair: this.tradingPair,
     });
     console.log(`[VIS][TradingCycle] triggerSymbol=${analysisSymbol} defaultTradingPair=${this.tradingPair}`);
-    return this.analyzeAndTrade(analysisSymbol, cycleTraceId, timeframe);
+    return this.analyzeAndTrade(analysisSymbol, cycleTraceId, timeframe, decisionInput);
   }
 
-  async analyzeAndTrade(symbol, traceId = null, timeframe) {
+  async analyzeAndTrade(symbol, traceId = null, timeframe, decisionInput) {
     // CC-C Commit 5/6: `symbol` is REQUIRED. Caller passes the symbol whose
     // candle is being acted on. TradingLoop.analyzeAndTrade enforces this
     // upstream; the redundant entry-check here keeps the runner-side contract
@@ -3194,7 +3202,7 @@ class OGZPrimeV14Bot {
     this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;
     this.tradingLoop.ctx.executeTrade = this.executeTrade.bind(this);
     this.tradingLoop.ctx.broadcastPatternAnalysis = this.broadcastPatternAnalysis.bind(this);
-    return this.tradingLoop.analyzeAndTrade(symbol, traceId || undefined, timeframe);
+    return this.tradingLoop.analyzeAndTrade(symbol, traceId || undefined, timeframe, decisionInput);
   }
 
 
@@ -3210,7 +3218,7 @@ class OGZPrimeV14Bot {
    * Original logic moved to core/OrderExecutor.js
    * Phase 3 REWRITE: Renamed brainDecision → orchResult (orchestrator result)
    */
-  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe) {
+  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe, decisionInput) {
     const action = typeof decision?.action === 'string' ? decision.action.trim().toUpperCase() : '';
     if (action === 'BUY' || action === 'SELL_SHORT') {
       const sessionEntryBlock = this._sessionRouterEntryBlock(symbol, decision?.traceId || null, action);
@@ -3235,7 +3243,7 @@ class OGZPrimeV14Bot {
     // param — TradingLoop resolves it before calling, this wrapper just
     // threads it. No fallback to ctx.tradingPair here; if symbol is
     // missing OrderExecutor's entry-check throws (caller has the bug).
-    return this.orderExecutor.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, symbol, timeframe);
+    return this.orderExecutor.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, symbol, timeframe, decisionInput);
   }
 
   // REMOVED 2026-03-03: Original executeTrade() body (~810 lines) moved to core/OrderExecutor.js
@@ -3462,7 +3470,10 @@ class OGZPrimeV14Bot {
     this.backtestRunner.ctx.symbol = tradingPair;
     this.backtestRunner.ctx.timeframe = this.candleTimeframe;
     this.backtestRunner.ctx.backtestMode = resolvedConfig.config.mode.backtest;
-    this.backtestRunner.ctx.runTradingCycle = (symbol, traceId) => this.runTradingCycle(symbol, traceId, this.backtestRunner.ctx.timeframe);
+    this.backtestRunner.ctx.runTradingCycle = (symbol, traceId) => {
+      const timeframe = this.backtestRunner.ctx.timeframe;
+      return this.runTradingCycle(symbol, traceId, timeframe, this.tradingLoop.captureDecisionInput(symbol, timeframe));
+    };
     const result = await this._trackRuntimeOperation(
       'backtest_run',
       () => this.backtestRunner.loadHistoricalDataAndBacktest()

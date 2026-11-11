@@ -2344,14 +2344,13 @@ class OrderExecutor {
     return haltReason;
   }
 
-  _buildEntryPlan({ decision, symbol, timeframe, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, entryVolatility, absoluteCapPercent, forceWholeShares = false }) {
+  _buildEntryPlan({ decision, symbol, timeframe, price, priceHistory, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, entryVolatility, absoluteCapPercent, forceWholeShares = false }) {
     if (!this._isEntryAction(decision.action)) return null;
 
     const entryStrategy = orchResult.winnerStrategy;
     const sizingMultiplier = orchResult.sizingMultiplier;
     const exitContract = orchResult.exitContract;
     assertExplicitExitOwnership(exitContract, 'OrderExecutor._buildEntryPlan');
-    const priceHistory = this.ctx.runner.getSymbolTimeframeContext(symbol, timeframe).priceHistory;
     const policyVolatility = IndicatorCalculator.calculateVolatility(
       priceHistory, exitContract.profitManagement.volatilityAdjustment.lookbackPeriods + 1
     );
@@ -2776,7 +2775,7 @@ class OrderExecutor {
    * fallback — that path was the cross-contamination footgun for multi-broker
    * arbitrage. Throws on missing/invalid symbol so weak callers fail loud.
    */
-  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe) {
+  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe, decisionInput) {
     if (typeof symbol !== 'string' || !symbol) {
       throw new Error(
         `OrderExecutor.executeTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
@@ -3079,6 +3078,7 @@ class OrderExecutor {
       symbol,
       timeframe: executionScope.timeframe,
       price,
+      priceHistory: decisionInput.priceHistory,
       positionSize,
       currentBalance,
       currentEquity,
@@ -3227,7 +3227,7 @@ class OrderExecutor {
     // Replay time belongs to the selected symbol/frame and must survive awaits.
     // Paper/live trades use the local execution time when the result arrives.
     const replayTimestamp = this.ctx.backtestMode
-      ? this.ctx.runner.getSymbolTimeframeContext(symbol, executionScope.timeframe).marketData.timestamp
+      ? isEntryAction ? decisionInput.marketData.timestamp : this.ctx.runner.getSymbolTimeframeContext(symbol, executionScope.timeframe).marketData.timestamp
       : null;
     let exitIntent = null;
     let reservationBlockOverride = null;

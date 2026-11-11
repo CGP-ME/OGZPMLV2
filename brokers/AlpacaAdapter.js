@@ -1190,7 +1190,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 this._firstBarLogged.add(msg.S);
                 console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
             }
-            this.emit('ohlc', { timeframe: barSubscription.streamTimeframe, data: bar, priceTimestamp: bar.etime, symbol: bar.symbol });
+            this.emit('ohlc', { candleClosed: true, timeframe: barSubscription.streamTimeframe, data: bar, priceTimestamp: bar.etime, symbol: bar.symbol });
             for (const frameState of barSubscription.requestedFrames.values()) {
                 this._emitRequestedClosedBar(msg.S, bar, barSubscription, frameState);
             }
@@ -1217,6 +1217,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                         symbol,
                     };
                     this.emit('ohlc', {
+                        candleClosed: true,
                         timeframe: frameState.timeframe,
                         data: requestedBar,
                         priceTimestamp: requestedBar.etime,
