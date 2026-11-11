@@ -69,6 +69,7 @@ function extractDiffReferenceNames(diff, { readSource } = {}) {
   const property = node => !node.computed && node.property.type === 'Identifier'
     ? node.property.name : literal(node.property);
   const isIdentifier = (node, name) => node && node.type === 'Identifier' && node.name === name;
+  const namedObject = (node, name) => isIdentifier(node, name) || (isMember(node) && property(node) === name);
   for (const file of files) {
     for (const [side, changed] of [['before', file.removed], ['after', file.added]]) {
       const filename = file[side];
@@ -91,11 +92,10 @@ function extractDiffReferenceNames(diff, { readSource } = {}) {
           let name = null;
           if (isMember(node)) {
             const object = node.object;
-            relevant = isIdentifier(object, 'config') || isIdentifier(object, 'env')
-              || (isMember(object) && isIdentifier(object.object, 'process') && property(object) === 'env');
+            relevant = namedObject(object, 'config') || namedObject(object, 'env');
             if (relevant) name = property(node);
           } else if (['CallExpression', 'OptionalCallExpression'].includes(node.type)
-              && node.callee.type === 'Identifier' && accessors.has(node.callee.name)) {
+              && accessors.has(isMember(node.callee) ? property(node.callee) : node.callee.name)) {
             relevant = true;
             name = literal(node.arguments[1]);
           }
