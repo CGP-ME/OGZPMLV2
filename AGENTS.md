@@ -130,6 +130,14 @@ does not match current doctrine.
 
 ## Trading-Path Gates
 
+Trey's 2026-11-10 panel instruction supersedes historical judge/challenger roles:
+each selected model independently investigates with tools, without other models'
+answers in its first request. If outcomes differ, all present their evidence,
+receive the same evidence exchange, and cast one equal vote each. No final judge.
+Keep the code outcome, tally, agreement, dissent and review completeness separate.
+Never use `pass` to mean agreement with a defect. Ties and absent selected votes
+remain explicit unresolved/incomplete results. Preserve canonical RAG exclusions.
+
 For changes on the trading/backtest execution path:
 
 - Run Mercury as an independent evidence-based review before commit.

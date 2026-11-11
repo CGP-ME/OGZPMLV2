@@ -86,9 +86,12 @@ evidence or necessary dependency reads.
 Keep initial context relevant to that question. Do not paste a session summary
 or a list of independent checks into the prompt. Read the complete answer and
 check its citations, unresolved claims and receipt before the next dispatch.
-One question's result is not approval of the entire change. If reviewers disagree
-about a concrete claim, bring that claim and each reviewer's evidence back for
-re-examination; missing or incomplete answers are not disagreement or approval.
+One question's result is not approval of the entire change. Every selected peer
+first investigates independently, with tools and without other reviewers' answers.
+If their code outcomes differ, all selected peers receive the same first-round
+evidence and independently cast a vote after checking it. Each peer has one vote;
+no final judge or casting vote exists. Preserve each position, evidence and dissent.
+Missing or incomplete answers are recorded separately from disagreement.
 
 ```bash
 node trai_brain/mercury-bridge/ask.js --agentic --reviewers=mercury --max-tokens=7750 "Where does the engineering API credential come from? Cite its producer and consumer."
@@ -116,8 +119,16 @@ and evidence receipts; it does not prescribe a defect or any other conclusion.
 Dispatch one review question at a time. Do not add `--max-iterations` unless Trey
 sets a limit. Selected seats execute in order. An unavailable reviewer remains
 unavailable; another model's answer does not complete that seat. A zero CLI exit
-code, provider success or a reporter's word `pass` does not certify the code;
+code or provider success does not certify the code. Every peer reports
+`found_break`, `no_break_found` or `cannot_verify`; `pass` is not an agreement or
+code-outcome label. The receipt separates the vote tally, majority outcome,
+agreement, completeness and dissent. A tie is `unresolved_vote`; a selected
+reviewer without a completed vote leaves `review_incomplete`, even when the
+available votes form a majority. The denominator remains the selected panel;
 read the complete conclusion, disagreement, supporting evidence and missing work.
+Missing, retired or repeated decision labels are incomplete ballots, not an
+invented `cannot_verify` vote. Only an explicit `cannot_verify` counts as that vote.
+The terminal prints every initial answer and every evidence-round vote, including dissent.
 For a failed or incomplete run, inspect the actual request and provider receipt
 before another paid dispatch. Correct the question/context problem instead of
 repeating the same request or increasing limits without Trey's instruction.
@@ -132,22 +143,32 @@ node trai_brain/mercury-bridge/ask.js --agentic --architecture --adversarial-rev
 node trai_brain/mercury-bridge/ask.js --agentic --planning --adversarial-review --max-tokens=7750 "Plan the supplied implementation question."
 ```
 
-These modes provide synthesis and critiques rather than a code-approval verdict.
-The operator selects any resulting implementation scope.
+These modes provide independent analysis of the supplied question.
+Every selected reviewer receives the explicit mode framing. Their responses are
+recorded as `synthesis_received` or `synthesis_incomplete`, with no code outcome
+or inferred agreement. This is not a commit-review gate. The operator selects
+any resulting implementation scope.
 
 ## Subscription reviewers and readiness
 
-Astra is the Codex/ChatGPT subscription challenger. Fable occupies the final
-adjudication seat through the installed Claude Code subscription. The panel
+Astra and Fable are independent peers, through the Codex/ChatGPT and installed
+Claude Code subscriptions respectively. The panel
 accepts `mercury`, `astra` and `fable`. Kimi is not a panel selection; independent
 direct-question configuration and historical receipts are separate.
 
-`consensus` configures Astra. `tieBreaker` pins `provider=claude-code` and
+The existing `consensus` configuration supplies Astra's provider settings;
+the legacy-named `tieBreaker` key supplies Fable's settings, not a judging role.
+It pins `provider=claude-code` and
 `model=claude-fable-5`, with no API key or endpoint. The adapter verifies first-party
-subscription auth, disables reviewer tools, strips API-routing overrides and
+subscription auth, enables read-only `Read`, `Grep` and `Glob` tools in restricted
+mode, binds them to the selected source/evidence directories, strips API-routing overrides and
 records requested/applied models. The pinned invocation excludes user/project CLI
 settings and supplies no fallback chain. A flagged request remains a refusal.
 These invocation settings do not edit the user's Claude settings.
+Pinned reviews supply the exact source snapshot and a separate baseline snapshot.
+Full captured evidence remains readable from a file instead of being forced into
+every subscription request. Existing repository exclusions remain in effect;
+an explicitly supplied evidence file is not a canonical RAG admission.
 
 A missing login, failed response or different applied model is not a successful
 Fable 5 review. Fable 5.1 is not an authorized substitute.

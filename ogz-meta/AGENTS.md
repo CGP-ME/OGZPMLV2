@@ -235,10 +235,16 @@ Pipeline order:
   reviews must not be steered by hidden targets or predetermined conclusions.
   Source:
   `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
-- Mercury agentic reviews have a Claude Code Fable consensus lane with provider
-  preflight, and consensus failure is commit-blocking in the Mercury run ledger.
-  Check provider posture before relying on a full agentic run. Source:
-  `ogz-meta/sessions/session-2026-07-02-fable-consensus-exit-telemetry-and-sweep-config.md:5-8,15-21,29-35`.
+- Trey's 2026-11-10 instruction: Mercury, Astra and Fable independently investigate
+  with tools. First-round requests must not contain other reviewers' answers.
+  When outcomes differ, all selected models present their evidence and receive
+  the same evidence exchange before one equal vote each. No reviewer judges the
+  others or receives a casting vote. Preserve dissent and failed/unavailable
+  seats. Use explicit code outcomes, not `pass` to mean agreement. Report the
+  majority, tally and completeness separately; a tie is unresolved and an absent
+  selected vote leaves the review incomplete. This supersedes the historical
+  challenger/final-adjudicator arrangement. Fable stays on the authorized Fable 5
+  subscription with read-only tools; no Fable 5.1 or Kimi replacement.
 
 ## Git Rules
 - Check status before staging.

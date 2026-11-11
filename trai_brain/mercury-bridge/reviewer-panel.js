@@ -15,10 +15,14 @@ function structuredPanelVerdict(parsed) {
   if (!parsed || typeof parsed !== 'object' || !Object.prototype.hasOwnProperty.call(parsed, 'verdict')) {
     return 'no_claim';
   }
+  if ((parsed.parseWarnings || []).some(warning => warning.startsWith('duplicate_decision_'))) return 'no_claim';
   const verdict = String(parsed.verdict || '').toLowerCase();
-  if (['pass', 'no_break_found'].includes(verdict) && parsed.blocking !== true) return 'pass';
-  if (['found_break', 'blocked'].includes(verdict)) return 'found_break';
-  return 'cannot_verify';
+  if (verdict === 'no_break_found' && parsed.blocking === false) return 'no_break_found';
+  if (verdict === 'found_break') return 'found_break';
+  if (verdict === 'cannot_verify') return 'cannot_verify';
+  // Preserve the distinction between an explicit inability to verify and a
+  // missing, contradictory or retired ballot label. Do not invent a vote.
+  return 'no_claim';
 }
 
 function positiveEvidenceBasis({ toolTelemetry = {}, autoBlastRadius = null, evidenceSources = [] } = {}) {
@@ -80,22 +84,40 @@ function canAttachFinalReview(astraSeat, fableSeat) {
 }
 
 function reportedPanelDecision(panel) {
-  // Report the last selected reviewer's own conclusion, not host certification.
-  // A failed last seat must not silently fall back to an earlier passing answer.
-  const seat = (panel && panel.seats || []).at(-1);
-  const rawVerdict = seat && seat.status === 'succeeded'
-    && typeof seat.answer === 'string' && seat.answer.trim()
-    ? seat.parsed && seat.parsed.verdict : null;
+  const seats = panel && panel.seats || [];
+  const selected = panel && panel.selected || seats.map(seat => seat.id);
+  const synthesis = ['architecture', 'planning'].includes(panel && panel.reviewIntent);
+  const votes = selected.map(id => {
+    const seat = seats.find(item => item.id === id);
+    const available = seat && seat.status === 'succeeded' && seat.qualifying !== false
+      && seat.identityConflict !== true && typeof seat.answer === 'string' && seat.answer.trim();
+    return { reviewer: id, status: seat ? seat.status : 'absent',
+      outcome: available && !synthesis ? structuredPanelVerdict(seat.parsed) : null,
+      rawVerdict: seat && seat.parsed && seat.parsed.verdict || null,
+      answerSha256: seat && seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
+      absence: available ? null : seat && seat.absence || 'reviewer_answer_absent' };
+  });
+  if (synthesis) {
+    const complete = selected.length > 0 && votes.every(vote => !vote.absence);
+    return { verdict: complete ? 'synthesis_received' : 'synthesis_incomplete',
+      reviewIntent: panel.reviewIntent, codeOutcome: null, reviewComplete: complete,
+      selectedCount: selected.length, responses: votes,
+      basis: 'independent synthesis responses; receipt of answers is not code approval or agreement' };
+  }
+  const tally = { found_break: 0, no_break_found: 0, cannot_verify: 0, absent: 0 };
+  for (const vote of votes) tally[vote.outcome in tally ? vote.outcome : 'absent']++;
+  const majorityRequired = Math.floor(selected.length / 2) + 1;
+  const majorityOutcome = ['found_break', 'no_break_found', 'cannot_verify']
+    .find(outcome => tally[outcome] >= majorityRequired) || null;
+  const complete = selected.length > 0 && votes.every(vote => vote.outcome && vote.outcome !== 'no_claim');
   return {
-    verdict: !seat || seat.status !== 'succeeded' ? 'review_incomplete'
-      : !rawVerdict ? 'no_claim'
-        : rawVerdict,
-    rawVerdict: rawVerdict || null,
-    reviewer: seat ? seat.id : null,
-    sequence: seat ? seat.sequence : null,
-    answerSha256: seat && seat.answer
-      ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
-    basis: 'reviewer report; not certification',
+    verdict: !complete ? 'review_incomplete' : majorityOutcome || 'unresolved_vote',
+    majorityOutcome, majorityRequired, selectedCount: selected.length, tally, votes,
+    reviewComplete: complete,
+    agreement: complete && majorityOutcome && tally[majorityOutcome] === selected.length ? 'unanimous'
+      : majorityOutcome ? 'majority' : 'unresolved',
+    dissent: votes.filter(vote => vote.outcome && vote.outcome !== majorityOutcome),
+    basis: 'equal peer votes on code outcome; raw evidence and dissent retained',
   };
 }
 
@@ -114,6 +136,29 @@ function parseReviewerSelection(value) {
     if (!selected.includes(id)) selected.push(id);
   }
   return selected;
+}
+
+function formatPeerReviewPacket(panel) {
+  const decision = reportedPanelDecision(panel);
+  if (['architecture', 'planning'].includes(panel.reviewIntent)) {
+    return [
+      `PANEL SYNTHESIS: ${panel.reviewIntent}; ${decision.verdict}`,
+      'CODE OUTCOME: not applicable; synthesis is not commit approval or a vote on code correctness.',
+      ...(panel.seats || []).map(seat => `${seat.label || seat.id}: ${seat.status}\nArchived provider receipt references: ${JSON.stringify(seat.providerRawReceipts || [])}\n${seat.answer || `Response unavailable: ${seat.absence || 'answer absent'}`}`),
+    ].join('\n\n');
+  }
+  const render = (label, seats) => [label, ...seats.map(seat => [
+    `${seat.label || seat.id}: ${seat.status}; reported verdict: ${seat.parsed?.verdict || 'absent'}`,
+    `Archived provider receipt references: ${JSON.stringify(seat.providerRawReceipts || [])}`,
+    seat.answer || `Review unavailable: ${seat.absence || 'answer absent'}`,
+  ].join('\n'))].join('\n\n');
+  return [
+    `PANEL CODE OUTCOME: ${decision.verdict}`,
+    `VOTES: ${JSON.stringify(decision.tally)}; majority required: ${decision.majorityRequired}; review complete: ${decision.reviewComplete}`,
+    `AGREEMENT: ${decision.agreement}; dissent: ${decision.dissent.map(vote => `${vote.reviewer}=${vote.outcome}`).join(', ') || 'none'}`,
+    render('INDEPENDENT EVIDENCE', panel.independentSeats || panel.seats || []),
+    ...(panel.evidenceRound?.required ? [render('VOTES AFTER SHARED EVIDENCE', panel.seats)] : []),
+  ].join('\n\n');
 }
 
 function selectionReceipt(selected, { requested = null, source }) {
@@ -173,7 +218,7 @@ async function promptReviewerSelection({ message, choices }, {
   });
 }
 
-function summarizePanelDiagnostics(seats) {
+function summarizePanelDiagnostics(seats, reviewIntent = 'adversarial') {
   const selectedSeats = seats || [];
   const failedSelected = selectedSeats.filter(seat => seat.status !== 'succeeded');
   const successful = selectedSeats.filter(seat => (
@@ -181,7 +226,8 @@ function summarizePanelDiagnostics(seats) {
     && seat.qualifying !== false
     && seat.identityConflict !== true
   ));
-  const claimingSeats = successful.filter(seat => seat.verdict !== 'no_claim');
+  const synthesis = ['architecture', 'planning'].includes(reviewIntent);
+  const claimingSeats = synthesis ? [] : successful.filter(seat => seat.verdict !== 'no_claim');
   const verdicts = [...new Set(claimingSeats.map((seat) => {
     if (['pass', 'no_break_found'].includes(seat.verdict)) return 'pass';
     if (['found_break', 'blocked'].includes(seat.verdict)) return 'found_break';
@@ -201,7 +247,7 @@ function summarizePanelDiagnostics(seats) {
   if (successful.length >= 2 && !identitiesIndependent) {
     issues.push(identitiesAttested ? 'identity_collision' : 'identity_attestation_absent');
   }
-  if (successful.length >= 2 && claimingSeats.length === 0) issues.push('reviewer_claim_absent');
+  if (!synthesis && successful.length >= 2 && claimingSeats.length === 0) issues.push('reviewer_claim_absent');
   if (claimingSeats.length > 1 && verdicts.length > 1) issues.push('reviewer_verdict_labels_differ');
   return {
     qualifyingSeats: successful.length,
@@ -241,41 +287,77 @@ function ensureReviewerAnswer(result, reviewerId) {
   throw error;
 }
 
-async function runReviewerPanel({ selected, runSeat, isHardStop }) {
-  const seats = [];
-  for (const id of selected) {
+async function runReviewerPanel({ selected, runSeat, isHardStop, reviewIntent = 'adversarial' }) {
+  async function collect(phase, evidence) {
+    const seats = [];
+    for (const id of selected) {
     const reviewer = REVIEWERS_BY_ID.get(id);
     const sequence = seats.length + 1;
     try {
-      const result = await runSeat(reviewer, seats);
+      // Every peer sees the same question and, in the voting round, the same
+      // frozen first-round evidence. Earlier votes never steer later voters.
+      const result = await runSeat(reviewer, { phase, evidence });
       seats.push({
         ...result,
         id,
         label: reviewer.label,
         sequence,
+        phase,
         status: 'succeeded',
         qualifying: result && result.qualifying !== false,
       });
     } catch (error) {
       if (isHardStop(error)) throw error;
+      // Preserve available partial evidence before the shared packet is frozen.
+      // Failure status still excludes this response from the vote.
+      const failedOutput = error.reviewFailure || error.reviewerResult;
+      const stageReceipt = failedOutput?.stageReceipt || error.stageAttempt || null;
+      const providerAttempts = failedOutput?.attempts || failedOutput?.providerAttempts
+        || error.reviewerAttempts || (stageReceipt ? [stageReceipt] : []);
       seats.push({
+        answer: failedOutput?.answer || null,
+        parsed: failedOutput?.parsed || null,
+        termination: failedOutput?.termination || null,
+        stageReceipt,
+        inputReceipt: failedOutput?.inputProvenance || stageReceipt?.input_provenance || null,
+        providerAttempts,
+        providerRawReceipts: providerAttempts.map(attempt => attempt.raw_output).filter(Boolean),
         id,
         label: reviewer.label,
         sequence,
+        phase,
         status: 'failed',
         qualifying: false,
         absence: error.absence || 'reviewer_answer_absent',
         error,
       });
     }
+    }
+    return seats;
   }
-  return { seats, diagnostics: summarizePanelDiagnostics(seats) };
+  const independentSeats = await collect('independent', []);
+  const evidence = independentSeats.map(seat => ({
+    id: seat.id, status: seat.status, absence: seat.absence || null,
+    answer: seat.answer || null, parsed: seat.parsed || null,
+    answerSha256: seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
+    providerRawReceipts: seat.providerRawReceipts || [],
+    inputReceipt: seat.inputReceipt || null,
+    stageReceipt: seat.stageReceipt || null,
+  }));
+  const outcomes = new Set(independentSeats.filter(seat => seat.status === 'succeeded')
+    .map(seat => structuredPanelVerdict(seat.parsed)));
+  const disputed = reviewIntent === 'adversarial' && outcomes.size > 1;
+  const seats = disputed ? await collect('evidence_vote', evidence) : independentSeats;
+  return { selected, seats, independentSeats, reviewIntent,
+    evidenceRound: { required: disputed, status: disputed ? 'dispatched_to_all_selected_peers' : 'not_required', evidence },
+    diagnostics: summarizePanelDiagnostics(seats, reviewIntent) };
 }
 
 module.exports = {
   REVIEWER_REGISTRY,
   canAttachFinalReview,
   effectiveIdentityFingerprint,
+  formatPeerReviewPacket,
   ensureReviewerAnswer,
   hasReviewerAnswer,
   summarizePanelDiagnostics,

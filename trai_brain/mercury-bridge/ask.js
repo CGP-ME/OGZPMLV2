@@ -22,11 +22,11 @@
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
  *   --no-tools             Host-enforced one-turn run with an empty tool schema
- *   --adversarial-review   Agentic mode only: ask Astra to attack Mercury's answer
+ *   --adversarial-review   Agentic mode only: select the independent Mercury/Astra/Fable panel
  *   --reviewers=IDS        Agentic reviewer IDs in dispatch order (comma-separated)
  *   --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt (repeatable)
  *   --change-path=P        Review explicit source/diff targets through evidence ingestion (repeatable)
- *   --consensus            Agentic mode only: legacy alias for Astra review
+ *   --consensus            Agentic mode only: legacy alias for the independent peer panel
  *   --architecture         Agentic mode only: longform architecture review framing
  *   --planning             Agentic mode only: implementation planning/design framing
  *   --check-providers      Warm up Mercury and Astra clients, then exit
@@ -60,8 +60,8 @@ const {
 const {
   reviewModeRequested,
   parseAdversarialReviewAnswer,
-  runAstraAdversarialReview,
-  runFableFinalAdjudication,
+  runPeerSourceReview,
+  buildPeerReviewPrompt,
   buildAttestedPromptProvenance,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
@@ -82,6 +82,7 @@ const {
   promptReviewerSelection,
   resolveReviewerSelection,
   runReviewerPanel,
+  formatPeerReviewPacket,
   structuredPanelVerdict,
   summarizePanelDiagnostics,
 } = require('./reviewer-panel');
@@ -486,9 +487,9 @@ function usage() {
   console.log('  --change-path=P        Agentic source/diff ingestion for explicit operator targets; repeatable');
   console.log('  --review-ref=REF       Pin source, search, AST and rechecks to this Git tree; requires --review-base');
   console.log('  --review-base=REF      Explicit Git comparison baseline for --review-ref');
-  console.log(`  --adversarial-review   Agentic only: force a Astra (${config.CONSENSUS_MODEL}) adversarial review`);
+  console.log(`  --adversarial-review   Agentic only: select the independent Mercury/Astra/Fable panel`);
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
-  console.log('  --consensus            Agentic only: legacy alias for a Astra review');
+  console.log('  --consensus            Agentic only: legacy alias for the independent peer panel');
   console.log('  --no-consensus         Agentic only: suppress config-default legacy consensus for this run');
   console.log('  --architecture         Agentic only: architecture-review framing; final packet is synthesis, not pass/fail');
   console.log('  --planning             Agentic only: planning/design framing; final packet is a build plan, not pass/fail');
@@ -1007,6 +1008,7 @@ async function runAgentic(query, opts) {
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
   const pinnedReviewRequested = opts.reviewRef !== undefined || opts.reviewBase !== undefined;
   const explicitTargetReview = pinnedReviewRequested || (Array.isArray(opts.changePaths) && opts.changePaths.length > 0);
+  const attackRequested = opts.attack === true;
   let explicitChangePaths = Array.isArray(opts.changePaths) && opts.changePaths.length > 0 ? normalizeExplicitPaths(opts.changePaths) : null;
   const reviewIntent = opts.reviewIntent || 'adversarial';
   let mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
@@ -1153,7 +1155,7 @@ async function runAgentic(query, opts) {
 
     let blastRadius = explicitTargetReview ? null : (opts.blastRadius || null);
     const hostEvidenceSources = [];
-    if (!blastRadius) {
+    if (!blastRadius && (explicitTargetReview || attackRequested)) {
       autoBlastRadius = await buildCurrentChangeBlastRadius({
         repoRoot: reviewRoot,
         changedFiles: explicitChangePaths,
@@ -1274,26 +1276,63 @@ async function runAgentic(query, opts) {
       }
     }
 
-    // 4. Dispatch exactly the selected registry seats in declared order.
+    let peerSourceContext = '';
+    const peerEvidenceDirs = [];
+    if (reviewerSelection.selected.some(id => id === 'astra' || id === 'fable')) {
+      const directory = path.join(config.REPO_ROOT, RUN_LEDGER_DIR, rawRunId, 'peer-evidence');
+      fs.mkdirSync(directory, { recursive: true });
+      const evidenceFile = path.join(directory, 'source-evidence.json');
+      const artifacts = (explicitReviewCorpus?.artifacts || hostEvidenceSources).map((artifact, index) => {
+        const { content, excerpt, text, ...metadata } = artifact;
+        const body = typeof content === 'string' ? content : typeof excerpt === 'string' ? excerpt : text;
+        if (typeof body !== 'string') {
+          return { ...metadata, delivery: 'metadata_only', absence: 'source_text_not_in_capture' };
+        }
+        const artifactFile = path.join(directory, `artifact-${String(index + 1).padStart(4, '0')}.txt`);
+        fs.writeFileSync(artifactFile, body);
+        return { ...metadata, evidence_file: artifactFile,
+          delivered_bytes: Buffer.byteLength(body),
+          delivered_sha256: crypto.createHash('sha256').update(body).digest('hex') };
+      });
+      const baseline = reviewView ? captureGitReviewView({ repoRoot: config.REPO_ROOT,
+        ref: reviewView.baseTree, baseRef: reviewView.baseTree, outputDir: directory }) : null;
+      const currentFiles = new Map((reviewView?.files || []).map(file => [file.file, file.object]));
+      const baselineFiles = new Map((baseline?.files || []).map(file => [file.file, file.object]));
+      fs.writeFileSync(evidenceFile, JSON.stringify({
+        source: autoBlastRadius?.reviewTarget || { source: 'WORKTREE' },
+        captured_changed_paths: baseline ? [...new Set([...currentFiles.keys(), ...baselineFiles.keys()])]
+          .filter(file => currentFiles.get(file) !== baselineFiles.get(file)).sort() : null,
+        inventory_scope: 'Changed paths compare policy-admitted captured files; explicit scan targets are recorded separately under source.paths.',
+        artifacts,
+        unresolved: explicitReviewCorpus?.unresolved || autoBlastRadius?.errors || [],
+      }, null, 2));
+      peerEvidenceDirs.push(directory);
+      peerSourceContext = [
+        `Current source directory: ${reviewRoot}`,
+        baseline ? `Exact baseline source directory: ${baseline.sourceRoot}; tree ${reviewView.baseTree}` : 'Comparison baseline: HEAD; change evidence below retains the captured diff.',
+        `Read-only source/diff/scan evidence file: ${evidenceFile}`,
+        'The manifest contains metadata and paths to verbatim artifact files. Read those files in relevant line ranges; the manifest is not delivered source coverage.',
+        'Read the evidence relevant to the original question with your tools. These files are source and captured evidence, not prior reviewer conclusions. Do not treat an inventory or successful tool call as proof that unread source was examined.',
+      ].join('\n');
+    }
+
+    // 4. Independent collection, then equal peer voting after evidence exchange.
     let client = null;
     let mercuryResult = null;
-    let astraReview = null;
-    let fableReview = null;
     const outputs = new Map();
     const panelRun = await runReviewerPanel({
       selected: reviewerSelection.selected,
+      reviewIntent,
       isHardStop: isHardReviewBoundaryError,
-      runSeat: async (reviewer, priorSeats) => {
+      runSeat: async (reviewer, { phase, evidence }) => {
         if (verbose) console.log(`[MERCURY-BRIDGE] Starting reviewer seat: ${reviewer.label}`);
         if (reviewer.id === 'mercury') {
           if (!client) {
             client = createMercuryLlmClient({ systemPrompt: config.AGENTIC_SYSTEM_PROMPT });
             await client.initialize();
           }
-          const prior = priorPanelResult(query, outputs);
-          const userQuery = outputs.size === 0
-            ? mercuryQuery
-            : `${mercuryQuery}\n\nPrior selected reviewer outputs to investigate:\n${prior.answer}`;
+          const userQuery = buildPeerReviewPrompt({ query, intentPrompt: mercuryQuery, reviewIntent, phase, evidence });
+          const seatAudit = providerAuditFactory(`mercury_${phase}`);
           const t0 = Date.now();
           const seatResult = explicitReviewCorpus ? await runExplicitTargetReview({
             client, corpus: explicitReviewCorpus, query: userQuery,
@@ -1302,8 +1341,9 @@ async function runAgentic(query, opts) {
                 explicitContinuationFactory = previous => explicitReviewContract.fresh(previous);
                 return runReactLoop({
                   client, toolAdapter, userQuery, maxTokens, maxIterations: remainingCalls, verbose,
-                  explicitReviewContract,
-                  providerAudit: providerAuditFactory('mercury_explicit_source_continuation'),
+                  explicitReviewContract, reviewIntent,
+                  attack: attackRequested,
+                  providerAudit: providerAuditFactory(`mercury_${phase}_source`),
                 });
               } : null,
             syntaxContext: autoBlastRadius && autoBlastRadius.ast,
@@ -1313,8 +1353,8 @@ async function runAgentic(query, opts) {
             evidenceAbsences: evidenceQuarantines,
           }) : await runReactLoop({
             client, toolAdapter, userQuery, starterContext, traceHint: traceHintText,
-            blastRadius, maxIterations, maxTokens, verbose, providerAudit,
-            attack: opts.attack === true,
+            blastRadius, maxIterations, maxTokens, verbose, providerAudit: seatAudit,
+            attack: attackRequested, reviewIntent,
             noTools: opts.noTools === true,
           });
           mercuryResult = seatResult;
@@ -1338,149 +1378,40 @@ async function runAgentic(query, opts) {
           const metadata = panelSeatMetadata('mercury', mercuryResult, {
             autoBlastRadius,
             evidenceSources,
-            inputDependencies: priorSeats.map(seat => ({
-              sequence: seat.sequence,
-              id: seat.id,
-              answerSha256: seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
-              evidenceQualified: seat.evidenceChecksPassed === true,
+            inputDependencies: evidence.map(seat => ({
+              id: seat.id, phase: 'independent', status: seat.status,
+              answerSha256: seat.answerSha256,
             })),
           });
           return metadata;
         }
 
-        if (reviewer.id === 'astra') {
-          const prior = mercuryResult || priorPanelResult(query, outputs);
-          astraReview = await runAstraAdversarialReview({
-            reviewRoot, query, mercuryResult: prior, reviewIntent,
-            persistRaw: persistReviewRaw, evidenceSources, hostEvidenceSources,
-          });
-          if (astraReview.ok !== true) {
-            const error = new Error(astraReview.error && astraReview.error.message || 'Astra answer absent');
-            error.absence = reviewerAbsence(error);
-            error.reviewFailure = astraReview;
-            throw error;
-          }
-          astraReview.mode = reviewModeRequested(opts) || 'adversarial_review';
-          astraReview.doctrineReview = assessDoctrineReview({
-            answer: astraReview.answer,
-            changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
-            diff: autoBlastRadius ? autoBlastRadius.diff : '',
-            telemetry: mercuryResult ? mercuryResult.toolTelemetry : {},
-            autoScan: autoBlastRadius,
-            evidenceSources,
-            reviewerId: 'astra',
-            answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
-          });
-          astraReview.quarantines = await notifyReviewQuarantines(astraReview.quarantines || []);
-          // A rejected primary answer still needs the source checks Astra
-          // requested. Preserve its failed evidence status; do not skip repair.
-          if (mercuryResult && typeof mercuryResult.answer === 'string' && mercuryResult.answer.trim()
-              && fableTieBreakerRequired(astraReview, reviewIntent)) {
-            const recheckPrompts = buildMercuryRecheckPrompts({
-              originalQuery: query,
-              mercuryAnswer: mercuryResult.answer,
-              astraAnswer: astraReview.answer,
-              parsedReview: astraReview.parsed,
-              evidenceSources,
-              filesMechanicallyOpened: Array.isArray(mercuryResult.toolTelemetry && mercuryResult.toolTelemetry.filesOpened)
-                ? mercuryResult.toolTelemetry.filesOpened
-                : [],
-              claimedFileCitations: extractClaimedFileCitations(mercuryResult.answer),
-              candidateSet: mercuryResult.candidateSet,
-            }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
-            astraReview.recheckPrompts = recheckPrompts;
-            astraReview.recheckPrompt = recheckPrompts[0] || null;
-            const recheckRun = await runReviewRechecks({
-              prompts: recheckPrompts, client, toolAdapter, starterContext, blastRadius,
-              maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit: providerAuditFactory,
-              attack: opts.attack === true,
-              noTools: opts.noTools === true,
-              explicitContinuationFactory: explicitContinuationFactory
-                ? rechecks => explicitContinuationFactory({ ...mercuryResult, continuationRechecks: [...rechecks] }) : null,
-              claimInventory: mercuryResult.candidateSet?.claimInventory || [],
-              claimSourceEvidence: (mercuryResult.shardedReview?.claim_inventory || []).flatMap(target => target.source_evidence || []),
-            });
-            astraReview.rechecks = recheckRun.rechecks;
-            astraReview.recheck = astraReview.rechecks[0] || null;
-            astraReview.quarantines.push(...recheckRun.quarantines);
-            mercuryResult.candidateSet = mergeCandidateSetRechecks(
-              mercuryResult.candidateSet,
-              astraReview.rechecks
-            );
-            for (const recheck of astraReview.rechecks) {
-              recheck.doctrineReview = assessDoctrineReview({
-                answer: recheck.answer,
-                candidateSet: recheck.candidateSet,
-                changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
-                diff: autoBlastRadius ? autoBlastRadius.diff : '',
-                telemetry: recheck.toolTelemetry,
-                autoScan: autoBlastRadius,
-                evidenceSources,
-                reviewerId: 'mercury',
-                answerQuality: recheck.answerQuality,
-              });
-            }
-          }
-          outputs.set('astra', { id: 'astra', ...astraReview });
-          const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
-          const metadata = panelSeatMetadata('astra', astraReview, {
-            evidenceSources: [...evidenceSources, ...hostEvidenceSources],
-            inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
-            inputDependencies: priorSeats.map(seat => ({
-              sequence: seat.sequence,
-              id: seat.id,
-              answerSha256: seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
-              evidenceQualified: seat.evidenceChecksPassed === true,
-            })),
-          });
-          // Rechecks retain Mercury's provenance in astraReview.rechecks;
-          // they must not replace Astra's independent answer or evidence.
-          return metadata;
+        const output = await runPeerSourceReview({
+          reviewerId: reviewer.id, reviewRoot, query, intentPrompt: mercuryQuery, reviewIntent, phase, evidence,
+          sourceContext: peerSourceContext, evidenceDirs: peerEvidenceDirs,
+          persistRaw: persistReviewRaw, evidenceSources,
+        });
+        if (output.ok !== true) {
+          const error = new Error(`${reviewer.label} review request did not complete`);
+          error.absence = 'reviewer_request_incomplete';
+          error.reviewFailure = output;
+          throw error;
         }
-
-        const prior = mercuryResult || priorPanelResult(query, outputs);
-        const earlierAstraSeat = priorSeats.find(seat => seat.id === 'astra' && seat.status === 'succeeded');
-        const review = earlierAstraSeat ? astraReview : {
-          answer: priorPanelResult(query, outputs).answer,
-          parsed: { verdict: 'not_selected', blocking: false },
-          rechecks: [],
-          recheckPrompts: [],
-          panelSourceLabel: 'Earlier selected reviewer evidence (no prior Astra seat)',
-          panelSourcePath: 'panel://prior-reviewer-evidence',
-        };
-        fableReview = await runFableFinalAdjudication({
-          query, mercuryResult: prior, review,
-          persistRaw: persistReviewRaw, evidenceSources, hostEvidenceSources,
+        outputs.set(reviewer.id, { id: reviewer.id, ...output });
+        output.doctrineReview = assessDoctrineReview({
+          answer: output.answer, changedFiles: autoBlastRadius?.changedFiles || [],
+          diff: autoBlastRadius?.diff || '', telemetry: output.toolTelemetry || {},
+          autoScan: autoBlastRadius, evidenceSources, reviewerId: reviewer.id,
         });
-        fableReview.doctrineReview = assessDoctrineReview({
-          answer: fableReview.answer,
-          changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
-          diff: autoBlastRadius ? autoBlastRadius.diff : '',
-          telemetry: mercuryResult ? mercuryResult.toolTelemetry : {},
-          autoScan: autoBlastRadius,
-          evidenceSources,
-          reviewerId: 'fable',
-          answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
-        });
-        fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
-        outputs.set('fable', { id: 'fable', ...fableReview });
-        const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
-        const metadata = panelSeatMetadata('fable', fableReview, {
-          evidenceSources: [...evidenceSources, ...hostEvidenceSources],
-          inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
-          inputDependencies: priorSeats.map(seat => ({
-            sequence: seat.sequence,
-            id: seat.id,
-            answerSha256: seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
-            evidenceQualified: seat.evidenceChecksPassed === true,
-          })),
-        });
-        return metadata;
+        output.quarantines = await notifyReviewQuarantines(output.quarantines || []);
+        return panelSeatMetadata(reviewer.id, output, { evidenceSources,
+          inputDependencies: evidence.map(seat => ({ id: seat.id, phase: 'independent',
+            status: seat.status, answerSha256: seat.answerSha256 })) });
       },
     });
 
     const failedQuarantines = [];
-    for (const seat of panelRun.seats.filter(seat => seat.status === 'failed')) {
+    for (const seat of [...new Set([...panelRun.independentSeats, ...panelRun.seats])].filter(seat => seat.status === 'failed')) {
       const failedOutput = seat.error && (seat.error.reviewFailure || seat.error.reviewerResult || (seat.error.stageAttempt ? {
         attempts: Array.isArray(seat.error.reviewerAttempts)
           ? seat.error.reviewerAttempts
@@ -1555,20 +1486,7 @@ async function runAgentic(query, opts) {
     if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
     result.retrieval = retrieval;
     result.indexFreshness = indexFreshness;
-    if (astraReview) {
-      const astraSeat = panelRun.seats.find(seat => seat.id === 'astra' && seat.status === 'succeeded');
-      const fableSeat = panelRun.seats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
-      if (canAttachFinalReview(astraSeat, fableSeat)) {
-        astraReview.finalReview = fableReview;
-        result.reviewerPanel.diagnostics = recomputePanelDiagnostics(panelRun);
-      }
-      result.adversarialReview = astraReview;
-      result.consensus = astraReview;
-      result.adversarialReviewPacket = formatAdversarialReviewPacket({
-        originalQuery: query, mercuryResult,
-        review: astraReview, panel: result.reviewerPanel, reviewIntent,
-      });
-    }
+    result.adversarialReviewPacket = formatPeerReviewPacket(result.reviewerPanel);
 
     result.decideAdvisory = await runDecideAdvisory({
       query, result, settings: config.MERCURY_DECIDE_ADVISORY,
@@ -1701,16 +1619,22 @@ function printDispatchReceipt(result) {
   console.log(`cost:            run=${formatCost(entry.run_cost)} | today=${formatCost(entry.daily_cost_total)} | month=${formatCost(entry.monthly_cost_total)}`);
   const panel = entry.reviewer_panel;
   if (panel) {
+    const synthesis = ['architecture', 'planning'].includes(panel.reviewIntent);
     console.log(`reviewers:       ${panel.selected.join(',')} (${panel.source})`);
     console.log(`unselected:      ${panel.unselected.length > 0 ? panel.unselected.join(',') : 'none'}`);
-    console.log(`reported by:     ${panel.reported_decision.reviewer || 'none'}; model report, not host certification`);
+    if (synthesis) {
+      console.log(`synthesis:       ${panel.reviewIntent}; ${panel.reported_decision.verdict}; responses complete=${panel.reported_decision.reviewComplete}; code outcome=not applicable`);
+    } else {
+      console.log(`peer vote:       ${JSON.stringify(panel.reported_decision.tally)}; majority required=${panel.reported_decision.majorityRequired}; complete=${panel.reported_decision.reviewComplete}`);
+      console.log(`agreement:       ${panel.reported_decision.agreement}; dissent=${panel.reported_decision.dissent.map(vote => vote.reviewer + ':' + vote.outcome).join(',') || 'none'}`);
+    }
     console.log(`panel findings:  ${panel.diagnostics.issues.join(',') || 'none'}; verdict_labels_match=${panel.diagnostics.verdictLabelsMatch ? 'yes' : 'no'} (not semantic consensus)`);
     for (const seat of panel.seats) {
       const selfReportAbsence = Array.isArray(seat.named_absences) && seat.named_absences.includes('self_report_absent')
         ? ' self_report_absent'
         : '';
       console.log(`  - ${seat.id}: ${seat.status} provider=${seat.provider || 'unavailable'} models=${(seat.appliedModels || []).join(',') || 'none'} stopped=${seat.stopped_because || 'unknown'}${seat.absence ? ` absence=${seat.absence}` : ''}${selfReportAbsence}`);
-      console.log(`    reported verdict=${seat.parsed?.verdict || 'absent'} evidence=${seat.evidenceChecksPassed === true ? 'observed' : 'missing_or_failed'} identity=${seat.identityConflict ? 'conflict' : 'see_provider_receipt'}`);
+      console.log(`    ${synthesis ? 'raw parsed label (not a code vote)' : 'reported verdict'}=${seat.parsed?.verdict || 'absent'} evidence=${seat.evidenceChecksPassed === true ? 'observed' : 'missing_or_failed'} identity=${seat.identityConflict ? 'conflict' : 'see_provider_receipt'}`);
       console.log(`    review findings: ${(seat.doctrineReview?.namedAbsences || []).join(',') || 'none'}${seat.recheckDiagnostics ? `; recheck=${seat.recheckDiagnostics.namedAbsences.join(',') || 'none'}` : ''}`);
     }
   }
@@ -1787,7 +1711,10 @@ function printDispatchReceipt(result) {
   }
 
   const reviewEntry = entry.adversarial_review;
-  if (!reviewEntry) {
+  if (entry.reviewer_panel) {
+    const decision = entry.reviewer_panel.reported_decision;
+    console.log(`review layer:    peer panel — ${decision.verdict}; complete=${decision.reviewComplete}`);
+  } else if (!reviewEntry) {
     console.log('review layer:    not requested');
   } else if (reviewEntry.ok) {
     console.log(`review layer:    ok — ${reviewEntry.mode || 'adversarial_review'} verdict=${reviewEntry.effective_verdict || 'n/a'}`);
@@ -1968,7 +1895,12 @@ async function main() {
       console.log(`[iterations: ${result.iterations} | termination: ${result.termination} | latency: ${result.totalLatencyMs}ms]`);
       printDispatchReceipt(result);
       if (result.exitCode) process.exitCode = result.exitCode;
-      if (result.adversarialReview || result.consensus) {
+      if (result.reviewerPanel) {
+        console.log('');
+        console.log('═══ PEER EVIDENCE AND VOTES ═══');
+        console.log('');
+        console.log(result.adversarialReviewPacket);
+      } else if (result.adversarialReview || result.consensus) {
         const review = result.adversarialReview || result.consensus;
         console.log('');
         const reviewTitle = args.reviewIntent === 'architecture'

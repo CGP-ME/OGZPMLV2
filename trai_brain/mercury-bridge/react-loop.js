@@ -855,6 +855,7 @@ async function runReactLoop(params) {
     verbose = false,
     providerAudit = null,
     attack = false,
+    reviewIntent = 'adversarial',
     noTools = false,
     claimInventory = [],
     claimSourceEvidence = [],
@@ -892,7 +893,8 @@ async function runReactLoop(params) {
     .filter(Boolean)
     .sort();
 
-  const attackMode = attack === true || /\bbreak my fix\b/i.test(userQuery);
+  const synthesis = ['architecture', 'planning'].includes(reviewIntent);
+  const attackMode = !synthesis && (attack === true || /\bbreak my fix\b/i.test(userQuery));
   const messages = [{
     role: 'system',
     content: attackMode ? `${systemPrompt}\n\n${ATTACK_SYSTEM_PROMPT}` : systemPrompt,
@@ -941,7 +943,7 @@ async function runReactLoop(params) {
   let decisionSteerSentAt = null;
 
   // Reserve the final review call for synthesis, within the total call cap.
-  const boundedReview = !noTools && maxIterations != null && (attackMode || Boolean(explicitReviewContract));
+  const boundedReview = !synthesis && !noTools && maxIterations != null && (attackMode || Boolean(explicitReviewContract));
   const iterationLimit = noTools ? 1 : maxIterations;
   const lifecycle = boundedReview ? { callLimit: iterationLimit, investigationLimit: Math.max(0, iterationLimit - 1),
     finalizationRequested: false, finalizationReached: false, status: 'investigating' } : null;

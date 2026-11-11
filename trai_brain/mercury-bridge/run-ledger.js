@@ -729,6 +729,18 @@ function buildReviewLedgerSummary(review) {
 
 function providerAttemptGroups(result) {
   if (!result) return [];
+  if (result.reviewerPanel) {
+    const groups = [];
+    const seen = new Set();
+    for (const seat of [...(result.reviewerPanel.independentSeats || []), ...(result.reviewerPanel.seats || [])]) {
+      const id = `${seat.id}_${seat.phase || 'independent'}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      groups.push({ id, attempts: seat.providerAttempts || [] });
+    }
+    if (result.decideAdvisory) groups.push({ id: 'mercury_decide_advisory', attempts: result.decideAdvisory.providerAttempts || [] });
+    return groups;
+  }
   const groups = [{ id: 'mercury', attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [] }];
   if (result.decideAdvisory) {
     groups.push({ id: 'mercury_decide_advisory', attempts: result.decideAdvisory.providerAttempts || [] });
@@ -760,28 +772,15 @@ function providerAttemptGroups(result) {
 
 function panelSeatLedger(panel, result) {
   if (!panel) return null;
-  const review = result && (result.adversarialReview || result.consensus);
+  const receipt = seat => ({
+    ...seat,
+    ...seatReceiptFields(seat.answer, seat.providerAttempts || [], seat.status === 'failed' ? 'reviewer_failed' : null),
+  });
   return {
-    ...panel,
-    diagnostics: summarizePanelDiagnostics(panel.seats),
+    ...panel, diagnostics: summarizePanelDiagnostics(panel.seats, panel.reviewIntent),
     reported_decision: reportedPanelDecision(panel),
-    seats: (panel.seats || []).map((seat) => {
-      let attempts = Array.isArray(seat.providerAttempts) ? seat.providerAttempts : [];
-      if (seat.id === 'mercury') attempts = Array.isArray(result && result.providerAttempts) ? result.providerAttempts : attempts;
-      const challengerId = review && (review.provider === 'codex-subscription' ? 'astra' : 'fable');
-      if (seat.id === challengerId && review) {
-        attempts = seat.evaluationSource === 'mercury_recheck' && review.recheck
-          ? (review.recheck.providerAttempts || [])
-          : (review.attempts || []);
-      }
-      const finalId = review && review.finalReview
-        && (review.finalReview.provider === 'claude-code' ? 'fable' : 'kimi');
-      if (seat.id === finalId) attempts = review.finalReview.attempts || [];
-      return {
-        ...seat,
-        ...seatReceiptFields(seat.answer, attempts, seat.status === 'failed' ? 'reviewer_failed' : null),
-      };
-    }),
+    independentSeats: (panel.independentSeats || []).map(receipt),
+    seats: (panel.seats || []).map(receipt),
   };
 }
 

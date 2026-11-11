@@ -16,9 +16,7 @@ module.exports = {
   buildMercuryRecheckPrompt: review.buildMercuryRecheckPrompt,
   buildMercuryRecheckPrompts: review.buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket: review.formatAdversarialReviewPacket,
-  buildConsensusPrompt: review.buildAdversarialReviewPrompt,
-  buildFableFinalAdjudicationPrompt: review.buildFableFinalAdjudicationPrompt,
-  runAstraConsensus: review.runAstraAdversarialReview,
-  runFableFinalConsensus: review.runFableFinalAdjudication,
+  buildPeerReviewPrompt: review.buildPeerReviewPrompt,
+  runPeerSourceReview: review.runPeerSourceReview,
   consensusFailure: review.adversarialReviewFailure,
 };

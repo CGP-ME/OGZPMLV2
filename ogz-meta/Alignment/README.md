@@ -29,6 +29,13 @@ choose its evidence and conclusion. Read the complete answer before the next
 question. The current usage guide is `trai_brain/mercury-bridge/README.md`;
 this instruction supersedes historical broad-review wording in older records.
 
+Trey's further 2026-11-10 correction: Mercury, Astra and Fable are independent
+tool-enabled peers. When their conclusions differ, all bring their evidence and
+vote equally after receiving the same evidence. There is no final judge.
+Preserve dissent, incomplete reviews and exact model identity. Agreement with a
+defect must stay a defect in the headline; `pass` cannot mean agreement. Existing
+RAG exclusions for noncanonical documents and exchanged packets remain intact.
+
 Before answering questions or touching files, walk this path:
 
 0. Apply the Fourth Shape before any throw doctrine is used:

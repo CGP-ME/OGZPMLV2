@@ -489,6 +489,8 @@ class ClaudeCodeConsensusClient {
     this.temperature = clientOptions.temperature;
     this.requestTimeoutMs = clientOptions.requestTimeoutMs;
     this.systemPrompt = clientOptions.systemPrompt;
+    this.repoRoot = clientOptions.repoRoot || config.REPO_ROOT;
+    this.evidenceDirs = clientOptions.evidenceDirs || [];
     this.execFileAsync = clientOptions.execFileAsync || execFileAsync;
     this.resolveExecutable = clientOptions.resolveExecutable || resolveTrustedClaudeExecutable;
     this.requestCount = 0;
@@ -624,16 +626,26 @@ class ClaudeCodeConsensusClient {
       '--verbose',
       '--no-session-persistence',
       '--disable-slash-commands',
-      '--tools', '',
+      '--restricted',
+      '--tools', 'Read,Grep,Glob',
+      '--allowedTools', 'Read,Grep,Glob',
       '--strict-mcp-config',
       '--system-prompt', systemPrompt,
     ];
+    for (const directory of this.evidenceDirs) args.push('--add-dir', directory);
     if (this.model === 'claude-fable-5') {
       // Trey authorized only Fable 5. Do not inherit user/project model
       // overrides or automatically reroute a refusal to another model.
       args.push('--setting-sources', '', '--settings', JSON.stringify({
         switchModelsOnFlag: false,
         fallbackModel: [],
+        permissions: { deny: [
+          'Read(**/.env*)',
+          ...(this.repoRoot === config.REPO_ROOT ? [...require('../repository-policy').SKIP_DIRS,
+            ...require('../repository-policy').TEST_FIXTURE_DIRS].map(name => `Read(**/${name}/**)`) : []),
+          'Read(**/*.test.*)', 'Read(**/*.spec.*)', 'Read(**/*.fixture.*)',
+          'Read(**/test-*)', 'Read(**/test_*)', 'Read(**/smoke-test*)',
+        ] },
       }));
     }
     const startedAt = new Date();
@@ -643,7 +655,7 @@ class ClaudeCodeConsensusClient {
     try {
       const result = await this.execFileAsync(this.executableTrust.realpath, args, {
         input: prompt,
-        cwd: config.REPO_ROOT,
+        cwd: this.repoRoot,
         env: buildClaudeSubscriptionEnv(),
         timeout: this.requestTimeoutMs,
         maxBuffer: 10 * 1024 * 1024,
@@ -663,7 +675,9 @@ class ClaudeCodeConsensusClient {
     if (!answer) incompleteSubconditions.push('empty_answer');
     if (!metadata.termination) incompleteSubconditions.push('missing_termination');
     if (metadata.termination === 'provider_error') incompleteSubconditions.push('provider_error_termination');
-    if (metadata.toolsAvailable.length > 0) incompleteSubconditions.push('unexpected_exposed_tools');
+    if (metadata.toolsAvailable.some(name => !['Read', 'Grep', 'Glob'].includes(name))) {
+      incompleteSubconditions.push('unexpected_mutating_or_external_tools');
+    }
     if (this.model === 'claude-fable-5' && metadata.identityPosture.status === 'identity_conflict') {
       incompleteSubconditions.push('identity_conflict');
       metadata.stoppedBecause = 'identity_conflict';
@@ -688,6 +702,14 @@ class ClaudeCodeConsensusClient {
     const providerError = exitCode && stderr
       ? String(stderr).trim().slice(0, 500)
       : null;
+    const blocks = frames.flatMap(frame => Array.isArray(frame.message?.content) ? frame.message.content : []);
+    const toolUses = blocks.filter(block => block.type === 'tool_use');
+    const toolResults = blocks.filter(block => block.type === 'tool_result');
+    const calls = toolUses.map(tool => {
+      const result = toolResults.find(item => item.tool_use_id === tool.id);
+      return { id: tool.id, name: tool.name, arguments: tool.input,
+        status: result ? result.is_error ? 'failed' : 'succeeded' : 'requested' };
+    });
     return {
       provider: this.providerName,
       requestedModel: this.model,
@@ -715,7 +737,18 @@ class ClaudeCodeConsensusClient {
       rawResponse: stdout,
       rawError: stderr,
       providerFrames: frames,
+      partialAnswer: frames.flatMap((frame, index) => {
+        if (!frame || !['assistant', 'result'].includes(frame.type)) return [];
+        const text = extractAnswerFromClaudeCodeFrames([frame]);
+        return typeof text === 'string' && text.trim()
+          ? [`Provider ${frame.type} frame ${index + 1}:\n${text}`] : [];
+      }).join('\n\n') || null,
       toolsAvailable: initFrame && Array.isArray(initFrame.tools) ? initFrame.tools : [],
+      tools: { enabled: true, available: initFrame && initFrame.tools || [], calls,
+        total: calls.length, succeeded: calls.filter(call => call.status === 'succeeded').length,
+        failed: calls.filter(call => call.status === 'failed').length },
+      invocation: { cwd: this.repoRoot, evidenceDirs: this.evidenceDirs,
+        tools: ['Read', 'Grep', 'Glob'], permissionMode: this.permissionMode, restricted: true },
       authStatus: this.authStatus,
       executableTrust: this.executableTrust,
     };
@@ -777,7 +810,8 @@ function resolveConsensusLlmClientOptions({
   };
 }
 
-function resolveFableTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
+function resolveFableTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT,
+  repoRoot = config.REPO_ROOT, evidenceDirs = [] } = {}) {
   return {
     provider: config.TIE_BREAKER_PROVIDER,
     model: config.TIE_BREAKER_MODEL,
@@ -787,6 +821,8 @@ function resolveFableTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_S
     temperature: config.TIE_BREAKER_TEMPERATURE,
     requestTimeoutMs: config.TIE_BREAKER_REQUEST_TIMEOUT_MS,
     systemPrompt,
+    repoRoot,
+    evidenceDirs,
   };
 }
 

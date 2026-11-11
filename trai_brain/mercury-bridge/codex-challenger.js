@@ -262,8 +262,7 @@ class CodexChallengerClient {
       '-c', 'model_providers.panel-subscription.wire_api="responses"',
       '-c', 'model_providers.panel-subscription.requires_openai_auth=true',
       '-c', 'model_providers.panel-subscription.supports_websockets=false',
-      '-c', `developer_instructions=${JSON.stringify(this.systemPrompt.replace('You do not have repo tools in this review pass.',
-        'Use the available tools for read-only evidence inspection in the supplied working directory; it is the selected source snapshot when a review ref is pinned. Do not substitute the parent checkout. Do not edit files, call other reviewers, or change runtime state.'))}`,
+      '-c', `developer_instructions=${JSON.stringify(this.systemPrompt)}`,
       '-'];
     const delivery = prepareInputDelivery(prompt);
     // A review spans many requests and tool reads. Apply the existing timeout
