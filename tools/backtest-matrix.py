@@ -288,10 +288,22 @@ def run_cell(payload):
     receipt['credentialInputs'] = 'inert offline constructor tokens; no real credentials or service responses'
     config_script = """
 const loader = require('./foundation/ConfigLoader');
-const s = loader.snapshot(process.env, {silent: true});
+const s = loader.load({silent: true});
 const paths = JSON.parse(process.argv[1]);
 const resolved = Object.fromEntries(paths.map(p => [p, p.split('.').reduce((v, k) => v?.[k], s.config)]));
-console.log(JSON.stringify({resolved, fingerprint: s.fingerprint, fees: s.config.fees, warnings: s.warnings}));
+// Ask the same native registration/filter owner the replay uses; do not keep
+// a second strategy-to-toggle table or turn disabled strategies on for a sweep.
+const {StrategyOrchestrator} = require('./core/StrategyOrchestrator');
+const {CandleAggregator} = require('./core/CandleAggregator');
+const candleIntervals = new CandleAggregator();
+const baseTimeframe = [...s.config.orchestrator.mtfTimeframes].sort(
+  (a, b) => candleIntervals.getIntervalMs(a) - candleIntervals.getIntervalMs(b))[0];
+const orchestrator = new StrategyOrchestrator({mtfBaseTimeframe: baseTimeframe});
+const requested = s.config.strategies.soloFilter;
+const active = orchestrator.strategies.map(strategy => strategy.name);
+const inactive = requested.filter(name => !active.includes(name));
+console.log(JSON.stringify({resolved, fingerprint: s.fingerprint, fees: s.config.fees,
+  warnings: s.warnings, strategySelection: {requested, active, inactive}}));
 """
     tracked_paths = ['confidence.minTradeConfidence', 'filters.atrEnabled', 'filters.atrMinPercent',
                      'strategyBehavior.emaCrossover', 'trai.enabled', 'features.enableLearning',
@@ -307,6 +319,10 @@ console.log(JSON.stringify({resolved, fingerprint: s.fingerprint, fees: s.config
         return outcome
     resolved = json.loads(probe.stdout.strip().splitlines()[-1])
     outcome.update(resolved)
+    if resolved['strategySelection']['inactive']:
+        outcome['failure'] = 'inactive_strategy_selection'
+        outcome['log'] = probe.stdout + probe.stderr
+        return outcome
     with (work / 'runner.log').open('w+') as log:
         process = subprocess.run(['node', 'run-empire-v2.js'], cwd=ROOT, env=environment,
                                  stdout=log, stderr=subprocess.STDOUT)

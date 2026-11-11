@@ -39,6 +39,8 @@ The selected `baseProfile` is copied from current `config/settings.json`. Its st
 
 Each cell goes through `scripts/test-isolated.py`: disposable current-source copy, separate filesystem/network/process namespaces, read-only dependencies, no host `.env`, learned banks, journals, accounts, sockets or home. Only the disposable settings copy is changed. The runner receives a typed descriptor for its dataset, report and fresh state. Inert offline tokens satisfy existing adapter/model constructors; they are not real credentials, and no broker/model responses are fabricated.
 
+Before replay, the cell resolves configuration and asks the native `StrategyOrchestrator` for its actual active strategy set. Receipts record `strategySelection.requested`, `active`, and `inactive`. If any requested strategy is inactive, the cell fails as `inactive_strategy_selection` before launching the trading executable; it is not a successful zero-trade experiment, and a partially disabled group is not silently reduced. Disabled pipeline settings remain unchanged. `--dry-run` checks plan/data structure and dimensions only; it does not instantiate the native strategy owner or certify activation.
+
 Source and dataset content identities are recorded. Each cell verifies its source snapshot against the run manifest before it starts. Concurrent source changes become named failed cells, not mixed-version results. Use a quiet checkout when running a large matrix.
 
 ## Outputs
