@@ -131,3 +131,94 @@ configuration, model adapter, credentials, state, PM2 process or RAG index was
 changed. This delivery records the review only. No new Mercury/panel dispatch was
 made for this prose-only report; the earlier authors' reviews are not presented
 as approval of these newly reproduced findings.
+
+## Follow-up: throws, silent behavior and doctrine compliance
+
+Trey specifically requested this follow-up. The two tool files remain byte-for-byte
+identical to their Hermes commits. This is an audit, not authorization to repair
+the implementations. The governing rules are `ogz-meta/AGENTS.md:32,46-53` and
+`ogz-meta/Alignment/TREY-DOCTRINE-FABLE-LANE.md:7-21,35`.
+
+### Explicit exceptions and scope
+
+The Python AST census found 38 explicit error raises and two assertions in
+`tools/backtest-matrix.py`; `tools/fetch-candles.py` has 41 explicit error raises
+plus the normal `raise SystemExit(main())` CLI exit. Total: 79 error-raise sites,
+two assertions, and 19 exception handlers. `doctrine-census.json` records their
+individual line numbers, containing functions and source statements.
+
+This is not evidence of 79 live-bot shutdown paths. The commits introduce
+standalone utilities, guides and fixtures; the only shared helper change admits
+these source files to isolation. No production caller was found in the searched
+runner/core/foundation/modules/brokers/scripts/tools source. The downloader has no
+PM2, signal or trading-runtime invocation. Matrix runner invocations occur inside
+the existing mandatory isolated helper. `AGENTS.md:118` explicitly permits missing
+isolation to stop that helper, never the bot.
+
+Nevertheless, external exchange failures are implemented using new exceptions:
+for example invalid OHLCV and conflicting duplicate bars raise `FetchError` at
+`tools/fetch-candles.py:143,146`, then the whole source attempt is marked failed at
+463-464. That does not implement the Fourth Shape's stated external-fault routing.
+The matrix also adds internal assertions at 343 and 469. The latter repeats an
+already-established condition: argument validation at 458-459 requires output
+unless dry-run, and dry-run returns at 466-468. These should not be described as
+producer fixes. Removing validation indiscriminately is not the remedy; preserve
+explicit rejection of unusable inputs while resolving each site's producer and
+failure-routing contract. No blanket claim that every CLI rejection is a bot
+shutdown is made.
+
+### Confirmed silent behavior
+
+1. **Discarded errors in the downloader.** There are three literal catch/pass
+   handlers at `tools/fetch-candles.py:322,487,492`. Invalid rate metadata is
+   silently ignored; cleanup and failure-receipt write errors are also swallowed.
+   An isolated synthetic observation reached a publication write error, a cleanup
+   error and a failure-receipt write error. `run()` returned 1, emitted no error
+   diagnostics, retained `candles.json.tmp`, and left no final `receipt.json`.
+   The outer CLI only adds its exit-code/receipt-directory message. This is a
+   lost-diagnostics/receipt problem, not a falsely successful download. A separate
+   synthetic 429 with malformed Retry-After retried successfully with conservative
+   backoff but recorded no metadata warning.
+2. **Different failures lose their identity.** At 465-466, malformed provider
+   data, programming/type errors and disk errors collapse into
+   `malformed_provider_response_or_io_failure`. A synthetic Alpaca bar missing
+   OHLCV fields reproduced that exact generic receipt. The failed status and raw
+   payload remain, but the exception type, missing field and failure stage do not.
+   Argument, network and outer I/O handlers at 100,328,508 also replace specific
+   causes with generic messages. Sanitization must not become silent erasure of
+   non-secret diagnostic identity.
+3. **Unreported credential mixing.** `read_credentials` at 357-376 first copies
+   both credentials from the environment and then replaces only keys present in
+   an explicit file. An isolated run supplied a file containing only the key ID
+   and an environment containing the secret. The actual request construction
+   combined them; the resulting receipt had no credential-source/warning field.
+   The transport and credentials were synthetic, so this is not a claim that
+   Alpaca accepted that combination. This affects account-credential provenance,
+   not trading-parameter configuration.
+4. **Inactive experiment reported as normal no-trade.** Finding 3 above remains
+   the concrete matrix ambiguity: the selected disabled strategy was absent from
+   the active pipeline, yet 130 processed bars yielded an exit-0 `no_trades` result.
+   The disabled setting must remain authoritative; the experiment's unavailable
+   state needs to be named instead of represented as ordinary zero activity.
+
+These are open compliance findings. The matrix's requested confidence/ATR/stop
+changes are separately documented and receipted (`backtest-matrix.py:37-100`),
+applied only to the isolated copy at 255-288. The explicit provider fallback order
+also preserves failed attempts and records the selected provider. Neither was
+found to silently overwrite the running bot's configuration in these commits.
+
+### Verification and disposition
+
+The new observations ran through `scripts/test-isolated.py` against 846 matching
+source hashes from `9f3530103e7fec15cf9bf45106953966c3ec6878`. Receipts are
+`doctrine-observation.json`, the complete `doctrine-observation-final.log`, and
+the private `fixtures/doctrine-observation.py`. No real credentials, network,
+operator state or trading process were used. An initial fixture incorrectly
+shaped Alpaca's multi-symbol bars as an array; its retained log is
+`doctrine-observation.log`. Only the fixture was corrected to use the actual
+provider-shaped symbol map before the final observations.
+
+Named deferral: implementation repairs await Trey's decision after this audit.
+Only this report and a detailed changelog entry are delivered. No production
+source, configuration, credential, PM2 process or RAG index was changed. No Jest
+or paid adversarial dispatch was used for this documentation-only follow-up.
