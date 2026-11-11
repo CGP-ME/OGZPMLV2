@@ -76,9 +76,12 @@ class BacktestRunner {
   }
 
   _assertDataFileMatchesRuntimeScope(dataPath, symbol, timeframe) {
-    const instrument = resolveInstrumentFromDataFile(dataPath);
-    const dataSymbol = normalizeAssetSymbol(instrument.tradingPair);
-    const runtimeSymbol = normalizeAssetSymbol(symbol);
+    const instrument = resolveInstrumentFromDataFile(dataPath, this.ctx.runtimeConfig?.execution);
+    // Stock identity is descriptor-owned, not membership in the broker metadata
+    // registry. Preserve crypto alias reconciliation for legacy datasets.
+    const isStock = this.ctx.runtimeConfig?.execution?.assetClass === 'stocks';
+    const dataSymbol = isStock ? instrument.tradingPair : normalizeAssetSymbol(instrument.tradingPair);
+    const runtimeSymbol = isStock ? symbol : normalizeAssetSymbol(symbol);
     if (!dataSymbol || !runtimeSymbol || dataSymbol !== runtimeSymbol) {
       throw new Error(
         `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to ${instrument.tradingPair}, ` +
@@ -421,7 +424,9 @@ class BacktestRunner {
       // instead of project root. Keeps repo root clean; standalone backtests keep legacy path.
       let reportAssetSuffix = '';
       if (this.ctx.runtimeConfig.backtest.candleDataFile) {
-        const reportAssetSlug = deriveReportAssetSlugFromDataFile(this.ctx.runtimeConfig.backtest.candleDataFile);
+        const reportAssetSlug = deriveReportAssetSlugFromDataFile(
+          this.ctx.runtimeConfig.backtest.candleDataFile, this.ctx.runtimeConfig.execution
+        );
         reportAssetSuffix = `-${reportAssetSlug}`;
       }
       let reportPath;

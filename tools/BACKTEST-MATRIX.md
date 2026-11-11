@@ -55,6 +55,7 @@ No console regex is used to reconstruct financial results. A unique structured r
 
 ## Honest boundaries
 
+- Stock replay passes the validated descriptor's asset class/broker into filename reconciliation and report naming; canonical TSLA, RIOT, MARA, AAPL and NVDA were exercised through the actual runner. Legacy recognized-stock annotation names retain their existing interpretation. Filename symbol/timeframe and matrix candle metadata mismatches remain refusals. This is not arbitrary-stock onboarding: `SymbolTradingContext` still requires existing `AssetRegistry` metadata, and a registry-unknown ticker can pass plan validation yet fail upstream of replay. Do not infer full support from a filename-scope check. Dotted tickers such as `BRK.B` remain unsupported by the matrix grammar; no alias conversion is implicit.
 - Current replay accepts one symbol and one native timeframe per dataset. Missing higher frames stay unavailable; this is not full MTF/tick replay. Raw completed historical candles are inputs; the tool does not synthesize missing market data or silently sort/dedupe corrupt files.
 - OHLC cannot recover intrabar stop/target ordering or broker fill latency. Existing simulated slippage/fee code is used, not perfect fills.
 - Learning settings remain intact, but each cell starts with empty isolated stores. Deployed learned-state parity is not claimed.

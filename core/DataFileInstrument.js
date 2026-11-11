@@ -70,7 +70,7 @@ function extractTimeframeToken(dataFile) {
   return tokens.find(token => TIMEFRAME_TOKENS.has(token)) || null;
 }
 
-function resolveInstrumentFromDataFile(dataFile) {
+function resolveInstrumentFromDataFile(dataFile, validatedIdentity = null) {
   const symbolTokens = extractSymbolTokens(dataFile);
   const timeframe = extractTimeframeToken(dataFile);
   const baseTicker = symbolTokens[0];
@@ -82,6 +82,21 @@ function resolveInstrumentFromDataFile(dataFile) {
   const cryptoByBase = configuredCryptoBases().has(baseTicker);
   const isCrypto = hasQuoteToken || cryptoBySource || cryptoByBase;
   const isKnownStock = configuredStockTickers().has(baseTicker);
+
+  // Preserve the filename-only producers' stock grammar: a known stock base
+  // without crypto markers owns trailing annotation tokens (tsla-custom-15m).
+  // Otherwise explicit stocks use the full canonical filename symbol. Choose
+  // grammar from the filename, never by which spelling matches the descriptor.
+  if (validatedIdentity?.assetClass === 'stocks') {
+    const tradingPair = !isCrypto && isKnownStock ? baseTicker.toUpperCase() : normalizedPair;
+    return Object.freeze({
+      tradingPair,
+      broker: validatedIdentity.broker,
+      assetClass: validatedIdentity.assetClass,
+      symbols: Object.freeze([tradingPair]),
+      candleTimeframe: timeframe,
+    });
+  }
 
   if (!isCrypto && !isKnownStock) {
     throw new Error(
@@ -101,8 +116,8 @@ function resolveInstrumentFromDataFile(dataFile) {
   });
 }
 
-function deriveReportAssetSlugFromDataFile(dataFile) {
-  const instrument = resolveInstrumentFromDataFile(dataFile);
+function deriveReportAssetSlugFromDataFile(dataFile, validatedIdentity = null) {
+  const instrument = resolveInstrumentFromDataFile(dataFile, validatedIdentity);
   return instrument.tradingPair.replace(/[^A-Z0-9]+/g, '-');
 }
 
