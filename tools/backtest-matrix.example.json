@@ -1,0 +1,19 @@
+{
+  "baseProfile": "paper",
+  "identity": {
+    "broker": "alpaca",
+    "assetClass": "stocks",
+    "tradingPair": "TSLA",
+    "symbols": ["TSLA"],
+    "candleTimeframe": "15m"
+  },
+  "strategies": ["EMASMACrossover"],
+  "feeProfile": "ttp_real",
+  "confidence": [0.4, 0.8],
+  "atrMinPercent": [0.1, 0.4],
+  "stopLoss": {
+    "paths": ["exitContracts.EMASMACrossover.stopLossPercent"],
+    "unit": "percent",
+    "values": [-0.5, -1.0]
+  }
+}

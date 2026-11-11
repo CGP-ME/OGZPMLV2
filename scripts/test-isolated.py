@@ -39,6 +39,8 @@ def eligible(relative):
         return False
     if relative.name in {'credentials.json', 'secrets.json'}:
         return False
+    if parts[:2] == ('src', 'indicators') and relative.suffix == '.js':
+        return True  # Current trading runner imports the tracked TPO implementation here.
     return (len(parts) == 1 or parts[0] in SOURCE_DIRS) and relative.suffix in SOURCE_SUFFIXES
 
 
