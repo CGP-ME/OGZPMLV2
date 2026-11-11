@@ -383,8 +383,9 @@ function classifyClaudeCodeIdentity(requestedModel, frames) {
       authorized.add(transition.from_model);
     }
   }
-  // A pinned Fable 5 request cannot acquire authority from a model transition.
-  let changed = requestedModel !== 'claude-fable-5';
+  // An exact model request cannot acquire authority from a model transition.
+  const pinnedModel = !['fable', 'opus'].includes(requestedModel);
+  let changed = !pinnedModel;
   while (changed) {
     changed = false;
     for (const transition of transitions) {
@@ -406,7 +407,7 @@ function classifyClaudeCodeIdentity(requestedModel, frames) {
     status = 'identity_conflict';
     authority = 'unverified';
     reason = 'undocumented_model_mismatch';
-  } else if (requestedModel === 'claude-fable-5' && verdictModels.length === 0) {
+  } else if (pinnedModel && verdictModels.length === 0) {
     status = 'identity_conflict';
     authority = 'unverified';
     reason = 'verdict_model_identity_absent';
@@ -437,7 +438,7 @@ function extractClaudeCodeAppliedModel(frames) {
 function claudeAppliedModelMatchesAlias(requestedModel, appliedModel) {
   const requested = String(requestedModel || '').toLowerCase();
   const applied = String(appliedModel || '').toLowerCase();
-  if (requested === 'claude-fable-5') return applied === requested;
+  if (/^claude-(?:fable|opus)-/.test(requested)) return applied === requested;
   if (!['fable', 'opus'].includes(requested)) return false;
   return new RegExp(`(^|[-_.])${requested}($|[-_.])`).test(applied);
 }
@@ -462,12 +463,14 @@ function parseClaudeAuthStatus(stdout) {
   } catch (error) {
     throw new Error('Claude auth status returned malformed JSON');
   }
+  const subscriptionType = typeof status.subscriptionType === 'string'
+    ? status.subscriptionType.trim() || null : null;
+  const storedClaudeAiLogin = status.storedClaudeAiLogin === true;
   if (
     status.loggedIn !== true
     || status.authMethod !== 'claude.ai'
     || status.apiProvider !== 'firstParty'
-    || typeof status.subscriptionType !== 'string'
-    || status.subscriptionType.trim() === ''
+    || (!subscriptionType && !storedClaudeAiLogin)
   ) {
     throw new Error('Claude auth status is not a first-party claude.ai subscription');
   }
@@ -475,7 +478,9 @@ function parseClaudeAuthStatus(stdout) {
     loggedIn: true,
     authMethod: status.authMethod,
     apiProvider: status.apiProvider,
-    subscriptionType: status.subscriptionType,
+    subscriptionType,
+    storedClaudeAiLogin,
+    subscriptionTypeAbsence: subscriptionType ? null : 'not_reported_by_claude_cli',
   };
 }
 
@@ -633,8 +638,8 @@ class ClaudeCodeConsensusClient {
       '--system-prompt', systemPrompt,
     ];
     for (const directory of this.evidenceDirs) args.push('--add-dir', directory);
-    if (this.model === 'claude-fable-5') {
-      // Trey authorized only Fable 5. Do not inherit user/project model
+    if (!['fable', 'opus'].includes(this.model)) {
+      // Trey authorized an exact model. Do not inherit user/project model
       // overrides or automatically reroute a refusal to another model.
       args.push('--setting-sources', '', '--settings', JSON.stringify({
         switchModelsOnFlag: false,
@@ -678,7 +683,7 @@ class ClaudeCodeConsensusClient {
     if (metadata.toolsAvailable.some(name => !['Read', 'Grep', 'Glob'].includes(name))) {
       incompleteSubconditions.push('unexpected_mutating_or_external_tools');
     }
-    if (this.model === 'claude-fable-5' && metadata.identityPosture.status === 'identity_conflict') {
+    if (!['fable', 'opus'].includes(this.model) && metadata.identityPosture.status === 'identity_conflict') {
       incompleteSubconditions.push('identity_conflict');
       metadata.stoppedBecause = 'identity_conflict';
     }

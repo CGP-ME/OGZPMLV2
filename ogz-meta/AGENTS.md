@@ -243,8 +243,11 @@ Pipeline order:
   seats. Use explicit code outcomes, not `pass` to mean agreement. Report the
   majority, tally and completeness separately; a tie is unresolved and an absent
   selected vote leaves the review incomplete. This supersedes the historical
-  challenger/final-adjudicator arrangement. Fable stays on the authorized Fable 5
-  subscription with read-only tools; no Fable 5.1 or Kimi replacement.
+  challenger/final-adjudicator arrangement. Trey's 2026-11-11 instruction replaces
+  the Fable seat with Opus 5.5 (`claude-opus-5-5`) through the Claude subscription,
+  retaining read-only tools and exact applied-model verification. The existing
+  `fable` reviewer ID and `tieBreaker` config key are compatibility identifiers,
+  not model identities or judging roles. No automatic model substitution.
 
 ## Git Rules
 - Check status before staging.

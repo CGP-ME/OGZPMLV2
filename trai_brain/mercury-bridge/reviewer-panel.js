@@ -6,7 +6,7 @@ const readline = require('readline');
 const REVIEWER_REGISTRY = Object.freeze([
   Object.freeze({ id: 'mercury', label: 'Mercury' }),
   Object.freeze({ id: 'astra', label: 'Astra' }),
-  Object.freeze({ id: 'fable', label: 'Fable' }),
+  Object.freeze({ id: 'fable', label: 'Opus' }),
 ]);
 
 const REVIEWERS_BY_ID = new Map(REVIEWER_REGISTRY.map(reviewer => [reviewer.id, reviewer]));

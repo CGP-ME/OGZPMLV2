@@ -27,7 +27,7 @@ The current repository configuration selects:
 | Engineering inference | `mercury-3`, `reasoning_effort: low` |
 | Engineering API credential | `INCEPTION_API_KEY_DEV` |
 | Astra reviewer | Codex subscription, `gpt-6-astra` |
-| Fable reviewer | Claude Code subscription, `claude-fable-5` |
+| Opus reviewer (legacy ID `fable`) | Claude Code subscription, `claude-opus-5-5` |
 | Decide advisory | `mercury-decide`, engineering credential |
 
 `INCEPTION_API_KEY` belongs to TrAI. Do not substitute it for the engineering key.
@@ -151,36 +151,42 @@ any resulting implementation scope.
 
 ## Subscription reviewers and readiness
 
-Astra and Fable are independent peers, through the Codex/ChatGPT and installed
+Astra and Opus are independent peers, through the Codex/ChatGPT and installed
 Claude Code subscriptions respectively. The panel
-accepts `mercury`, `astra` and `fable`. Kimi is not a panel selection; independent
+accepts `mercury`, `astra` and the compatibility ID `fable` for Opus. Kimi is not a panel selection; independent
 direct-question configuration and historical receipts are separate.
 
 The existing `consensus` configuration supplies Astra's provider settings;
-the legacy-named `tieBreaker` key supplies Fable's settings, not a judging role.
+the legacy-named `tieBreaker` key supplies Opus's settings, not a judging role.
 It pins `provider=claude-code` and
-`model=claude-fable-5`, with no API key or endpoint. The adapter verifies first-party
+`model=claude-opus-5-5`, with no API key or endpoint. The adapter verifies first-party
 subscription auth, enables read-only `Read`, `Grep` and `Glob` tools in restricted
 mode, binds them to the selected source/evidence directories, strips API-routing overrides and
 records requested/applied models. The pinned invocation excludes user/project CLI
 settings and supplies no fallback chain. A flagged request remains a refusal.
 These invocation settings do not edit the user's Claude settings.
+Claude CLI versions that confirm a stored first-party `claude.ai` login but omit
+the subscription tier are accepted with `subscriptionType: null` and a named
+`not_reported_by_claude_cli` absence. This is login evidence, not a claim about
+plan entitlement or quota; an actual response must still attest the pinned model.
 Pinned reviews supply the exact source snapshot and a separate baseline snapshot.
 Full captured evidence remains readable from a file instead of being forced into
 every subscription request. Existing repository exclusions remain in effect;
 an explicitly supplied evidence file is not a canonical RAG admission.
 
 A missing login, failed response or different applied model is not a successful
-Fable 5 review. Fable 5.1 is not an authorized substitute.
+Opus 5.5 review. No other model is an authorized substitute. Trey selected Opus
+on 2026-11-11 because his subscription cannot run Fable; historical receipts and
+the `fable` selection ID retain their existing identifiers.
 
 ```bash
 claude auth status --json
 node trai_brain/mercury-bridge/ask.js --check-providers
 ```
 
-`--check-providers` makes actual provider calls to Mercury, Astra and Fable. Its
+`--check-providers` makes actual provider calls to Mercury, Astra and Opus. Its
 current aggregate `ok` covers Mercury and Astra; inspect `tieBreakerReady` and the
-Fable attempt independently. A successful process exit does not establish all-seat
+Claude attempt independently. A successful process exit does not establish all-seat
 readiness. Login status alone also does not prove model access or remaining quota.
 
 Decide classifies the supplied review reports after the selected seats. It has no

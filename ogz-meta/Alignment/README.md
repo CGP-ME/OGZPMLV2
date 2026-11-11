@@ -36,6 +36,11 @@ Preserve dissent, incomplete reviews and exact model identity. Agreement with a
 defect must stay a defect in the headline; `pass` cannot mean agreement. Existing
 RAG exclusions for noncanonical documents and exchanged packets remain intact.
 
+On 2026-11-11 Trey replaced the Fable seat with Opus because his subscription
+cannot run Fable. The seat pins `claude-opus-5-5` through Claude Code, with the
+same read-only tools and identity checks. `fable` remains its compatibility ID;
+current provider receipts identify Opus, and historical receipts stay unchanged.
+
 Before answering questions or touching files, walk this path:
 
 0. Apply the Fourth Shape before any throw doctrine is used:

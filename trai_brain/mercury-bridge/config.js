@@ -498,8 +498,8 @@ const TIE_BREAKER_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'tieBreaker
 const TIE_BREAKER_CLIENT_MIN_TOKENS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.clientMinTokens', { integer: true, min: 0 });
 const TIE_BREAKER_REQUEST_TIMEOUT_MS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.requestTimeoutMs', { integer: true, min: 1000 });
 const TIE_BREAKER_TEMPERATURE = requiredNumber(MERCURY_CONFIG, 'tieBreaker.temperature', { min: 0 });
-if (TIE_BREAKER_PROVIDER !== 'claude-code' || TIE_BREAKER_MODEL !== 'claude-fable-5') {
-  throw new Error('tieBreaker must use claude-fable-5 through the first-party Claude Code subscription');
+if (TIE_BREAKER_PROVIDER !== 'claude-code' || TIE_BREAKER_MODEL !== 'claude-opus-5-5') {
+  throw new Error('tieBreaker must use claude-opus-5-5 through the first-party Claude Code subscription');
 }
 
 function requiredModelPricing(provider, model) {

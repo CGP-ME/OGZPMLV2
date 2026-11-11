@@ -170,7 +170,7 @@
   },
   "tieBreaker": {
     "provider": "claude-code",
-    "model": "claude-fable-5",
+    "model": "claude-opus-5-5",
     "clientMaxTokens": 4096,
     "clientMinTokens": 200,
     "requestTimeoutMs": 600000,
