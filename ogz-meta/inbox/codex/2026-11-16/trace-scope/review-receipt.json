@@ -1,0 +1,147 @@
+{
+  "runId": "2026-11-16T21-57-16-073Z-d874bb275ff4",
+  "sourceTree": "8cfc55979d4d95551559c006ad9131a1b2740106",
+  "base": "6391763513d725ba866d88fe1f7f6e7e58313348",
+  "baseTree": "399bab1c4a843736b92ae2f3a6b9744a9fd269d3",
+  "sourceManifest": "ogz-meta/cognition-history/mercury-runs/2026-11-16T21-51-33-870Z-2548152-50b07cf48cca/source-awrDmG.json",
+  "sourceManifestSha256": "827a3699b0f2226ab6d473f235582af0c967935b7c00010cb5539787ff9ea602",
+  "sourceSha256": "c8bfd002d3225ea55599edbd577e5723deb4b93eb36ce84ee0a64623986ec7a5",
+  "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "question": "What broker and account scope does a trace emitted directly by the runner report after the active session changes? Cite the relevant producers and consumers.",
+  "verdict": "no_break_found",
+  "selected": [
+    "mercury",
+    "astra",
+    "fable"
+  ],
+  "seats": [
+    {
+      "id": "mercury",
+      "label": "Mercury",
+      "status": "succeeded",
+      "provider": "mercury",
+      "requestedModel": "mercury-3",
+      "appliedModels": [
+        "mercury-3"
+      ],
+      "verdict": "no_break_found",
+      "evidenceBasis": [
+        "successful_repo_tool",
+        "verified_current_diff"
+      ],
+      "evidenceChecksPassed": true,
+      "named_absences": [],
+      "stopped_because": "stop",
+      "self_report_complete": true
+    },
+    {
+      "id": "astra",
+      "label": "Astra",
+      "status": "succeeded",
+      "provider": "codex-subscription",
+      "requestedModel": "gpt-6-astra",
+      "appliedModels": [
+        "gpt-6-astra"
+      ],
+      "verdict": "no_break_found",
+      "evidenceBasis": [],
+      "evidenceChecksPassed": false,
+      "named_absences": [],
+      "stopped_because": "stop",
+      "self_report_complete": true
+    },
+    {
+      "id": "fable",
+      "label": "Opus",
+      "status": "succeeded",
+      "provider": "claude-code",
+      "requestedModel": "claude-opus-5-5",
+      "appliedModels": [
+        "claude-opus-5-5"
+      ],
+      "verdict": "no_break_found",
+      "evidenceBasis": [
+        "successful_repo_tool"
+      ],
+      "evidenceChecksPassed": true,
+      "named_absences": [],
+      "stopped_because": "success",
+      "self_report_complete": true
+    }
+  ],
+  "reportedDecision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 2,
+    "selectedCount": 3,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 3,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "7a9006589110d1935b82fcf17417f0979535a845ff225e62265cd23ccc0f6d46",
+        "absence": null
+      },
+      {
+        "reviewer": "astra",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "6da841423e4f57ca655daaee47c69e1cd81709951713a04c884cf2dc5c5e0562",
+        "absence": null
+      },
+      {
+        "reviewer": "fable",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "e6c6ba48aed4b5a57bade2b4c59527fc18537b63f5764080e31ac111b8258b57",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "diagnostics": {
+    "qualifyingSeats": 3,
+    "verdictLabelsMatch": true,
+    "evidenceChecksPassed": false,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "issues": [
+      "evidence_failure"
+    ],
+    "sharedVerdictLabel": "pass"
+  },
+  "reviewLog": "ogz-meta/inbox/codex/2026-11-16/trace-scope/review.log",
+  "reviewLogSha256": "02249a8f32cd69ffad7c4b364ca7a82af78465c4d77704847a91dc51df8205f4",
+  "astraRaw": {
+    "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-16/2026-11-16t21-51-33-870z-2548152-50b07cf48cca/astra_peer_independent-1.raw",
+    "sha256": "3f7bb27d66f57c2cd468d13954253528fb2e5dc5cc5d305aa0466091882801c0",
+    "completedCommands": 6,
+    "exitCodes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "limitations": [
+    "Scoped source review; no reviewer ran native probes or a live transition.",
+    "Bridge coverage/whole-file metadata warnings and Astra evidence classification remain recorded, not rewritten to clean certification.",
+    "Explicit event scope remains authoritative. Early startup before account promotion can expose missing runtime scope, rather than inventing an account.",
+    "RAG was not rebuilt; explicit captured source snapshots were used."
+  ],
+  "nativeEvidence": "behavior-receipt.json"
+}

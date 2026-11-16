@@ -1,0 +1,173 @@
+{
+  "fixtureCorrection": "The first probe incorrectly compared separately generated dispatch timestamps. Corrected the fixture to compare scope fields; no production change for this fixture defect.",
+  "runs": [
+    {
+      "command": [
+        "python3",
+        "scripts/test-isolated.py",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/observe-trace-scope.cjs",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/source-before.json",
+        "--",
+        "node",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/observe-trace-scope.cjs",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/source-before.json",
+        "before"
+      ],
+      "observedAt": "2026-11-16T21:50:55.712010+00:00",
+      "exitCode": 0,
+      "log": "ogz-meta/inbox/codex/2026-11-16/trace-scope/native-before.log",
+      "logSha256": "18405a290f69d4d78e95f09e6e6cd158bae82e748858c42d6f00926d3aabdeba",
+      "result": [
+        {
+          "variant": "before",
+          "sourceSha256": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+          "observations": [
+            {
+              "name": "DIRECT_RUNNER",
+              "symbol": "BTC-USD",
+              "timeframe": "15m",
+              "brokerId": "alpaca",
+              "accountId": "default",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            },
+            {
+              "name": "WRAPPED_RUNNER",
+              "symbol": "BTC-USD",
+              "timeframe": "15m",
+              "brokerId": "kraken",
+              "accountId": "fixture-crypto-account",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            },
+            {
+              "name": "EXPLICIT_EVENT_SCOPE",
+              "symbol": "NVDA",
+              "timeframe": "5m",
+              "brokerId": "alpaca",
+              "accountId": "fixture-stock-account",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            },
+            {
+              "name": "MISSING_RUNTIME_ACCOUNT",
+              "symbol": "BTC-USD",
+              "timeframe": "15m",
+              "brokerId": "alpaca",
+              "accountId": "default",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            },
+            {
+              "name": "STATIC_CONTEXT",
+              "symbol": "NVDA",
+              "timeframe": "15m",
+              "brokerId": "alpaca",
+              "accountId": "default",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            }
+          ],
+          "limitation": "Real trace emitter, dashboard serializer and subscriber; synthetic scope owner and transport. No trading decisions, live broker request or persisted runtime is simulated as proof."
+        }
+      ]
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/test-isolated.py",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/observe-trace-scope.cjs",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/source-after.json",
+        "--",
+        "node",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/observe-trace-scope.cjs",
+        "ogz-meta/inbox/codex/2026-11-16/trace-scope/fixtures/source-after.json",
+        "after"
+      ],
+      "observedAt": "2026-11-16T21:50:56.467039+00:00",
+      "exitCode": 0,
+      "log": "ogz-meta/inbox/codex/2026-11-16/trace-scope/native-after.log",
+      "logSha256": "be20be37f8f7f836acb7161218042cafd279bfadf5f08943054d6d3081ff6566",
+      "result": [
+        {
+          "variant": "after",
+          "sourceSha256": "c8bfd002d3225ea55599edbd577e5723deb4b93eb36ce84ee0a64623986ec7a5",
+          "observations": [
+            {
+              "name": "DIRECT_RUNNER",
+              "symbol": "BTC-USD",
+              "timeframe": "15m",
+              "brokerId": "kraken",
+              "accountId": "fixture-crypto-account",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            },
+            {
+              "name": "WRAPPED_RUNNER",
+              "symbol": "BTC-USD",
+              "timeframe": "15m",
+              "brokerId": "kraken",
+              "accountId": "fixture-crypto-account",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            },
+            {
+              "name": "EXPLICIT_EVENT_SCOPE",
+              "symbol": "NVDA",
+              "timeframe": "5m",
+              "brokerId": "alpaca",
+              "accountId": "fixture-stock-account",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            },
+            {
+              "name": "MISSING_RUNTIME_ACCOUNT",
+              "symbol": "BTC-USD",
+              "timeframe": "15m",
+              "brokerId": "kraken",
+              "accountId": null,
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "scopeStatus": "missing_runtime_scope",
+              "missingScopeFields": [
+                "accountId"
+              ]
+            },
+            {
+              "name": "STATIC_CONTEXT",
+              "symbol": "NVDA",
+              "timeframe": "15m",
+              "brokerId": "alpaca",
+              "accountId": "default",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "scopeStatus": null,
+              "missingScopeFields": []
+            }
+          ],
+          "limitation": "Real trace emitter, dashboard serializer and subscriber; synthetic scope owner and transport. No trading decisions, live broker request or persisted runtime is simulated as proof."
+        }
+      ]
+    }
+  ]
+}

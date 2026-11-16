@@ -140,7 +140,7 @@ function firstTraceScopeField(payloadFields, key) {
 }
 
 function readRunnerTraceScope(ctx) {
-  const runner = ctx && ctx.runner;
+  const runner = (ctx && ctx.runner) || ctx;
   if (!runner || typeof runner.getCandleScopeEnvelope !== 'function') return {};
   try {
     const ctxTimeframe = typeof ctx?.candleTimeframe === 'string' && ctx.candleTimeframe.trim() !== ''
@@ -157,9 +157,10 @@ function readRunnerTraceScope(ctx) {
 function currentTraceScope(ctx) {
   const cfg = (ctx && ctx.config) || {};
   const runnerScope = readRunnerTraceScope(ctx);
-  const routerEnabled = ctx?.runner && typeof ctx.runner.isSessionRoutingActive === 'function'
-    ? ctx.runner.isSessionRoutingActive() === true
-    : ctx?.runner?.sessionRouter?.enabled === true;
+  const runner = ctx?.runner || ctx;
+  const routerEnabled = runner && typeof runner.isSessionRoutingActive === 'function'
+    ? runner.isSessionRoutingActive() === true
+    : runner?.sessionRouter?.enabled === true;
   const configScopeAllowed = !routerEnabled;
 
   return {
@@ -171,7 +172,7 @@ function currentTraceScope(ctx) {
     brokerId: traceFieldValue(runnerScope, 'brokerId')
       || (configScopeAllowed ? traceFieldValue(cfg, 'brokerId') : null),
     accountId: traceFieldValue(runnerScope, 'accountId')
-      || traceFieldValue(cfg, 'accountId'),
+      || (configScopeAllowed ? traceFieldValue(cfg, 'accountId') : null),
     assetClass: traceFieldValue(runnerScope, 'assetClass')
       || (configScopeAllowed ? traceFieldValue(cfg, 'assetClass') : null),
     executionMode: cfg.enableBacktestMode === true
@@ -191,9 +192,10 @@ function stampTraceScope(ctx, fields) {
       out[key] = scope[key];
     }
   }
-  const routerEnabled = ctx?.runner && typeof ctx.runner.isSessionRoutingActive === 'function'
-    ? ctx.runner.isSessionRoutingActive() === true
-    : ctx?.runner?.sessionRouter?.enabled === true;
+  const runner = ctx?.runner || ctx;
+  const routerEnabled = runner && typeof runner.isSessionRoutingActive === 'function'
+    ? runner.isSessionRoutingActive() === true
+    : runner?.sessionRouter?.enabled === true;
   if (routerEnabled) {
     const missingScopeFields = TRACE_REQUIRED_SCOPE_KEYS.filter(key => firstTraceScopeField(out, key) === null);
     if (missingScopeFields.length > 0) {
