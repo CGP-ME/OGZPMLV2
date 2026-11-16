@@ -3959,6 +3959,7 @@ class OrderExecutor {
             });
           }
 
+          this.ctx.runner?.journalBridge?.recordEntry(positionResult.state.activeTrades.get(unifiedResult.orderId));
           // CHANGE 2025-12-13: No longer sync to local balance - read from StateManager
           const stateAfter = stateManager.getState();
 
@@ -4227,6 +4228,7 @@ class OrderExecutor {
             });
           }
 
+          this.ctx.runner?.journalBridge?.recordEntry(positionResult.state.activeTrades.get(unifiedResult.orderId));
           const stateAfter = stateManager.getState();
           console.log(`CP6-SHORT: AFTER SHORT - Position: ${stateAfter.position}, Balance: $${stateAfter.balance}`);
           emitTrace(this.ctx, 'STATE_MUTATION', {
@@ -4635,6 +4637,17 @@ class OrderExecutor {
             // Get updated state after close
             // CHANGE 2025-12-13: No local balance sync needed - read from StateManager
             const afterSellState = stateManager.getState();
+            this.ctx.runner?.journalBridge?.recordExit({
+              ...buyTrade, type: 'SELL', action: 'SELL', direction: 'long',
+              orderId: buyTrade.orderId, tradeId: buyTrade.orderId,
+              size: executedExitPlan.sizeUsd, sizeUsd: executedExitPlan.sizeUsd,
+              usdValue: executedExitPlan.sizeUsd,
+              entryPrice: buyTrade.entryPrice, exitPrice: price,
+              pnl: closeResult.pnl, exitFee: longFillFee,
+              exitTimestamp, holdTime: holdDuration,
+              reason: completeTradeResult.exitReason, exitReason: completeTradeResult.exitReason,
+              balance: afterSellState.balance, fillId: closeResult.fillId,
+            });
             emitTrace(this.ctx, 'STATE_MUTATION', {
               traceId,
               signalId,
@@ -5226,6 +5239,17 @@ class OrderExecutor {
           }
 
           const afterCoverState = stateManager.getState();
+          this.ctx.runner?.journalBridge?.recordExit({
+            ...shortTrade, type: 'COVER', action: 'COVER', direction: 'short',
+            orderId: shortTrade.orderId, tradeId: shortTrade.orderId,
+            size: executedExitPlan.sizeUsd, sizeUsd: executedExitPlan.sizeUsd,
+            usdValue: executedExitPlan.sizeUsd,
+            entryPrice: shortTrade.entryPrice, exitPrice: price,
+            pnl: closeResult.pnl, exitFee: coverFillFee,
+            exitTimestamp, holdTime: holdDuration,
+            reason: completeTradeResult.exitReason, exitReason: completeTradeResult.exitReason,
+            balance: afterCoverState.balance, fillId: closeResult.fillId,
+          });
           emitTrace(this.ctx, 'STATE_MUTATION', {
             traceId,
             signalId,

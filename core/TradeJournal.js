@@ -209,6 +209,7 @@ class TradeJournal {
     // ── In-memory state (rebuilt from ledger on startup) ───────────────
     this.trades = [];           // completed trades (bounded)
     this.openTrades = new Map(); // orderId → entry record
+    this.exitFillIds = new Set();
     this.entryOrderIds = new Set(); // every consumed ENTRY orderId, including reconciled orphans
     this.equityCurve = [];      // { timestamp, balance, equity, drawdown }
     this.stats = this._emptyStats();
@@ -360,7 +361,7 @@ class TradeJournal {
       return null;
     }
 
-    const now = Date.now();
+    const now = nonNegativeNumberOrNull(exit?.exitTimestamp);
     const entry = this.openTrades.get(orderId);
     if (!entry) {
       console.warn(`[TradeJournal] Refusing exit for ${orderId}; no matching open entry in journal`);
@@ -378,7 +379,7 @@ class TradeJournal {
     const entryFees = nonNegativeNumberOrNull(entry.fees);
     const exitFees = nonNegativeNumberOrNull(exit?.fees);
     const exitReason = nonEmptyStringOrNull(exit?.reason);
-    const holdTime = nonNegativeNumberOrNull(now - entry.timestamp);
+    const holdTime = now === null ? null : nonNegativeNumberOrNull(now - entry.timestamp);
     const exitUsdValue = exitNotionalOrNull(exit);
 
     if (!direction || !side) missing.push('direction');
@@ -391,6 +392,7 @@ class TradeJournal {
     if (entryFees === null) missing.push('entryFees');
     if (exitFees === null) missing.push('fees');
     if (!exitReason) missing.push('reason');
+    if (now === null) missing.push('exitTimestamp');
     if (holdTime === null) missing.push('holdTime');
 
     if (missing.length > 0) {
@@ -452,6 +454,7 @@ class TradeJournal {
       holdTimeMs: holdTime,
       holdTimeFormatted: this._formatDuration(holdTime),
       exitReason,
+      fillId: nonEmptyStringOrNull(exit.fillId),
       mfe: finiteNumberOrNull(exit?.maxProfit),
       mae: finiteNumberOrNull(exit?.maxDrawdown),
       confidence: finiteNumberOrNull(entry.confidence),
@@ -481,6 +484,7 @@ class TradeJournal {
 
     // ── Append to ledger ──────────────────────────────────────────────
     this._appendLedger(completedTrade);
+    if (completedTrade.fillId) this.exitFillIds.add(completedTrade.fillId);
 
     // ── Update in-memory trades ───────────────────────────────────────
     this.trades.push(completedTrade);
@@ -502,11 +506,9 @@ class TradeJournal {
       this.openTrades.delete(orderId);
     }
 
-    // ── Update equity curve ───────────────────────────────────────────
-    this._recordEquityPoint(completedTrade);
-
-    // ── Recompute stats ───────────────────────────────────────────────
+    // Publish the same completed fill to statistics and its equity point.
     this._updateStats(completedTrade);
+    this._recordEquityPoint(completedTrade);
 
     const outcome = netPnl > 0 ? 'WIN' : netPnl < 0 ? 'LOSS' : 'FLAT';
     const pnlPercentText = pnlPercent === null ? 'n/a' : `${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%`;
@@ -1404,6 +1406,7 @@ class TradeJournal {
             usdValue: positiveNumberOrNull(record.usdValue) ?? exitUsdValue,
           };
           this.trades.push(canonicalExitRecord);
+          if (record.fillId) this.exitFillIds.add(record.fillId);
           const remainingFromRecord = finiteNumberOrNull(record.remainingUsdValue ?? record.remainingSize);
           const tolerance = usdValueTolerance(entryUsdValue);
           const lifecycleTolerance = remainingLifecycleTolerance(entryUsdValue);

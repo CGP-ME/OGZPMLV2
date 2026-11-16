@@ -1,0 +1,124 @@
+{
+  "question": "What happens to trade execution when the reporting journal cannot initialize or persist a record?",
+  "runId": "2026-11-16T23-47-16-634Z-39627c72917e",
+  "startedAt": "2026-11-16T23:37:24.518Z",
+  "source": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "core/OrderExecutor.js",
+      "core/TradeJournal.js",
+      "core/TradeJournalBridge.js",
+      "public/trade-journal.html",
+      "run-empire-v2.js"
+    ],
+    "tree": "9cc7fdd37e0f6967b574eba9b50368ac787320c2",
+    "baseTree": "935615e81e90d74d2ef3b721256d9cd6cc223056",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-16T23-37-24-518Z-2619331-240702614fb2/source-wfFh2b.json",
+    "manifestSha256": "e579175a48bf43ce4c1060a489c750c17a1dad6e3fe43e19617fb2e462503f31"
+  },
+  "sourceSha256": {
+    "core/OrderExecutor.js": "7a0390bff09e1817236499127fb5b2e93f7ddbf99a3b2ce9f08630db383d9118",
+    "core/TradeJournal.js": "4d9a810bf1abf688db08c13d6f376abb7b035ab0ffdbc8c006158addd8375373",
+    "core/TradeJournalBridge.js": "079830b053c224fb1043c4c163288afe4b556aca3166b2991ea8fffe3ef023f8",
+    "public/trade-journal.html": "e46ffd555280c716010d8c315b4bcb6b4bd1a9dddf7c6ef998850e9b742905e9",
+    "run-empire-v2.js": "383d93ecc2750dc426fb3f361d5657c64c60a3696640998d4036f705ff8763ab"
+  },
+  "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 2,
+    "selectedCount": 3,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 3,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "26b6dabe63683084d340abba052f300fd0a3426f2f770c4475831245d97f55cf",
+        "absence": null
+      },
+      {
+        "reviewer": "astra",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "2a9bdb14c690d436926a33ada0674a7eed97d988ae1e24623c00c7f35c807f38",
+        "absence": null
+      },
+      {
+        "reviewer": "fable",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "10ce95faa0952c1b0cd3c7bd36dddb8cff74cf15a8dea0dba333913a9b4e9b28",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "diagnostics": {
+    "qualifyingSeats": 3,
+    "verdictLabelsMatch": true,
+    "evidenceChecksPassed": false,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "issues": [
+      "evidence_failure"
+    ],
+    "sharedVerdictLabel": "pass"
+  },
+  "metadataWarnings": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "pre_answer_scan_absent",
+    "whole_file_read_absent",
+    "inherited_section_incomplete",
+    "fourth_shape_unclassified"
+  ],
+  "answerQuality": [
+    {
+      "flag": "unsupported_test_outcome_claim",
+      "evidence": "ced by bridge, not read in full; replay is a reporting side-channel. --- ## Evidence gaps - **No test-run receipts** exist in this investigation; I make no test pass/fail claims. - **No host-attested execution receipt** for the specific \"journal disk full / EACCES\" scenario; my conclusion is source-derived co"
+    }
+  ],
+  "cost": {
+    "amount": 2.32108943,
+    "currency": "USD",
+    "complete": false,
+    "priced_attempts": 21,
+    "total_attempts": 22,
+    "cost_absences": [
+      "pricing_absent:codex-subscription/gpt-6-astra"
+    ]
+  },
+  "reviewerExecution": "Source investigation only; actual native observations are recorded separately.",
+  "completeAnswersRead": true,
+  "runtimeActivation": "Not performed; requires explicit approval.",
+  "limits": [
+    "No full-repository absence claim or live failure injection.",
+    "Large-file and AST coverage gaps remain explicit. The unrelated ogz-meta/ogz-run.js parse failure is not changed.",
+    "The unsupported-test-outcome flag quotes Mercury denying test pass/fail claims; it is not an executed test failure.",
+    "Opus notes startup reporting-reconciliation write errors can be labeled as broker-read errors. This is retained as a reporting diagnostic limitation, not another trading repair.",
+    "Synchronous storage latency was not measured; no power-loss durability claim."
+  ],
+  "firstReview": {
+    "sourceTree": "aad5b640fd24c4ffaab6b39037d14a898f34756a",
+    "outcome": "found_break",
+    "finalVotes": {
+      "mercury": "found_break",
+      "astra": "cannot_verify",
+      "opus": "found_break"
+    },
+    "resolution": "Preserve existing backtest mode ownership, pass the successful mutation snapshot, and represent incomplete reporting identity explicitly. Probe reproduction does not establish a live bot incident."
+  }
+}

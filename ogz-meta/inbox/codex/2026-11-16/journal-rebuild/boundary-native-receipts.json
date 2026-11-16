@@ -1,0 +1,401 @@
+{
+  "observations": [
+    {
+      "scenario": "reporting",
+      "logFile": "staged-reporting-05.log",
+      "logSha256": "ea3cb9ac9c0725120e177e4201143d74e767fdfb4d8f807d761610a2633a97a8",
+      "wrongAccountEmptySnapshotPreservedEntry": "fixture-B-order",
+      "wrongBrokerEmptySnapshotPreservedEntry": "fixture-K-order",
+      "failedBrokerReadMarkedOnlyQueriedAccount": "fixture-A-order",
+      "unavailableSnapshot": {
+        "module": "TradeJournal",
+        "status": "unavailable",
+        "reason": "Journal history is unavailable; trading execution is independent.",
+        "unavailableScopes": [
+          {
+            "scope": {
+              "ok": true,
+              "symbol": "TSLA",
+              "brokerId": "alpaca",
+              "accountId": "fixture-A",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "timeframe": "1m",
+              "scopeKey": "paper:alpaca:fixture-A:stocks:TSLA:1m",
+              "scopeKeyVersion": 2,
+              "scopeComplete": true
+            },
+            "reason": "[TRADE-JOURNAL-SCOPE] TradeJournal ledger line 1 is malformed JSON",
+            "missingRecords": []
+          }
+        ]
+      },
+      "actualPageHandler": {
+        "contentHidden": true,
+        "message": "Journal history is unavailable; trading execution is independent."
+      },
+      "storageRecoveryObserved": true,
+      "maxPriorityAlarmSelected": true,
+      "limits": [
+        "Actual reporting classes and page handler in isolated synthetic filesystem/DOM.",
+        "No live browser, network alert or process restart."
+      ]
+    },
+    {
+      "scenario": "write-failure",
+      "logFile": "staged-write-failure-05.log",
+      "logSha256": "51c5b613480515c555e609da50be99643c628c0d9b73a407a6b793ae35a6d886",
+      "savedOpenPositions": 0,
+      "tradingPaused": false,
+      "wrappersInstalled": false,
+      "availabilityBeforeRestart": "unavailable",
+      "availabilityAfterRestart": "unavailable",
+      "persistedReporting": [
+        {
+          "scope": "paper:alpaca:fixture-alpaca:stocks:TSLA:1m",
+          "entryUsd": 2354.252285,
+          "exits": [
+            {
+              "size": 2354.252285,
+              "timestamp": 1794871179940,
+              "grossPnl": 21.210647150000113,
+              "fees": 1.5,
+              "netPnl": 19.710647150000113,
+              "partialExit": false,
+              "fillId": "SIM_1794871179940_k6jlst:exit:SIM_1794871179879_svfd0j:dec_1794871179936_bo49kt:23",
+              "balanceAfter": 100019.71064715
+            }
+          ],
+          "equity": {
+            "timestamp": 1794871179940,
+            "tradeNumber": 1,
+            "balance": 100019.71064715,
+            "netPnl": 19.710647150000113,
+            "drawdown": 0,
+            "drawdownPct": 0,
+            "peak": 100019.71064715
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long-partial",
+      "logFile": "staged-long-partial-05.log",
+      "logSha256": "cc7f91ab203acdd36bed954a2ce629226ff9416f8856e521219b8ad3dfd9332b",
+      "savedOpenPositions": 0,
+      "tradingPaused": false,
+      "wrappersInstalled": false,
+      "availabilityBeforeRestart": "available",
+      "availabilityAfterRestart": "available",
+      "persistedReporting": [
+        {
+          "scope": "paper:alpaca:fixture-alpaca:stocks:NVDA:1m",
+          "entryUsd": 2459.0689199999997,
+          "exits": [
+            {
+              "size": 1229.5344599999999,
+              "timestamp": 1794871180048,
+              "grossPnl": -13.511975399999983,
+              "fees": 1.125,
+              "netPnl": -14.636975399999983,
+              "partialExit": true,
+              "fillId": "SIM_1794871180047_5qzi5i:exit:SIM_1794871179771_qkvw8d:dec_1794871180037_d683ll:12",
+              "balanceAfter": 99985.3630246
+            },
+            {
+              "size": 1229.5344599999999,
+              "timestamp": 1794871180086,
+              "grossPnl": -13.511975399999983,
+              "fees": 1.125,
+              "netPnl": -14.636975399999983,
+              "partialExit": false,
+              "fillId": "SIM_1794871180086_ovyzhd:exit:SIM_1794871179771_qkvw8d:dec_1794871180081_84sdvw:12",
+              "balanceAfter": 99970.72604919999
+            }
+          ],
+          "equity": {
+            "timestamp": 1794871180086,
+            "tradeNumber": 2,
+            "balance": 99970.72604919999,
+            "netPnl": -29.273950799999966,
+            "drawdown": 29.273950800008606,
+            "drawdownPct": 0.029273950800008604,
+            "peak": 100000
+          }
+        },
+        {
+          "scope": "paper:alpaca:fixture-alpaca:stocks:TSLA:1m",
+          "entryUsd": 2356.6077149999996,
+          "exits": [
+            {
+              "size": 2356.6077149999996,
+              "timestamp": 1794871180110,
+              "grossPnl": -25.89795284999991,
+              "fees": 1.5,
+              "netPnl": -27.39795284999991,
+              "partialExit": false,
+              "fillId": "SIM_1794871180110_mv5gzd:exit:SIM_1794871180016_uzvjhf:dec_1794871180108_d5ssjd:23",
+              "balanceAfter": 99972.60204715
+            }
+          ],
+          "equity": {
+            "timestamp": 1794871180110,
+            "tradeNumber": 1,
+            "balance": 99972.60204715,
+            "netPnl": -27.39795284999991,
+            "drawdown": 27.397952850005822,
+            "drawdownPct": 0.027397952850005822,
+            "peak": 100000
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "corrupt",
+      "logFile": "staged-corrupt-05.log",
+      "logSha256": "28db21ecab54a12eb46201c728fc2f94836ddee9860248e95f73e67be2f0dc84",
+      "savedOpenPositions": 0,
+      "tradingPaused": false,
+      "wrappersInstalled": false,
+      "availabilityBeforeRestart": "unavailable",
+      "availabilityAfterRestart": "unavailable",
+      "persistedReporting": [
+        {
+          "scope": "paper:alpaca:fixture-alpaca:stocks:TSLA:1m",
+          "entryUsd": 2354.252285,
+          "exits": [
+            {
+              "size": 2354.252285,
+              "timestamp": 1794871180121,
+              "grossPnl": 21.210647150000113,
+              "fees": 1.5,
+              "netPnl": 19.710647150000113,
+              "partialExit": false,
+              "fillId": "SIM_1794871180121_bk9jjd:exit:SIM_1794871180056_1i2u9t:dec_1794871180116_synsjk:23",
+              "balanceAfter": 100019.71064715
+            }
+          ],
+          "equity": {
+            "timestamp": 1794871180121,
+            "tradeNumber": 1,
+            "balance": 100019.71064715,
+            "netPnl": 19.710647150000113,
+            "drawdown": 0,
+            "drawdownPct": 0,
+            "peak": 100019.71064715
+          }
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Synthetic market prices and accounts inside namespace isolation; actual StrategyOrchestrator, OrderExecutor, StateManager, journal and replay classes.",
+    "No broker orders, live notification delivery, browser login, PM2 restart or deployment.",
+    "This is the reporting authority boundary; retention, aggregate calculations and replay persistence/UI remain subsequent steps."
+  ],
+  "sourceIdentityBeforeReviewCorrection": {
+    "reviewRef": "aad5b640fd24c4ffaab6b39037d14a898f34756a",
+    "reviewBase": "0f3227a8cb1661a9245227ae4a17006f89773854",
+    "sources": {
+      "CHANGELOG.md": "cf376537afbd28bd4fc4cf22327e3cd9e31f4416f94e06e4d57b57df6d67ab3b",
+      "config/internals.json": "e304f0c827730c55b1aec8aabd6ed361012a7ec554f7691bff0f7f9948e999c2",
+      "config/settings.json": "e700dbb8270f11c59ce9ca0a4d50a3a4f13f7f781787001b9729e68015a81f39",
+      "core/ExitContractManager.js": "e6a6bf6cc69afc08b346c41754c82de9c19e239fcd71a6c25d6d5b8b8ecd64bb",
+      "core/OrderExecutor.js": "a5ff6f7bded27eddcd09aaf5ee7ae052922f41945ebd8aa1a6c737efc5722ace",
+      "core/StateManager.js": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1",
+      "core/StrategyOrchestrator.js": "686abf0f8d77cc0e0de521d75ad0b52fdb279b6d3c6c36ff5d6e6cf96c311817",
+      "core/TradeJournal.js": "4d9a810bf1abf688db08c13d6f376abb7b035ab0ffdbc8c006158addd8375373",
+      "core/TradeJournalBridge.js": "be1d4553894a8fb27829c746487d0c27e54d4d360ced97cd321031260ddec7c0",
+      "core/TradingLoop.js": "a74a90b4a32bc1be45ce682071c429d6c1cb07a03641a1a58ce0c8195fba80a2",
+      "core/dto/DecisionLedgerSchema.js": "1d9da94445f5c7eb0f70e1d9f99160178c32a7e51ae2f6a93915d9959dc2cabf",
+      "foundation/ConfigLoader.js": "b0633c1eb4a1941b4425cc45b4819f4944a19602922f34b8f0867df23c3d7e7e",
+      "modules/DonchianBreakout.js": "7b63c758d5d2b6d6b48be8eb4dc96509834aab4f2bb7b34a69005b7b0883a6c9",
+      "modules/EMATrendRetest.js": "a3d57b692ff73ae2f35b7b0310c6d7749c2d0559c63767eb4b7a427b77c9b7ba",
+      "modules/PropSafeEMAPullback.js": "8403ca2d10621dbbc1e49551a1e1d8eaedc4ef85edaccef566da6d61cbec6393",
+      "modules/RSI2MeanReversion.js": "1a87c679dcad043dd1d049614c5a598a9052849713363432bc2e78fa0fcf2611",
+      "modules/TimeSeriesMomentum.js": "b0fc74452a482ba780b3763f7854322f8e9e5711859a0ac39fc5726edd14f900",
+      "ogzprime-ssl-server.js": "dbd368a1658c61a97141ebd81d7746c516b0c1c8c1ffaa27321a79df65b7ce82",
+      "public/trade-journal.html": "e46ffd555280c716010d8c315b4bcb6b4bd1a9dddf7c6ef998850e9b742905e9",
+      "run-empire-v2.js": "25555fa30f82f26ac37e0d2734bf77567f1930935ac48bf80e5204f8706a4aa8",
+      "test/fixtures/backtest-matrix-boundaries.py": "aaee506d6b490517fd21a06e133afcd408f65010f3a0d1d4a45c24cb30f816f4",
+      "test/fixtures/backtest-matrix-observation.py": "62a4c709ad3bc89b981b39d8143880871f058cb72e0cb44311f706f4b98e4570",
+      "test/fixtures/backtest-stock-identity.py": "e347d27759ed15c10be5b1e5ffa4aceea0aef7fa8e39a3b9030cdb7d2e44d2f5",
+      "test/fixtures/backtest-strategy-admission.py": "051647be28447009976f119d350abce607f63942b29c9e65e244f8b9a6c78632",
+      "test/fixtures/fetch-candles-boundaries.py": "103a7267e68f73c2b870303dd99c5c48d2f0c2c628f189f6fee3d2047d0c0c9a",
+      "test/fixtures/fetch-candles-observation.py": "a83709d29f6eb7078249d9ac1ee0267e8d94f52b4984855cee2f9b7f72e0873b",
+      "test/mercury-astra-challenger.test.js": "10b4a7679656e05e43995d95f3e4b4e687d086c707b79a1c8780689d34b37689",
+      "test/session-router-fail-safe.test.js": "ea038ae0c7238d44b873b0bec938cea5105be15fb95dc6087a4e77ea56fc346a",
+      "test/trade-replay-capture-contract.test.js": "9f9934dc6b4db65b27851d0d44eb6b4ad5d35c160bc724b5d5fffb896358fd43",
+      "tools/BACKTEST-MATRIX.md": "760474af1e7f631255fb66f872b71120609ced0b9e94e663acd75ec840929fe9",
+      "tools/FETCH-CANDLES.md": "64b1f59a7481473a86818b3e08f3bbb4a5106dc24f94dcabc4b4a17045d6ae37",
+      "tools/backtest-matrix.py": "eb06c88d7c006279f2869296cb940157c6b7dc25dc3d36a4ad9901fce8a052ff",
+      "tools/fetch-candles.py": "1b0a391bab7bbbd376901367582bb545caa2c3e5aae6d3c0d688a1792cd952cf",
+      "trai_brain/mercury-bridge/react-loop.js": "78d2f4b007239173e5e7f8d63f23b2d488ab270b0870333f5977483469655262"
+    },
+    "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "sourceIdentityAfterReviewCorrection": {
+    "reviewRef": "9cc7fdd37e0f6967b574eba9b50368ac787320c2",
+    "reviewBase": "0f3227a8cb1661a9245227ae4a17006f89773854",
+    "sources": {
+      "CHANGELOG.md": "cf376537afbd28bd4fc4cf22327e3cd9e31f4416f94e06e4d57b57df6d67ab3b",
+      "config/internals.json": "e304f0c827730c55b1aec8aabd6ed361012a7ec554f7691bff0f7f9948e999c2",
+      "config/settings.json": "e700dbb8270f11c59ce9ca0a4d50a3a4f13f7f781787001b9729e68015a81f39",
+      "core/ExitContractManager.js": "e6a6bf6cc69afc08b346c41754c82de9c19e239fcd71a6c25d6d5b8b8ecd64bb",
+      "core/OrderExecutor.js": "7a0390bff09e1817236499127fb5b2e93f7ddbf99a3b2ce9f08630db383d9118",
+      "core/StateManager.js": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1",
+      "core/StrategyOrchestrator.js": "686abf0f8d77cc0e0de521d75ad0b52fdb279b6d3c6c36ff5d6e6cf96c311817",
+      "core/TradeJournal.js": "4d9a810bf1abf688db08c13d6f376abb7b035ab0ffdbc8c006158addd8375373",
+      "core/TradeJournalBridge.js": "079830b053c224fb1043c4c163288afe4b556aca3166b2991ea8fffe3ef023f8",
+      "core/TradingLoop.js": "a74a90b4a32bc1be45ce682071c429d6c1cb07a03641a1a58ce0c8195fba80a2",
+      "core/dto/DecisionLedgerSchema.js": "1d9da94445f5c7eb0f70e1d9f99160178c32a7e51ae2f6a93915d9959dc2cabf",
+      "foundation/ConfigLoader.js": "b0633c1eb4a1941b4425cc45b4819f4944a19602922f34b8f0867df23c3d7e7e",
+      "modules/DonchianBreakout.js": "7b63c758d5d2b6d6b48be8eb4dc96509834aab4f2bb7b34a69005b7b0883a6c9",
+      "modules/EMATrendRetest.js": "a3d57b692ff73ae2f35b7b0310c6d7749c2d0559c63767eb4b7a427b77c9b7ba",
+      "modules/PropSafeEMAPullback.js": "8403ca2d10621dbbc1e49551a1e1d8eaedc4ef85edaccef566da6d61cbec6393",
+      "modules/RSI2MeanReversion.js": "1a87c679dcad043dd1d049614c5a598a9052849713363432bc2e78fa0fcf2611",
+      "modules/TimeSeriesMomentum.js": "b0fc74452a482ba780b3763f7854322f8e9e5711859a0ac39fc5726edd14f900",
+      "ogzprime-ssl-server.js": "dbd368a1658c61a97141ebd81d7746c516b0c1c8c1ffaa27321a79df65b7ce82",
+      "public/trade-journal.html": "e46ffd555280c716010d8c315b4bcb6b4bd1a9dddf7c6ef998850e9b742905e9",
+      "run-empire-v2.js": "383d93ecc2750dc426fb3f361d5657c64c60a3696640998d4036f705ff8763ab",
+      "test/fixtures/backtest-matrix-boundaries.py": "aaee506d6b490517fd21a06e133afcd408f65010f3a0d1d4a45c24cb30f816f4",
+      "test/fixtures/backtest-matrix-observation.py": "62a4c709ad3bc89b981b39d8143880871f058cb72e0cb44311f706f4b98e4570",
+      "test/fixtures/backtest-stock-identity.py": "e347d27759ed15c10be5b1e5ffa4aceea0aef7fa8e39a3b9030cdb7d2e44d2f5",
+      "test/fixtures/backtest-strategy-admission.py": "051647be28447009976f119d350abce607f63942b29c9e65e244f8b9a6c78632",
+      "test/fixtures/fetch-candles-boundaries.py": "103a7267e68f73c2b870303dd99c5c48d2f0c2c628f189f6fee3d2047d0c0c9a",
+      "test/fixtures/fetch-candles-observation.py": "a83709d29f6eb7078249d9ac1ee0267e8d94f52b4984855cee2f9b7f72e0873b",
+      "test/mercury-astra-challenger.test.js": "10b4a7679656e05e43995d95f3e4b4e687d086c707b79a1c8780689d34b37689",
+      "test/session-router-fail-safe.test.js": "ea038ae0c7238d44b873b0bec938cea5105be15fb95dc6087a4e77ea56fc346a",
+      "test/trade-replay-capture-contract.test.js": "9f9934dc6b4db65b27851d0d44eb6b4ad5d35c160bc724b5d5fffb896358fd43",
+      "tools/BACKTEST-MATRIX.md": "760474af1e7f631255fb66f872b71120609ced0b9e94e663acd75ec840929fe9",
+      "tools/FETCH-CANDLES.md": "64b1f59a7481473a86818b3e08f3bbb4a5106dc24f94dcabc4b4a17045d6ae37",
+      "tools/backtest-matrix.py": "eb06c88d7c006279f2869296cb940157c6b7dc25dc3d36a4ad9901fce8a052ff",
+      "tools/fetch-candles.py": "1b0a391bab7bbbd376901367582bb545caa2c3e5aae6d3c0d688a1792cd952cf",
+      "trai_brain/mercury-bridge/react-loop.js": "78d2f4b007239173e5e7f8d63f23b2d488ab270b0870333f5977483469655262"
+    },
+    "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "reviewCorrectionObservations": [
+    {
+      "before": true,
+      "results": [
+        {
+          "scenario": "missing_runtime_scope",
+          "error": "Cannot read properties of null (reading 'symbol')"
+        },
+        {
+          "scenario": "missing_entry_snapshot",
+          "error": "Cannot read properties of null (reading 'symbol')"
+        },
+        {
+          "scenario": "incomplete_reporting_entry",
+          "error": "Cannot read properties of null (reading 'symbol')"
+        },
+        {
+          "scenario": "unknown_failure_scope",
+          "error": "Cannot read properties of null (reading 'symbol')"
+        }
+      ],
+      "modeObservations": [],
+      "failureEvents": [],
+      "noTradingAuthority": true,
+      "limit": "Actual reporting functions and runner construction statement in isolation; no live process failure injection.",
+      "logFile": "native-inputs-before-06.log",
+      "logSha256": "eae39f4e6bc45c4c84d195fe9d78b8427e6a0a78d22a0092a6c0f94e575fd14f"
+    },
+    {
+      "before": false,
+      "results": [
+        {
+          "scenario": "missing_runtime_scope",
+          "error": null
+        },
+        {
+          "scenario": "missing_entry_snapshot",
+          "error": null
+        },
+        {
+          "scenario": "incomplete_reporting_entry",
+          "error": null
+        },
+        {
+          "scenario": "unknown_failure_scope",
+          "error": null
+        }
+      ],
+      "modeObservations": [
+        {
+          "backtest": true,
+          "constructions": 0
+        },
+        {
+          "backtest": false,
+          "constructions": 1
+        }
+      ],
+      "failureEvents": [
+        {
+          "event": "TRADE_JOURNAL_RECONCILIATION_REQUIRED",
+          "reason": "The reporting journal has no complete runtime scope"
+        },
+        {
+          "event": "TRADE_JOURNAL_RECONCILIATION_REQUIRED",
+          "reason": "Confirmed entry is missing reporting data: activeTrade.orderId, activeTrade.symbol, activeTrade.action, entryPrice, sizeUsd, confidence, entryFee, timestamp, activeTrade.entryStrategy, activeTrade.traceId, activeTrade.signalId, activeTrade.decisionId, activeTrade.brokerId, activeTrade.accountId, activeTrade.assetClass, activeTrade.executionMode, activeTrade.timeframe"
+        },
+        {
+          "event": "TRADE_JOURNAL_RECONCILIATION_REQUIRED",
+          "reason": "Confirmed entry is missing reporting data: confidence"
+        },
+        {
+          "event": "TRADE_JOURNAL_RECONCILIATION_REQUIRED",
+          "reason": "Explicit unknown identity"
+        },
+        {
+          "event": "TRADE_JOURNAL_RECONCILIATION_REQUIRED",
+          "reason": "Synthetic unavailable broker identity"
+        }
+      ],
+      "noTradingAuthority": true,
+      "limit": "Actual reporting functions and runner construction statement in isolation; no live process failure injection.",
+      "logFile": "staged-inputs-07.log",
+      "logSha256": "979588ef6d5a678dc5c51640967d27a3be5e485a6988952dc42dd5922666e50a"
+    },
+    {
+      "corrupt": false,
+      "writeFailure": false,
+      "long": true,
+      "partial": true,
+      "savedOpenPositions": 0,
+      "tradingPaused": false,
+      "wrappersInstalled": false,
+      "availabilityBeforeRestart": "available",
+      "availabilityAfterRestart": "available",
+      "actualStrategyExecutorStateManagerAndJournal": true,
+      "limits": [
+        "Synthetic prices/accounts and paper fills inside test-isolated.py.",
+        "No live process restart, actual broker order or live browser acceptance."
+      ],
+      "logFile": "staged-producer-07.log",
+      "logSha256": "3d3d7248eb020985b92e3174619e797cba691243cd2a96700e044896aea857a3"
+    },
+    {
+      "corrupt": false,
+      "writeFailure": true,
+      "long": false,
+      "partial": false,
+      "savedOpenPositions": 0,
+      "tradingPaused": false,
+      "wrappersInstalled": false,
+      "availabilityBeforeRestart": "unavailable",
+      "availabilityAfterRestart": "unavailable",
+      "actualStrategyExecutorStateManagerAndJournal": true,
+      "limits": [
+        "Synthetic prices/accounts and paper fills inside test-isolated.py.",
+        "No live process restart, actual broker order or live browser acceptance."
+      ],
+      "logFile": "staged-write-failure-07.log",
+      "logSha256": "866bf723e25dd00e5c2ec48dca5a5a3df9f0e11867da63da23cfac05fb162e04"
+    }
+  ]
+}

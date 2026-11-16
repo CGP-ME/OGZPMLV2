@@ -520,6 +520,8 @@
     <!-- ═══════════════════════════════════════════════════════════════
          TODAY BANNER
          ══════════════════════════════════════════════════════════════ -->
+    <div id="journal-availability" role="alert">Waiting for journal data.</div>
+    <main id="journal-content" hidden>
     <div class="today-banner animate-in delay-1">
         <span class="today-label">Today</span>
         <span class="today-stat">Trades:<strong id="today-trades">0</strong></span>
@@ -710,6 +712,7 @@
         </div>
     </div>
 
+    </main>
 </div>
 
 <script>
@@ -760,6 +763,17 @@ function connectWebSocket() {
 function handleMessage(msg) {
     switch (msg.type) {
         case 'journal_snapshot':
+            if (msg.data?.status === 'unavailable') {
+                journalData = null;
+                document.getElementById('journal-content').hidden = true;
+                document.getElementById('journal-availability').hidden = false;
+                document.getElementById('journal-availability').textContent = msg.data.reason;
+                document.getElementById('ws-label').textContent = 'Journal unavailable';
+                break;
+            }
+            document.getElementById('journal-content').hidden = false;
+            document.getElementById('journal-availability').hidden = true;
+            document.getElementById('ws-label').textContent = 'Journal received';
             journalData = msg.data;
             updateHeadlineStats(msg.data);
             updateTodayBanner(msg.data);

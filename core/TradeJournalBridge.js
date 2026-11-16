@@ -1,26 +1,8 @@
 /**
- * ============================================================================
- * TradeJournalBridge v2 — Journal + Replay Auto-Wiring
- * ============================================================================
- *
- * Connects TradeJournal AND TradeReplayCapture to run-empire-v2.js without
- * modifying existing modules. It:
- *   1. Records every entry/exit in the journal ledger
- *   2. Captures candle context at entry/exit for visual replay
- *   3. On trade close: auto-saves replay + pushes "View Replay" to dashboard
- *   4. Handles all dashboard WebSocket requests for journal + replay data
- *   5. Broadcasts journal snapshots every 30s
- *   6. Provides HTTP API routes for /journal, /replay, /api/*
- *
- * INTEGRATION (add to run-empire-v2.js):
- * ```
- * const { TradeJournalBridge } = require('./core/TradeJournalBridge');
- * // In startBot() after all modules initialized:
- * this.journalBridge = new TradeJournalBridge(this);
- * ```
- *
- * @module core/TradeJournalBridge
- * @version 2.0.0
+ * Trade journal reporting connection.
+ * Receives confirmed execution records explicitly. Its context contains only
+ * read operations and reporting outputs; it never owns execution functions,
+ * StateManager mutations, broker order methods or process lifecycle methods.
  */
 
 const TradeJournal = require('./TradeJournal');
@@ -29,7 +11,6 @@ const path = require('path');
 const fs = require('fs');
 const ConfigLoader = require('../foundation/ConfigLoader');  // CHANGE 2026-02-28: Centralized config
 const { normalizePatternScope, requirePatternScope } = require('./PatternScope');
-const { emitTrace } = require('./TraceSpine');
 
 const JOURNAL_WRITE_ERROR_CODES = new Set([
   'EACCES',
@@ -100,7 +81,8 @@ function nonEmptyStringOrNull(v) {
 
 function isJournalFailureEventType(eventType) {
   const normalized = nonEmptyStringOrNull(eventType);
-  return normalized === 'trade_entry_journal_refused'
+  return normalized === 'trade_entry_source_incomplete'
+    || normalized === 'trade_entry_journal_refused'
     || normalized === 'trade_entry_recording_exception'
     || normalized === 'trade_entry_state_reconciliation_refused'
     || normalized === 'trade_exit_journal_refused'
@@ -259,7 +241,7 @@ function activeTradeProvenance(activeTrade) {
 function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
   const missing = [];
   const orderId = nonEmptyStringOrNull(activeTrade?.orderId) || nonEmptyStringOrNull(activeTrade?.id);
-  const scope = normalizePatternScope(activeTrade, 'TradeJournalBridge.activeTrade');
+  const scope = normalizePatternScope(activeTrade ?? {}, 'TradeJournalBridge.activeTrade');
   const symbol = scope.ok ? scope.symbol : nonEmptyStringOrNull(activeTrade?.symbol);
   const action = entryActionOrNull(activeTrade?.action) || entryActionOrNull(activeTrade?.type);
   const entryPrice = positiveNumberOrNull(activeTrade?.entryPrice);
@@ -348,6 +330,8 @@ function normalizeClosedTradeRecord(exitRecord) {
   const balance = finiteNumberOrNull(exitRecord?.balance ?? exitRecord?.balanceAfter);
   const symbol = nonEmptyStringOrNull(exitRecord?.symbol);
   const exitTimestamp = timestampOrNull(exitRecord?.exitTimestamp ?? exitRecord?.exitTime ?? exitRecord?.timestamp);
+  const exitFee = nonNegativeNumberOrNull(exitRecord?.exitFee);
+  const scope = normalizePatternScope(exitRecord ?? {}, 'TradeJournalBridge.confirmedExit');
 
   if (!orderId) missing.push('orderId');
   if (!symbol) missing.push('symbol');
@@ -358,6 +342,9 @@ function normalizeClosedTradeRecord(exitRecord) {
   if (holdTime == null) missing.push('holdTime');
   if (!reason) missing.push('reason');
   if (size == null) missing.push('size');
+  if (exitFee == null) missing.push('exitFee');
+  if (exitTimestamp == null) missing.push('exitTimestamp');
+  if (!scope.ok) missing.push(...scope.missingFields.map(field => `scope.${field}`));
 
   return {
     ok: missing.length === 0,
@@ -376,6 +363,9 @@ function normalizeClosedTradeRecord(exitRecord) {
       maxProfit,
       balance,
       exitTimestamp,
+      exitFee,
+      fillId: nonEmptyStringOrNull(exitRecord.fillId),
+      ...(scope.ok ? scope : {}),
     },
   };
 }
@@ -420,8 +410,19 @@ function compactTradeRecord(record) {
   if (!record || typeof record !== 'object') return {};
   return {
     id: nonEmptyStringOrNull(record.id),
+    symbol: nonEmptyStringOrNull(record.symbol),
+    brokerId: nonEmptyStringOrNull(record.brokerId),
+    accountId: nonEmptyStringOrNull(record.accountId),
+    accountIdSource: nonEmptyStringOrNull(record.accountIdSource),
+    assetClass: nonEmptyStringOrNull(record.assetClass),
+    executionMode: nonEmptyStringOrNull(record.executionMode),
+    timeframe: nonEmptyStringOrNull(record.timeframe),
+    scopeKey: nonEmptyStringOrNull(record.scopeKey),
     orderId: nonEmptyStringOrNull(record.orderId),
     tradeId: nonEmptyStringOrNull(record.tradeId),
+    fillId: nonEmptyStringOrNull(record.fillId),
+    exitTimestamp: timestampOrNull(record.exitTimestamp),
+    exitFee: nonNegativeNumberOrNull(record.exitFee),
     type: nonEmptyStringOrNull(record.type),
     action: nonEmptyStringOrNull(record.action),
     direction: nonEmptyStringOrNull(record.direction),
@@ -535,69 +536,109 @@ function resolveReplayDir(journalDataDir) {
 }
 
 class TradeJournalBridge {
-  constructor(bot, config = {}) {
-    this.bot = bot;
-
-    // ── Initialize journal ──────────────────────────────────────────
-    // FIX MIRROR-JOURNAL-BALANCE companion: coerce raw env-string values to Number,
-    // use ?? not || to preserve explicit 0 (constructor will reject 0 as invalid balance,
-    // surfacing real upstream bug rather than hiding under $10K phantom).
-    // SPREAD ORDER CRITICAL: ...config must come FIRST; scoped dataDir and
-    // startingBalance override LAST so callers cannot reopen the unscoped ledger.
-    // Mercury caught Wolf's initial spec putting startingBalance before ...config which
-    // caused the spread to silently overwrite the coerced value with raw config input —
-    // re-introducing the exact bug Fix 27 was meant to fix.
-    const _rawStartingBalance = config.startingBalance ?? ConfigLoader.get('startingBalance');
+  constructor(context, config) {
+    this.context = Object.freeze({ ...context });
     this._journalBridgeConfig = { ...config };
-    this._journalStartingBalance = Number(_rawStartingBalance);
+    this._journalStartingBalance = config.startingBalance;
     this._journalBundles = new Map();
-    const journalScope = resolveJournalScope(this.bot);
-    const primaryBundle = this._createJournalBundle(journalScope);
-    this.journal = primaryBundle.journal;
-    this.replay = primaryBundle.replay;
-    this.visibilityFailurePath = primaryBundle.visibilityFailurePath;
-    this.visibilityFailureFallbackPath = path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
+    this._primaryScope = null;
+    this.journal = null;
+    this.replay = null;
+    this.visibilityFailurePath = null;
+    this.visibilityFailureFallbackPath = path.join(config.journalRoot, '..', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
     this._pendingVisibilityErrors = [];
-    this._maxPendingVisibilityErrors = this._journalBridgeConfig.maxPendingVisibilityErrors;
+    this._maxPendingVisibilityErrors = config.maxPendingVisibilityErrors;
     this._closedTradeLogKeySet = new Set();
     this._closedTradeLogKeys = [];
     this._journalPersistenceFailureStreak = 0;
+  }
+
+  start() {
+    const scope = normalizePatternScope(this.context.readRuntimeScope() ?? {}, 'TradeJournalBridge.start');
+    if (scope.ok) {
+      this._primaryScope = scope;
+      this._createJournalBundle(scope);
+    } else {
+      this._recordVisibilityFailure('journal_runtime_scope_unavailable', {
+        phase: 'startup', source: 'StateManager.getDashboardRuntimeScope',
+        missing: scope.missingFields,
+        message: 'The reporting journal has no complete runtime scope',
+        manualReconciliationRequired: true,
+      });
+    }
     this._reconcileOpenStateTrades();
     this._startupJournalReconciliationPromise = this._reconcileJournalOpenTradesWithAuthoritativeState()
-      .catch(err => {
-        console.warn(`[TradeJournalBridge] Startup journal-open reconciliation skipped: ${err.message}`);
-        TradeJournalBridge.prototype._recordStartupJournalBrokerPositionFailure.call(this, err);
-      });
-
-    // ── Wire everything ─────────────────────────────────────────────
-    this._wireTradeEvents();
+      .catch(error => this._recordStartupJournalBrokerPositionFailure(error));
     this._wireDashboardMessages();
     this._wireBroadcastCycle();
-
-    console.log('TradeJournalBridge v2: Journal + Replay wired into bot');
+    return { reportingAvailable: !!this.journal, tradingAction: 'none' };
   }
 
   _createJournalBundle(scope) {
-    const journalDataDir = resolveJournalDataDir(this.bot, this._journalBridgeConfig, scope);
-    const journal = new TradeJournal({
-      ...this._journalBridgeConfig,
-      dataDir: journalDataDir,
-      scope,
-      startingBalance: this._journalStartingBalance,
-      autoSaveInterval: this._journalBridgeConfig.autoSaveIntervalMs,
-    });
-    const replay = new TradeReplayCapture({
-      replayDir: resolveReplayDir(journalDataDir),
-      candlesBefore: this._journalBridgeConfig.replayCandlesBefore,
-      candlesAfter: this._journalBridgeConfig.replayCandlesAfter,
-    });
-    const bundle = {
-      scope,
-      journal,
-      replay,
+    const journalDataDir = resolveJournalDataDir(null, this._journalBridgeConfig, scope);
+    const existing = this._journalBundles.get(scope.scopeKey);
+    const bundle = existing || {
+      scope, journal: null, replay: null,
       visibilityFailurePath: path.join(journalDataDir, 'trade-visibility-failures.jsonl'),
+      failures: {}, journalGaps: new Map(),
     };
     this._journalBundles.set(scope.scopeKey, bundle);
+    if (!existing && fs.existsSync(bundle.visibilityFailurePath)) {
+      try {
+        for (const line of fs.readFileSync(bundle.visibilityFailurePath, 'utf8').split('\n').filter(line => line.trim())) {
+          const failure = JSON.parse(line);
+          if (isJournalFailureEventType(failure.eventType)) this._rememberJournalGap(bundle, failure);
+        }
+      } catch (error) {
+        bundle.failures.visibilityHistory = errorMessageOrNull(error);
+        this._recordVisibilityFailure('journal_failure_history_unavailable', {
+          phase: 'initialization', source: 'trade-visibility-failures.jsonl', scope,
+          message: bundle.failures.visibilityHistory, manualReconciliationRequired: true,
+        });
+      }
+    }
+    if (scope.scopeKey === this._primaryScope?.scopeKey) {
+      this.visibilityFailurePath = bundle.visibilityFailurePath;
+    }
+    if (!bundle.journal) {
+      try {
+        bundle.journal = new TradeJournal({
+          ...this._journalBridgeConfig, dataDir: journalDataDir, scope,
+          startingBalance: this._journalStartingBalance,
+          autoSaveInterval: this._journalBridgeConfig.autoSaveIntervalMs,
+        });
+        delete bundle.failures.journal;
+      } catch (error) {
+        bundle.failures.journal = errorMessageOrNull(error);
+        this._recordVisibilityFailure('journal_scope_unavailable', {
+          phase: 'initialization', source: 'TradeJournal', scope,
+          message: bundle.failures.journal,
+          context: { journalDataDir, code: error.code || null },
+          manualReconciliationRequired: true,
+        });
+      }
+    }
+    if (!bundle.replay) {
+      try {
+        bundle.replay = new TradeReplayCapture({
+          replayDir: resolveReplayDir(journalDataDir),
+          candlesBefore: this._journalBridgeConfig.replayCandlesBefore,
+          candlesAfter: this._journalBridgeConfig.replayCandlesAfter,
+        });
+        delete bundle.failures.replay;
+      } catch (error) {
+        bundle.failures.replay = errorMessageOrNull(error);
+        this._recordVisibilityFailure('replay_scope_unavailable', {
+          phase: 'initialization', source: 'TradeReplayCapture', scope,
+          message: bundle.failures.replay,
+          manualReconciliationRequired: true,
+        });
+      }
+    }
+    if (scope.scopeKey === this._primaryScope?.scopeKey) {
+      this.journal = bundle.journal;
+      this.replay = bundle.replay;
+    }
     return bundle;
   }
 
@@ -608,15 +649,19 @@ class TradeJournalBridge {
 
     const scope = requirePatternScope(entryData, 'TradeJournalBridge.entry');
     const existing = this._journalBundles.get(scope.scopeKey);
-    return existing || this._createJournalBundle(scope);
+    return existing?.journal && existing?.replay ? existing : this._createJournalBundle(scope);
   }
 
-  _getJournalBundleForOrderId(orderId) {
+  _getJournalBundleForOrderId(orderId, scope) {
     const target = nonEmptyStringOrNull(orderId);
     if (!target || !this._journalBundles) {
       return { journal: this.journal, replay: this.replay, scope: this.journal?.scope || null };
     }
 
+    if (scope?.scopeKey) {
+      const existing = this._journalBundles.get(scope.scopeKey);
+      return existing?.journal && existing?.replay ? existing : this._createJournalBundle(scope);
+    }
     for (const bundle of this._journalBundles.values()) {
       if (bundle.journal?.openTrades?.has?.(target)) return bundle;
       if (Array.isArray(bundle.journal?.trades) && bundle.journal.trades.some(trade => trade.orderId === target)) {
@@ -626,12 +671,27 @@ class TradeJournalBridge {
     return null;
   }
 
+  _rememberJournalGap(bundle, record) {
+    const source = record.context?.exitRecord || record.context?.entry || record.context?.activeTrade || {};
+    const key = JSON.stringify([record.phase, record.orderId, source.fillId, source.exitTimestamp, source.size]);
+    bundle.journalGaps.set(key, record);
+  }
+
+  _unresolvedJournalGaps(bundle) {
+    return Array.from(bundle.journalGaps.values()).filter(record => {
+      if (!bundle.journal || !record.orderId) return true;
+      if (record.phase === 'entry') return !bundle.journal.entryOrderIds.has(record.orderId);
+      const fillId = record.context?.exitRecord?.fillId;
+      return !fillId || !bundle.journal.exitFillIds.has(fillId);
+    });
+  }
+
   _allJournalBundles() {
     return this._journalBundles ? Array.from(this._journalBundles.values()) : [{ journal: this.journal, replay: this.replay, scope: this.journal?.scope || null }];
   }
 
   recordClosedCandle(candle) {
-    const scope = normalizePatternScope(candle, 'TradeJournalBridge.recordClosedCandle');
+    const scope = normalizePatternScope(candle ?? {}, 'TradeJournalBridge.recordClosedCandle');
     if (!scope.ok) return 0;
     const bundle = this._journalBundles?.get(scope.scopeKey);
     if (!bundle?.replay) return 0;
@@ -661,204 +721,66 @@ class TradeJournalBridge {
   // TRADE EVENT WIRING
   // ════════════════════════════════════════════════════════════════════════
 
-  _wireTradeEvents() {
-    const bot = this.bot;
-    const bridge = this;
-
-    // ── Intercept trade ENTRIES ─────────────────────────────────────
-    const originalExecuteTrade = bot.executeTrade.bind(bot);
-    bot.executeTrade = async function(...args) {
-      const result = await originalExecuteTrade(...args);
-      const failureContext = {
-        phase: 'entry',
-        source: 'bot.executeTrade',
-        orderId: null,
-        action: null,
-      };
-
+  recordEntry(activeTrade) {
+    const normalized = sourceBackedEntryFromActiveTrade(activeTrade, activeTrade?.orderId);
+    const entry = normalized.data;
+    const context = {
+      phase: 'entry', source: 'OrderExecutor.openPosition',
+      orderId: entry.orderId, action: entry.direction,
+      scope: normalized.ok ? entry : null,
+      context: { entry: compactTradeRecord(activeTrade) },
+    };
+    if (!normalized.ok) {
+      this._recordVisibilityFailure('trade_entry_source_incomplete', {
+        ...context, missing: normalized.missing,
+        message: `Confirmed entry is missing reporting data: ${normalized.missing.join(', ')}`,
+        manualReconciliationRequired: true,
+      });
+      return { journalRecorded: false, replayRecorded: false };
+    }
+    const bundle = this._getJournalBundleForEntry(entry);
+    let journalEntry = bundle.journal?.openTrades.get(entry.orderId) || null;
+    if (!bundle.journal) this._recordVisibilityFailure('trade_entry_journal_refused', {
+      ...context, message: 'Journal history is unavailable for this confirmed entry',
+    });
+    if (bundle.journal && !journalEntry) {
       try {
-        const [decision] = args;
-        failureContext.action = decision?.action || null;
-        const decisionAction = nonEmptyStringOrNull(decision?.action)?.toUpperCase() || null;
-        const decisionEntryAction = entryActionOrNull(decisionAction);
-        const decisionExitAction = decisionAction === 'SELL' || decisionAction === 'COVER';
-        const resultOrderId = nonEmptyStringOrNull(result?.orderId);
-        const confirmedEntrySideEffect = result?.success === true
-          && result?.orderAccepted === true
-          && result?.stateMutationSucceeded === true
-          && resultOrderId;
-        const stateManager = bot.stateManager;
-        const activeTrades = stateManager?.get('activeTrades') || new Map();
-        const activeTrade = resultOrderId ? findActiveTradeByOrderId(activeTrades, resultOrderId) : null;
-        const activeTradeEntryAction = decisionExitAction ? null : (entryActionOrNull(activeTrade?.action) || entryActionOrNull(activeTrade?.type));
-        const entryAction = activeTradeEntryAction || decisionEntryAction;
-
-        if (entryAction) {
-          if (
-            result?.success !== true
-            || result?.orderAccepted !== true
-            || result?.stateMutationSucceeded !== true
-            || !resultOrderId
-          ) {
-            if (result?.success === true || result?.orderAccepted === true || result?.stateMutationSucceeded === true) {
-              throw new Error(`Entry ${entryAction} execution result missing confirmed orderId/state mutation; refusing journal capture`);
-            }
-            return result;
-          }
-
-          if (!activeTrade) {
-            throw new Error(`Entry ${resultOrderId} succeeded but is missing from StateManager activeTrades; refusing journal capture`);
-          }
-          if (decisionEntryAction && activeTradeEntryAction && decisionEntryAction !== activeTradeEntryAction) {
-            throw new Error(`Entry ${resultOrderId} action mismatch: decision=${decisionEntryAction} activeTrade=${activeTradeEntryAction}`);
-          }
-          failureContext.orderId = resultOrderId;
-          failureContext.action = entryAction;
-          const normalizedEntry = sourceBackedEntryFromActiveTrade(activeTrade, resultOrderId);
-          if (!normalizedEntry.ok) {
-            TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_source_incomplete', {
-              ...failureContext,
-              orderId: resultOrderId,
-              action: entryAction,
-              missing: normalizedEntry.missing,
-              message: `Entry ${resultOrderId} missing source-backed active trade field(s): ${normalizedEntry.missing.join(', ')}`,
-              context: { activeTrade: compactTradeRecord(activeTrade) },
-            });
-            return result;
-          }
-          const entryData = normalizedEntry.data;
-
-          const bundle = TradeJournalBridge.prototype._getJournalBundleForEntry.call(bridge, entryData);
-
-          // Record in the symbol-scoped journal.
-          let journalEntry = null;
-          let journalEntryThrew = false;
-          try {
-            journalEntry = bundle.journal.recordEntry(entryData);
-          } catch (err) {
-            journalEntryThrew = true;
-            const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_recording_exception', {
-              ...failureContext,
-              orderId: entryData.orderId,
-              message: errorMessageOrNull(err),
-              context: { entry: compactTradeRecord(entryData) },
-            });
-            if (isJournalPersistenceError(err)) {
-              TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(bridge, record, err);
-            }
-          }
-          if (!journalEntry && !journalEntryThrew) {
-            TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
-              ...failureContext,
-              orderId: entryData.orderId,
-              message: 'TradeJournal.recordEntry returned null',
-              context: { entry: compactTradeRecord(entryData) },
-            });
-          } else if (journalEntry) {
-            TradeJournalBridge.prototype._recordJournalPersistenceSuccess.call(bridge, {
-              phase: 'entry',
-              source: 'bot.executeTrade',
-              orderId: entryData.orderId,
-              action: entryAction,
-              symbol: entryData.symbol,
-            });
-          }
-
-          const replayPriceHistory = resolveReplayPriceHistory(bot, entryData.symbol, entryData.timeframe);
-          if (!replayPriceHistory.ok) {
-            TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_replay_missing', {
-              ...failureContext,
-              orderId: entryData.orderId,
-              message: `Trade replay entry skipped: ${replayPriceHistory.reason}`,
-              context: {
-                entry: compactTradeRecord(entryData),
-                replayPriceHistory: replayPriceHistory,
-              },
-            });
-          } else {
-            // Capture candle context for replay from the trade symbol's price stream.
-            const replayEntry = bundle.replay.captureEntry(entryData.orderId, {
-              price: entryData.entryPrice,
-              direction: entryData.direction,
-              confidence: entryData.confidence,
-              regime: entryData.regime,
-              patterns: entryData.patterns,
-              indicators: entryData.indicators,
-              entryStrategy: entryData.entryStrategy,
-              winnerStrategy: entryData.winnerStrategy,
-              strategy: entryData.strategy,
-              signalId: entryData.signalId,
-              decisionId: entryData.decisionId,
-              traceId: entryData.traceId,
-              signalBasis: entryData.signalBasis,
-              crossoverCount: entryData.crossoverCount,
-              decisionLedger: entryData.decisionLedger,
-              strategySignals: entryData.strategySignals,
-              orchestratorDecision: entryData.orchestratorDecision,
-              competingStrategies: entryData.competingStrategies,
-              confluence: entryData.confluence,
-              positionSizing: entryData.positionSizing,
-              exitContract: entryData.exitContract,
-              riskGates: entryData.riskGates,
-              timestamp: entryData.timestamp
-            }, replayPriceHistory.priceHistory, bundle.scope);
-            if (!replayEntry) {
-              TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_replay_missing', {
-                ...failureContext,
-                orderId: entryData.orderId,
-                message: 'TradeReplayCapture.captureEntry returned null',
-                context: {
-                  entry: compactTradeRecord(entryData),
-                  replayPriceHistory: {
-                    ok: replayPriceHistory.ok,
-                    source: replayPriceHistory.source,
-                    symbol: replayPriceHistory.symbol,
-                    priceHistoryLength: replayPriceHistory.priceHistory.length,
-                  },
-                },
-              });
-            }
-          }
-        } else if (!decisionExitAction && confirmedEntrySideEffect && activeTrade) {
-          throw new Error(`Entry ${resultOrderId} succeeded but active trade action is not journalable; refusing silent capture skip`);
-        }
-      } catch (err) {
-        console.warn(`[TradeJournalBridge] Entry recording failed (non-critical): ${err.message}`);
-        const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_recording_exception', {
-          ...failureContext,
-          message: errorMessageOrNull(err),
+        journalEntry = bundle.journal.recordEntry(entry);
+        if (journalEntry) this._recordJournalPersistenceSuccess(context);
+        else this._recordVisibilityFailure('trade_entry_journal_refused', {
+          ...context, message: 'TradeJournal refused the confirmed entry record',
         });
-        if (isJournalPersistenceError(err)) {
-          TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(bridge, record, err);
-        }
+      } catch (error) {
+        const failure = this._recordVisibilityFailure('trade_entry_recording_exception', {
+          ...context, message: errorMessageOrNull(error),
+        });
+        if (isJournalPersistenceError(error)) this._recordJournalPersistenceFailure(failure, error);
       }
-
-      return result;
-    };
-
-    // ── Intercept trade EXITS ───────────────────────────────────────
-    const wrapLogSink = (owner, key, label) => {
-      if (!owner || typeof owner[key] !== 'function') return false;
-      if (owner[key]._tradeJournalBridgeWrapped === true) return false;
-
-      const originalLogTrade = owner[key];
-      owner[key] = async function(exitRecord) {
-        try {
-          return await originalLogTrade.call(this, exitRecord);
-        } finally {
-          bridge._recordTradeLogClose(exitRecord, label);
+    }
+    let replayEntry = null;
+    if (bundle.replay) {
+      try {
+        const history = this.context.readReplayHistory(entry.symbol, entry.timeframe);
+        if (history.ok) {
+          replayEntry = bundle.replay.captureEntry(entry.orderId, {
+            ...entry, price: entry.entryPrice,
+          }, history.priceHistory, bundle.scope);
         }
-      };
-      owner[key]._tradeJournalBridgeWrapped = true;
-      return true;
-    };
-
-    wrapLogSink(bot, 'logTrade', 'bot.logTrade');
-    wrapLogSink(bot.orderExecutor?.ctx, 'logTrade', 'orderExecutor.ctx.logTrade');
+        if (!replayEntry) this._recordVisibilityFailure('trade_entry_replay_missing', {
+          ...context, message: history.reason || 'Replay entry capture was unavailable',
+          manualReconciliationRequired: true,
+        });
+      } catch (error) {
+        this._recordVisibilityFailure('trade_entry_replay_missing', {
+          ...context, message: errorMessageOrNull(error), manualReconciliationRequired: true,
+        });
+      }
+    }
+    return { journalRecorded: !!journalEntry, replayRecorded: !!replayEntry };
   }
 
   _reconcileOpenStateTrades() {
-    const activeTrades = this.bot?.stateManager?.get?.('activeTrades');
+    const activeTrades = this.context.readState().activeTrades;
     for (const { key, trade } of activeTradeEntries(activeTrades)) {
       const activeOrderId = nonEmptyStringOrNull(trade?.orderId) || nonEmptyStringOrNull(trade?.id);
       const keyOrderId = nonEmptyStringOrNull(key);
@@ -891,6 +813,7 @@ class TradeJournalBridge {
       }
 
       const bundle = TradeJournalBridge.prototype._getJournalBundleForEntry.call(this, normalizedEntry.data);
+      if (!bundle.journal) continue;
       if (
         bundle.journal.entryOrderIds?.has?.(expectedOrderId)
         || bundle.journal.openTrades?.has?.(expectedOrderId)
@@ -939,12 +862,13 @@ class TradeJournalBridge {
   }
 
   _stateOpenTradeProof() {
-    const activeTrades = this.bot?.stateManager?.get?.('activeTrades');
+    const state = this.context.readState();
+    const activeTrades = state.activeTrades;
     const entries = activeTradeEntries(activeTrades);
     const stateOpenOrderIds = uniqueNonEmptyStrings(entries.map(({ key, trade }) => (
       nonEmptyStringOrNull(trade?.orderId) || nonEmptyStringOrNull(trade?.id) || nonEmptyStringOrNull(key)
     )));
-    const statePositionCount = nonNegativeNumberOrNull(this.bot?.stateManager?.get?.('positionCount'));
+    const statePositionCount = nonNegativeNumberOrNull(state.positionCount);
     return {
       stateOpenOrderIds,
       stateActiveTradeCount: stateOpenOrderIds.length,
@@ -953,23 +877,21 @@ class TradeJournalBridge {
   }
 
   async _brokerPositionsForJournalReconciliation() {
-    const adapter = this.bot?.sessionRouter?.activeBroker;
-    if (!adapter || typeof adapter.getPositions !== 'function') {
-      console.warn('[TradeJournalBridge] Active broker does not support getPositions() for journal reconciliation; refusing broker-ambiguous position read');
+    const snapshot = await this.context.readBrokerSnapshot();
+    if (snapshot.available !== true) {
+      const record = this._recordVisibilityFailure('journal_broker_positions_unavailable', {
+        phase: 'startup_authoritative_reconciliation', source: 'broker.getPositions',
+        scope: snapshot.scope || null, context: { code: snapshot.code || null },
+        message: snapshot.reason, manualReconciliationRequired: true,
+      });
+      if (snapshot.scope) this._markOpenJournalTradesBrokerUnverified(record);
       return null;
     }
-    const positions = await adapter.getPositions();
-    if (!Array.isArray(positions)) {
-      throw new Error(`broker.getPositions returned ${typeof positions}, expected array`);
-    }
-    return positions
-      .map(normalizeBrokerPositionForJournal)
-      .filter(Boolean);
+    return snapshot;
   }
 
   _recordStartupJournalBrokerPositionFailure(err) {
-    const adapter = this.bot?.sessionRouter?.activeBroker;
-    const broker = adapter?.getBrokerName?.() || adapter?.id || this.bot?.config?.brokerId || null;
+    const broker = this.context.readRuntimeScope()?.brokerId || null;
     const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'journal_broker_positions_unavailable', {
       phase: 'startup_authoritative_reconciliation',
       source: 'broker.getPositions',
@@ -982,12 +904,12 @@ class TradeJournalBridge {
       },
       manualReconciliationRequired: true,
     });
-    TradeJournalBridge.prototype._markOpenJournalTradesBrokerUnverified.call(this, record, err);
     return record;
   }
 
   _markOpenJournalTradesBrokerUnverified(visibilityRecord, err) {
-    const broker = nonEmptyStringOrNull(visibilityRecord?.context?.broker) || nonEmptyStringOrNull(this.bot?.config?.brokerId);
+    const scope = visibilityRecord.scope;
+    const broker = scope?.brokerId;
     const code = nonEmptyStringOrNull(visibilityRecord?.context?.code) || 'broker_position_truth_unavailable';
     const reason = nonEmptyStringOrNull(visibilityRecord?.context?.reason) || 'journal_broker_positions_unavailable';
     const message = errorMessageOrNull(err) || visibilityRecord?.message || 'broker positions unavailable';
@@ -995,6 +917,9 @@ class TradeJournalBridge {
 
     for (const bundle of TradeJournalBridge.prototype._allJournalBundles.call(this)) {
       const journal = bundle.journal;
+      if (!scope || bundle.scope.brokerId !== scope.brokerId
+        || bundle.scope.accountId !== scope.accountId
+        || bundle.scope.executionMode !== scope.executionMode) continue;
       if (!journal?.openTrades || typeof journal.recordOpenTradeBrokerUnverified !== 'function') continue;
       for (const orderId of Array.from(journal.openTrades.keys())) {
         try {
@@ -1030,15 +955,19 @@ class TradeJournalBridge {
   }
 
   async _reconcileJournalOpenTradesWithAuthoritativeState() {
-    const brokerPositions = await this._brokerPositionsForJournalReconciliation();
-    if (!brokerPositions) {
+    const snapshot = await this._brokerPositionsForJournalReconciliation();
+    if (!snapshot) {
       return { reconciled: 0, skipped: true, reason: 'broker_positions_unavailable' };
     }
 
+    const brokerPositions = snapshot.positions;
     const stateProof = this._stateOpenTradeProof();
     let reconciled = 0;
     for (const bundle of TradeJournalBridge.prototype._allJournalBundles.call(this)) {
       const journal = bundle.journal;
+      if (bundle.scope.brokerId !== snapshot.brokerId
+        || bundle.scope.accountId !== snapshot.accountId
+        || bundle.scope.executionMode !== snapshot.executionMode) continue;
       const scopeSymbol = nonEmptyStringOrNull(bundle.scope?.symbol);
       if (!journal?.openTrades || !scopeSymbol) continue;
       const brokerSymbolPositionCount = brokerPositions
@@ -1065,7 +994,7 @@ class TradeJournalBridge {
     return { reconciled, skipped: false };
   }
 
-  _recordTradeLogClose(exitRecord, source = 'logTrade') {
+  recordExit(exitRecord, source = 'OrderExecutor.applyFill') {
     if (!isCloseLogRecord(exitRecord)) return false;
 
     const normalized = normalizeClosedTradeRecord(exitRecord);
@@ -1083,9 +1012,8 @@ class TradeJournalBridge {
       return false;
     }
 
-    const stateManager = this.bot.stateManager;
     const data = normalized.data;
-    const balance = data.balance ?? finiteNumberOrNull(stateManager?.get?.('balance'));
+    const balance = data.balance;
     const closeKey = closedTradeLogKey(data);
     this._closedTradeLogKeySet ??= new Set();
     this._closedTradeLogKeys ??= [];
@@ -1097,8 +1025,8 @@ class TradeJournalBridge {
     const progress = this._closedTradeProgress?.get(closeKey) || { journalExit: null, replayPath: null, notification: null };
 
     try {
-      const bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId);
-      if (!bundle?.journal || !bundle?.replay) {
+      const bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId, data);
+      if (!bundle?.journal && !bundle?.replay) {
         TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_scope_unresolved', {
           phase: 'exit',
           source,
@@ -1109,13 +1037,15 @@ class TradeJournalBridge {
         });
         return false;
       }
-      const journalWriteAttempted = !progress.journalExit;
-      const journalExit = progress.journalExit || bundle.journal.recordExit({
+      const journalWriteAttempted = !!bundle.journal && !progress.journalExit;
+      const journalExit = progress.journalExit || bundle.journal?.recordExit({
         orderId: data.orderId,
         exitPrice: data.exitPrice,
         reason: data.reason,
         pnl: data.pnl,
-        fees: 0,
+        fees: data.exitFee,
+        exitTimestamp: data.exitTimestamp,
+        fillId: data.fillId,
         maxProfit: data.maxProfit,
         holdTime: data.holdTime,
         balance,
@@ -1147,8 +1077,8 @@ class TradeJournalBridge {
       let replayPath = progress.replayPath;
       // A persisted partial journal leg does not complete the trade replay.
       let replayTerminal = journalExit?.partialExit === true;
-      if (!replayPath && !replayTerminal) {
-      const replayPriceHistory = resolveReplayPriceHistory(this.bot, data.symbol || bundle.scope?.symbol, bundle.scope?.timeframe);
+      if (bundle.replay && !replayPath && !replayTerminal) {
+      const replayPriceHistory = this.context.readReplayHistory(data.symbol || bundle.scope?.symbol, bundle.scope?.timeframe);
       if (!replayPriceHistory.ok && bundle.replay.pendingEntries.has(data.orderId)) {
         TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_replay_missing', {
           phase: 'exit',
@@ -1237,11 +1167,14 @@ class TradeJournalBridge {
 
   _recordVisibilityFailure(eventType, details = {}) {
     const timestamp = new Date().toISOString();
-    const scope = Object.hasOwn(details, 'scope') ? details.scope : (this.journal?.scope || null);
-    const filepath = this.visibilityFailurePath
-      || (this.journal?.paths?.dir ? path.join(this.journal.paths.dir, 'trade-visibility-failures.jsonl') : null);
-    const fallbackPath = this.visibilityFailureFallbackPath
-      || path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
+    const sourceScope = Object.hasOwn(details, 'scope') ? details.scope
+      : (details.context?.entry || details.context?.exitRecord || details.context?.activeTrade || this._primaryScope);
+    const normalizedScope = normalizePatternScope(sourceScope ?? {}, 'TradeJournalBridge.visibility');
+    const scope = normalizedScope.ok ? normalizedScope : null;
+    const filepath = scope
+      ? path.join(resolveJournalDataDir(null, this._journalBridgeConfig, scope), 'trade-visibility-failures.jsonl')
+      : null;
+    const fallbackPath = this.visibilityFailureFallbackPath;
     const record = {
       type: 'trade_visibility_failure',
       eventType: String(eventType || 'trade_visibility_failure'),
@@ -1272,12 +1205,10 @@ class TradeJournalBridge {
       manualReconciliationRequired: details.manualReconciliationRequired === true || isJournalFailureEventType(eventType),
     };
 
-    if (record.manualReconciliationRequired) {
-      if (record.orderId) {
-        TradeJournalBridge.prototype._markTradeUnjournaled.call(this, record);
-      }
-      TradeJournalBridge.prototype._emitJournalReconciliationTrace.call(this, record);
-    }
+    const bundle = scope && this._journalBundles.get(scope.scopeKey);
+    if (bundle && isJournalFailureEventType(eventType)) this._rememberJournalGap(bundle, record);
+    console.error(`[TradeJournalBridge] ${record.eventType}: ${record.message || 'reporting unavailable'}`);
+    TradeJournalBridge.prototype._emitJournalReconciliationTrace.call(this, record);
 
     if (filepath) {
       try {
@@ -1309,28 +1240,9 @@ class TradeJournalBridge {
     return record;
   }
 
-  _markTradeUnjournaled(record) {
-    const stateManager = this.bot?.stateManager;
-    if (!stateManager || typeof stateManager.markActiveTradeJournalFailure !== 'function') {
-      return { success: false, reason: 'mark_active_trade_journal_failure_unavailable' };
-    }
-
-    try {
-      return stateManager.markActiveTradeJournalFailure(record.orderId, {
-        eventType: record.eventType,
-        phase: record.phase,
-        source: record.source,
-        message: record.message,
-        orderId: record.orderId,
-      });
-    } catch (err) {
-      console.error(`[TradeJournalBridge] Failed to mark active trade unjournaled: ${err.message}`);
-      return { success: false, reason: 'mark_active_trade_journal_failure_failed', error: err.message };
-    }
-  }
-
   _emitJournalReconciliationTrace(record) {
-    emitTrace(this.bot || {}, 'TRADE_JOURNAL_RECONCILIATION_REQUIRED', {
+    this.context.emitTrace('TRADE_JOURNAL_RECONCILIATION_REQUIRED', {
+      ...record.scope,
       symbol: record.context?.entry?.symbol || record.context?.exitRecord?.symbol || record.scope?.symbol || null,
       orderId: record.orderId,
       action: record.action,
@@ -1364,7 +1276,8 @@ class TradeJournalBridge {
 
     const reason = `[TradeJournalBridge] journal persistence failed ${this._journalPersistenceFailureStreak} consecutive time(s): ${errorMessageOrNull(err) || 'unknown error'}`;
     console.error(reason);
-    emitTrace(this.bot || {}, 'TRADE_JOURNAL_PERSISTENCE_FAILED', {
+    this.context.emitTrace('TRADE_JOURNAL_PERSISTENCE_FAILED', {
+      ...record.scope,
       symbol: record.context?.entry?.symbol || record.context?.exitRecord?.symbol || record.scope?.symbol || null,
       orderId: record.orderId,
       action: record.action,
@@ -1387,7 +1300,7 @@ class TradeJournalBridge {
 
     const previousStreak = this._journalPersistenceFailureStreak;
     this._journalPersistenceFailureStreak = 0;
-    emitTrace(this.bot || {}, 'TRADE_JOURNAL_PERSISTENCE_RECOVERED', {
+    this.context.emitTrace('TRADE_JOURNAL_PERSISTENCE_RECOVERED', {
       symbol: context.symbol || null,
       orderId: context.orderId || null,
       action: context.action || null,
@@ -1644,7 +1557,7 @@ class TradeJournalBridge {
   _wireDashboardMessages() {
     const bridge = this;
 
-    this.bot._journalMessageHandler = (msg) => {
+    this._journalMessageHandler = (msg) => {
       try {
         switch (msg.type) {
           case 'request_journal':         bridge._sendJournalSnapshot(); break;
@@ -1657,7 +1570,10 @@ class TradeJournalBridge {
           case 'request_replay_list':     bridge._sendReplayList(msg.limit); break;
         }
       } catch (err) {
-        console.warn(`[TradeJournalBridge] Handler error: ${err.message}`);
+        this._recordVisibilityFailure('journal_request_failed', {
+          phase: 'dashboard', source: msg.type, message: errorMessageOrNull(err),
+          manualReconciliationRequired: true,
+        });
       }
     };
 
@@ -1665,12 +1581,11 @@ class TradeJournalBridge {
   }
 
   _tryDirectWsHook() {
-    const bot = this.bot;
-    const handler = bot._journalMessageHandler;
+    const handler = this._journalMessageHandler;
 
     if (this._dashboardHookTimer) clearInterval(this._dashboardHookTimer);
     this._dashboardHookTimer = setInterval(() => {
-      const dashboardWs = bot.dashboardWs;
+      const dashboardWs = this.context.readDashboardSocket();
       if (!dashboardWs || dashboardWs.readyState !== 1) return;
 
       this._flushPendingVisibilityErrors();
@@ -1712,7 +1627,7 @@ class TradeJournalBridge {
   _wireBroadcastCycle() {
     this._broadcastTimer = setInterval(() => {
       TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(this);
-      if (TradeJournalBridge.prototype._combinedClosedTrades.call(this).length > 0) this._sendJournalSnapshot();
+      this._sendJournalSnapshot();
     }, this._journalBridgeConfig.broadcastIntervalMs);
   }
 
@@ -1723,8 +1638,9 @@ class TradeJournalBridge {
 
   _send(payload) {
     try {
-      if (this.bot.dashboardWs && this.bot.dashboardWs.readyState === 1) {
-        this.bot.dashboardWs.send(JSON.stringify(payload));
+      const dashboardWs = this.context.readDashboardSocket();
+      if (dashboardWs && dashboardWs.readyState === 1) {
+        dashboardWs.send(JSON.stringify(payload));
         if (payload?.type !== 'trade_visibility_error') {
           TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(this);
         }
@@ -1749,7 +1665,15 @@ class TradeJournalBridge {
 
   _combinedJournalSnapshot() {
     const bundles = TradeJournalBridge.prototype._allJournalBundles.call(this);
-    if (bundles.length === 1) return bundles[0].journal.getSnapshot();
+    const unavailable = bundles.filter(bundle => !bundle.journal || bundle.failures.visibilityHistory || this._unresolvedJournalGaps(bundle).length > 0);
+    if (!this._primaryScope || unavailable.length > 0) {
+      return {
+        module: 'TradeJournal', status: 'unavailable',
+        reason: 'Journal history is unavailable; trading execution is independent.',
+        unavailableScopes: unavailable.map(bundle => ({ scope: bundle.scope, reason: bundle.failures.journal || bundle.failures.visibilityHistory || 'Confirmed execution rows are missing from this journal', missingRecords: this._unresolvedJournalGaps(bundle).map(record => ({ phase: record.phase, orderId: record.orderId, eventType: record.eventType })) })),
+      };
+    }
+    if (bundles.length === 1) return { ...bundles[0].journal.getSnapshot(), status: 'available' };
 
     const trades = this._combinedClosedTrades();
     const netPnl = trades.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
@@ -1805,6 +1729,7 @@ class TradeJournalBridge {
 
     return {
       module: 'TradeJournal',
+      status: 'available',
       scopeMode: 'multi-symbol-aggregate',
       symbols: bundles.map(bundle => bundle.scope?.symbol).filter(Boolean),
       totalTrades,

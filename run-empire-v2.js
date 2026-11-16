@@ -453,7 +453,7 @@ const LiquiditySweepDetector = require('./modules/LiquiditySweepDetector');
 const MultiAssetManager = require('./core/MultiAssetManager');
 
 // CHANGE 2026-02-10: Trade Journal + Instant Replay
-const { TradeJournalBridge } = require('./core/TradeJournalBridge');
+const { TradeJournalBridge, resolveReplayPriceHistory } = require('./core/TradeJournalBridge');
 
 // CHANGE 2026-02-16: Pipeline Snapshot for 30-min state capture
 const PipelineSnapshot = require('./core/PipelineSnapshot');
@@ -1403,6 +1403,20 @@ class OGZPrimeV14Bot {
       // FIX 2026-03-29: Add strategyOrchestrator for SMS daily loss tracking
       strategyOrchestrator: this.strategyOrchestrator
     });
+    if (!resolvedConfig.config.mode.backtest) {
+      this.journalBridge = new TradeJournalBridge({
+        readRuntimeScope: () => stateManager.getDashboardRuntimeScope(),
+        readState: () => stateManager.getState(),
+        readReplayHistory: (symbol, timeframe) => resolveReplayPriceHistory(this, symbol, timeframe),
+        readBrokerSnapshot: () => this.readJournalBrokerSnapshot(),
+        readDashboardSocket: () => this.dashboardWs,
+        emitTrace: (event, fields) => emitTrace(this, event, fields),
+      }, {
+        ...resolvedConfig.config.internals.journal,
+        journalRoot: resolvedConfig.config.paths.journalDataDir,
+        startingBalance: resolvedConfig.config.startingBalance,
+      });
+    }
     const isTtpStockAssetClass = ['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf']
       .includes(String(this.config.assetClass || '').trim().toLowerCase());
     const stockBrokerNames = this.orderRouter?.getBrokerNamesByAssetType
@@ -2102,11 +2116,8 @@ class OGZPrimeV14Bot {
           tradingPair: resolvedConfig.config.execution.tradingPair,
         });
 
-        // CHANGE 2026-02-10: Initialize Trade Journal + Replay Bridge
-        this.journalBridge = new TradeJournalBridge(this, {
-          ...resolvedConfig.config.internals.journal,
-          journalRoot: resolvedConfig.config.paths.journalDataDir,
-        });
+        // Reporting startup cannot acquire execution or process authority.
+        this.journalBridge.start();
 
         // CHANGE 2026-02-16: Pipeline Snapshot - 30-min state capture
         this.pipelineSnapshot = new PipelineSnapshot(this, resolvedConfig.config.internals.pipelineSnapshot);
@@ -3389,6 +3400,35 @@ class OGZPrimeV14Bot {
    * Original logic moved to core/OrderExecutor.js
    * Phase 3 REWRITE: Renamed brainDecision → orchResult (orchestrator result)
    */
+  async readJournalBrokerSnapshot() {
+    const broker = this.sessionRouter?.activeBroker;
+    const scope = stateManager.getDashboardRuntimeScope();
+    if (!broker || typeof broker.getPositions !== 'function' || typeof broker.getAccountIdentity !== 'function') {
+      return { available: false, reason: 'active_broker_position_identity_unavailable' };
+    }
+    const identity = broker.getAccountIdentity();
+    if (!identity?.accountId || identity.accountId !== scope?.accountId || identity.brokerId !== scope?.brokerId) {
+      return { available: false, reason: 'active_broker_position_identity_mismatch' };
+    }
+    let positions;
+    try {
+      positions = await broker.getPositions();
+    } catch (error) {
+      return { available: false, scope, reason: error.message, code: error.code || null };
+    }
+    const currentScope = stateManager.getDashboardRuntimeScope();
+    if (this.sessionRouter.activeBroker !== broker || currentScope?.scopeKey !== scope?.scopeKey) {
+      return { available: false, reason: 'active_broker_changed_during_position_read' };
+    }
+    if (!Array.isArray(positions) || positions.some(position => typeof position?.symbol !== 'string' || !position.symbol.trim())) {
+      return { available: false, scope, reason: 'active_broker_position_symbols_unavailable' };
+    }
+    return {
+      available: true, brokerId: identity.brokerId, accountId: identity.accountId,
+      executionMode: scope.executionMode, positions,
+    };
+  }
+
   async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe, decisionInput) {
     const action = typeof decision?.action === 'string' ? decision.action.trim().toUpperCase() : '';
     if (action === 'BUY' || action === 'SELL_SHORT') {
