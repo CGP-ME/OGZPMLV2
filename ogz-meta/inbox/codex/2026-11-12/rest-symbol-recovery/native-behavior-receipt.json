@@ -1,0 +1,660 @@
+{
+  "status": "behavior_verified_review_incomplete_astra_unavailable_not_activated",
+  "source": {
+    "tree": "f129e61af43a32adb9162d175817f20995f6fd54",
+    "base": "1d057b014be9d365403d7eea8651a0a8d11b72b1",
+    "changed": [
+      "core/SessionRouter.js",
+      "core/StateManager.js",
+      "core/TtpCutoffEnforcer.js",
+      "run-empire-v2.js"
+    ],
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "fileSha256": {
+      "core/SessionRouter.js": "1be8cc34a6a16cd956c06c3a623e0bf10b74677f80aa933a89e610becebf7af4",
+      "core/StateManager.js": "c91f9df779a411b294079964c26cc53f2823ca6d2346b6ebd539799b23078efb",
+      "core/TtpCutoffEnforcer.js": "8f9fbdc66d6818c50916511c89e8346c14f420f065097f2cd3362cfc13256876",
+      "run-empire-v2.js": "c82fe20dbcf250e146ddc0c76e50584258917359e4cc873dbe6d514d3977b53d"
+    }
+  },
+  "transitions": [
+    {
+      "case": "baseline",
+      "log": "before-corrected.log",
+      "sha256": "263fdec595aebf10214982e9e1c30de45cbfe11adff9cb64d52509532ee37096",
+      "transitionState": "RECOVERY_REQUIRED",
+      "freezeNewEntries": true,
+      "globallyPaused": true,
+      "nvdaHalted": false,
+      "tslaHalted": false,
+      "nvdaHistory": 0,
+      "tslaHistory": 0,
+      "requests": [
+        {
+          "path": "/v2/positions",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/orders",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/account",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/stocks/NVDA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "hydration": null,
+      "freshProcessExitCode": null
+    },
+    {
+      "case": "timeout",
+      "log": "candidate-final-timeout.log",
+      "sha256": "c5ab40389e542514ed509438e2a45d838222f2cea2e9a82284386222268e033b",
+      "transitionState": "TARGET_ACTIVATED",
+      "freezeNewEntries": false,
+      "globallyPaused": false,
+      "nvdaHalted": true,
+      "tslaHalted": false,
+      "nvdaHistory": 0,
+      "tslaHistory": 24,
+      "requests": [
+        {
+          "path": "/v2/positions",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/orders",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/account",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/stocks/NVDA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "hydration": {
+        "source": "boot_rest_hydration",
+        "hydrated": [
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "5m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          }
+        ],
+        "unavailable": [
+          {
+            "brokerId": "alpaca",
+            "accountId": "fixture-alpaca",
+            "accountIdSource": "broker:id",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "timeframe": "1m",
+            "traceId": "rest_hydration_unavailable_1794452373039_cs7g6u",
+            "source": "boot_rest_hydration",
+            "symbol": "NVDA",
+            "status": "unavailable",
+            "reason": "[Alpaca] Failed to get candles for NVDA: Request failed with status code 504",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": true,
+            "manualReconciliationRequired": true,
+            "closedTrades": [],
+            "closeFailures": [],
+            "haltPersistenceSucceeded": true,
+            "haltError": null,
+            "symbolHalted": true,
+            "haltCode": "rest_hydration_unavailable",
+            "exitPriceEvidence": {
+              "price": null,
+              "eventTimeMs": null,
+              "ageMs": null,
+              "current": false
+            },
+            "remainingTradeIds": []
+          }
+        ],
+        "status": "degraded"
+      },
+      "freshProcessExitCode": 0
+    },
+    {
+      "case": "later-frame",
+      "log": "candidate-final-later-frame.log",
+      "sha256": "142575082d02822edb685e572889a7388b6229cac3195bfe0ebcb89ba51622ec",
+      "transitionState": "TARGET_ACTIVATED",
+      "freezeNewEntries": false,
+      "globallyPaused": false,
+      "nvdaHalted": true,
+      "tslaHalted": false,
+      "nvdaHistory": 0,
+      "tslaHistory": 24,
+      "requests": [
+        {
+          "path": "/v2/positions",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/orders",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/account",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/stocks/NVDA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/NVDA/bars",
+          "timeframe": "5Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "hydration": {
+        "source": "boot_rest_hydration",
+        "hydrated": [
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "5m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          }
+        ],
+        "unavailable": [
+          {
+            "brokerId": "alpaca",
+            "accountId": "fixture-alpaca",
+            "accountIdSource": "broker:id",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "timeframe": "5m",
+            "traceId": "rest_hydration_unavailable_1794452375818_ybzjy2",
+            "source": "boot_rest_hydration",
+            "symbol": "NVDA",
+            "status": "unavailable",
+            "reason": "[Alpaca] Failed to get candles for NVDA: Request failed with status code 504",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": true,
+            "manualReconciliationRequired": true,
+            "closedTrades": [],
+            "closeFailures": [],
+            "haltPersistenceSucceeded": true,
+            "haltError": null,
+            "symbolHalted": true,
+            "haltCode": "rest_hydration_unavailable",
+            "exitPriceEvidence": {
+              "price": null,
+              "eventTimeMs": null,
+              "ageMs": null,
+              "current": false
+            },
+            "remainingTradeIds": []
+          }
+        ],
+        "status": "degraded"
+      },
+      "freshProcessExitCode": 0
+    },
+    {
+      "case": "empty",
+      "log": "candidate-final-empty.log",
+      "sha256": "2b45684dad2561bd7ab8d060020a73b89296ccc75fd2a74e5508831e515b38b2",
+      "transitionState": "TARGET_ACTIVATED",
+      "freezeNewEntries": false,
+      "globallyPaused": false,
+      "nvdaHalted": true,
+      "tslaHalted": false,
+      "nvdaHistory": 0,
+      "tslaHistory": 24,
+      "requests": [
+        {
+          "path": "/v2/positions",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/orders",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/account",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/stocks/NVDA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "hydration": {
+        "source": "boot_rest_hydration",
+        "hydrated": [
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "5m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          }
+        ],
+        "unavailable": [
+          {
+            "brokerId": "alpaca",
+            "accountId": "fixture-alpaca",
+            "accountIdSource": "broker:id",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "timeframe": "1m",
+            "traceId": "rest_hydration_unavailable_1794452378537_5zv5cq",
+            "source": "boot_rest_hydration",
+            "symbol": "NVDA",
+            "status": "unavailable",
+            "reason": "no_usable_rest_candles",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": true,
+            "manualReconciliationRequired": true,
+            "closedTrades": [],
+            "closeFailures": [],
+            "haltPersistenceSucceeded": true,
+            "haltError": null,
+            "symbolHalted": true,
+            "haltCode": "rest_hydration_unavailable",
+            "exitPriceEvidence": {
+              "price": null,
+              "eventTimeMs": null,
+              "ageMs": null,
+              "current": false
+            },
+            "remainingTradeIds": []
+          }
+        ],
+        "status": "degraded"
+      },
+      "freshProcessExitCode": 0
+    },
+    {
+      "case": "unreconciled",
+      "log": "candidate-final-unreconciled.log",
+      "sha256": "8d0536bc8bc9988b2626395dcea18cd410df61c5a7d103dc20d539355397d2a2",
+      "transitionState": "RECOVERY_REQUIRED",
+      "freezeNewEntries": true,
+      "globallyPaused": true,
+      "nvdaHalted": false,
+      "tslaHalted": false,
+      "nvdaHistory": 0,
+      "tslaHistory": 0,
+      "requests": [
+        {
+          "path": "/v2/positions",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/orders",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/account",
+          "timeframe": null
+        }
+      ],
+      "hydration": null,
+      "freshProcessExitCode": null
+    },
+    {
+      "case": "healthy",
+      "log": "candidate-final-healthy.log",
+      "sha256": "fa864f2905fba31f900323ef3a11627f046dd708580f438bd3b8d51f2a9e1c63",
+      "transitionState": "TARGET_ACTIVATED",
+      "freezeNewEntries": false,
+      "globallyPaused": false,
+      "nvdaHalted": false,
+      "tslaHalted": false,
+      "nvdaHistory": 24,
+      "tslaHistory": 24,
+      "requests": [
+        {
+          "path": "/v2/positions",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/orders",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/account",
+          "timeframe": null
+        },
+        {
+          "path": "/v2/stocks/NVDA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/NVDA/bars",
+          "timeframe": "5Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        },
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "hydration": {
+        "source": "boot_rest_hydration",
+        "hydrated": [
+          {
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          },
+          {
+            "symbol": "NVDA",
+            "timeframe": "5m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "5m",
+            "candles": 24,
+            "latestEndTime": 1794452100000
+          }
+        ],
+        "unavailable": [],
+        "status": "ready"
+      },
+      "freshProcessExitCode": null
+    }
+  ],
+  "positionCases": {
+    "close": {
+      "log": "candidate-final-close.log",
+      "sha256": "29726fae994a3e3de6589367d3a6f8c953590609d870ee0ac13fdb33f820558a",
+      "observation": {
+        "result": {
+          "brokerId": "alpaca",
+          "accountId": "fixture-alpaca",
+          "accountIdSource": "fixture",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "traceId": "rest_hydration_unavailable_1794452432003_r1edcm",
+          "source": "boot_rest_hydration",
+          "symbol": "NVDA",
+          "status": "unavailable",
+          "reason": "synthetic upstream HTTP 504",
+          "entryBlockScope": "symbol",
+          "operatorActionRequired": true,
+          "manualReconciliationRequired": true,
+          "closedTrades": [
+            {
+              "tradeId": "SIM_1794452431777_9za82f",
+              "symbol": "NVDA",
+              "action": "COVER",
+              "exitPrice": 102.41
+            }
+          ],
+          "closeFailures": [],
+          "haltPersistenceSucceeded": true,
+          "haltError": null,
+          "symbolHalted": true,
+          "haltCode": "rest_hydration_unavailable",
+          "exitPriceEvidence": {
+            "price": 102.41,
+            "eventTimeMs": 1794452371426,
+            "ageMs": 60588,
+            "current": true
+          },
+          "remainingTradeIds": []
+        },
+        "positions": [
+          {
+            "id": "SIM_1794452431990_01rpjd",
+            "symbol": "TSLA",
+            "direction": "short"
+          }
+        ],
+        "closed": [
+          {
+            "symbol": "NVDA",
+            "direction": "short",
+            "exitPrice": 102.46120499999999
+          }
+        ],
+        "closeLog": {
+          "type": "COVER",
+          "action": "COVER",
+          "positionEffect": "close_short",
+          "orderId": "SIM_1794452431777_9za82f",
+          "tradeId": "SIM_1794452431777_9za82f",
+          "direction": "short",
+          "symbol": "NVDA",
+          "strategyName": "CandlePattern",
+          "entryPrice": 102.358795,
+          "exitPrice": 102.46120499999999,
+          "currentPrice": 102.46120499999999,
+          "size": 2456.61108,
+          "pnl": -2.4578399999998055,
+          "pnlPercent": -0.10005002501249834,
+          "fees": 1.5,
+          "entryTime": "2026-11-12T03:00:31.777Z",
+          "exitTime": "2026-11-12T03:00:32.028Z",
+          "holdTime": 251,
+          "balanceBefore": 100002.45784,
+          "balanceAfter": 100000,
+          "confidence": 99,
+          "entryReason": null,
+          "exitReason": "rest_hydration_unavailable",
+          "reason": "rest_hydration_unavailable",
+          "exitIndicators": {
+            "macd": null,
+            "macdSignal": null,
+            "volatility": null
+          },
+          "patternType": "fixture-bearish-pattern",
+          "patternConfidence": 0.99,
+          "positionSize": 2456.61108,
+          "riskPercent": 0.0024578399999998055,
+          "totalTrades": 2,
+          "winRate": null
+        },
+        "savedHalt": {
+          "reason": "REST hydration unavailable for NVDA @ 1m: synthetic upstream HTTP 504",
+          "haltedAt": 1794452432004,
+          "code": "rest_hydration_unavailable",
+          "source": "boot_rest_hydration",
+          "timeframe": "1m",
+          "traceId": "rest_hydration_unavailable_1794452432003_r1edcm",
+          "brokerId": "alpaca",
+          "accountId": "fixture-alpaca",
+          "entryBlockScope": "symbol",
+          "operatorActionRequired": true,
+          "manualReconciliationRequired": true,
+          "expiresAt": null
+        },
+        "globalPause": false,
+        "actualStrategyAndExecutor": true,
+        "actualStatePersistence": true,
+        "limits": [
+          "Synthetic prices and in-sandbox paper fills; not a live broker fill or live activation receipt.",
+          "Exact quarantine method and ledger producer extracted from the source AST/text; no whole-bot startup in this observation.",
+          "Fixture selects CandlePattern; notification and journal callback collaborators are captured locally."
+        ]
+      }
+    },
+    "stale": {
+      "log": "candidate-final-stale.log",
+      "sha256": "f14412e455c5777df74378ff928f74b8ffd0ca9f78d825086adf7246cd50ef20",
+      "observation": {
+        "result": {
+          "brokerId": "alpaca",
+          "accountId": "fixture-alpaca",
+          "accountIdSource": "fixture",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "traceId": "rest_hydration_unavailable_1794452432175_3qgqxb",
+          "source": "boot_rest_hydration",
+          "symbol": "NVDA",
+          "status": "unavailable",
+          "reason": "synthetic upstream HTTP 504",
+          "entryBlockScope": "symbol",
+          "operatorActionRequired": true,
+          "manualReconciliationRequired": true,
+          "closedTrades": [],
+          "closeFailures": [
+            {
+              "tradeId": "SIM_1794452431890_7gaq1w",
+              "reason": "current_exit_price_unavailable"
+            }
+          ],
+          "haltPersistenceSucceeded": true,
+          "haltError": null,
+          "symbolHalted": true,
+          "haltCode": "rest_hydration_unavailable",
+          "exitPriceEvidence": {
+            "price": 102.41,
+            "eventTimeMs": 1794366032174,
+            "ageMs": 86400010,
+            "current": false
+          },
+          "remainingTradeIds": [
+            "SIM_1794452431890_7gaq1w"
+          ]
+        },
+        "remainingSymbols": [
+          "NVDA",
+          "TSLA"
+        ],
+        "globalPause": false,
+        "actualPaperExecutor": true
+      }
+    }
+  },
+  "haltOwnership": {
+    "log": "candidate-3-owners.log",
+    "sha256": "f600ab62b7481e152a737693e65e55c78a0a11ea9c44ad2d5322684552e6a2c5",
+    "observation": {
+      "candidate": "0ab042b85f15ceb639eba6f984de25fecc440936",
+      "observations": [
+        {
+          "order": [
+            "ttp_cutoff_unverified_broker_flatness",
+            "rest_hydration_unavailable"
+          ],
+          "bothPersisted": [
+            "ttp_cutoff_unverified_broker_flatness",
+            "rest_hydration_unavailable"
+          ],
+          "freshProcessRestored": true,
+          "afterActualCutoffClear": {
+            "reason": "rest_hydration_unavailable",
+            "haltedAt": 1794452261252,
+            "code": "rest_hydration_unavailable",
+            "operatorActionRequired": true,
+            "expiresAt": null
+          },
+          "tslaHalted": false,
+          "globallyPaused": false
+        },
+        {
+          "order": [
+            "rest_hydration_unavailable",
+            "ttp_cutoff_unverified_broker_flatness"
+          ],
+          "bothPersisted": [
+            "rest_hydration_unavailable",
+            "ttp_cutoff_unverified_broker_flatness"
+          ],
+          "freshProcessRestored": true,
+          "afterActualCutoffClear": {
+            "reason": "rest_hydration_unavailable",
+            "haltedAt": 1794452262041,
+            "code": "rest_hydration_unavailable",
+            "operatorActionRequired": true,
+            "expiresAt": null
+          },
+          "tslaHalted": false,
+          "globallyPaused": false
+        }
+      ],
+      "concurrentProducersRetained": true,
+      "financialIntegrityCausePreservesOthers": true,
+      "limits": [
+        "Synthetic state in isolated namespace.",
+        "Actual StateManager persistence/reload and cutoff clear consumer executed; broker-flat input to clear method supplied by fixture."
+      ]
+    }
+  },
+  "priorCandidate": {
+    "tree": "2600c825eff48e1f361daaa5617f290daa63093b",
+    "status": "rejected_unshipped",
+    "defects": [
+      "restart_erases_retired_code",
+      "existing_halt_masks_hydration_owner"
+    ],
+    "reviewLog": "review-1.log",
+    "reloadReproduction": "rejected-candidate-reload.log"
+  },
+  "limits": [
+    "Synthetic transport and isolated paper fills, not live broker fills or full bot startup.",
+    "Exact runner methods extracted; captured collaborators are identified in raw receipts.",
+    "No PM2 or recovery journal change; live Stop 1 remains incomplete.",
+    "Ownership probe used previous tree 0ab042b85f15ceb639eba6f984de25fecc440936; StateManager and TtpCutoffEnforcer hashes are identical in final candidate."
+  ]
+}

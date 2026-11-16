@@ -107,6 +107,7 @@ const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
   'Data gap:'
 ];
 const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
+  'rest_hydration_unavailable',
   'broker_order_reconciliation_required',
   'exit_rail_broker_desync',
   'exit_monitor_reconciliation_required',
@@ -136,6 +137,36 @@ function normalizeSymbolHaltExpiry(halt) {
   return halt.expiresAt === null || halt.expiresAt === undefined
     ? null
     : finiteNumberOrNull(halt.expiresAt);
+}
+
+// One symbol can have independent unresolved causes. Keep the legacy summary
+// fields for receipts, while preserving every cause until its owner clears it.
+function symbolHaltCauses(halt, now = Date.now()) {
+  const candidates = Array.isArray(halt?.causes) ? halt.causes : [halt];
+  return candidates.flatMap(candidate => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return [];
+    const code = normalizeSymbolHaltCode(candidate);
+    const haltedAt = finiteNumberOrNull(candidate.haltedAt);
+    const expiresAt = normalizeSymbolHaltExpiry(candidate);
+    if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code) || haltedAt === null) return [];
+    if (expiresAt !== null && expiresAt <= now) return [];
+    const { causes, ...record } = candidate;
+    return [{ ...record, code, haltedAt, expiresAt,
+      reason: typeof candidate.reason === 'string' && candidate.reason.trim() ? candidate.reason : 'unspecified' }];
+  });
+}
+
+function symbolHaltRecord(causes) {
+  if (causes.length === 0) return null;
+  const latest = causes[causes.length - 1];
+  return causes.length === 1 ? latest : { ...latest, causes };
+}
+
+function mergeSymbolHalt(existing, incoming) {
+  return symbolHaltRecord([
+    ...symbolHaltCauses(existing).filter(cause => cause.code !== incoming.code),
+    incoming
+  ]);
 }
 
 function hasSymbolEntryHaltsMutationAuthority(context) {
@@ -2052,8 +2083,7 @@ class StateManager {
     }
 
     const normalized = this.normalizeSymbol(symbol, 'StateManager.directionIntegrityHalt');
-    const existingCode = this.getSymbolHaltCode(normalized);
-    if (existingCode === DIRECTION_INTEGRITY_EXIT_REFUSAL) {
+    if (this.isSymbolHalted(normalized, DIRECTION_INTEGRITY_EXIT_REFUSAL)) {
       console.debug(`[StateManager] direction integrity halt already standing for ${normalized}`);
       return { halted: false, standing: true, symbol: normalized, code: DIRECTION_INTEGRITY_EXIT_REFUSAL };
     }
@@ -2061,7 +2091,7 @@ class StateManager {
     const now = Date.now();
     this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection({
       ...(this.state.symbolEntryHalts || {}),
-      [normalized]: {
+      [normalized]: mergeSymbolHalt(this.state.symbolEntryHalts?.[normalized], {
         reason,
         code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
         haltedAt: now,
@@ -2072,7 +2102,7 @@ class StateManager {
         operatorActionRequired: true,
         manualReconciliationRequired: true,
         ...metadata,
-      },
+      }),
     }, 'StateManager.directionIntegrityHalt');
 
     emitTrace({}, 'DIRECTION_INTEGRITY_SYMBOL_HALT', {
@@ -3964,24 +3994,11 @@ class StateManager {
     }
 
     const normalizedHalts = {};
-    const now = Date.now();
     for (const [haltSymbol, halt] of Object.entries(symbolEntryHalts)) {
-      if (!halt || typeof halt !== 'object' || Array.isArray(halt)) continue;
+      const record = symbolHaltRecord(symbolHaltCauses(halt));
+      if (!record) continue;
       const normalized = this.normalizeSymbol(haltSymbol, `${source} symbolEntryHalts`);
-      const haltedAt = finiteNumberOrNull(halt.haltedAt);
-      const expiresAt = normalizeSymbolHaltExpiry(halt);
-      if (haltedAt === null) continue;
-      if (expiresAt !== null && expiresAt <= now) continue;
-      const code = normalizeSymbolHaltCode(halt);
-      if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code)) continue;
-      const normalizedHalt = { ...halt, code };
-      normalizedHalts[normalized] = {
-        ...normalizedHalt,
-        reason: typeof halt.reason === 'string' && halt.reason.trim() ? halt.reason : 'unspecified',
-        code,
-        haltedAt,
-        expiresAt,
-      };
+      normalizedHalts[normalized] = record;
     }
     return normalizedHalts;
   }
@@ -4006,13 +4023,7 @@ class StateManager {
 
   _symbolHaltRecord(symbol, now = Date.now()) {
     const normalized = this.normalizeSymbol(symbol, 'StateManager.symbolHaltRecord');
-    const halt = this.state.symbolEntryHalts?.[normalized];
-    if (!halt) return null;
-    const expiresAt = normalizeSymbolHaltExpiry(halt);
-    if (expiresAt !== null && expiresAt <= now) {
-      return null;
-    }
-    return halt;
+    return symbolHaltRecord(symbolHaltCauses(this.state.symbolEntryHalts?.[normalized], now));
   }
 
   async haltSymbol(symbol, reason, metadata = {}) {
@@ -4029,29 +4040,30 @@ class StateManager {
         code
       };
     }
-    const now = Date.now();
-    const halts = { ...(this.state.symbolEntryHalts || {}) };
-    halts[normalized] = {
-      reason: reason || 'unspecified',
-      haltedAt: now,
-      ...haltMetadata,
-      code
-    };
-
-    console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${halts[normalized].reason}`);
-    return this.updateState(
-      { symbolEntryHalts: halts },
-      {
-        action: 'SYMBOL_ENTRY_HALT',
-        symbol: normalized,
-        reason: halts[normalized].reason,
-        symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
-      }
-    );
+    await this.acquireLock();
+    try {
+      const halts = { ...(this.state.symbolEntryHalts || {}) };
+      halts[normalized] = mergeSymbolHalt(halts[normalized], {
+        reason: reason || 'unspecified',
+        haltedAt: Date.now(),
+        ...haltMetadata,
+        code
+      });
+      console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${halts[normalized].reason}`);
+      return this._applyStateUpdatesLocked(
+        { symbolEntryHalts: halts },
+        { action: 'SYMBOL_ENTRY_HALT', symbol: normalized, reason: halts[normalized].reason,
+          symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN },
+        { resetActiveTradeLifecycle: true }
+      );
+    } finally {
+      this.releaseLock();
+    }
   }
 
-  isSymbolHalted(symbol) {
-    return Boolean(this._symbolHaltRecord(symbol));
+  isSymbolHalted(symbol, code = null) {
+    const record = this._symbolHaltRecord(symbol);
+    return code === null ? Boolean(record) : symbolHaltCauses(record).some(cause => cause.code === code);
   }
 
   getSymbolHaltReason(symbol) {
@@ -4062,19 +4074,29 @@ class StateManager {
     return this._symbolHaltRecord(symbol)?.code || null;
   }
 
-  async resetSymbolHalt(symbol) {
+  async resetSymbolHalt(symbol, code = null, expectedTraceId = null) {
     const normalized = this.normalizeSymbol(symbol, 'StateManager.resetSymbolHalt');
-    const halts = { ...(this.state.symbolEntryHalts || {}) };
-    delete halts[normalized];
-    console.warn(`[StateManager] SYMBOL ENTRY HALT RESET: ${normalized}`);
-    return this.updateState(
-      { symbolEntryHalts: halts },
-      {
-        action: 'SYMBOL_ENTRY_HALT_RESET',
-        symbol: normalized,
-        symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
+    await this.acquireLock();
+    try {
+      const halts = { ...(this.state.symbolEntryHalts || {}) };
+      const causes = symbolHaltCauses(halts[normalized]);
+      if (expectedTraceId !== null && !causes.some(cause => cause.code === code && cause.traceId === expectedTraceId)) {
+        return { success: false, reason: 'halt_cause_changed', symbol: normalized, code };
       }
-    );
+      const remaining = code === null ? [] : causes.filter(cause => cause.code !== code);
+      const record = symbolHaltRecord(remaining);
+      if (record) halts[normalized] = record;
+      else delete halts[normalized];
+      console.warn(`[StateManager] SYMBOL ENTRY HALT RESET: ${normalized} code=${code || 'all'} remaining=${remaining.length}`);
+      return this._applyStateUpdatesLocked(
+        { symbolEntryHalts: halts },
+        { action: 'SYMBOL_ENTRY_HALT_RESET', symbol: normalized,
+          symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN },
+        { resetActiveTradeLifecycle: true }
+      );
+    } finally {
+      this.releaseLock();
+    }
   }
 
   /**
@@ -4327,11 +4349,14 @@ class StateManager {
           }
         }
         const retiredBrokerUnverifiableHalts = Object.entries(this.state.symbolEntryHalts)
-          .filter(([, halt]) => halt?.code === BROKER_UNVERIFIABLE)
+          .filter(([, halt]) => symbolHaltCauses(halt).some(cause => cause.code === BROKER_UNVERIFIABLE))
           .map(([symbol]) => symbol);
         if (retiredBrokerUnverifiableHalts.length > 0) {
           for (const symbol of retiredBrokerUnverifiableHalts) {
-            delete this.state.symbolEntryHalts[symbol];
+            const remaining = symbolHaltRecord(symbolHaltCauses(this.state.symbolEntryHalts[symbol])
+              .filter(cause => cause.code !== BROKER_UNVERIFIABLE));
+            if (remaining) this.state.symbolEntryHalts[symbol] = remaining;
+            else delete this.state.symbolEntryHalts[symbol];
           }
           correctedStateShape = true;
         }

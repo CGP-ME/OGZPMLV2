@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-11-16T21:30:04.979Z",
+  "readOnly": true,
+  "snapshots": [
+    {
+      "brokerId": "kraken",
+      "observedAt": "2026-11-16T21:30:04.822Z",
+      "positions": 2,
+      "openOrders": 0,
+      "samePreviousAccount": true,
+      "accountHash": "db3c17aa14cc46b064d8361fe6279ac78c65400a8ff0a1a9167c6755a24cc79a",
+      "lastScopeEvent": 1332
+    },
+    {
+      "brokerId": "alpaca",
+      "observedAt": "2026-11-16T21:30:04.978Z",
+      "positions": 0,
+      "openOrders": 0,
+      "samePreviousAccount": true,
+      "accountHash": "74346fb39c4c5c44d777a22e5fef0d9119a4a4df72f6ff8bcc9d6cd1cc18f9f8",
+      "lastScopeEvent": 1323
+    }
+  ]
+}

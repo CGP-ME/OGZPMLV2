@@ -1,0 +1,85 @@
+{
+  "status": "awaiting_operator_decision_on_absent_reviewer",
+  "source": {
+    "tree": "f129e61af43a32adb9162d175817f20995f6fd54",
+    "base": "1d057b014be9d365403d7eea8651a0a8d11b72b1",
+    "changed": [
+      "core/SessionRouter.js",
+      "core/StateManager.js",
+      "core/TtpCutoffEnforcer.js",
+      "run-empire-v2.js"
+    ],
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "question": "What happens to each symbol's entry eligibility and open positions when one symbol's REST history request fails during hydration? Cite the relevant producers and consumers.",
+  "reviews": [
+    {
+      "log": "review-1.log",
+      "sha256": "3fa779ce56624b78755086cdb75e625ca3f92c4db36d1693ceb3a13e4e9e07d3",
+      "candidate": "2600c825eff48e1f361daaa5617f290daa63093b",
+      "machineOutcome": "review_incomplete",
+      "disposition": "rejected_unshipped",
+      "supportedDefects": [
+        "restart_erases_hydration_code",
+        "cutoff_clear_erases_hydration_dependency"
+      ]
+    },
+    {
+      "log": "review-2.log",
+      "sha256": "8ab3d04d4698fd12bcd01e2ad9ffc94dd8f57ca70fa60a45da30598855c94d80",
+      "candidate": "f129e61af43a32adb9162d175817f20995f6fd54",
+      "machineOutcome": "review_incomplete",
+      "votes": {
+        "no_break_found": 2,
+        "found_break": 0,
+        "absent": 1
+      },
+      "mercury": {
+        "verdict": "no_break_found",
+        "model": "mercury-3",
+        "metadataWarnings": [
+          "coverage_insufficient",
+          "coverage_unresolved",
+          "whole_file_read_absent",
+          "inherited_section_incomplete"
+        ]
+      },
+      "opus": {
+        "verdict": "no_break_found",
+        "model": "claude-opus-5-5",
+        "metadataWarnings": [
+          "whole_file_read_absent",
+          "substantive_resolution_absent"
+        ]
+      },
+      "astra": {
+        "verdict": null,
+        "absence": "Selected model is at capacity. Please try a different model.",
+        "model": "gpt-6-astra"
+      }
+    },
+    {
+      "log": "review-2-astra-retry.log",
+      "sha256": "73042ae97c81e4ff1d5abd549644282eea05b3bff7adfe5246d1703a96248c57",
+      "candidate": "f129e61af43a32adb9162d175817f20995f6fd54",
+      "machineOutcome": "review_incomplete",
+      "astra": {
+        "verdict": null,
+        "absence": "Selected model is at capacity. Please try a different model."
+      },
+      "retryPolicy": "Retried only the unavailable subscription seat after the provider retry-after period; no completed Mercury/Opus review repeated."
+    }
+  ],
+  "limits": [
+    "No whole-file or whole-repository review coverage is claimed; reviewers read changed sections and relevant producers/consumers.",
+    "Machine metadata flags incomplete coverage/inherited reporting; those diagnostics have not been suppressed.",
+    "Astra absence is not a no-break vote.",
+    "Behavior proof is isolated and separate from static reviewer claims."
+  ],
+  "opusQualifications": {
+    "manualRecovery": "Hydration halt deliberately has no automatic clear; its receipt requests operator/manual reconciliation under the approved quarantine rules.",
+    "priceFreshness": "Existing canonical max age is 120000 ms. An accurately timestamped persisted mark within that age can qualify; a new broker quote is not promised. The isolated stale-price run proves an old mark does not create a paper close.",
+    "liveExits": "The approved external-fault flatten/quarantine path uses ordinary execution in the configured mode, including broker exits if separately activated in live mode. Current live process is paper and unchanged."
+  },
+  "notificationDisclosure": "The native runtime-alarm probe only classified max priority. The existing review bridge reports max-priority notifications sent for reviewer failures; no direct operator messaging command was issued by this agent."
+}

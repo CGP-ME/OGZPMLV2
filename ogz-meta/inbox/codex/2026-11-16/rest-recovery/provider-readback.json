@@ -1,0 +1,44 @@
+{
+  "observedAt": "2026-11-16T21:10:22.455Z",
+  "operation": "read_only_historical_bars",
+  "source": "current canonical JSON request parameters and .env credentials; no trading module loaded",
+  "params": {
+    "start": "2026-11-09T21:10:22.063Z",
+    "end": "2026-11-16T21:10:22.063Z",
+    "timeframe": "15Min",
+    "limit": 60,
+    "adjustment": "raw",
+    "feed": "iex",
+    "sort": "desc"
+  },
+  "results": [
+    {
+      "symbol": "NVDA",
+      "path": "/v2/stocks/NVDA/bars",
+      "status": 200,
+      "elapsedMs": 382,
+      "requestId": "abd3a6c56384564a60b2d7ab0de3feb7",
+      "barCount": 60,
+      "newestBarAt": "2026-11-16T20:45:00Z",
+      "oldestBarAt": "2026-11-13T14:30:00Z",
+      "hasNextPage": true,
+      "responseSha256": "a778229a395200f501a470b6a7db7d563164780f7d851cba81cef1dd07e2baf3"
+    },
+    {
+      "symbol": "TSLA",
+      "path": "/v2/stocks/TSLA/bars",
+      "status": 200,
+      "elapsedMs": 142,
+      "requestId": "b4fdb88e67f18b733889a04e4f046b20",
+      "barCount": 60,
+      "newestBarAt": "2026-11-16T21:00:00Z",
+      "oldestBarAt": "2026-11-12T20:30:00Z",
+      "hasNextPage": true,
+      "responseSha256": "f679b06d855d41fd8f742031f346ab126c1b6adbd1c1cb9356b977646fe1f8e9"
+    }
+  ],
+  "limitations": [
+    "Current requests cannot determine the provider-side cause of the historical November 4 disconnect or November 10 HTTP 504.",
+    "HTTP success does not clear or mutate the bot recovery state."
+  ]
+}

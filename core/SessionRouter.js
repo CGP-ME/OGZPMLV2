@@ -181,13 +181,12 @@ class SessionRouter extends EventEmitter {
     throw new Error(`[SessionRouter] source force-close active trade direction unprovable for ${tradeId}`);
   }
 
-  async _closeSourceTradeThroughExecution(orderId, trade) {
+  async _closeSourceTradeThroughExecution(orderId, trade, exitReason = 'session_close', exitPrice = this._resolveSourceExitPrice(trade?.symbol, trade)) {
     if (typeof this.executeTrade !== 'function') {
       throw new Error('SessionRouter source force-close requires executeTrade');
     }
 
     const symbol = trade?.symbol;
-    const exitPrice = this._resolveSourceExitPrice(symbol, trade);
     if (!exitPrice || exitPrice <= 0) {
       throw new Error('no last-known price');
     }
@@ -195,14 +194,15 @@ class SessionRouter extends EventEmitter {
     const tradeId = trade?.tradeId || trade?.orderId || trade?.id || orderId;
     const action = this._sourceTradeCloseAction(orderId, trade);
     await this.executeTrade(
-      { action, confidence: 100, tradeId, exitReason: 'session_close' },
+      { action, confidence: 100, tradeId, exitReason },
       { totalConfidence: 100 },
       exitPrice,
       {},
       [],
       null,
       null,
-      symbol
+      symbol,
+      trade.timeframe
     );
 
     const activeTrades = this.stateManager?.state?.activeTrades;
@@ -1607,6 +1607,11 @@ class SessionRouter extends EventEmitter {
       });
 
       await this.ctx.tradingLoop.waitForPendingOperations();
+      // A data-recovery pass can be finishing a symbol exit. Settle that owner
+      // before source liquidation or changing the execution broker.
+      const dataRecovery = [...this.ctx._runtimeOperations.entries()]
+        .filter(([, label]) => label === 'liveness_check').map(([operation]) => operation);
+      await Promise.all(dataRecovery);
       await this._forceCloseSourceTradesThroughExecution(transitionContext, 'crypto');
       await this._reconcileBrokerRestBeforeActivation(this.krakenAdapter, this.alpacaAdapter, transitionContext, {
         sourceBrokerId: 'kraken',
@@ -1660,14 +1665,15 @@ class SessionRouter extends EventEmitter {
       this.lastTransitionAt = Date.now();
 
       const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('stocks', runtimeScope);
-      await this.ctx.hydrateActiveTimeframeFromRest();
+      const restHydration = await this.ctx.hydrateActiveTimeframeFromRest();
       this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
       const transitionEvent = this._transitionEvent('crypto', 'stocks', now, committedRuntimeScope);
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession,
         runtimeScope: committedRuntimeScope,
         runtimeScopeStatus: committedRuntimeScope.runtimeScopeStatus,
-        scopeComplete: committedRuntimeScope.scopeComplete
+        scopeComplete: committedRuntimeScope.scopeComplete,
+        restHydration
       });
       this._releaseTransitionLock(transitionContext);
       const resumeResult = await this.stateManager.resumeTradingIfPausedBy(SESSION_ROUTER_WIND_DOWN_SOURCE, {
@@ -1726,6 +1732,11 @@ class SessionRouter extends EventEmitter {
       });
 
       await this.ctx.tradingLoop.waitForPendingOperations();
+      // A data-recovery pass can be finishing a symbol exit. Settle that owner
+      // before source liquidation or changing the execution broker.
+      const dataRecovery = [...this.ctx._runtimeOperations.entries()]
+        .filter(([, label]) => label === 'liveness_check').map(([operation]) => operation);
+      await Promise.all(dataRecovery);
       await this._forceCloseSourceTradesThroughExecution(transitionContext, 'stock');
 
       await this._reconcileBrokerRestBeforeActivation(this.alpacaAdapter, this.krakenAdapter, transitionContext, {
@@ -1782,14 +1793,15 @@ class SessionRouter extends EventEmitter {
       this.lastTransitionAt = Date.now();
 
       const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('crypto', runtimeScope);
-      await this.ctx.hydrateActiveTimeframeFromRest();
+      const restHydration = await this.ctx.hydrateActiveTimeframeFromRest();
       this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
       const transitionEvent = this._transitionEvent('stocks', 'crypto', now, committedRuntimeScope);
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession,
         runtimeScope: committedRuntimeScope,
         runtimeScopeStatus: committedRuntimeScope.runtimeScopeStatus,
-        scopeComplete: committedRuntimeScope.scopeComplete
+        scopeComplete: committedRuntimeScope.scopeComplete,
+        restHydration
       });
       this._releaseTransitionLock(transitionContext);
       const resumeResult = await this.stateManager.resumeTradingIfPausedBy(SESSION_ROUTER_WIND_DOWN_SOURCE, {

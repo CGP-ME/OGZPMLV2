@@ -1,0 +1,1127 @@
+{
+  "sourceTree": "8d786fa225d7e935d81e3e99ad15304258eb42f4",
+  "base": "1d057b014be9d365403d7eea8651a0a8d11b72b1",
+  "sourceSha256": {
+    "run-empire-v2.js": "1df4e02f45e3e1e6f5c14cb8524359a58e4498aa2744bd74690578b168b16d9b",
+    "core/SessionRouter.js": "84106f6356e0e53af4cac5bcef930ae6622280417594a417fba93b2d6a5f14bd",
+    "core/StateManager.js": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1",
+    "core/TtpCutoffEnforcer.js": "8f9fbdc66d6818c50916511c89e8346c14f420f065097f2cd3362cfc13256876"
+  },
+  "beforeTree": "f129e61af43a32adb9162d175817f20995f6fd54",
+  "observations": [
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/lifecycle-before.log",
+      "sha256": "34337bd77e233805348a72a47b6f8787bac270129278cad8b655f41179835bd5",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794863400000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794863400000
+              },
+              {
+                "symbol": "TSLA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794863400000
+              },
+              {
+                "symbol": "TSLA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794863400000
+              }
+            ],
+            "unavailable": [],
+            "status": "ready"
+          },
+          "nvdaHaltedAfterSuccessfulRetry": true,
+          "nvdaHistoryAfterRetry": 24,
+          "nvdaRequiredFrameHistoryAfterRetry": 24,
+          "globalState": "TARGET_ACTIVATED"
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-watchdog.log",
+      "sha256": "59b8d259eb0d494bdae84c59db8b70e0bcbb8363edee0f94d4d0dedc2cb54907",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "healthy",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "traceId": "rest_hydration_1794864028371_uhk9ik",
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "recovered",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reconciliation": {
+                  "brokerId": "alpaca",
+                  "accountId": "fixture-alpaca",
+                  "observedAt": 1794864028368,
+                  "openOrderIds": [],
+                  "brokerPositions": [],
+                  "localTradeIds": [],
+                  "executionMode": "paper"
+                },
+                "reason": "history_and_symbol_reconciled",
+                "causeTraceId": "rest_hydration_unavailable_1794864027455_z3ylwz",
+                "haltCleared": true,
+                "symbolStillHalted": false
+              }
+            ],
+            "recoveryPending": [],
+            "status": "ready",
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "brokerId": "alpaca",
+            "accountId": "fixture-alpaca",
+            "assetClass": "stocks",
+            "executionMode": "paper"
+          },
+          "afterRetry": {
+            "hydrationHalted": false,
+            "symbolHalted": false,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            },
+            {
+              "path": "/v2/positions",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/orders",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/account",
+              "timeframe": null
+            }
+          ],
+          "watchdog": true,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-second-frame.log",
+      "sha256": "1319f4ca924f0e37e180fcfa742410130c62407ce9a43c30334eac849b237e9f",
+      "observations": [
+        {
+          "failureScenario": "later-frame",
+          "recoveryCase": "second-frame-unavailable",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [],
+            "unavailable": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "5m",
+                "traceId": "rest_hydration_unavailable_1794864028476_kl2ut9",
+                "source": "boot_rest_hydration",
+                "symbol": "NVDA",
+                "status": "unavailable",
+                "reason": "[Alpaca] Failed to get candles for NVDA: synthetic second-frame outage",
+                "entryBlockScope": "symbol",
+                "operatorActionRequired": false,
+                "manualReconciliationRequired": false,
+                "closedTrades": [],
+                "closeFailures": [],
+                "haltPersistenceSucceeded": true,
+                "haltError": null,
+                "symbolHalted": true,
+                "haltCode": "rest_hydration_unavailable",
+                "exitPriceEvidence": {
+                  "price": null,
+                  "eventTimeMs": null,
+                  "ageMs": null,
+                  "current": false
+                },
+                "remainingTradeIds": []
+              }
+            ],
+            "recovered": [],
+            "recoveryPending": [],
+            "status": "degraded"
+          },
+          "afterRetry": {
+            "hydrationHalted": true,
+            "symbolHalted": true,
+            "nvdaHistory": 0,
+            "requiredFrameHistory": 0,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/position-recovery.log",
+      "sha256": "619682be3f0eca64e3cbec2f20a17ec53667a195b2ce74e539bc17ada1f37340",
+      "observations": [
+        {
+          "waiting": {
+            "brokerId": "alpaca",
+            "accountId": "fixture-alpaca",
+            "accountIdSource": "fixture",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "source": "rest_hydration_recovery",
+            "status": "pending",
+            "frames": [
+              "1m"
+            ],
+            "flatten": {
+              "brokerId": "alpaca",
+              "accountId": "fixture-alpaca",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "timeframe": "1m",
+              "traceId": "rest_hydration_unavailable_1794864185270_aj2q4s",
+              "source": "boot_rest_hydration",
+              "symbol": "NVDA",
+              "status": "reconciling",
+              "reason": "history_restored_position_reconciliation_pending",
+              "entryBlockScope": "symbol",
+              "operatorActionRequired": true,
+              "manualReconciliationRequired": true,
+              "closedTrades": [],
+              "closeFailures": [
+                {
+                  "tradeId": "SIM_1794864185034_qwkrjf",
+                  "reason": "current_exit_price_unavailable"
+                }
+              ],
+              "haltPersistenceSucceeded": true,
+              "haltError": null,
+              "symbolHalted": true,
+              "haltCode": "rest_hydration_unavailable",
+              "exitPriceEvidence": {
+                "price": 102.41,
+                "eventTimeMs": 1794777785261,
+                "ageMs": 86400019,
+                "current": false
+              },
+              "remainingTradeIds": [
+                "SIM_1794864185034_qwkrjf"
+              ]
+            },
+            "reconciliation": {
+              "brokerId": "alpaca",
+              "accountId": "fixture-alpaca",
+              "observedAt": 1794864185282,
+              "openOrderIds": [],
+              "brokerPositions": [],
+              "localTradeIds": [
+                "SIM_1794864185034_qwkrjf"
+              ],
+              "executionMode": "paper"
+            },
+            "reason": "symbol_not_reconciled_flat",
+            "operatorActionRequired": true
+          },
+          "recovered": {
+            "brokerId": "alpaca",
+            "accountId": "fixture-alpaca",
+            "accountIdSource": "fixture",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "source": "rest_hydration_recovery",
+            "status": "recovered",
+            "frames": [
+              "1m"
+            ],
+            "flatten": {
+              "brokerId": "alpaca",
+              "accountId": "fixture-alpaca",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "timeframe": "1m",
+              "traceId": "rest_hydration_unavailable_1794864185283_gj41s8",
+              "source": "boot_rest_hydration",
+              "symbol": "NVDA",
+              "status": "reconciling",
+              "reason": "history_restored_position_reconciliation_pending",
+              "entryBlockScope": "symbol",
+              "operatorActionRequired": false,
+              "manualReconciliationRequired": false,
+              "closedTrades": [
+                {
+                  "tradeId": "SIM_1794864185034_qwkrjf",
+                  "symbol": "NVDA",
+                  "action": "COVER",
+                  "exitPrice": 102.41
+                }
+              ],
+              "closeFailures": [],
+              "haltPersistenceSucceeded": true,
+              "haltError": null,
+              "symbolHalted": true,
+              "haltCode": "rest_hydration_unavailable",
+              "exitPriceEvidence": {
+                "price": 102.41,
+                "eventTimeMs": 1794864185283,
+                "ageMs": 9,
+                "current": true
+              },
+              "remainingTradeIds": []
+            },
+            "reconciliation": {
+              "brokerId": "alpaca",
+              "accountId": "fixture-alpaca",
+              "observedAt": 1794864185322,
+              "openOrderIds": [],
+              "brokerPositions": [],
+              "localTradeIds": [],
+              "executionMode": "paper"
+            },
+            "reason": "history_and_symbol_reconciled",
+            "causeTraceId": "rest_hydration_unavailable_1794864185283_gj41s8",
+            "haltCleared": true,
+            "symbolStillHalted": false
+          },
+          "remainingSymbols": [
+            "TSLA"
+          ],
+          "recordedClose": {
+            "type": "COVER",
+            "action": "COVER",
+            "positionEffect": "close_short",
+            "orderId": "SIM_1794864185034_qwkrjf",
+            "tradeId": "SIM_1794864185034_qwkrjf",
+            "direction": "short",
+            "symbol": "NVDA",
+            "strategyName": "CandlePattern",
+            "entryPrice": 102.358795,
+            "exitPrice": 102.46120499999999,
+            "currentPrice": 102.46120499999999,
+            "size": 2456.61108,
+            "pnl": -2.4578399999998055,
+            "pnlPercent": -0.10005002501249834,
+            "fees": 1.5,
+            "entryTime": "2026-11-16T21:23:05.034Z",
+            "exitTime": "2026-11-16T21:23:05.300Z",
+            "holdTime": 266,
+            "balanceBefore": 100002.45784,
+            "balanceAfter": 100000,
+            "confidence": 99,
+            "entryReason": null,
+            "exitReason": "rest_hydration_unavailable",
+            "reason": "rest_hydration_unavailable",
+            "exitIndicators": {
+              "macd": null,
+              "macdSignal": null,
+              "volatility": null
+            },
+            "patternType": "fixture-bearish-pattern",
+            "patternConfidence": 0.99,
+            "positionSize": 2456.61108,
+            "riskPercent": 0.0024578399999998055,
+            "totalTrades": 2,
+            "winRate": null
+          },
+          "actualPaperExecutor": true,
+          "actualStatePersistence": true,
+          "limits": [
+            "Recovery frame and broker REST collaborators are synthetic; the actual strategy, paper executor, exit intent and saved-position owners execute inside isolation. No live fills or activation."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-other-halt.log",
+      "sha256": "08bcacca42d9a049654f55d9175cf83aa93714ba9a55ff39c74ec1a840cb15ff",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "other-halt",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794864060000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "recovered",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reconciliation": {
+                  "brokerId": "alpaca",
+                  "accountId": "fixture-alpaca",
+                  "observedAt": 1794864073767,
+                  "openOrderIds": [],
+                  "brokerPositions": [],
+                  "localTradeIds": [],
+                  "executionMode": "paper"
+                },
+                "reason": "history_and_symbol_reconciled",
+                "causeTraceId": "rest_hydration_unavailable_1794864072988_rw2wmv",
+                "haltCleared": true,
+                "symbolStillHalted": true
+              }
+            ],
+            "recoveryPending": [],
+            "status": "ready"
+          },
+          "afterRetry": {
+            "hydrationHalted": false,
+            "symbolHalted": true,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            },
+            {
+              "path": "/v2/positions",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/orders",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/account",
+              "timeframe": null
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-open-order.log",
+      "sha256": "9e9bf29a83f2a874b604468b2bcf5027652b305cc1706fbb23de7e49040ff092",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "open-order",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794864060000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [],
+            "recoveryPending": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "pending",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reconciliation": {
+                  "brokerId": "alpaca",
+                  "accountId": "fixture-alpaca",
+                  "observedAt": 1794864077209,
+                  "openOrderIds": [
+                    "fixture-recovery-order"
+                  ],
+                  "brokerPositions": [],
+                  "localTradeIds": [],
+                  "executionMode": "paper"
+                },
+                "reason": "symbol_not_reconciled_flat",
+                "operatorActionRequired": true
+              }
+            ],
+            "status": "degraded"
+          },
+          "afterRetry": {
+            "hydrationHalted": true,
+            "symbolHalted": true,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            },
+            {
+              "path": "/v2/positions",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/orders",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/account",
+              "timeframe": null
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-other-symbol-order.log",
+      "sha256": "4e22128e47f372949ec8301e552de25b0ce98fa9cf7019725a8b24e573084eb3",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "other-symbol-order",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794864060000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "recovered",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reconciliation": {
+                  "brokerId": "alpaca",
+                  "accountId": "fixture-alpaca",
+                  "observedAt": 1794864080465,
+                  "openOrderIds": [],
+                  "brokerPositions": [],
+                  "localTradeIds": [],
+                  "executionMode": "paper"
+                },
+                "reason": "history_and_symbol_reconciled",
+                "causeTraceId": "rest_hydration_unavailable_1794864079579_3jbdaq",
+                "haltCleared": true,
+                "symbolStillHalted": false
+              }
+            ],
+            "recoveryPending": [],
+            "status": "ready"
+          },
+          "afterRetry": {
+            "hydrationHalted": false,
+            "symbolHalted": false,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            },
+            {
+              "path": "/v2/positions",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/orders",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/account",
+              "timeframe": null
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-broker-unavailable.log",
+      "sha256": "1f3fe61781fe18deefca6088a93ad48083f2c07f533104ff267c6aa2c341dba8",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "broker-unavailable",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794864060000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [],
+            "recoveryPending": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "pending",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reason": "broker_reconciliation_unavailable",
+                "error": "[Alpaca] alpaca_positions_unavailable: synthetic position transport failure"
+              }
+            ],
+            "status": "degraded"
+          },
+          "afterRetry": {
+            "hydrationHalted": true,
+            "symbolHalted": true,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            },
+            {
+              "path": "/v2/positions",
+              "timeframe": null
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-stale-history.log",
+      "sha256": "60a3a7783b4704c91ca183edc344c2cadd6c2508d6c56fdd0e35e0fc1b3acf0a",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "stale-history",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794777660000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794777600000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [],
+            "recoveryPending": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "pending",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reason": "completed_history_not_current",
+                "ageMs": 86427360,
+                "maxAgeMs": 180000
+              }
+            ],
+            "status": "degraded"
+          },
+          "afterRetry": {
+            "hydrationHalted": true,
+            "symbolHalted": true,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-wrong-account.log",
+      "sha256": "159082441fa817ce107042d18ea3e44f3bb8e693863ab2a7d2a8c192d81f306a",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "wrong-account",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794864060000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [],
+            "recoveryPending": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "pending",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reason": "broker_account_mismatch"
+              }
+            ],
+            "status": "degraded"
+          },
+          "afterRetry": {
+            "hydrationHalted": true,
+            "symbolHalted": true,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            },
+            {
+              "path": "/v2/positions",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/orders",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/account",
+              "timeframe": null
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-competing-fault.log",
+      "sha256": "c926601349adcd14f67cd8fef5633068b466869a16a8ec25784878aa6ab9d742",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "competing-fault",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [
+              {
+                "symbol": "NVDA",
+                "timeframe": "1m",
+                "candles": 24,
+                "latestEndTime": 1794864060000
+              },
+              {
+                "symbol": "NVDA",
+                "timeframe": "5m",
+                "candles": 24,
+                "latestEndTime": 1794864000000
+              }
+            ],
+            "unavailable": [],
+            "recovered": [],
+            "recoveryPending": [
+              {
+                "brokerId": "alpaca",
+                "accountId": "fixture-alpaca",
+                "accountIdSource": "broker:id",
+                "assetClass": "stocks",
+                "executionMode": "paper",
+                "timeframe": "1m",
+                "symbol": "NVDA",
+                "source": "rest_hydration_recovery",
+                "status": "pending",
+                "frames": [
+                  "1m",
+                  "5m"
+                ],
+                "reconciliation": {
+                  "brokerId": "alpaca",
+                  "accountId": "fixture-alpaca",
+                  "observedAt": 1794864094136,
+                  "openOrderIds": [],
+                  "brokerPositions": [],
+                  "localTradeIds": [],
+                  "executionMode": "paper"
+                },
+                "reason": "halt_cause_changed",
+                "causeTraceId": "rest_hydration_unavailable_1794864093324_tka5vf",
+                "haltCleared": false,
+                "symbolStillHalted": true
+              }
+            ],
+            "status": "degraded"
+          },
+          "afterRetry": {
+            "hydrationHalted": true,
+            "symbolHalted": true,
+            "nvdaHistory": 24,
+            "requiredFrameHistory": 24,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            },
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "5Min"
+            },
+            {
+              "path": "/v2/positions",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/orders",
+              "timeframe": null
+            },
+            {
+              "path": "/v2/account",
+              "timeframe": null
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    },
+    {
+      "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/recovery-history-session-changed.log",
+      "sha256": "e6c4e8464e387b7ef9703afd8e7b5080c5d596b8365bccaa3b7b9b37b6a30762",
+      "observations": [
+        {
+          "failureScenario": "rejected",
+          "recoveryCase": "history-session-changed",
+          "beforeRetry": {
+            "halted": true,
+            "nvdaHistory": 0
+          },
+          "retry": {
+            "source": "boot_rest_hydration",
+            "hydrated": [],
+            "unavailable": [],
+            "recovered": [],
+            "recoveryPending": [],
+            "status": "session_changed"
+          },
+          "afterRetry": {
+            "hydrationHalted": true,
+            "symbolHalted": true,
+            "nvdaHistory": 0,
+            "requiredFrameHistory": 0,
+            "globalState": "TARGET_ACTIVATED",
+            "globallyPaused": false
+          },
+          "requestsDuringRecovery": [
+            {
+              "path": "/v2/stocks/NVDA/bars",
+              "timeframe": "1Min"
+            }
+          ],
+          "watchdog": false,
+          "limits": [
+            "Isolated exact runner methods, actual Alpaca HTTP error translation, StateManager, CandleProcessor, indicator engine, SessionRouter and TransitionStore.",
+            "HTTP and stream subscription transport are synthetic; risk reconciliation reporting, pattern handoff and strategy ingestion are recorded collaborators.",
+            "No real credentials, broker orders, notification delivery or production state; no PM2 activation claim."
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "All execution observations use the required disposable isolation launcher, synthetic credentials and explicit source overlays excluding unrelated dirty production files.",
+    "Actual runner methods, StateManager persistence, SessionRouter, TransitionStore and Alpaca request translation execute; HTTP/stream transport, risk reporting, strategy ingestion and pattern handoff use named fixture collaborators.",
+    "Position recovery separately executes actual strategy selection, paper OrderExecutor, exit persistence and saved StateManager positions; its broker snapshot and recovery frame are synthetic.",
+    "These observations do not prove live activation, a live broker fill or notification delivery. No Jest was used."
+  ],
+  "transitionOrdering": {
+    "log": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/transition-order.log",
+    "sha256": "05852bcf74f34b062ba365213a712e8e017be19c26e13c1401e4aa894152fee2",
+    "observation": {
+      "beforeRelease": {
+        "requests": 0,
+        "activeSession": "crypto",
+        "transitionInProgress": true
+      },
+      "afterReleaseSession": "stocks",
+      "requestsAfterRelease": 7
+    }
+  }
+}

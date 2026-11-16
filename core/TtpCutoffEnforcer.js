@@ -876,12 +876,9 @@ class TtpCutoffEnforcer {
     }
     if (Array.isArray(quarantine.affectedSymbols) && typeof this.stateManager.resetSymbolHalt === 'function') {
       for (const symbol of quarantine.affectedSymbols) {
-        const haltCode = typeof this.stateManager.getSymbolHaltCode === 'function'
-          ? this.stateManager.getSymbolHaltCode(symbol)
-          : null;
-        if (haltCode === quarantine.source) {
+        if (this.stateManager.isSymbolHalted(symbol, quarantine.source)) {
           try {
-            await this.stateManager.resetSymbolHalt(symbol);
+            await this.stateManager.resetSymbolHalt(symbol, quarantine.source);
           } catch (error) {
             const resetError = `[TTP_MARKET_TIME] symbol halt reset failed for ${symbol}: ${error.message || String(error)}`;
             if (typeof this.logger?.error === 'function') {

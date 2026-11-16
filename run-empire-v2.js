@@ -1671,7 +1671,137 @@ class OGZPrimeV14Bot {
     }
   }
 
-  async hydrateActiveTimeframeFromRest() {
+  async _quarantineRestHydrationSymbol(symbol, timeframe, reason, scopeEnvelope, status = 'unavailable') {
+    const traceId = createTraceId('rest_hydration_unavailable');
+    const failure = {
+      ...scopeEnvelope,
+      traceId,
+      source: 'boot_rest_hydration',
+      symbol,
+      timeframe,
+      status,
+      reason,
+      entryBlockScope: 'symbol',
+      operatorActionRequired: false,
+      manualReconciliationRequired: false,
+      closedTrades: [],
+      closeFailures: [],
+    };
+    console.error(`[BOOT][REST-HYDRATE] ${symbol} @ ${timeframe} ${status}: ${reason}`);
+    emitTrace(this, 'REST_HYDRATION_SYMBOL_ALARM', failure);
+
+    // Reuse the existing symbol entry halt. Do not overwrite another owner's halt.
+    const halt = await stateManager.haltSymbol(symbol, `REST hydration unavailable for ${symbol} @ ${timeframe}: ${reason}`, {
+      code: 'rest_hydration_unavailable',
+      source: failure.source,
+      timeframe,
+      traceId,
+      brokerId: scopeEnvelope.brokerId,
+      accountId: scopeEnvelope.accountId,
+      entryBlockScope: 'symbol',
+      operatorActionRequired: false,
+      manualReconciliationRequired: false,
+    });
+    failure.haltPersistenceSucceeded = halt.success === true;
+    failure.haltError = halt.error || halt.reason || null;
+    failure.symbolHalted = stateManager.isSymbolHalted(symbol);
+    failure.haltCode = stateManager.getSymbolHaltCode(symbol);
+
+    // A saved mark is not proof of a current executable paper price. Preserve
+    // an unclosed position and report it if no timely symbol price is available.
+    const exitPrice = stateManager.getLastPrice(symbol);
+    const priceEventTimeMs = stateManager.state.lastPriceTimes?.get(symbol);
+    const priceAgeMs = Date.now() - priceEventTimeMs;
+    const currentPriceAvailable = Number.isFinite(exitPrice) && exitPrice > 0
+      && Number.isFinite(priceEventTimeMs) && priceAgeMs >= 0
+      && priceAgeMs <= this.config.dataFeed.staleDataMaxAgeMs;
+    failure.exitPriceEvidence = { price: Number.isFinite(exitPrice) ? exitPrice : null,
+      eventTimeMs: priceEventTimeMs ?? null, ageMs: Number.isFinite(priceAgeMs) ? priceAgeMs : null,
+      current: currentPriceAvailable };
+    for (const trade of stateManager.getTradesBySymbol(symbol)) {
+      const tradeId = trade.tradeId || trade.orderId || trade.id;
+      if (!currentPriceAvailable) {
+        failure.closeFailures.push({ tradeId, reason: 'current_exit_price_unavailable' });
+        console.error(`[REST HYDRATION] ${symbol} trade ${tradeId} remains open: current exit price unavailable`);
+        continue;
+      }
+      try {
+        const closed = await this.sessionRouter._closeSourceTradeThroughExecution(tradeId, trade, 'rest_hydration_unavailable', exitPrice);
+        failure.closedTrades.push(closed);
+      } catch (error) {
+        failure.closeFailures.push({ tradeId, reason: error.message });
+        console.error(`[BOOT][REST-HYDRATE] ${symbol} close unconfirmed for ${tradeId}: ${error.message}`);
+      }
+    }
+    failure.remainingTradeIds = stateManager.getTradesBySymbol(symbol).map(trade => trade.tradeId || trade.orderId || trade.id);
+    failure.operatorActionRequired = failure.remainingTradeIds.length > 0 || !failure.haltPersistenceSucceeded;
+    failure.manualReconciliationRequired = failure.operatorActionRequired;
+    emitTrace(this, 'REST_HYDRATION_SYMBOL_HALT', failure);
+    return failure;
+  }
+
+  async _resolveRestHydrationHalt(symbol, frames, broker, scopeIsCurrent) {
+    const code = 'rest_hydration_unavailable';
+    const scope = frames[0].scopeEnvelope;
+    const recovery = { ...scope, symbol, source: 'rest_hydration_recovery', status: 'pending',
+      frames: frames.map(frame => frame.timeframe) };
+    for (const frame of frames) {
+      const completed = frame.candles.findLast(candle => candle.etime <= frame.restRequestStartedAt);
+      const ageMs = completed ? Date.now() - completed.etime : null;
+      const maxAgeMs = frame.timeframeMs * this.config.dataFeed.maxBackfillAgeMultiplier
+        + this.config.dataFeed.maxBackfillAgeSlackMs;
+      if (ageMs === null || ageMs > maxAgeMs) {
+        return { ...recovery, reason: 'completed_history_not_current', timeframe: frame.timeframe, ageMs, maxAgeMs };
+      }
+    }
+    if (!scopeIsCurrent()) return { ...recovery, reason: 'session_changed' };
+    const halt = stateManager._symbolHaltRecord(symbol);
+    let cause = (halt?.causes || (halt ? [halt] : [])).find(item => item.code === code);
+    if (!cause?.traceId || cause.brokerId !== scope.brokerId || cause.accountId !== scope.accountId) {
+      return { ...recovery, reason: 'halt_scope_unconfirmed' };
+    }
+    // Finish the original symbol's flatten obligation before releasing its halt.
+    if (stateManager.getTradesBySymbol(symbol).length > 0) {
+      recovery.flatten = await this._quarantineRestHydrationSymbol(symbol, this.candleTimeframe,
+        'history_restored_position_reconciliation_pending', scope, 'reconciling');
+      const currentHalt = stateManager._symbolHaltRecord(symbol);
+      cause = (currentHalt?.causes || (currentHalt ? [currentHalt] : [])).find(item => item.code === code);
+      if (!cause?.traceId) return { ...recovery, reason: 'halt_scope_unconfirmed' };
+    }
+    let snapshot;
+    try {
+      snapshot = await this.sessionRouter._fetchBrokerRestSnapshot(broker, scope.brokerId);
+    } catch (error) {
+      return { ...recovery, reason: 'broker_reconciliation_unavailable', error: error.message };
+    }
+    if (!scopeIsCurrent()) return { ...recovery, reason: 'session_changed' };
+    if (!snapshot.accountId || snapshot.accountId !== scope.accountId) {
+      return { ...recovery, reason: 'broker_account_mismatch' };
+    }
+    const belongsToSymbolOrUnknown = row => {
+      const canonical = broker.fromBrokerSymbol(row.symbol);
+      // An unrecognised broker identifier cannot prove this symbol is flat.
+      return !canonical || canonical === '(missing)' || normalizeRuntimeSymbol(canonical) === symbol;
+    };
+    const openOrders = snapshot.openOrders.filter(belongsToSymbolOrUnknown);
+    const openPositions = this.config.executionMode === 'paper'
+      ? [] : snapshot.openPositions.filter(belongsToSymbolOrUnknown);
+    const localTrades = stateManager.getTradesBySymbol(symbol);
+    recovery.reconciliation = { brokerId: snapshot.brokerId, accountId: snapshot.accountId,
+      observedAt: Date.now(), openOrderIds: openOrders.map(order => order.orderId),
+      brokerPositions: openPositions, localTradeIds: localTrades.map(trade => trade.tradeId || trade.orderId || trade.id),
+      executionMode: this.config.executionMode };
+    if (openOrders.length || openPositions.length || localTrades.length) {
+      return { ...recovery, reason: 'symbol_not_reconciled_flat', operatorActionRequired: true };
+    }
+    const cleared = await stateManager.resetSymbolHalt(symbol, code, cause.traceId);
+    return { ...recovery, status: cleared.success === true ? 'recovered' : 'pending',
+      reason: cleared.success === true ? 'history_and_symbol_reconciled' : (cleared.reason || cleared.error),
+      causeTraceId: cause.traceId, haltCleared: cleared.success === true,
+      symbolStillHalted: stateManager.isSymbolHalted(symbol) };
+  }
+
+  async hydrateActiveTimeframeFromRest(requestedSymbols) {
     if (this.config.enableBacktestMode ||
         resolvedConfig.config.mode.backtest ||
         resolvedConfig.config.mode.execution === 'backtest' ||
@@ -1685,20 +1815,37 @@ class OGZPrimeV14Bot {
       return;
     }
 
-    const symbols = this._getBootHydrationSymbols();
+    const symbols = requestedSymbols ?? this._getBootHydrationSymbols();
     if (symbols.length === 0) {
       throw new Error('[BOOT][REST-HYDRATE] no active symbols available for boot hydration');
     }
 
     const hydrationLimit = this.config.dataFeed.bootRestHydrationLimit;
+    const receipt = { source: 'boot_rest_hydration', hydrated: [], unavailable: [], recovered: [], recoveryPending: [] };
+    const session = this.sessionRouter.activeSession;
+    const epoch = this.sessionRouter.activeCallbackEpoch;
+    const transitioning = this.sessionRouter.transitionInProgress;
+    const scopeIsCurrent = () => this.sessionRouter.activeBroker === broker
+      && this.sessionRouter.activeSession === session && this.sessionRouter.activeCallbackEpoch === epoch
+      && this.sessionRouter.transitionInProgress === transitioning && !this._shutdownRequested;
     for (const symbol of symbols) {
+      const frames = [];
+      let unavailable = null;
       for (const timeframe of new Set([this.candleTimeframe, ...this.evaluationTimeframes])) {
         const timeframeMs = this.candleAggregator.getIntervalMs(timeframe);
         const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
           brokerId: broker.getBrokerName(),
         });
         const restRequestStartedAt = Date.now();
-        const rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
+        let rawCandles;
+        try {
+          rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
+        } catch (error) {
+          if (!scopeIsCurrent()) return { ...receipt, status: 'session_changed' };
+          unavailable = await this._quarantineRestHydrationSymbol(symbol, timeframe, error.message, scopeEnvelope);
+          break;
+        }
+        if (!scopeIsCurrent()) return { ...receipt, status: 'session_changed' };
         const candles = (Array.isArray(rawCandles) ? rawCandles : [])
           .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
           .filter(Boolean)
@@ -1706,10 +1853,18 @@ class OGZPrimeV14Bot {
           .slice(-hydrationLimit);
 
         if (candles.length === 0) {
-          console.warn(`[BOOT][REST-HYDRATE] no usable candles returned for ${symbol} @ ${timeframe}`);
-          continue;
+          unavailable = await this._quarantineRestHydrationSymbol(symbol, timeframe, 'no_usable_rest_candles', scopeEnvelope);
+          break;
         }
+        frames.push({ timeframe, timeframeMs, scopeEnvelope, restRequestStartedAt, candles });
+      }
+      if (unavailable) {
+        receipt.unavailable.push(unavailable);
+        continue;
+      }
 
+      // Publish a symbol's histories only after all requested frames arrive.
+      for (const { timeframe, timeframeMs, scopeEnvelope, restRequestStartedAt, candles } of frames) {
         for (let index = 0; index < candles.length; index += 1) {
           const traceId = createTraceId('boot_rest');
           const candle = {
@@ -1776,9 +1931,19 @@ class OGZPrimeV14Bot {
         }
         if (timeframe === this.candleTimeframe) this._markActiveTimeframeData(symbol, timeframe);
 
+        receipt.hydrated.push({ symbol, timeframe, candles: candles.length, latestEndTime: latest.etime });
         console.log(`[BOOT][REST-HYDRATE] symbol=${symbol} timeframe=${timeframe} candles=${candles.length} latest=${new Date(latest.etime).toISOString()} close=${latest.c}`);
       }
+      if (stateManager.isSymbolHalted(symbol, 'rest_hydration_unavailable')) {
+        const recovery = await this._resolveRestHydrationHalt(symbol, frames, broker, scopeIsCurrent);
+        if (recovery.status === 'recovered') receipt.recovered.push(recovery);
+        else receipt.recoveryPending.push(recovery);
+        emitTrace(this, recovery.status === 'recovered' ? 'REST_HYDRATION_RECOVERED' : 'REST_HYDRATION_SYMBOL_ALARM', recovery);
+      }
     }
+    receipt.status = receipt.unavailable.length || receipt.recoveryPending.length ? 'degraded' : 'ready';
+    emitTrace(this, 'REST_HYDRATION_COMPLETE', { traceId: createTraceId('rest_hydration'), ...receipt });
+    return receipt;
   }
 
   /**
@@ -2988,10 +3153,16 @@ class OGZPrimeV14Bot {
     this.livenessWatchdogStartedAt = Date.now();
 
     this.livenessCheckInterval = setInterval(() => {
+      // The existing watchdog owns retries; keep at most one recovery pass active.
+      if ([...this._runtimeOperations.values()].includes('liveness_check')) return;
       this._trackRuntimeOperation('liveness_check', async () => {
-      if (this._isExpectedMarketQuiet()) {
+      if (this._isExpectedMarketQuiet() || this._shutdownRequested
+        || this.sessionRouter.transitionInProgress || this.sessionRouter.failedSafeMode) {
         return;
       }
+      const recoveringSymbols = this._getBootHydrationSymbols()
+        .filter(symbol => stateManager.isSymbolHalted(symbol, 'rest_hydration_unavailable'));
+      if (recoveringSymbols.length) await this.hydrateActiveTimeframeFromRest(recoveringSymbols);
 
       const symbol = this._getLivenessSymbol();
       const timeframe = this._getLivenessTimeframe();

@@ -1,0 +1,168 @@
+{
+  "runId": "2026-11-16T21-31-17-401Z-961925c7b43c",
+  "sourceTree": "8d786fa225d7e935d81e3e99ad15304258eb42f4",
+  "base": "1d057b014be9d365403d7eea8651a0a8d11b72b1",
+  "sourceSha256": {
+    "run-empire-v2.js": "1df4e02f45e3e1e6f5c14cb8524359a58e4498aa2744bd74690578b168b16d9b",
+    "core/SessionRouter.js": "84106f6356e0e53af4cac5bcef930ae6622280417594a417fba93b2d6a5f14bd",
+    "core/StateManager.js": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1",
+    "core/TtpCutoffEnforcer.js": "8f9fbdc66d6818c50916511c89e8346c14f420f065097f2cd3362cfc13256876"
+  },
+  "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "question": "Under what conditions does a symbol become eligible for new entries again after its REST history request fails? Cite the relevant producers and consumers.",
+  "verdict": "no_break_found",
+  "consensus": null,
+  "reviewerPanel": {
+    "selected": [
+      "mercury",
+      "astra",
+      "fable"
+    ],
+    "seats": [
+      {
+        "id": "mercury",
+        "label": "Mercury",
+        "status": "succeeded",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "verdict": "no_break_found",
+        "evidenceBasis": [
+          "successful_repo_tool",
+          "verified_current_diff"
+        ],
+        "evidenceChecksPassed": true,
+        "named_absences": [],
+        "stopped_because": "stop",
+        "self_report_complete": true
+      },
+      {
+        "id": "astra",
+        "label": "Astra",
+        "status": "succeeded",
+        "provider": "codex-subscription",
+        "requestedModel": "gpt-6-astra",
+        "appliedModels": [
+          "gpt-6-astra"
+        ],
+        "verdict": "no_break_found",
+        "evidenceBasis": [],
+        "evidenceChecksPassed": false,
+        "named_absences": [],
+        "stopped_because": "stop",
+        "self_report_complete": true
+      },
+      {
+        "id": "fable",
+        "label": "Opus",
+        "status": "succeeded",
+        "provider": "claude-code",
+        "requestedModel": "claude-opus-5-5",
+        "appliedModels": [
+          "claude-opus-5-5"
+        ],
+        "verdict": "no_break_found",
+        "evidenceBasis": [
+          "successful_repo_tool"
+        ],
+        "evidenceChecksPassed": true,
+        "named_absences": [],
+        "stopped_because": "success",
+        "self_report_complete": true
+      }
+    ],
+    "reportedDecision": {
+      "verdict": "no_break_found",
+      "majorityOutcome": "no_break_found",
+      "majorityRequired": 2,
+      "selectedCount": 3,
+      "tally": {
+        "found_break": 0,
+        "no_break_found": 3,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "no_break_found",
+          "rawVerdict": "no_break_found",
+          "answerSha256": "b6a0fbee4c80de68430a5ae71a4a998d3f37dfa24843a06ea6c9d682147f83fb",
+          "absence": null
+        },
+        {
+          "reviewer": "astra",
+          "status": "succeeded",
+          "outcome": "no_break_found",
+          "rawVerdict": "no_break_found",
+          "answerSha256": "3e74887068b6489b5c93c0c165ba136f7bddab18453b8e25f1d772882e240788",
+          "absence": null
+        },
+        {
+          "reviewer": "fable",
+          "status": "succeeded",
+          "outcome": "no_break_found",
+          "rawVerdict": "no_break_found",
+          "answerSha256": "da39e6bc8341f40cb0882e9f9f9f0b9433ec87b887b8fc69fee567948af4b323",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    },
+    "diagnostics": {
+      "qualifyingSeats": 3,
+      "verdictLabelsMatch": true,
+      "evidenceChecksPassed": false,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "evidence_failure"
+      ],
+      "sharedVerdictLabel": "pass"
+    }
+  },
+  "reviewLog": "ogz-meta/inbox/codex/2026-11-16/rest-recovery/review.log",
+  "reviewLogSha256": "185c7df03577ef4c9c347b07030000248cdf57771afb7a5999ccc07e8f94927f",
+  "astraRaw": {
+    "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-16/2026-11-16t21-24-18-438z-2528069-a4fffa264407/astra_peer_independent-1.raw",
+    "sha256": "556e0eb310015d993a5492b0919c18fe59769163a75e24207a875b2d9e32c915",
+    "completedReadCommands": {
+      "count": 9,
+      "exitCodes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "reviewCorrections": [
+    {
+      "reviewer": "astra",
+      "observation": "Staged CHANGELOG described the older no-automatic-reset candidate.",
+      "resolution": "Final scoped changelog is rewritten to describe the verified recovery lifecycle; historical receipts remain historical."
+    },
+    {
+      "reviewer": "opus",
+      "observation": "Claimed the liveness_check call omits reportFailure and silently drops exceptions.",
+      "resolution": "Source contradicts this: run-empire-v2.js:3201 supplies { reportFailure: true }; _trackRuntimeOperation:3805-3809 records the fatal receipt and error. No source change or repeated paid review is required to establish this existing call argument."
+    }
+  ],
+  "limits": [
+    "All three selected reviewers returned no_break_found for the one entry-eligibility recovery question. This is not a whole-repository or whole-file certification.",
+    "The panel retains evidence_failure and per-seat coverage/whole-file warnings. Astra raw CLI read commands are recorded separately from the bridge metadata.",
+    "Reviewers did not execute the native observations or verify running process behavior. Native source-qualified observations are in behavior-receipt.json.",
+    "Account mismatch remains an explicit unreconciled boundary; successful candle retrieval alone cannot clear a halt belonging to another account."
+  ]
+}
