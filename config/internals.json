@@ -72,7 +72,6 @@
       "notionalToleranceRelative": 1e-06,
       "remainingLifecycleRelativeTolerance": 1e-12,
       "equityCurveDefaultLimit": 500,
-      "historyDefaultPerPage": 50,
       "confidenceBand55": 55,
       "confidenceBand65": 65,
       "confidenceBand75": 75,

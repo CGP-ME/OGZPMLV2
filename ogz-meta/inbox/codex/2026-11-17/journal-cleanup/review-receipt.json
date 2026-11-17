@@ -1,0 +1,58 @@
+{
+  "observedAt": "2026-11-17T01:36:57.599503+00:00",
+  "candidateTree": "4f58d37e68e32698e531ec8433dbacc732e11ee8",
+  "baseCommit": "f379d61a155ce739e89e3a6a9e9d43f6afa70ff5",
+  "resolvedBaseTree": "272bf60ec2bd25a45002d2d2b658a417ef371f55",
+  "reviews": [
+    {
+      "runId": "2026-11-17t01-31-24-445z-2700596-a0b836aac618",
+      "question": "Which current production callers, if any, require the journal or replay interfaces removed by this candidate? Trace the callers with current file:line evidence and name any evidence gaps.",
+      "outcome": "no_break_found",
+      "selected": [
+        "mercury"
+      ],
+      "unselected": [
+        "astra",
+        "fable"
+      ],
+      "costUsd": 0.021936,
+      "iterations": 13,
+      "logPath": "ogz-meta/inbox/codex/2026-11-17/journal-cleanup/review.log",
+      "logSha256": "6cc57e5947039d9858b380eafdf297895a1ca4a947ca8b25833e3923f7f548dd",
+      "answerReadCompletely": true,
+      "evidenceManifest": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-17/2026-11-17t01-31-24-445z-2700596-a0b836aac618/manifest.json"
+    },
+    {
+      "runId": "2026-11-17t01-34-12-731z-2703260-5047a99d47ce",
+      "question": "Which current production callers depend on TradeJournal.getTradeHistory, TradeJournal.exportCSV or TradeReplayCapture.captureExit in the baseline and candidate? Cite the current callers and identify any unresolved evidence.",
+      "outcome": "no_break_found",
+      "selected": [
+        "mercury"
+      ],
+      "unselected": [
+        "astra",
+        "fable"
+      ],
+      "costUsd": 0.052134,
+      "iterations": 17,
+      "logPath": "ogz-meta/inbox/codex/2026-11-17/journal-cleanup/review-capture.log",
+      "logSha256": "f81f32cc98ad2cb8f0ab14fd8ffc21aa31ea453845946d3e6441349ea6338846",
+      "answerReadCompletely": true,
+      "evidenceManifest": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-17/2026-11-17t01-34-12-731z-2703260-5047a99d47ce/manifest.json"
+    }
+  ],
+  "limitations": [
+    "Independent Mercury reviews only; not a three-seat panel or whole-module certification.",
+    "Coverage, whole-file and inherited-section warnings retained in full logs; no reviewer-executed runtime proof.",
+    "First review covered bridge removals; second independently covered TradeJournal and TradeReplayCapture caller dependencies.",
+    "Canonical Mercury exclusions block legacy test files. Their historical calls are preserved, not treated as production consumers.",
+    "Inherited dirty ConfigLoader, runner/executor dependencies and config changes remain separately hashed and excluded from this commit.",
+    "No refreshed RAG publication claimed."
+  ],
+  "hostQualification": [
+    "All 565 tracked code/configuration files outside historical evidence, tests and stored data searched for the journal method census.",
+    "Old tests/fixtures still contain legacy journal interfaces. No Jest additions, restoration or execution; inherited dirty files preserved.",
+    "Live runner owns getSymbolTimeframeContext at run-empire-v2.js:3296; sole production history resolver caller at :1410 supplies symbol and timeframe.",
+    "Production CSV request uses bridge account report; unrelated BacktestRecorder.exportCSV is retained."
+  ]
+}

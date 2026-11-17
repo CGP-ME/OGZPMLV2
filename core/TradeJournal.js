@@ -173,31 +173,6 @@ class JournalReport {
     return sampled;
   }
 
-  getTradeHistory(filters = {}) {
-    let filtered = [...this.trades];
-
-    if (filters.direction) filtered = filtered.filter(t => t.direction === filters.direction);
-    if (filters.regime) filtered = filtered.filter(t => t.regime === filters.regime);
-    if (filters.winners === true) filtered = filtered.filter(t => t.netPnl > 0);
-    if (filters.winners === false) filtered = filtered.filter(t => t.netPnl < 0);
-    if (filters.minPnl != null) filtered = filtered.filter(t => t.netPnl >= filters.minPnl);
-    if (filters.maxPnl != null) filtered = filtered.filter(t => t.netPnl <= filters.maxPnl);
-    if (filters.since) filtered = filtered.filter(t => t.timestamp >= filters.since);
-    if (filters.until) filtered = filtered.filter(t => t.timestamp <= filters.until);
-
-    // Sort newest first
-    filtered.sort((a, b) => b.timestamp - a.timestamp);
-
-    const perPage = filters.perPage || ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.historyDefaultPerPage');
-    const page = filters.page || 1;
-    const total = filtered.length;
-    const pages = Math.ceil(total / perPage);
-    const start = (page - 1) * perPage;
-    const trades = filtered.slice(start, start + perPage);
-
-    return { trades, total, page, pages };
-  }
-
   getPerformanceBreakdown(dimension) {
     const buckets = {};
 
@@ -681,8 +656,7 @@ class TradeJournal extends JournalReport {
     this.scope = requirePatternScope(config.scope || config, 'TradeJournal');
     this.paths = {
       dir: dataDir,
-      ledger: path.join(dataDir, 'trade-ledger.jsonl'),
-      exports: path.join(dataDir, 'exports')
+      ledger: path.join(dataDir, 'trade-ledger.jsonl')
     };
 
     // ── Config ─────────────────────────────────────────────────────────
@@ -1213,78 +1187,6 @@ class TradeJournal extends JournalReport {
 
 
   // ════════════════════════════════════════════════════════════════════════
-  // PUBLIC API: EXPORT
-  // ════════════════════════════════════════════════════════════════════════
-
-  /**
-   * Export trade history as CSV (tax-ready)
-   * @param {Object} [options]
-   * @param {number} [options.since] - Start timestamp
-   * @param {number} [options.until] - End timestamp
-   * @param {string} [options.filename] - Custom filename
-   * @returns {string} Path to exported CSV file
-   */
-  exportCSV(options = {}) {
-    const since = options.since || 0;
-    const until = options.until || Date.now();
-    const filtered = this.readClosedTrades().filter(t => t.timestamp >= since && t.timestamp <= until);
-
-    const headers = [
-      'Date', 'Time_UTC', 'Order_ID', 'Direction', 'Entry_Price', 'Exit_Price',
-      'Size_USD', 'USD_Value', 'Gross_PnL', 'Fees', 'Net_PnL', 'PnL_Percent',
-      'Hold_Duration', 'Exit_Reason', 'Confidence', 'Regime', 'Patterns',
-      'RSI', 'MACD', 'Trend', 'Recorded_Balance_After', 'Symbol', 'Broker', 'Account', 'Mode', 'Timeframe', 'Fill_ID', 'Partial_Exit'
-    ];
-
-    const rows = filtered.map(t => {
-      const dt = new Date(t.timestamp);
-      return [
-        dt.toISOString().split('T')[0],
-        dt.toISOString().split('T')[1].replace('Z', ''),
-        t.orderId,
-        t.direction,
-        t.entryPrice.toFixed(2),
-        t.exitPrice.toFixed(2),
-        t.size.toFixed(8),
-        t.usdValue.toFixed(2),
-        t.grossPnl.toFixed(2),
-        t.fees.toFixed(4),
-        t.netPnl.toFixed(2),
-        finiteNumberOrNull(t.pnlPercent) === null ? '' : t.pnlPercent.toFixed(2) + '%',
-        t.holdTimeFormatted,
-        t.exitReason,
-        t.confidence,
-        t.regime,
-        (t.patterns || []).map(p => p.name).join('; '),
-        t.indicators?.rsi?.toFixed(1) || '',
-        t.indicators?.macd?.toFixed(4) || '',
-        t.indicators?.trend || '',
-        t.balanceAfter?.toFixed(2) || '',
-        t.symbol, t.brokerId, t.accountId, t.executionMode, t.timeframe, t.fillId, t.partialExit
-      ].map(value => '"' + String(value ?? '').replaceAll('"', '""') + '"').join(',');
-    });
-
-    const csv = [headers.join(','), ...rows].join('\n');
-
-    // Write to exports directory
-    const filename = nonEmptyStringOrNull(options.filename) ?? this._defaultCSVFilename();
-    const filepath = path.join(this.paths.exports, filename);
-    // Atomic write — partial CSV exports corrupt downstream tools (Mercury Vector 6)
-    const { writeStringAtomic } = require('./AtomicWrite');
-    writeStringAtomic(filepath, csv, 'utf8');
-
-    console.log(`[TradeJournal] Exported ${filtered.length} trades to ${filepath}`);
-    return filepath;
-  }
-
-  /**
-   * Export full performance report as JSON
-   * @returns {Object} Complete report with all analytics
-   */
-
-
-
-  // ════════════════════════════════════════════════════════════════════════
   // PUBLIC API: CLEANUP
   // ════════════════════════════════════════════════════════════════════════
 
@@ -1338,7 +1240,7 @@ class TradeJournal extends JournalReport {
   // ════════════════════════════════════════════════════════════════════════
 
   _ensureDirs() {
-    for (const dir of [this.paths.dir, this.paths.exports]) {
+    for (const dir of [this.paths.dir]) {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
@@ -1533,10 +1435,6 @@ class TradeJournal extends JournalReport {
 
 
 
-
-  _defaultCSVFilename() {
-    return `ogzprime-trades-${new Date().toISOString().split('T')[0]}.csv`;
-  }
 
   _scopeRecordFields() {
     return {

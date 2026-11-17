@@ -1,0 +1,109 @@
+{
+  "source": {
+    "candidate": "4f58d37e68e32698e531ec8433dbacc732e11ee8",
+    "base": "f379d61a155ce739e89e3a6a9e9d43f6afa70ff5",
+    "files": [
+      {
+        "path": "core/TradeJournalBridge.js",
+        "stagedSha256": "0ce989f169c5b5bb36019274137bdd282ce74e461bc3014254f3af48d8daacf0",
+        "workingSha256": "0ce989f169c5b5bb36019274137bdd282ce74e461bc3014254f3af48d8daacf0",
+        "workingMatchesStaged": true
+      },
+      {
+        "path": "core/TradeJournal.js",
+        "stagedSha256": "ffc004548cb149112dce44aa6298b2c995b05fd675761e59b42cf316caeb8539",
+        "workingSha256": "ffc004548cb149112dce44aa6298b2c995b05fd675761e59b42cf316caeb8539",
+        "workingMatchesStaged": true
+      },
+      {
+        "path": "core/TradeReplayCapture.js",
+        "stagedSha256": "fb072ded09062be924cbc9e20a0046ba4b2b6f61d83f3b135387235289ae6284",
+        "workingSha256": "fb072ded09062be924cbc9e20a0046ba4b2b6f61d83f3b135387235289ae6284",
+        "workingMatchesStaged": true
+      },
+      {
+        "path": "config/internals.json",
+        "stagedSha256": "ec87a82f42d0997ee4a14cf4352b491b89e2e60276383de3525082514956a6b2",
+        "workingSha256": "a54213e96f73eaad2cb188540c27100ef2807fab1d8026835f37b326c3ec4640",
+        "workingMatchesStaged": false
+      }
+    ],
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "execution": "scripts/test-isolated.py; existing fixtures --current",
+  "jestAddedOrRun": false,
+  "accountReport": {
+    "closedFills": 6,
+    "netPnl": 3,
+    "currentBalance": 1003,
+    "ledgerUnchanged": true,
+    "exportClosedFillCount": 6,
+    "otherAccountExcluded": true,
+    "duplicateFillDidNotAppend": true
+  },
+  "replay": {
+    "entrySavedAtEntry": true,
+    "entryBytesPreserved": true,
+    "partialFillSavedAtExit": true,
+    "completedExitFills": 2,
+    "netPnl": -3.9999999999999947,
+    "entryTime": 1794878700000,
+    "exitTime": 1794878820000,
+    "accountingBasis": "confirmed_net_after_fees",
+    "postExitCandles": 2,
+    "postExitComplete": true,
+    "zeroVolumePreserved": true,
+    "mostRecentSelectedByTimestamp": true,
+    "corruptHistoryReportedAndPreserved": true,
+    "pathEscapeRefused": true,
+    "simulatedProcessRecreation": 4,
+    "closedNotificationNetPnl": -3.9999999999999947,
+    "partialDidNotClaimFullClose": true,
+    "savedMissingFillEvidenceRemainsUnavailable": true
+  },
+  "executionBoundary": {
+    "savedOpenPositions": 0,
+    "tradingPaused": false,
+    "wrappersInstalled": false,
+    "availabilityBeforeRestart": "available",
+    "availabilityAfterRestart": "available",
+    "actualStrategyExecutorStateManagerAndJournal": true,
+    "limits": [
+      "Synthetic prices/accounts and paper fills inside test-isolated.py.",
+      "No live process restart, actual broker order or live browser acceptance."
+    ]
+  },
+  "closedTrades": [
+    {
+      "symbol": "NVDA",
+      "direction": "short",
+      "pnl": 22.132849200000237,
+      "executionMode": "paper",
+      "simulated": true
+    },
+    {
+      "symbol": "TSLA",
+      "direction": "short",
+      "pnl": 22.132849200000237,
+      "executionMode": "paper",
+      "simulated": true
+    }
+  ],
+  "fullLogs": [
+    {
+      "marker": "JOURNAL_REPORT_RECEIPT",
+      "logSha256": "2e5ffeda0e2b23f5a925bad53ac1ad0c6cf8cff8d3a5243dba0a6db7ba8e93c9",
+      "path": "ogz-meta/inbox/codex/2026-11-17/journal-cleanup/native-reports.log"
+    },
+    {
+      "marker": "REPLAY_PRODUCER_RECEIPT",
+      "logSha256": "eb186a4ad650a85bb0fcdb5e91fdc5e090d078ace518aa053affdf27f4df4808",
+      "path": "ogz-meta/inbox/codex/2026-11-17/journal-cleanup/native-replay.log"
+    },
+    {
+      "marker": "JOURNAL_BOUNDARY_RECEIPT",
+      "logSha256": "85add09df94a56dd226542b53a11d93f2fea06b1266689bb498577c2d8bdad8a",
+      "path": "ogz-meta/inbox/codex/2026-11-17/journal-cleanup/native-boundary.log"
+    }
+  ]
+}

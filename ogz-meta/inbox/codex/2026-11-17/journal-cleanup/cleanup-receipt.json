@@ -1,0 +1,107 @@
+{
+  "coverageFiles": 565,
+  "removedInterfaces": [
+    {
+      "file": "core/TradeJournalBridge.js",
+      "line": 120,
+      "name": "findActiveTradeByOrderId",
+      "references": {
+        "core/TradeJournalBridge.js": 1
+      }
+    },
+    {
+      "file": "core/TradeJournalBridge.js",
+      "line": 457,
+      "name": "normalizeBrokerPositionForJournal",
+      "references": {
+        "core/TradeJournalBridge.js": 1
+      }
+    },
+    {
+      "file": "core/TradeJournalBridge.js",
+      "line": 468,
+      "name": "resolveJournalScope",
+      "references": {
+        "core/TradeJournalBridge.js": 2
+      }
+    },
+    {
+      "file": "core/TradeJournalBridge.js",
+      "line": 1730,
+      "name": "_combinedClosedTrades",
+      "references": {
+        "core/TradeJournalBridge.js": 1
+      }
+    },
+    {
+      "file": "core/TradeJournalBridge.js",
+      "line": 1736,
+      "name": "_combinedOpenTradeCount",
+      "references": {
+        "core/TradeJournalBridge.js": 1
+      }
+    },
+    {
+      "file": "core/TradeJournalBridge.js",
+      "line": 1761,
+      "name": "_combinedPerformanceBreakdown",
+      "references": {
+        "core/TradeJournalBridge.js": 1
+      }
+    },
+    {
+      "file": "core/TradeJournal.js",
+      "line": 176,
+      "name": "getTradeHistory",
+      "references": {
+        "core/TradeJournal.js": 1
+      }
+    },
+    {
+      "file": "core/TradeJournal.js",
+      "line": 1227,
+      "name": "exportCSV",
+      "references": {
+        "core/BacktestRunner.js": 1,
+        "core/BacktestRecorder.js": 1,
+        "core/TradeJournal.js": 1,
+        "public/trade-journal.html": 2
+      }
+    },
+    {
+      "file": "core/TradeJournal.js",
+      "line": 1537,
+      "name": "_defaultCSVFilename",
+      "references": {
+        "core/TradeJournal.js": 2
+      }
+    },
+    {
+      "file": "core/TradeReplayCapture.js",
+      "line": 209,
+      "name": "captureExit",
+      "references": {
+        "core/TradeReplayCapture.js": 2
+      }
+    }
+  ],
+  "additionalRemoval": [
+    "Legacy symbol-only/global replay-history branches",
+    "Unused historyDefaultPerPage configuration leaf",
+    "Unused per-scope CSV export directory setup"
+  ],
+  "preserved": [
+    "All saved state, trade ledgers, replay files and existing exports",
+    "Unrelated dirty source and old tests/fixtures",
+    "StateManager legacy persisted journal-pause retirement reader; old saved states can still require it",
+    "SessionRouter and TransitionStore execution bookkeeping"
+  ],
+  "oldUiPathsRemovedInPriorCommits": [
+    "executeTrade/logTrade interception",
+    "Standalone unauthenticated socket routes",
+    "TradeLog getTrade/getAllTrades hook",
+    "Modal replay built from current live chart candles"
+  ],
+  "restRecoveryCommit": "6391763513d725ba866d88fe1f7f6e7e58313348",
+  "restRuntimeReceipt": "ogz-meta/inbox/codex/2026-11-16/runtime-proof/trace-activation-observation.json"
+}

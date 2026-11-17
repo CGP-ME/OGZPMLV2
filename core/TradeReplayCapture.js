@@ -204,12 +204,8 @@ class TradeReplayCapture {
    * @param {string} orderId
    * @param {Object} exitData - { price, reason, pnl, pnlPercent, holdTime }
    * @param {Array} priceHistory - Bot's current candle array
-   * @returns {string|null} Path to saved replay file
+   * @returns {Object} Saved replay status, reason and path
    */
-  captureExit(orderId, exitData, priceHistory, scope = null) {
-    return this.captureExitResult(orderId, exitData, priceHistory, scope).path;
-  }
-
   captureExitResult(orderId, exitData, priceHistory, scope = null) {
     const id = nonEmptyStringOrNull(orderId);
     if (!id || path.basename(id) !== id) return { status: 'unavailable', reason: 'invalid_order_id', path: null };
@@ -271,7 +267,7 @@ class TradeReplayCapture {
     // (exit-only trade had no entry checkpoint). Old behavior fabricated phantom
     // entry data which corrupted replay analytics. Set _noEntryCapture: true so
     // downstream consumers can filter exit-only records.
-    const resolvedScope = replayScope(scope, 'TradeReplayCapture.captureExit') || pending.scope;
+    const resolvedScope = replayScope(scope, 'TradeReplayCapture.captureExitResult') || pending.scope;
     const requestedCandles = Number.isInteger(this.candlesAfter) && this.candlesAfter >= 0
       ? this.candlesAfter
       : null;

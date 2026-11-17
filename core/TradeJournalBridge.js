@@ -117,45 +117,6 @@ function entryActionOrNull(action) {
   return normalized === 'BUY' || normalized === 'SELL_SHORT' ? normalized : null;
 }
 
-function findActiveTradeByOrderId(activeTrades, orderId) {
-  const targetOrderId = nonEmptyStringOrNull(orderId);
-  if (!targetOrderId) return null;
-
-  if (activeTrades instanceof Map) {
-    if (activeTrades.has(targetOrderId)) {
-      return activeTrades.get(targetOrderId) || null;
-    }
-    for (const trade of activeTrades.values()) {
-      if (trade && (trade.orderId === targetOrderId || trade.id === targetOrderId)) {
-        return trade;
-      }
-    }
-    return null;
-  }
-
-  if (Array.isArray(activeTrades)) {
-    for (const entry of activeTrades) {
-      const trade = Array.isArray(entry) ? entry[1] : entry;
-      if (trade && (trade.orderId === targetOrderId || trade.id === targetOrderId)) {
-        return trade;
-      }
-    }
-    return null;
-  }
-
-  if (activeTrades && typeof activeTrades === 'object') {
-    const keyedTrade = activeTrades[targetOrderId];
-    if (keyedTrade) return keyedTrade;
-    for (const trade of Object.values(activeTrades)) {
-      if (trade && (trade.orderId === targetOrderId || trade.id === targetOrderId)) {
-        return trade;
-      }
-    }
-  }
-
-  return null;
-}
-
 function activeTradeEntries(activeTrades) {
   if (activeTrades instanceof Map) {
     return Array.from(activeTrades.entries()).map(([key, trade]) => ({ key, trade }));
@@ -454,73 +415,15 @@ function uniqueNonEmptyStrings(values) {
   return out;
 }
 
-function normalizeBrokerPositionForJournal(position) {
-  const symbol = nonEmptyStringOrNull(position?.symbol);
-  if (!symbol) return null;
-  return {
-    symbol,
-    side: nonEmptyStringOrNull(position?.side),
-    size: finiteNumberOrNull(position?.size ?? position?.qty ?? position?.quantity),
-    broker: nonEmptyStringOrNull(position?.broker),
-  };
-}
-
-function resolveJournalScope(bot) {
-  const runtimeScope = bot?.stateManager?.getDashboardRuntimeScope?.();
-  return requirePatternScope(runtimeScope || {
-    symbol: bot?.config?.tradingPair || bot?.tradingPair,
-    brokerId: bot?.config?.brokerId,
-    accountId: bot?.config?.accountId,
-    assetClass: bot?.config?.assetClass,
-    executionMode: bot?.config?.executionMode,
-    timeframe: bot?.config?.timeframe || bot?.candleTimeframe,
-  }, 'TradeJournalBridge.dataDir');
-}
-
 function resolveReplayPriceHistory(bot, symbol, timeframe) {
   const tradeSymbol = nonEmptyStringOrNull(symbol);
-  if (!tradeSymbol) {
-    return { ok: false, reason: 'missing_symbol', source: null, priceHistory: null };
+  const frame = nonEmptyStringOrNull(timeframe);
+  if (!tradeSymbol || !frame) {
+    return { ok: false, reason: !tradeSymbol ? 'missing_symbol' : 'missing_timeframe', source: null, priceHistory: null };
   }
-
-  if (typeof bot?.getSymbolTimeframeContext === 'function') {
-    const frame = nonEmptyStringOrNull(timeframe);
-    const ctx = frame ? bot.getSymbolTimeframeContext(tradeSymbol, frame) : null;
-    const history = Array.isArray(ctx?.priceHistory) ? ctx.priceHistory : null;
-    return { ok: !!(history && history.length), reason: history?.length ? null : 'trade_timeframe_history_unavailable', source: 'symbol_timeframe_context', symbol: tradeSymbol, timeframe: frame, priceHistory: history };
-  }
-
-  const symbolContexts = bot?.symbolContexts;
-  if (symbolContexts instanceof Map) {
-    const symCtx = symbolContexts.get(tradeSymbol);
-    const scopedHistory = Array.isArray(symCtx?.priceHistory) ? symCtx.priceHistory : null;
-    if (scopedHistory && scopedHistory.length > 0) {
-      return { ok: true, reason: null, source: 'symbol_context', symbol: tradeSymbol, priceHistory: scopedHistory };
-    }
-    return {
-      ok: false,
-      reason: symCtx ? 'symbol_price_history_empty' : 'symbol_context_missing',
-      source: 'symbol_context',
-      symbol: tradeSymbol,
-      availableSymbols: Array.from(symbolContexts.keys()),
-      priceHistory: null,
-    };
-  }
-
-  const configuredSymbol = firstNonEmptyString(bot?.config?.tradingPair, bot?.tradingPair);
-  const globalHistory = Array.isArray(bot?.priceHistory) ? bot.priceHistory : null;
-  if ((!configuredSymbol || configuredSymbol === tradeSymbol) && globalHistory) {
-    return { ok: true, reason: null, source: 'single_symbol_global', symbol: tradeSymbol, priceHistory: globalHistory };
-  }
-
-  return {
-    ok: false,
-    reason: configuredSymbol === tradeSymbol ? 'single_symbol_global_price_history_empty' : 'symbol_contexts_unavailable',
-    source: 'single_symbol_global',
-    symbol: tradeSymbol,
-    configuredSymbol,
-    priceHistory: null,
-  };
+  const ctx = bot.getSymbolTimeframeContext(tradeSymbol, frame);
+  const history = Array.isArray(ctx?.priceHistory) ? ctx.priceHistory : null;
+  return { ok: !!(history && history.length), reason: history?.length ? null : 'trade_timeframe_history_unavailable', source: 'symbol_timeframe_context', symbol: tradeSymbol, timeframe: frame, priceHistory: history };
 }
 
 function resolveJournalDataDir(_bot, config = {}, scope) {
@@ -1727,17 +1630,6 @@ class TradeJournalBridge {
     return false;
   }
 
-  _combinedClosedTrades() {
-    return TradeJournalBridge.prototype._allJournalBundles.call(this)
-      .flatMap(bundle => Array.isArray(bundle.journal?.trades) ? bundle.journal.trades : [])
-      .sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
-  }
-
-  _combinedOpenTradeCount() {
-    return TradeJournalBridge.prototype._allJournalBundles.call(this)
-      .reduce((sum, bundle) => sum + (bundle.journal?.openTrades?.size || 0), 0);
-  }
-
   _combinedJournalSnapshot() {
     const result = this._accountReport();
     if (result.status !== 'available') return { module: 'TradeJournal', ...result };
@@ -1756,11 +1648,6 @@ class TradeJournalBridge {
     }
     data.sort((a, b) => b.savedAt - a.savedAt);
     return { status: failures.length ? 'partial' : 'available', data: data.slice(0, limit), failures };
-  }
-
-  _combinedPerformanceBreakdown(dimension) {
-    const result = this._accountReport();
-    return result.status === 'available' ? result.report.getPerformanceBreakdown(dimension) : null;
   }
 
   _loadReplay(orderId, scopeKey) {
@@ -1867,4 +1754,4 @@ class TradeJournalBridge {
   }
 }
 
-module.exports = { TradeJournalBridge, TradeJournal, TradeReplayCapture, resolveJournalScope, resolveJournalDataDir, resolveReplayDir, resolveReplayPriceHistory };
+module.exports = { TradeJournalBridge, TradeJournal, TradeReplayCapture, resolveJournalDataDir, resolveReplayDir, resolveReplayPriceHistory };
