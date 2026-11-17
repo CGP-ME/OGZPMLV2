@@ -5,6 +5,8 @@ Only --env-file explicitly reads a file (two Alpaca keys only). IEX is not
 consolidated SIP. API range exhaustion never proves complete market history.
 """
 import argparse
+import hashlib
+import http.client
 from datetime import datetime, timedelta, timezone
 import json
 import re
@@ -375,8 +377,10 @@ class HTTPClient:
         self.requests = 0
         self.retries = 0
         self.warnings = []
+        self.response_evidence = []
 
     def __call__(self, url, params, headers):
+        self.response_evidence = []
         from email.utils import parsedate_to_datetime
         import math
         try:
@@ -393,12 +397,48 @@ class HTTPClient:
             self.sleep(0.35)
             request = urllib.request.Request(url + '?' + urllib.parse.urlencode(params), headers={'User-Agent':'OGZ-native-candle-retriever/1', **headers}, method='GET')
             self.requests += 1
+            evidence = dict(request=self.requests, retry=retry, sha256=None, byteLength=None,
+                            bodyScope="unavailable", absence="no_body_captured")
+            self.response_evidence.append(evidence)
             delay = min(60, 2 ** retry)
             try:
                 with self.opener.open(request, timeout=self.args.timeout) as response:
-                    body = response.read(32 * 1024 * 1024 + 1)
+                    body = bytearray()
+                    framing_fault = None
+                    cap = 32 * 1024 * 1024 + 1
+                    # Bounded read(n) can silently stop before Content-Length.
+                    # Retain only bytes returned or exposed by IncompleteRead.
+                    while len(body) < cap:
+                        try:
+                            part = response.read(min(65536, cap - len(body)))
+                        except http.client.IncompleteRead as exc:
+                            body.extend(exc.partial[:cap - len(body)])
+                            framing_fault = Unavailable('http_framing_retry_exhausted', 'response_read',
+                                                        exceptionType=type(exc).__name__)
+                            break
+                        except (http.client.HTTPException, OSError) as exc:
+                            framing_fault = Unavailable('http_framing_retry_exhausted', 'response_read',
+                                                        exceptionType=type(exc).__name__)
+                            break
+                        body.extend(part)
+                        if not part:
+                            if isinstance(response, http.client.HTTPResponse) and (
+                                    response.length not in (None, 0) or
+                                    (response.chunked and not response.isclosed())):
+                                framing_fault = Unavailable('http_framing_retry_exhausted', 'response_read',
+                                                            reason='incomplete_http_framing')
+                            break
+                    # Identity before decoding; never persist body or error text.
+                    if body:
+                        evidence.update(sha256=hashlib.sha256(body).hexdigest(), byteLength=len(body),
+                                        bodyScope=('captured_prefix' if len(body) == cap else
+                                                   'captured_partial' if framing_fault else 'complete'),
+                                        absence=None)
+                    if framing_fault:
+                        evidence['absence'] = 'http_framing_incomplete'
             except urllib.error.HTTPError as exc:
                 code = exc.code
+                evidence.update(httpStatus=code, absence="http_error_body_not_read")
                 metadata = exc.headers
                 try:
                     exc.close()
@@ -429,9 +469,17 @@ class HTTPClient:
                 if delay > 300:
                     return Unavailable('retry_delay_exceeds_bound', 'retry_metadata')
                 fault = Unavailable(f'http_{code}_retry_exhausted', 'request')
+            except http.client.HTTPException as exc:
+                fault = Unavailable('http_framing_retry_exhausted', 'request', exceptionType=type(exc).__name__)
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 fault = Unavailable('network_retry_exhausted', 'request', exceptionType=type(exc).__name__)
             else:
+                if framing_fault:
+                    if retry == self.args.retries:
+                        return framing_fault
+                    self.retries += 1
+                    self.sleep(delay)
+                    continue
                 if len(body) > 32 * 1024 * 1024:
                     return Unavailable('response_size_limit', 'response')
                 from decimal import DecimalException
@@ -536,21 +584,32 @@ def source_attempt(a, source, transport, credentials, attempt, attempt_number):
     attempt['rawPagesFile'] = pages_path.name
     def recorded_get(url, params, request_headers):
         attempt['requestsAttempted'] += 1
+        records = attempt.setdefault('responseEvidence', [])
+        evidence = dict(source=source, request=len(records) + 1, endpoint=url,
+                        parameters={k:v for k,v in params.items() if k != 'page_token'},
+                        transport='http_body_bytes' if isinstance(client, HTTPClient) else 'synthetic_semantic',
+                        exchanges=[], wireAbsence=None if isinstance(client, HTTPClient) else
+                        'injected_transport_has_no_http_bytes', outcome='pending')
+        records.append(evidence)
         try:
             data = client(url, params, request_headers)
         except (urllib.error.URLError, OSError) as exc:
-            return Unavailable('network_retry_exhausted', 'request', exceptionType=type(exc).__name__)
+            data = Unavailable('network_retry_exhausted', 'request', exceptionType=type(exc).__name__)
         finally:
             if isinstance(client, HTTPClient):
                 attempt['requestsAttempted'] = client.requests
                 attempt['retries'] = client.retries
                 attempt['warnings'] = list(client.warnings)
+                evidence['exchanges'] = list(client.response_evidence)
         decoded = decode_page(data, source, a)
         if isinstance(decoded, Unavailable):
+            evidence['outcome'] = decoded.code
             return decoded
         validation = normalize(decoded, a, source, dict(identicalDuplicates=0, filteredBars=0))
         if isinstance(validation, Unavailable):
+            evidence['outcome'] = validation.code
             return validation
+        evidence['outcome'] = 'candle_fields_admitted'
         # Persist only admitted candle fields, not extra provider text or tokens.
         if source in ('binance','coinbase'):
             payload = [b[:7 if source == 'binance' else 6] for b in data]
@@ -642,7 +701,10 @@ def run(a, transport=None, credentials=None):
         candles = source_attempt(a, source, transport, credentials, attempt, len(report['attempts']))
         if isinstance(candles, Unavailable):
             attempt.update(error=candles.code, stage=candles.stage, details=candles.details,
-                           bars=None, quarantineScope='whole_source', fallback='next_allowed_source')
+                           bars=None, quarantineScope='whole_source',
+                           fallback=('stopped_output_failure' if candles.code.startswith('output_') else
+                                     'next_allowed_source' if len(report['attempts']) < len(a.sources) else
+                                     'no_allowed_sources_remaining'))
             diagnostic(candles, source)
         else:
             attempt['status'] = 'success'
@@ -650,6 +712,7 @@ def run(a, transport=None, credentials=None):
         attempt['statusScope'] = 'retrieval_only'
         attempt_path = a.output / f'attempt-{len(report["attempts"]):02d}-{source}.json'
         if persist(attempt_path, attempt, 'attempt_receipt') is not None:
+            attempt['fallback'] = 'stopped_output_failure'
             report.update(status='failed', error='output_attempt_receipt_failed')
             persist(a.output/'receipt.json', report, 'failure_receipt')
             return 1
@@ -678,10 +741,20 @@ def run(a, transport=None, credentials=None):
             if fault is None:
                 return 0
             diagnostic(Unavailable('output_publication_failed', fault.stage))
-            for path in [staged_candles, staged_receipt, *published]:
+            # Withdraw the success receipt before removing its candle artifact.
+            # A failed unlink may leave the receipt visible: preserve candles even
+            # when the syscall's effect is uncertain. Nonzero exit is not retraction.
+            receipt_withdrawn = True
+            for path in [*reversed(published), staged_candles, staged_receipt]:
+                if path.name == 'candles.json' and not receipt_withdrawn:
+                    diagnostic(Unavailable('output_publication_retained', 'cleanup',
+                                           artifact=path.name, reason='receipt_withdrawal_failed'))
+                    continue
                 try:
                     path.unlink(missing_ok=True)
                 except (OSError, KeyboardInterrupt) as exc:
+                    if path.name == 'receipt.json':
+                        receipt_withdrawn = False
                     diagnostic(Unavailable('output_cleanup_failed', 'cleanup', artifact=path.name, exceptionType=type(exc).__name__))
             report.update(status='failed', error='output_publication_failed')
             persist(a.output / 'receipt.json', report, 'failure_receipt')
