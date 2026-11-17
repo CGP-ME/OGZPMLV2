@@ -1,0 +1,671 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-11-17T01:53:40.097857+00:00",
+  "purpose": "Activate pushed journal rebuild and cleanup on existing paper bot; verify preservation and observable runtime behavior.",
+  "source": {
+    "head": "b912f82155d00e71ccfd4400ec029dae5cc6608f",
+    "branch": "codex/archive-legacy-env",
+    "workingTreeContainsPreservedInheritedEdits": true,
+    "allFourRebuildCommitsConfirmedOnRemoteBeforeRestart": true,
+    "comparedTrackedFiles": [
+      {
+        "path": "config/internals.json",
+        "sha256": "a54213e96f73eaad2cb188540c27100ef2807fab1d8026835f37b326c3ec4640",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "config/settings.json",
+        "sha256": "a2d0e57dfbe8e1ae930de2f31433de6c580073239a150d6779b2f67ed9a58ac5",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "core/ExitContractManager.js",
+        "sha256": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "core/OrderExecutor.js",
+        "sha256": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "core/StateManager.js",
+        "sha256": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "core/StrategyOrchestrator.js",
+        "sha256": "829b5a4d9a6fce5f17f4a5182bb02da37506d72c3242a0ed97931545a2f03e0b",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "core/TradingLoop.js",
+        "sha256": "a89d9ccbaef8699055b66473fcd32eebd39d6e81016d47a59d2fbb18f1bb062f",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "core/dto/DecisionLedgerSchema.js",
+        "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "foundation/ConfigLoader.js",
+        "sha256": "0a2e5b41add136607dd3cb2aa31e39aaa83df76178e5800ae5e3da38adde5738",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "modules/DonchianBreakout.js",
+        "sha256": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "modules/EMATrendRetest.js",
+        "sha256": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "modules/PropSafeEMAPullback.js",
+        "sha256": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "modules/RSI2MeanReversion.js",
+        "sha256": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "modules/TimeSeriesMomentum.js",
+        "sha256": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "ogzprime-ssl-server.js",
+        "sha256": "dad75cf4250cec733701508eb3858a2941ceafacafaa511304dd5af23ac32367",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/fixtures/backtest-matrix-boundaries.py",
+        "sha256": "83655e50fd5be2838bdb4b9a08d5482d42a6a97446fd828a9669e766bd882af0",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/fixtures/backtest-matrix-observation.py",
+        "sha256": "3b18e1a4b318061c2ae6e99758adc33fa8420e63d28af007ba5c92af2ea25eb3",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/fixtures/backtest-stock-identity.py",
+        "sha256": "d03e8f848841b0195784a2d924064d152ffdabde9c8775cbc44d925c8441a403",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/fixtures/backtest-strategy-admission.py",
+        "sha256": "c0a8912191db8cb34b1efcd34ebc17ea743461e6d1118f29e1c659f097b84ae5",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/fixtures/fetch-candles-boundaries.py",
+        "sha256": "defc0f5fb90ec4a85ca9282823ef0df6470dec4225f7b735cc3cf476d3e05aec",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/fixtures/fetch-candles-observation.py",
+        "sha256": "56ccb7cdc87d333c7cfe8e55a0ac48ac658e2f760050bc2731271a0511819a04",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/mercury-astra-challenger.test.js",
+        "sha256": "62b341ee0d26937a7f8bc3c8a860ac350271c327bebd777ea8daac49d04637c3",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/session-router-fail-safe.test.js",
+        "sha256": "f39e51dcb7b4d2811f6faa5ac9bbbed70a23ddee45c91c211b6cb255422c355e",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "test/trade-replay-capture-contract.test.js",
+        "sha256": "e720ab63a33db5cd253b6128b7c182d83cb8297797bbab7331904319c9577f7d",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "tools/BACKTEST-MATRIX.md",
+        "sha256": "c69fc68d376ae6d1f2210f1d1ec73256b56e06ada16cfc195dd393fccc7c8a9f",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "tools/FETCH-CANDLES.md",
+        "sha256": "1ce9ddc74b34922ecd76c63b5d59b6b073a3bce640085a3eb7ca898ce7b2001e",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "tools/backtest-matrix.py",
+        "sha256": "6fc4d360cdbe4e3749b9fe7e7bbef5a187509c2ed35f36e4b9df94ec48d09ad8",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "tools/fetch-candles.py",
+        "sha256": "b7b06ddfa54146e2a2a38785b9847c78beef26937e9c3835ff7e4b85e9eb3079",
+        "unchangedSincePreRestart": true
+      },
+      {
+        "path": "trai_brain/mercury-bridge/react-loop.js",
+        "sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+        "unchangedSincePreRestart": true
+      }
+    ]
+  },
+  "activation": {
+    "command": "pm2 restart ecosystem.config.js --only ogz-prime-v2 --update-env",
+    "startedAt": "2026-11-17T01:39:32.046448+00:00",
+    "completedAt": "2026-11-17T01:39:33.304813+00:00",
+    "exitCode": 0,
+    "previousPid": 2557111,
+    "newPid": 2707440,
+    "processes": [
+      {
+        "name": "ogz-supervisor",
+        "pid": 1100036,
+        "status": "online",
+        "restarts": 0,
+        "startedAt": 1794638320338
+      },
+      {
+        "name": "ogz-websocket",
+        "pid": 1100037,
+        "status": "online",
+        "restarts": 0,
+        "startedAt": 1794638320354
+      },
+      {
+        "name": "ogz-stripe",
+        "pid": 1100038,
+        "status": "online",
+        "restarts": 0,
+        "startedAt": 1794638320390
+      },
+      {
+        "name": "ogz-prime-v2",
+        "pid": 2707440,
+        "status": "online",
+        "restarts": 2,
+        "startedAt": 1794879573244
+      }
+    ],
+    "otherProcessPidsUnchanged": true,
+    "cwd": "/opt/ogzprime/OGZPMLV2",
+    "bootstrap": {
+      "PROFILE": "paper",
+      "DOTENV_CONFIG_PATH": null,
+      "BACKTEST_RUN_DESCRIPTOR_PATH": null
+    }
+  },
+  "preservation": {
+    "localDirtyPatchSha256": "c1163176cd204d288bca6400f601b352d107d0ce6c251f310fb39acc294112ff",
+    "localDirtyPatchBytes": 547589,
+    "privateUntrackedPathInventoryCount": 411851,
+    "historyFilesChecked": 619,
+    "missingPathHashes": [],
+    "priorBytesPreserved": 598,
+    "changedFiles": [
+      {
+        "basename": "journal-stats.json",
+        "pathHash": "7da776b767386132ddb0d213d0f799a4b3bc62fc054d520cd0923334fbcc71fe",
+        "modifiedAt": "2026-11-17T01:39:33.141005+00:00",
+        "modifiedBeforeNewProcessStart": true
+      },
+      {
+        "basename": "journal-stats.json",
+        "pathHash": "fd17d1521bc7eb9e3f1853fb49541a3c3f8b0bd8295d4d67b83a1e69d290f8ce",
+        "modifiedAt": "2026-11-17T01:39:33.142005+00:00",
+        "modifiedBeforeNewProcessStart": true
+      },
+      {
+        "basename": "SIM_1793330199504_ye7fug.json",
+        "pathHash": "bff41db5899a561eee2e80bbc6a80fd51a2db9089542a0662eebbace52e4dabd",
+        "modifiedAt": "2026-11-17T01:45:01.822263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793334600541_oj8851.json",
+        "pathHash": "18664e0ee8ba201294b49feb00899310630d312551e41eb5f7e8bbc1425352b0",
+        "modifiedAt": "2026-11-17T01:45:01.830263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793772000843_gf0enf.json",
+        "pathHash": "d1c59b77f2ee22d4d3c69219fe53a128f86153dc65d3e8d84258833c51da8396",
+        "modifiedAt": "2026-11-17T01:45:01.832263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793333701648_wgja0n.json",
+        "pathHash": "a53a8fec35da5689774649151ae777fec2b0d658fa495850d2fb0a5ac7289593",
+        "modifiedAt": "2026-11-17T01:45:01.829263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793335500517_h99yw2.json",
+        "pathHash": "8d0629d02276fccf771e1f096252303e6e8855e938abd078a8bc05ad097bf94b",
+        "modifiedAt": "2026-11-17T01:45:01.831263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793326500349_6j4vzu.json",
+        "pathHash": "c5968d2c2996c98ebe6eec24643c2fc624d6a92cd9e271f8191ef6958a02d194",
+        "modifiedAt": "2026-11-17T01:45:01.820263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793337300457_yj7n0t.json",
+        "pathHash": "0943abf696cc0726aa116d1752dcdf2213fb64d695038ec22a78d88ad47601df",
+        "modifiedAt": "2026-11-17T01:45:01.832263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793322900262_7gjayn.json",
+        "pathHash": "8e1b71b58ae2648f0c657bf2b2e4b570e0dc4b64fd9a3155ddb7b7e625537a9f",
+        "modifiedAt": "2026-11-17T01:45:01.817263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793330090436_4uhkuz.json",
+        "pathHash": "3173c1d4596ba92784cbf772669e2642be633e029babe48713d9edf0ee2d8065",
+        "modifiedAt": "2026-11-17T01:45:01.821263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793331000295_oya4tc.json",
+        "pathHash": "83cfd5a06bf74d103f43f09f821118bc11106aec024395ec06cf3ecdcf6c0323",
+        "modifiedAt": "2026-11-17T01:45:01.823263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1794191400726_7nakq8.json",
+        "pathHash": "f570ac7bf33b21b19bade5702178ae314704c19b2a19a1039799fc08ac4c730f",
+        "modifiedAt": "2026-11-17T01:45:01.847263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793332800350_hmgn31.json",
+        "pathHash": "f32f280aaf8623559cbe55c4b353a01ebf663ffecba7b95239fee219cd38cbcb",
+        "modifiedAt": "2026-11-17T01:45:01.825263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793324701296_6arukq.json",
+        "pathHash": "f4678f879db6d19a54f4a37f3e79088fa7b65e4f3413457d57393e31d8343596",
+        "modifiedAt": "2026-11-17T01:45:01.819263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793325600420_dnm80r.json",
+        "pathHash": "1dd987ce61165b62843b9ad47da072c2921ea43e43979fd44be5b546642a419b",
+        "modifiedAt": "2026-11-17T01:45:01.819263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793921400702_8sgwe4.json",
+        "pathHash": "f57e90e0bdac097c519af63532712eea049a9df1c95da420b3898339cc2ee11e",
+        "modifiedAt": "2026-11-17T01:45:01.846263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793920500519_gqjf9x.json",
+        "pathHash": "5af6086763d8a082cfec53c9aaed04a4c1d7f71f7ef6cd5402370d9d1cfcd992",
+        "modifiedAt": "2026-11-17T01:45:01.842263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793913300888_setmjx.json",
+        "pathHash": "dba921d431aaa46746e39603a5eb0aab9d6e0d6222468dbd3ebbcfc1f2aceae7",
+        "modifiedAt": "2026-11-17T01:45:01.834263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793323800893_amj2la.json",
+        "pathHash": "1c6beea0ae1c4c0d901086b2dd646148290aab9c5c43c9df79fdffc4844411c1",
+        "modifiedAt": "2026-11-17T01:45:01.818263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      },
+      {
+        "basename": "SIM_1793331900979_ey8i4c.json",
+        "pathHash": "95996d9039b763809ff65667f72ecca0545c5bd56ba1bea9c7a3717028fb6e10",
+        "modifiedAt": "2026-11-17T01:45:01.824263+00:00",
+        "modifiedBeforeNewProcessStart": false
+      }
+    ],
+    "appendedFiles": [],
+    "changedFileExplanation": "At the initial 01:41 UTC check, 617/619 prior file byte ranges were preserved; only two old stats caches had been written during old-process shutdown. At the later observation, 19 saved replay files had also advanced their post-exit capture progress. No files were missing. All original trade-ledger bytes remained intact.",
+    "originalPosition": [
+      {
+        "tradeId": "SIM_1794873601189_m1duqj",
+        "stillOpen": true,
+        "identityAndEntryFactsPreserved": true
+      }
+    ],
+    "currentPositions": [
+      {
+        "orderId": "SIM_1794873601189_m1duqj",
+        "tradeId": "SIM_1794873601189_m1duqj",
+        "symbol": "BTC-USD",
+        "entryPrice": 64781.29315,
+        "sizeUsd": 198.2682279243715,
+        "currentPrice": 64676.6,
+        "unrealizedPnL": 0.3204215957569264
+      }
+    ],
+    "accountIdSha256": "db3c17aa14cc46b064d8361fe6279ac78c65400a8ff0a1a9167c6755a24cc79a",
+    "initialActivationCheck": {
+      "observedAt": "2026-11-17T01:41:28.307535+00:00",
+      "filesChecked": 619,
+      "missingFiles": 0,
+      "priorBytesPreserved": 617,
+      "modifiedFiles": "Two obsolete journal-stats.json caches updated before the new PID started."
+    },
+    "originalLedgerFiles": 16,
+    "originalLedgerBytesPreserved": true,
+    "continuedReplayWrites": 19,
+    "replayProgressSample": {
+      "orderId": "SIM_1794191400726_7nakq8",
+      "observedBaselineAt": "2026-11-17T01:50:26.105Z",
+      "entryUnchanged": true,
+      "exitUnchanged": true,
+      "originalCandlesUnchanged": true,
+      "priorPostExitCandlesPreserved": true,
+      "postExitCandlesBefore": 22,
+      "postExitCandlesAfter": 22
+    },
+    "replayProgressWriter": "core/TradeReplayCapture.js:350-383 restores saved pending replay capture and writes postExitCandles, postExit progress and savedAt.",
+    "replayComparisonLimit": "Original byte hashes cover all 619 files. Pre-update full payloads were not backed up for every historical replay, so the later 19 updates are not represented as a field-by-field comparison of all old replay contents."
+  },
+  "configuration": {
+    "observedAt": "2026-11-17T01:40:36.771Z",
+    "receipt": {
+      "fingerprint": "dc864528f0e1faa370dd3eb90bd2d7bdccec09ed8d7fb6fa827f85487432fb65",
+      "role": "bot",
+      "settings": 22,
+      "internals": 12,
+      "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+      "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+    },
+    "profile": "paper",
+    "exposedFieldCount": 1397,
+    "changedExposedFields": [],
+    "allExposedFieldsOwnedBySettings": true,
+    "unavailableInputs": [],
+    "canonicalFileHashVerification": {
+      "method": "JavaScript canonical recursive key ordering and SHA256 through python3 scripts/test-isolated.py; no operator credentials or trading imports.",
+      "settingsHashMatches": true,
+      "internalsHashMatches": true,
+      "settingsPath": "config/settings.json",
+      "internalsPath": "config/internals.json"
+    },
+    "limit": "Field/catalog and file-identity receipts do not establish every constructor, hot-edit or frozen-trade consumer."
+  },
+  "runtime": {
+    "hydration": {
+      "frames": [
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "15m",
+          "candles": 60,
+          "latestEndTime": 1794879900000
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1m",
+          "candles": 60,
+          "latestEndTime": 1794879600000
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "5m",
+          "candles": 60,
+          "latestEndTime": 1794879600000
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1h",
+          "candles": 60,
+          "latestEndTime": 1794880800000
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "4h",
+          "candles": 60,
+          "latestEndTime": 1794888000000
+        }
+      ],
+      "unavailable": [],
+      "recoveryPending": [],
+      "status": "ready",
+      "receipt": "[EVAL-TRACE][REST_HYDRATION_COMPLETE] traceId=\"rest_hydration_1794879584302_20safr\" source=\"boot_rest_hydration\" hydrated=[{\"symbol\":\"BTC-USD\",\"timeframe\":\"15m\",\"candles\":60,\"latestEndTime\":1794879900000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"1m\",\"candles\":60,\"latestEndTime\":1794879600000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"5m\",\"candles\":60,\"latestEndTime\":1794879600000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"1h\",\"candles\":60,\"latestEndTime\":1794880800000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"4h\",\"candles\":60,\"latestEndTime\":1794888000000}] unavailable=[] recovered=[] recoveryPending=[] status=\"ready\" symbol=\"BTC-USD\" timeframe=\"15m\" brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\""
+    },
+    "transition": {
+      "state": "TARGET_ACTIVATED",
+      "epoch": 442,
+      "freezeNewEntries": false,
+      "safeModeReason": null,
+      "lastEventSeq": 1349
+    },
+    "paper": {
+      "pauseSource": null,
+      "pauseReason": null,
+      "positionCount": 1,
+      "quarantinedTrades": 0,
+      "symbolHalts": 0
+    },
+    "liveStateTimestamp": 1794880206594,
+    "liveStateReceivedAt": "2026-11-17T01:50:11.131Z",
+    "pnlStatus": "priced",
+    "runtimeScopeStatus": "complete",
+    "persistedDecisionSamples": [
+      {
+        "traceId": "candle_1794880385017_gokhqn",
+        "timestamp": "2026-11-17T01:53:05.127Z",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "status": "skip",
+        "skipReason": "hold_direction",
+        "configuration": {
+          "fingerprint": "dc864528f0e1faa370dd3eb90bd2d7bdccec09ed8d7fb6fa827f85487432fb65",
+          "role": "bot",
+          "settings": 22,
+          "internals": 12,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+        }
+      },
+      {
+        "traceId": "trace_1794880395692_yg1ufy",
+        "timestamp": "2026-11-17T01:53:15.693Z",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "status": "skip",
+        "skipReason": "no_exit_condition",
+        "configuration": {
+          "fingerprint": "dc864528f0e1faa370dd3eb90bd2d7bdccec09ed8d7fb6fa827f85487432fb65",
+          "role": "bot",
+          "settings": 22,
+          "internals": 12,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+        }
+      },
+      {
+        "traceId": "trace_1794880410698_7qizc5",
+        "timestamp": "2026-11-17T01:53:30.701Z",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "status": "skip",
+        "skipReason": "no_exit_condition",
+        "configuration": {
+          "fingerprint": "dc864528f0e1faa370dd3eb90bd2d7bdccec09ed8d7fb6fa827f85487432fb65",
+          "role": "bot",
+          "settings": 22,
+          "internals": 12,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+        }
+      }
+    ],
+    "traceCountsInCapturedRange": {
+      "CANDLE_INGRESS": 5586,
+      "CANDLE_NORMALIZED": 5586,
+      "LAST_PRICE_INFLUENCE": 5591,
+      "CANDLE_PROCESSOR_RECEIVED": 3990,
+      "CANDLE_ACCEPTED": 4290,
+      "NON_ACTIVE_TIMEFRAME_DROPPED": 1596,
+      "EXIT_ONLY_START": 58,
+      "DECISION_AUTOPSY": 77,
+      "TRADING_CYCLE_TRIGGER": 19,
+      "ANALYSIS_START": 19,
+      "STRATEGY_DECISION": 19,
+      "DECISION_SKIP": 19,
+      "BOOT_REST_HYDRATION_CANDLE": 300,
+      "REST_HYDRATION_COMPLETE": 1
+    },
+    "latestTraceExamples": {
+      "CANDLE_INGRESS": "[EVAL-TRACE][CANDLE_INGRESS] traceId=\"candle_1794880420750_am7h9y\" source=\"sessionRouter:crypto\" brokerId=\"kraken\" symbol=\"BTC-USD\" symbolSource=\"event.symbol\" timeframe=\"1d\" payloadSymbol=\"BTC-USD\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\"",
+      "CANDLE_ACCEPTED": "[EVAL-TRACE][CANDLE_ACCEPTED] traceId=\"candle_1794880420745_9auah5\" symbol=\"BTC-USD\" timeframe=\"4h\" update=true priceHistory=60 close=64757.4 etime=1794888000000 brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\" scopeKey=\"paper:kraken:[account-redacted]:crypto:BTC-USD:4h\"",
+      "EXIT_ONLY_START": "[EVAL-TRACE][EXIT_ONLY_START] traceId=\"trace_1794880410698_7qizc5\" symbol=\"BTC-USD\" timeframe=\"15m\" brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\"",
+      "DECISION_AUTOPSY": "[EVAL-TRACE][DECISION_AUTOPSY] traceId=\"trace_1794880410698_7qizc5\" configuration={\"fingerprint\":\"dc864528f0e1faa370dd3eb90bd2d7bdccec09ed8d7fb6fa827f85487432fb65\",\"role\":\"bot\",\"settings\":22,\"internals\":12,\"settingsHash\":\"b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672\",\"internalsHash\":\"a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8\"} symbol=\"BTC-USD\" persisted=true skipped=false skipWriteReason=null status=\"skip\" action=\"HOLD\" skipReason=\"no_exit_condition\" confidencePct=null minConfidencePct=null winnerStrategy=null strategySignalCount=0 failedRiskGateCount=0 timeframe=\"15m\" brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\"",
+      "TRADING_CYCLE_TRIGGER": "[EVAL-TRACE][TRADING_CYCLE_TRIGGER] traceId=\"candle_1794880385017_gokhqn\" symbol=\"BTC-USD\" timeframe=\"1m\" defaultTradingPair=\"TSLA\" brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\"",
+      "ANALYSIS_START": "[EVAL-TRACE][ANALYSIS_START] traceId=\"candle_1794880385017_gokhqn\" symbol=\"BTC-USD\" route=\"symbolContext\" brokerId=\"kraken\" assetClass=\"crypto\" timeframe=\"1m\" priceHistory=73 candleTimestamp=1794880320000 candleEndTime=1794880380000 accountId=[private] executionMode=\"paper\"",
+      "STRATEGY_DECISION": "[EVAL-TRACE][STRATEGY_DECISION] traceId=\"candle_1794880385017_gokhqn\" symbol=\"BTC-USD\" direction=\"hold\" positionEffect=\"hold\" confidencePct=0 winnerStrategy=null candidateCount=0 hasExitContract=false timeframe=\"15m\" brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\"",
+      "DECISION_SKIP": "[EVAL-TRACE][DECISION_SKIP] traceId=\"candle_1794880385017_gokhqn\" symbol=\"BTC-USD\" reason=\"hold_direction|below_min_confidence\" finalDirection=\"hold\" confidencePct=0 minConfidencePct=50 timeframe=\"15m\" brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\"",
+      "REST_HYDRATION_COMPLETE": "[EVAL-TRACE][REST_HYDRATION_COMPLETE] traceId=\"rest_hydration_1794879584302_20safr\" source=\"boot_rest_hydration\" hydrated=[{\"symbol\":\"BTC-USD\",\"timeframe\":\"15m\",\"candles\":60,\"latestEndTime\":1794879900000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"1m\",\"candles\":60,\"latestEndTime\":1794879600000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"5m\",\"candles\":60,\"latestEndTime\":1794879600000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"1h\",\"candles\":60,\"latestEndTime\":1794880800000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"4h\",\"candles\":60,\"latestEndTime\":1794888000000}] unavailable=[] recovered=[] recoveryPending=[] status=\"ready\" symbol=\"BTC-USD\" timeframe=\"15m\" brokerId=\"kraken\" accountId=[private] assetClass=\"crypto\" executionMode=\"paper\""
+    },
+    "logReceipts": {
+      "pm_out_log_path": {
+        "startOffset": 7559903287,
+        "endOffset": 7570131688,
+        "bytes": 10228401,
+        "sha256": "ebf0961bb809def93ad378ee4df9388568481fff33ab18d7a8b61ade998e6d8c",
+        "privateReceipt": "ogz-meta/inbox/codex/2026-11-17/journal-activation-012010/private/activation-out.log"
+      },
+      "pm_err_log_path": {
+        "startOffset": 325193247,
+        "endOffset": 325402265,
+        "bytes": 209018,
+        "sha256": "47c5a7127f5681393e61a24fb1b820c08257c27b15bfa62e01f541c88d8a5041",
+        "privateReceipt": "ogz-meta/inbox/codex/2026-11-17/journal-activation-012010/private/activation-error.log"
+      }
+    },
+    "stderrCategories": {
+      "[OHLC][TIMEFRAME-NON-ACTIVE]": 1596,
+      "[StateManager]": 1,
+      "[TradeJournal]": 1
+    }
+  },
+  "reporting": {
+    "observationStart": "2026-11-17T01:50:11.100Z",
+    "observationEnd": "2026-11-17T01:50:26.105Z",
+    "missingResponses": [],
+    "statuses": {
+      "journal_snapshot": "available",
+      "journal_equity": "available",
+      "journal_calendar": "available",
+      "journal_breakdown": "available",
+      "replay_list": "available",
+      "replay_data": "available"
+    },
+    "journalRecordedFills": 115,
+    "journalLegacyAccountingFills": 115,
+    "journalNetPnl": -390.13,
+    "journalBalance": 9609.87,
+    "openPositions": 1,
+    "equityPoints": 115,
+    "calendarDays": 16,
+    "replayListCount": 5,
+    "savedReplayOrderId": "SIM_1794191400726_7nakq8",
+    "savedReplayIdentityMatchesRequest": true,
+    "savedReplayCandleCount": 70,
+    "savedReplayPostExitComplete": false,
+    "accountIdentityMatchesState": true,
+    "receivedMessageCounts": {
+      "auth_success": 1,
+      "state_update": 1,
+      "funding_rate": 1,
+      "fear_greed": 1,
+      "liquidation_data": 6,
+      "market_internals": 50,
+      "smart_money": 6,
+      "cvd_update": 163,
+      "bot_thinking": 1,
+      "broker_status": 128,
+      "journal_snapshot": 2,
+      "journal_equity": 1,
+      "journal_calendar": 1,
+      "journal_breakdown": 1,
+      "depth_update": 183,
+      "replay_list": 1,
+      "replay_data": 1,
+      "price": 243,
+      "ticker_price": 98,
+      "trace_event": 959,
+      "delta": 145
+    }
+  },
+  "historicalAccountingDiscrepancy": {
+    "stateRealizedPnlBeforeRestart": -3424.020688767495,
+    "stateRealizedPnlAfterRestart": -3424.020688767495,
+    "stateEquityAfterRestart": 6576.299732828262,
+    "stateTotalTradeCount": 602,
+    "stateHistoricalClosedRecords": 601,
+    "stateClosedRecordsWithoutAccountOrBroker": 601,
+    "stateClosedPnlSum": -3424.020688767495,
+    "journalRecordedFills": 115,
+    "journalBalance": 9609.87,
+    "classification": "Different persisted history coverage; financial reconciliation remains open. All 601 historical StateManager closure records lack account and broker identity. Do not silently assign them to the active-account journal or relabel journal balance as verified account equity."
+  },
+  "startupWarnings": [
+    {
+      "finding": "30m and 1d payloads are received but excluded from configured evaluation frames.",
+      "evidence": [
+        "config/internals.json:1086",
+        "kraken_adapter_simple.js:997",
+        "run-empire-v2.js:1059"
+      ],
+      "status": "Named Stop 2 subscription/admission lead; no setting or subscription changed."
+    },
+    {
+      "finding": "Journal startup attempts reconciliation of still-open BTC short; recordOpenTradeReconciliation refuses while authoritative exposure exists.",
+      "evidence": [
+        "core/TradeJournalBridge.js:979",
+        "core/TradeJournal.js:1033"
+      ],
+      "status": "Position and journal open record preserved; no trade pause. Caller/reporting noise remains."
+    },
+    {
+      "finding": "StateManager dashboard WebSocket closed during restart.",
+      "status": "Post-restart authenticated state_update and reporting replies observed; shutdown message is retained."
+    }
+  ],
+  "limits": [
+    "No forced order or natural new entry/exit was observed for this activation receipt. The existing BTC short predates entry checkpoint activation.",
+    "Authenticated WebSocket replies prove backend reporting delivery, not browser rendering or public hostname reachability.",
+    "Existing historical accounting totals are not certified; the source-history discrepancy is explicit above.",
+    "The configured BTC hydration is proven; stock-session hydration and a full session switch are not exercised by this crypto-start receipt.",
+    "No RAG publication or fresh full-panel review was performed for this documentation-only activation record.",
+    "This receipt does not close the full Stop 1 consumer/hot-settings/frozen-position audit."
+  ],
+  "walkDocuments": {
+    "currentSpec": "ogz-meta/inbox/fable/2026-09-09/OGZ-WALK-SPEC-2026-09-03-TREY-VERBATIM.md",
+    "currentStopCount": 11,
+    "stop11Addition": "2026-10-13, lines 234-252: backtesting and frontend",
+    "olderAstraSpecMatchesTreySeptember3Copy": true,
+    "readInFull": [
+      "ogz-meta/inbox/astra/OGZ-HANDOFF-2026-09-02-FABLE-WALK.md",
+      "ogz-meta/inbox/astra/OGZ-WALK-SPEC-2026-09-03-TREY-VERBATIM.md",
+      "ogz-meta/inbox/fable/2026-09-09/OGZ-WALK-SPEC-2026-09-03-TREY-VERBATIM.md",
+      "ogz-meta/inbox/astra/11-CANDLE-FOLLOWUP-HANDOFF.md"
+    ],
+    "readRelevantSections": [
+      "ogz-meta/inbox/astra/STOP1-AUDIT-6ca25ae8.md",
+      "ogz-meta/inbox/astra/OGZ-EXECUTOR-HANDOFF-2026-11-09.md"
+    ],
+    "interpretation": "Trey words and later directions control; historical audit findings are leads to verify against current code. Fable Part B notes are not additional user policy. No whole-inbox or whole-repository audit claimed."
+  }
+}
