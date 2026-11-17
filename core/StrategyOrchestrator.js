@@ -936,14 +936,11 @@ class StrategyOrchestrator {
 
   _buildMtfAdapterConfig() {
     const serviceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService');
-    const adapterConfig = ConfigLoader.get('orchestrator.mtfAdapter');
     return {
       ...(this.mtfBaseTimeframe ? { baseTimeframe: this.mtfBaseTimeframe } : {}),
       activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes'),
       minReadyTimeframes: serviceConfig.minReadyTimeframes,
       weights: serviceConfig.weights,
-      indicatorPeriods: adapterConfig.indicatorPeriods,
-      minCandlesForAnalysis: adapterConfig.minCandlesForAnalysis,
       maxCandlesByTimeframe: ConfigLoader.get('internals.multiTimeframe.maxCandlesByTimeframe'),
     };
   }

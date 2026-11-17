@@ -96,8 +96,6 @@ class MultiTimeframeAdapter extends EventEmitter {
       baseTimeframe,
       activeTimeframes,
       maxCandlesByTimeframe: { ...config.maxCandlesByTimeframe },
-      indicatorPeriods: { ...config.indicatorPeriods },
-      minCandlesForAnalysis: config.minCandlesForAnalysis,
     };
     this.config.weights = normalizeWeights(config.weights, this.config.activeTimeframes);
     this.config.minReadyTimeframes = normalizeMinReadyTimeframes(
@@ -202,9 +200,6 @@ class MultiTimeframeAdapter extends EventEmitter {
 
     this.lastUpdate.set(timeframe, t(arr[arr.length - 1]));
 
-    if (arr.length >= this.config.minCandlesForAnalysis) {
-      this.readyTimeframes.add(timeframe);
-    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -213,9 +208,14 @@ class MultiTimeframeAdapter extends EventEmitter {
 
   /** @private */
   _recalculateIndicators() {
-    for (const tf of this.readyTimeframes) {
-      const candleArr = this.candles.get(tf);
-      if (!candleArr || candleArr.length < this.config.minCandlesForAnalysis) continue;
+    const minimum = ConfigLoader.get('orchestrator.mtfAdapter.minCandlesForAnalysis');
+    for (const [tf, candleArr] of this.candles) {
+      if (candleArr.length < minimum) {
+        this.readyTimeframes.delete(tf);
+        this.indicators.set(tf, null);
+        continue;
+      }
+      this.readyTimeframes.add(tf);
 
       try {
         this.indicators.set(tf, this._calculateIndicators(tf, candleArr));
@@ -230,7 +230,7 @@ class MultiTimeframeAdapter extends EventEmitter {
     const highs = candleArr.map(candle => h(candle));
     const lows = candleArr.map(candle => l(candle));
     const volumes = candleArr.map(candle => v(candle));
-    const p = this.config.indicatorPeriods;
+    const p = ConfigLoader.get('orchestrator.mtfAdapter.indicatorPeriods');
     const snapshot = {
       timeframe: tf,
       timestamp: Date.now(),
@@ -275,7 +275,7 @@ class MultiTimeframeAdapter extends EventEmitter {
       const closed = history.filter(candle => candle.etime <= closedCandle.etime
         && scopeFields.every(field => candle[field] === closedCandle[field]));
       candles[timeframe] = structuredClone(closed);
-      if (closed.length >= this.config.minCandlesForAnalysis) {
+      if (closed.length >= ConfigLoader.get('orchestrator.mtfAdapter.minCandlesForAnalysis')) {
         indicators.set(timeframe, this._calculateIndicators(timeframe, closed));
       }
     }

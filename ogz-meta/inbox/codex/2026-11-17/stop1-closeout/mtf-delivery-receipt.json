@@ -1,0 +1,81 @@
+{
+  "reviewedSource": {
+    "tree": "4186017ab36489d64e1c786006c570313bfecb69",
+    "base": "1504411aba0c1a5a9bdab9220d7aeae5bd7450f4",
+    "productionPaths": [
+      "modules/MultiTimeframeAdapter.js",
+      "core/StrategyOrchestrator.js",
+      "foundation/ConfigLoader.js"
+    ],
+    "harness": {
+      "react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+      "hasInheritedDirtyEdits": true
+    }
+  },
+  "baselineTree": "6745899bb02d8d6657051034a19c226d76dd78ac",
+  "proof": [
+    {
+      "scope": "existing symbol MTF adapters after actual ConfigLoader.saveSettings",
+      "configuration": {
+        "fingerprint": "cec74e91e7f4b1d1f3ffd250b5b86a0cc09bab301439e4822fd2bfa3e001e749",
+        "role": "bot",
+        "settings": 23,
+        "internals": 12,
+        "settingsHash": "8cf79834f96e693d11ef383619271167cdd9cb68c26358a904d1a36ac08751d3",
+        "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+      },
+      "oldPeriod": 10,
+      "newPeriod": 13,
+      "before": 163.90279531082746,
+      "after": 163.01732917997606,
+      "otherSymbol": 163.01732917997606,
+      "expected": 163.01732917997606,
+      "candlesPreserved": true,
+      "snapshotFrozen": true,
+      "remainingRestartGroups": {
+        "next_orchestrator_restart": 11,
+        "next_fibonacci_detector_initialization_restart_required": 7,
+        "next_bot_initialization_restart_required": 15,
+        "next_pattern_memory_initialization_restart_required": 11,
+        "next_pattern_observation; TRAI_memory_requires_restart": 1,
+        "next_performance_analyzer_initialization_restart_required": 8,
+        "next_pattern_checker_initialization_restart_required": 7,
+        "next_optimized_indicator_engine_initialization_restart_required": 41,
+        "next_engine_initialization_restart_required": 37
+      }
+    },
+    {
+      "savedAdopted": true,
+      "existingSymbols": 2,
+      "allNineIndicatorControls": true,
+      "readinessIncreaseAndDecrease": true,
+      "persisted": true
+    }
+  ],
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "verdict": "no_break_found",
+    "costUsd": 0.042766,
+    "runId": "2026-11-17T04-14-04-698Z-2796730-65e3fe084a5e",
+    "coverageWarnings": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "notFullPanel": true,
+    "independentExecution": "native candidate fixture, not reviewer execution"
+  },
+  "runtimeActivated": false,
+  "sourceSha256": {
+    "modules/MultiTimeframeAdapter.js": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+    "core/StrategyOrchestrator.js": "66cd908411b29338ac4de973eb3c06619d738cb2d93da6f36fb721702c3f2a85",
+    "foundation/ConfigLoader.js": "8e9d16009bc51f69a3d479745cf625e233416db770cd917b816f66fcad338237"
+  }
+}
