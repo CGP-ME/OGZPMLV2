@@ -1,0 +1,68 @@
+{
+  "source": {
+    "tree": "33e317f4f6c994ef7431c5501abdee17ad12bbf4",
+    "base": "4454c784e150415b7ca242df6748eede361494f8",
+    "sourceSha256": {
+      "core/FibonacciDetector.js": "c8973ba0b14ae27a1e7dca771b6189d72bf01cca5b28d5a1a4d42d98e4330330",
+      "core/SymbolTradingContext.js": "e9c6a89ec041890103d3114599968da13a0456406be7680a47d244c8b421c793",
+      "run-empire-v2.js": "1b7e6d2601d54b8c6baaa9fe7e8b9570afca667837d1a6a23f7c0d002551b74b",
+      "foundation/ConfigLoader.js": "f362d5b2533c8888ac3b975fa5c0419e30473d57da5bbdb22f10e46e0b10da2e"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "proof": [
+    {
+      "configuration": {
+        "fingerprint": "92f750e0b7cd24b37667cb68efbc74d60fb307bb545ea4667d85251481becb6e",
+        "role": "bot",
+        "settings": 23,
+        "internals": 12,
+        "settingsHash": "0a849950a2f67abb77f238df420b42dc5d58b5a101b520f75512ffda0833625a",
+        "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+      },
+      "priorRatios": [
+        "0.236",
+        "0.382",
+        "0.5",
+        "0.618",
+        "0.786",
+        "swingLow",
+        "swingHigh",
+        "direction"
+      ],
+      "nextRatios": [
+        "0.25",
+        "0.5",
+        "0.75",
+        "swingLow",
+        "swingHigh",
+        "direction"
+      ],
+      "nearest": {
+        "level": 0.25,
+        "price": 120.8072553120995,
+        "distance": 0,
+        "isGoldenZone": true
+      },
+      "priorSnapshotPreserved": true,
+      "retainedDetector": true
+    },
+    {
+      "newLevels": true,
+      "newGoldenZone": true,
+      "minimumHistoryIncreaseAndDecrease": true,
+      "zeroProximity": true
+    }
+  ],
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "verdict": "no_break_found",
+    "costUsd": 0.030441,
+    "notFullPanel": true,
+    "namedGap": "bot-level detector handoff traced but not every legacy consumer; symbol analysis path traced",
+    "answerPath": "ogz-meta/inbox/codex/2026-11-17/stop1-closeout/fibonacci/review-answer.txt"
+  },
+  "runtimeActivated": false
+}

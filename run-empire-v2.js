@@ -707,7 +707,7 @@ class OGZPrimeV14Bot {
 
     // Fibonacci level detection for strategy context (supports EMA bounce + fib confluence)
     const FibonacciDetector = require('./core/FibonacciDetector');
-    this.fibonacciDetector = new FibonacciDetector(resolvedConfig.config.fibonacci);
+    this.fibonacciDetector = new FibonacciDetector();
 
     this.riskManager = new RiskManager(resolvedConfig.config.risk.reconciliationReporter);
 
@@ -3278,7 +3278,6 @@ class OGZPrimeV14Bot {
             maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
             maDynamicSRConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
             volumeProfileConfigProvider: () => ConfigLoader.get('strategies.VolumeProfile'),
-            fibonacciConfig: resolvedConfig.config.fibonacci,
           });
           byTimeframe.set(timeframe, ctx);
         }

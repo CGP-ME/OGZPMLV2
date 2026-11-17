@@ -11,14 +11,15 @@ const { c, h, l } = require('./CandleHelper');
  */
 class FibonacciDetector {
   /**
-   * Create a new Fibonacci detector with configurable parameters
-   * @param {Object} config - Configuration options for Fibonacci analysis
+    * Create a Fibonacci detector using the canonical settings owner.
    */
-  constructor(config) {
-    this.config = config;
-    
+  constructor() {
     // Initialize Fibonacci state
     this.reset();
+  }
+
+  get config() {
+    return ConfigLoader.get('fibonacci');
   }
   
   /**

@@ -41,7 +41,6 @@ class SymbolTradingContext {
      * @param {object} [config.maDynamicSRConfig] — canonical MA dynamic S/R settings
      * @param {Function} [config.maDynamicSRConfigProvider] — canonical MA dynamic S/R settings reader
      * @param {Function} [config.volumeProfileConfigProvider] — canonical volume-profile settings reader
-     * @param {object} [config.fibonacciConfig] — canonical Fibonacci settings
      */
     constructor(symbol, candleStore, config = {}) {
         if (!symbol) throw new Error('SymbolTradingContext: symbol required');
@@ -88,7 +87,7 @@ class SymbolTradingContext {
         );
         this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig, config.maDynamicSRConfigProvider);
         this.volumeProfile = new VolumeProfile(config.volumeProfileConfigProvider);
-        this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);
+        this.fibonacciDetector = new FibonacciDetector();
 
         // Per-symbol last-computed signal outputs. CandleProcessor (commit 3)
         // populates these on every candle by calling the corresponding update().
