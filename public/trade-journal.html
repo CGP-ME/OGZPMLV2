@@ -565,7 +565,7 @@
             <div class="sub" id="hl-dd-current">Current: 0.00%</div>
         </div>
         <div class="stat-card">
-            <div class="label">Total Trades</div>
+            <div class="label">Closed Fills</div>
             <div class="value accent-val" id="hl-total">0</div>
             <div class="sub" id="hl-balance">Balance: $10,000</div>
         </div>
@@ -761,6 +761,10 @@ function connectWebSocket() {
 }
 
 function handleMessage(msg) {
+    if (msg.type?.startsWith('journal_') && msg.status === 'unavailable') {
+        handleMessage({ type: 'journal_snapshot', data: { status: 'unavailable', reason: msg.reason } });
+        return;
+    }
     switch (msg.type) {
         case 'journal_snapshot':
             if (msg.data?.status === 'unavailable') {
@@ -772,7 +776,9 @@ function handleMessage(msg) {
                 break;
             }
             document.getElementById('journal-content').hidden = false;
-            document.getElementById('journal-availability').hidden = true;
+            document.getElementById('journal-availability').hidden = !msg.data.legacyAccountingFills;
+            document.getElementById('journal-availability').textContent = msg.data.legacyAccountingFills
+                ? `${msg.data.legacyAccountingFills} older closed fills lack confirmed exit-fee provenance. Totals use their recorded ledger values.` : '';
             document.getElementById('ws-label').textContent = 'Journal received';
             journalData = msg.data;
             updateHeadlineStats(msg.data);
@@ -805,19 +811,23 @@ function handleMessage(msg) {
 }
 
 
+function formatMetric(value) {
+    return value === 'unbounded' ? '∞' : Number.isFinite(value) ? value.toFixed(2) : 'Unavailable';
+}
+
 // ── Headline Stats ────────────────────────────────────────────────────────
 function updateHeadlineStats(d) {
     setVal('hl-pnl', formatUSD(d.netPnl), d.netPnl >= 0 ? 'positive' : 'negative');
     setVal('hl-pnl-pct', `${d.netPnlPercent >= 0 ? '+' : ''}${d.netPnlPercent}%`);
     setVal('hl-winrate', `${d.winRate}%`);
-    setText('hl-wl', `${d.totalTrades - (d.totalTrades - Math.round(d.totalTrades * d.winRate / 100))}W / ${d.totalTrades - Math.round(d.totalTrades * d.winRate / 100)}L`);
-    setVal('hl-pf', d.profitFactor === Infinity ? '∞' : d.profitFactor.toFixed(2));
+    setText('hl-wl', `${d.wins}W / ${d.losses}L / ${d.breakEvens} flat`);
+    setVal('hl-pf', formatMetric(d.profitFactor));
     setVal('hl-sharpe', d.sharpeRatio.toFixed(2), d.sharpeRatio >= 1 ? 'positive' : d.sharpeRatio < 0 ? 'negative' : '');
     setVal('hl-expectancy', formatUSD(d.expectancy), d.expectancy >= 0 ? 'positive' : 'negative');
     setVal('hl-dd', `-${d.maxDrawdown}%`);
     setText('hl-dd-current', `Current: -${d.currentDrawdown}%`);
     setVal('hl-total', d.totalTrades.toString());
-    setText('hl-balance', `Balance: ${formatUSD(d.currentBalance)}`);
+    setText('hl-balance', `Realized P&L curve: ${formatUSD(d.currentBalance)}`);
     setVal('hl-hold', d.avgHoldTime);
     setText('hl-hold-wl', `W: ${d.avgHoldTimeWinners} / L: ${d.avgHoldTimeLosers}`);
 }
@@ -854,7 +864,7 @@ function updateStreakTracker(d) {
 
 // ── Risk Metrics ──────────────────────────────────────────────────────────
 function updateRiskMetrics(d) {
-    setText('rm-pf', d.profitFactor === Infinity ? '∞' : d.profitFactor.toFixed(2));
+    setText('rm-pf', formatMetric(d.profitFactor));
     setText('rm-sharpe', d.sharpeRatio.toFixed(2));
     setText('rm-sortino', d.sortinoRatio != null ? d.sortinoRatio.toFixed(2) : '—');
     setText('rm-calmar', d.calmarRatio != null ? d.calmarRatio.toFixed(2) : '—');
@@ -970,13 +980,9 @@ function updateEquityChart(data) {
         value: d.balance
     })).sort((a, b) => a.time - b.time);
 
-    // Deduplicate same timestamps
-    const seen = new Set();
-    const deduped = chartData.filter(d => {
-        if (seen.has(d.time)) return false;
-        seen.add(d.time);
-        return true;
-    });
+    // Several closes can share a chart second. Keep its final balance.
+    const bySecond = new Map(chartData.map(point => [point.time, point]));
+    const deduped = Array.from(bySecond.values());
 
     equitySeries.setData(deduped);
     equityChart.timeScale().fitContent();
@@ -1029,7 +1035,7 @@ function updateBreakdown(data) {
                 <div class="bd-row"><span>Net P&L</span><span class="${pnlClass}">${formatUSD(b.netPnl)}</span></div>
                 <div class="bd-row"><span>Avg Win</span><span class="positive">${formatUSD(b.avgWin)}</span></div>
                 <div class="bd-row"><span>Avg Loss</span><span class="negative">-${formatUSD(Math.abs(b.avgLoss))}</span></div>
-                <div class="bd-row"><span>PF</span><span class="gold-val">${b.profitFactor === Infinity ? '∞' : b.profitFactor.toFixed(2)}</span></div>
+                <div class="bd-row"><span>PF</span><span class="gold-val">${formatMetric(b.profitFactor)}</span></div>
                 <div class="bd-row"><span>Expect</span><span>${formatUSD(b.expectancy)}</span></div>
                 <div class="wr-bar-bg"><div class="wr-bar-fill" style="width:${wrPct}%;"></div></div>
             </div>

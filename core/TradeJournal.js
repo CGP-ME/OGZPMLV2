@@ -1,46 +1,10 @@
 const ConfigLoader = require('../foundation/ConfigLoader');
 /**
- * ============================================================================
- * TradeJournal - Elite Trade Ledger & Performance Analytics
- * ============================================================================
- *
- * The single centralized trade record for OGZPrime. Every entry, every exit,
- * every dollar, every fee, every lesson — in one persistent, crash-safe place.
- *
- * ARCHITECTURE ROLE:
- * TradeJournal is the immutable financial record. It receives trade events
- * from RiskManager/ExecutionLayer and provides analytics to the dashboard.
- *
- * DATA FLOW:
- * ```
- * ExecutionLayer.executeTrade() ──► TradeJournal.recordEntry()
- * RiskManager.closePosition()  ──► TradeJournal.recordExit()
- * Dashboard WebSocket          ◄── TradeJournal.getSnapshot()
- * Tax Season                   ◄── TradeJournal.exportCSV()
- * ```
- *
- * STORAGE:
- * ```
- * data/journal/
- * ├── trade-ledger.jsonl        (append-only, every trade, NEVER deleted)
- * ├── equity-snapshots.jsonl    (balance after each trade, for equity curve)
- * ├── journal-stats.json        (cached aggregate stats, rebuilt on startup)
- * └── exports/                  (CSV exports on demand)
- * ```
- *
- * DESIGN PRINCIPLES:
- * - Append-only ledger: crash-safe, no data loss even on hard kill
- * - Stats computed from ledger on startup (single source of truth)
- * - All arrays bounded (no memory leaks in 24/7 operation)
- * - Zero dependencies beyond Node.js built-ins
- * - Plugs into V2 without touching existing modules
- *
- * @module core/TradeJournal
- * @requires fs
- * @requires path
- * @version 1.0.0
- * @author OGZPrime Team
- * ============================================================================
+ * Reporting journal for confirmed OrderExecutor entry/exit facts.
+ * The append-only scoped ledger is retained. Statistics and equity are derived
+ * from it; older equity/stat cache files are preserved but no longer consumed.
+ * JournalReport performs the same calculations for one scope or one account.
+ * Neither class owns trading decisions, broker orders or process lifecycle.
  */
 
 const fs = require('fs');
@@ -174,8 +138,541 @@ function exitNotionalConflictOrNull(exit, expectedNotional, options = {}) {
   return null;
 }
 
-class TradeJournal {
+class JournalReport {
+  constructor(config) {
+    this.config = config;
+    this.trades = [];
+    this.openTrades = new Map();
+    this.equityCurve = [];
+    this.stats = this._emptyStats();
+  }
+
+  recordCompletedTrade(trade) {
+    this._updateStats(trade);
+    this._recordEquityPoint(trade);
+    this.trades.push(trade);
+    if (this.trades.length > this.config.maxInMemoryTrades) this.trades = this.trades.slice(-this.config.maxInMemoryTrades);
+  }
+
+  getStats() {
+    return JSON.parse(JSON.stringify(this.stats, (_key, value) => value === Infinity ? 'unbounded' : value));
+  }
+
+  getEquityCurve(limit = ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit')) {
+    if (this.equityCurve.length <= limit) return [...this.equityCurve];
+    // Downsample: keep first, last, and evenly spaced points
+    const step = Math.floor(this.equityCurve.length / limit);
+    const sampled = [];
+    for (let i = 0; i < this.equityCurve.length; i += step) {
+      sampled.push(this.equityCurve[i]);
+    }
+    // Always include the last point
+    if (sampled[sampled.length - 1] !== this.equityCurve[this.equityCurve.length - 1]) {
+      sampled.push(this.equityCurve[this.equityCurve.length - 1]);
+    }
+    return sampled;
+  }
+
+  getTradeHistory(filters = {}) {
+    let filtered = [...this.trades];
+
+    if (filters.direction) filtered = filtered.filter(t => t.direction === filters.direction);
+    if (filters.regime) filtered = filtered.filter(t => t.regime === filters.regime);
+    if (filters.winners === true) filtered = filtered.filter(t => t.netPnl > 0);
+    if (filters.winners === false) filtered = filtered.filter(t => t.netPnl < 0);
+    if (filters.minPnl != null) filtered = filtered.filter(t => t.netPnl >= filters.minPnl);
+    if (filters.maxPnl != null) filtered = filtered.filter(t => t.netPnl <= filters.maxPnl);
+    if (filters.since) filtered = filtered.filter(t => t.timestamp >= filters.since);
+    if (filters.until) filtered = filtered.filter(t => t.timestamp <= filters.until);
+
+    // Sort newest first
+    filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+    const perPage = filters.perPage || ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.historyDefaultPerPage');
+    const page = filters.page || 1;
+    const total = filtered.length;
+    const pages = Math.ceil(total / perPage);
+    const start = (page - 1) * perPage;
+    const trades = filtered.slice(start, start + perPage);
+
+    return { trades, total, page, pages };
+  }
+
+  getPerformanceBreakdown(dimension) {
+    const buckets = {};
+
+    for (const trade of this.trades) {
+      let key;
+      switch (dimension) {
+        case 'symbol':
+          key = nonEmptyStringOrNull(trade.symbol);
+          if (!key) continue;
+          break;
+        case 'regime':
+          key = nonEmptyStringOrNull(trade.regime);
+          if (!key) continue;
+          break;
+        case 'pattern':
+          // A trade may have multiple patterns — count each
+          if (!trade.patterns || trade.patterns.length === 0) {
+            key = 'no_pattern';
+          } else {
+            for (const p of trade.patterns) {
+              const patternName = nonEmptyStringOrNull(p?.name);
+              if (patternName) this._addToBucket(buckets, patternName, trade);
+            }
+            continue; // already added
+          }
+          break;
+        case 'hourOfDay':
+          key = new Date(trade.entryTime || trade.timestamp).getUTCHours().toString().padStart(2, '0') + ':00';
+          break;
+        case 'dayOfWeek':
+          key = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(trade.entryTime || trade.timestamp).getUTCDay()];
+          break;
+        case 'confidenceBand':
+          const conf = finiteNumberOrNull(trade.confidence);
+          if (conf === null) continue;
+          if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand55')) key = '< 55%';
+          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand65')) key = '55-65%';
+          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand75')) key = '65-75%';
+          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand85')) key = '75-85%';
+          else key = '85%+';
+          break;
+        case 'exitReason':
+          key = nonEmptyStringOrNull(trade.exitReason);
+          if (!key) continue;
+          break;
+        case 'month':
+          const d = new Date(trade.timestamp);
+          key = `${d.getUTCFullYear()}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+          break;
+        default:
+          key = 'all';
+      }
+      this._addToBucket(buckets, key, trade);
+    }
+
+    // Compute derived stats for each bucket
+    for (const key of Object.keys(buckets)) {
+      const b = buckets[key];
+      b.winRate = b.trades > 0 ? (b.wins / b.trades * 100) : 0;
+      b.avgPnl = b.trades > 0 ? (b.netPnl / b.trades) : 0;
+      b.avgWin = b.wins > 0 ? (b.grossWins / b.wins) : 0;
+      b.avgLoss = b.losses > 0 ? (b.grossLosses / b.losses) : 0;
+      b.profitFactor = b.grossLosses !== 0 ? Math.abs(b.grossWins / b.grossLosses) : (b.grossWins > 0 ? 'unbounded' : 0);
+      b.avgHoldTime = b.trades > 0 ? this._formatDuration(b.totalHoldTime / b.trades) : '0s';
+      b.expectancy = b.trades > 0 ? b.netPnl / b.trades : 0;
+    }
+
+    return buckets;
+  }
+
+  getDailySummaries(days = ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.dailySummaryDefaultDays')) {
+    const cutoff = Date.now() - (days * 86400000);
+    const dailyMap = {};
+
+    for (const trade of this.trades) {
+      if (trade.timestamp < cutoff) continue;
+      const dateKey = new Date(trade.timestamp).toISOString().split('T')[0];
+      if (!dailyMap[dateKey]) {
+        dailyMap[dateKey] = {
+          date: dateKey,
+          trades: 0, wins: 0, losses: 0, breakEvens: 0,
+          grossPnl: 0, fees: 0, netPnl: 0,
+          biggestWin: 0, biggestLoss: 0
+        };
+      }
+      const d = dailyMap[dateKey];
+      d.trades++;
+      d.grossPnl += trade.grossPnl;
+      d.fees += trade.fees;
+      d.netPnl += trade.netPnl || 0;
+      if (trade.netPnl > 0) {
+        d.wins++;
+        d.biggestWin = Math.max(d.biggestWin, trade.netPnl);
+      } else if (trade.netPnl < 0) {
+        d.losses++;
+        d.biggestLoss = Math.min(d.biggestLoss, trade.netPnl);
+      } else d.breakEvens++;
+    }
+
+    return Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  getStreaks() {
+    if (this.trades.length === 0) {
+      return { currentStreak: 0, currentType: 'none', longestWin: 0, longestLoss: 0, recentHistory: [] };
+    }
+
+    let currentStreak = 0;
+    let currentType = 'none';
+    let longestWin = 0;
+    let longestLoss = 0;
+    let tempWin = 0;
+    let tempLoss = 0;
+    const streakHistory = [];  // last 20 win/loss markers
+
+    for (const trade of this.trades) {
+      const pnl = trade.netPnl;
+      if (pnl > 0) {
+        streakHistory.push('W');
+        tempWin++;
+        tempLoss = 0;
+        longestWin = Math.max(longestWin, tempWin);
+      } else if (pnl < 0) {
+        streakHistory.push('L');
+        tempLoss++;
+        tempWin = 0;
+        longestLoss = Math.max(longestLoss, tempLoss);
+      } else {
+        streakHistory.push('F');
+        tempWin = 0;
+        tempLoss = 0;
+      }
+    }
+
+    // Current streak
+    const lastPnl = this.trades[this.trades.length - 1]?.netPnl;
+    if (lastPnl > 0) {
+      currentStreak = tempWin;
+      currentType = 'winning';
+    } else if (lastPnl < 0) {
+      currentStreak = tempLoss;
+      currentType = 'losing';
+    } else {
+      currentStreak = 0;
+      currentType = 'flat';
+    }
+
+    return {
+      currentStreak,
+      currentType,
+      longestWin,
+      longestLoss,
+      recentHistory: streakHistory.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.streakHistorySliceStart'))  // last 30 trades W/L pattern
+    };
+  }
+
+  getSnapshot() {
+    const s = this.stats;
+    const streaks = this.getStreaks();
+    const recentTrades = this.trades.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.snapshotTradesSliceStart')).reverse();
+
+    return {
+      module: 'TradeJournal',
+      // ── Headline numbers ──
+      totalTrades: s.totalTrades,
+      wins: s.wins, losses: s.losses, breakEvens: s.breakEvens,
+      legacyAccountingFills: s.legacyAccountingFills, accountingBasis: 'recorded_ledger_values',
+      balanceBasis: 'configured_starting_balance_plus_realized_net_pnl',
+      winRate: Number(s.winRate.toFixed(1)),
+      netPnl: Number(s.netPnl.toFixed(2)),
+      netPnlPercent: Number(s.netPnlPercent.toFixed(2)),
+      currentBalance: Number(s.currentBalance.toFixed(2)),
+      // ── Risk metrics ──
+      profitFactor: Number.isFinite(s.profitFactor) ? Number(s.profitFactor.toFixed(2)) : 'unbounded',
+      sharpeRatio: Number(s.sharpeRatio.toFixed(2)),
+      maxDrawdown: Number(s.maxDrawdownPercent.toFixed(2)),
+      currentDrawdown: Number(s.currentDrawdownPercent.toFixed(2)),
+      expectancy: Number(s.expectancy.toFixed(2)),
+      // ── Averages ──
+      avgWin: Number(s.avgWin.toFixed(2)),
+      avgLoss: Number(s.avgLoss.toFixed(2)),
+      avgHoldTime: s.avgHoldTime,
+      avgHoldTimeWinners: s.avgHoldTimeWinners,
+      avgHoldTimeLosers: s.avgHoldTimeLosers,
+      // ── Streaks ──
+      currentStreak: streaks.currentStreak,
+      currentStreakType: streaks.currentType,
+      longestWinStreak: streaks.longestWin,
+      longestLossStreak: streaks.longestLoss,
+      recentWL: streaks.recentHistory,
+      // ── Best / Worst ──
+      bestTrade: s.bestTrade,
+      worstTrade: s.worstTrade,
+      // ── Today ──
+      todayTrades: s.todayTrades,
+      todayPnl: Number(s.todayPnl.toFixed(2)),
+      todayWinRate: Number(s.todayWinRate.toFixed(1)),
+      // ── Open positions ──
+      openPositions: this.openTrades.size,
+      // ── Recent trades ──
+      recentTrades: recentTrades.map(t => ({
+        orderId: t.orderId,
+        fillId: t.fillId, partialExit: t.partialExit,
+        scopeKey: t.scopeKey, timeframe: t.timeframe, accountId: t.accountId, brokerId: t.brokerId, executionMode: t.executionMode,
+        symbol: t.symbol,
+        direction: t.direction,
+        entryPrice: t.entryPrice,
+        exitPrice: t.exitPrice,
+        netPnl: roundFiniteOrNull(t.netPnl),
+        pnlPercent: roundFiniteOrNull(t.pnlPercent),
+        outcome: outcomeFromPnl(t.netPnl),
+        holdTime: t.holdTimeFormatted,
+        exitReason: t.exitReason,
+        confidence: t.confidence,
+        regime: t.regime,
+        timestamp: t.timestamp
+      }))
+    };
+  }
+
+  exportReport() {
+    return {
+      generated: new Date().toISOString(),
+      stats: this.getStats(),
+      streaks: this.getStreaks(),
+      dailySummaries: this.getDailySummaries(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.reportDailySummaryDays')),
+      breakdowns: {
+        byRegime: this.getPerformanceBreakdown('regime'),
+        byPattern: this.getPerformanceBreakdown('pattern'),
+        byHour: this.getPerformanceBreakdown('hourOfDay'),
+        byDay: this.getPerformanceBreakdown('dayOfWeek'),
+        byConfidence: this.getPerformanceBreakdown('confidenceBand'),
+        byExitReason: this.getPerformanceBreakdown('exitReason'),
+        byMonth: this.getPerformanceBreakdown('month')
+      },
+      equityCurve: this.getEquityCurve(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.reportEquityCurveLimit'))
+    };
+  }
+
+  _emptyStats() {
+    return {
+      // ── Counts ──
+      totalTrades: 0,
+      legacyAccountingFills: 0,
+      wins: 0,
+      losses: 0,
+      breakEvens: 0,
+      winRate: 0,
+      // ── P&L ──
+      grossPnl: 0,
+      totalFees: 0,
+      netPnl: 0,
+      netPnlPercent: 0,
+      // ── Balance ──
+      startingBalance: this.config.startingBalance,
+      currentBalance: this.config.startingBalance,
+      peakBalance: this.config.startingBalance,
+      // ── Drawdown ──
+      currentDrawdown: 0,
+      currentDrawdownPercent: 0,
+      maxDrawdown: 0,
+      maxDrawdownPercent: 0,
+      maxDrawdownRecoveryTime: 0,
+      // ── Averages ──
+      avgWin: 0,
+      avgLoss: 0,
+      avgPnl: 0,
+      avgWinPercent: 0,
+      avgLossPercent: 0,
+      avgHoldTime: '0s',
+      avgHoldTimeWinners: '0s',
+      avgHoldTimeLosers: '0s',
+      // ── Best / Worst ──
+      bestTrade: { pnl: 0, orderId: null, date: null },
+      worstTrade: { pnl: 0, orderId: null, date: null },
+      largestPosition: 0,
+      // ── Risk metrics ──
+      profitFactor: 0,
+      expectancy: 0,
+      sharpeRatio: 0,
+      sortinoRatio: 0,
+      calmarRatio: 0,
+      payoffRatio: 0,
+      recoveryFactor: 0,
+      // ── Today ──
+      todayTrades: 0,
+      todayPnl: 0,
+      todayWins: 0,
+      todayWinRate: 0,
+      // ── Internal accumulators (not exposed directly) ──
+      _grossWins: 0,
+      _grossLosses: 0,
+      _totalHoldTime: 0,
+      _winHoldTime: 0,
+      _lossHoldTime: 0,
+      _pnlArray: [],        // for Sharpe/Sortino — bounded in _updateStats
+      _todayDate: ''
+    };
+  }
+
+  _updateStats(trade) {
+    const s = this.stats;
+    const pnl = trade.netPnl;
+    const isWin = pnl > 0;
+    const isBreakEven = pnl === 0;
+
+    // ── Counts ──────────────────────────────────────────────────────
+    s.totalTrades++;
+    if (trade.accountingVersion !== 2) s.legacyAccountingFills++;
+    if (isWin) s.wins++;
+    else if (isBreakEven) s.breakEvens++;
+    else s.losses++;
+    s.winRate = s.totalTrades > 0 ? (s.wins / s.totalTrades * 100) : 0;
+
+    // ── P&L ─────────────────────────────────────────────────────────
+    s.grossPnl += trade.grossPnl;
+    s.totalFees += trade.fees;
+    s.netPnl += pnl;
+    s.netPnlPercent = (s.netPnl / s.startingBalance) * 100;
+
+    // ── Balance ─────────────────────────────────────────────────────
+    s.currentBalance = s.startingBalance + s.netPnl;
+    if (s.currentBalance > s.peakBalance) {
+      s.peakBalance = s.currentBalance;
+    }
+
+    // ── Drawdown ────────────────────────────────────────────────────
+    s.currentDrawdown = s.peakBalance - s.currentBalance;
+    s.currentDrawdownPercent = s.peakBalance > 0 ? (s.currentDrawdown / s.peakBalance * 100) : 0;
+    if (s.currentDrawdown > s.maxDrawdown) {
+      s.maxDrawdown = s.currentDrawdown;
+      s.maxDrawdownPercent = s.peakBalance > 0 ? (s.maxDrawdown / s.peakBalance * 100) : 0;
+    }
+
+    // ── Win/Loss accumulators ───────────────────────────────────────
+    if (isWin) {
+      s._grossWins += pnl;
+      s._winHoldTime += trade.holdTimeMs;
+    } else if (!isBreakEven) {
+      s._grossLosses += Math.abs(pnl);
+      s._lossHoldTime += trade.holdTimeMs;
+    }
+    s._totalHoldTime += trade.holdTimeMs;
+
+    // ── Averages ────────────────────────────────────────────────────
+    s.avgWin = s.wins > 0 ? (s._grossWins / s.wins) : 0;
+    s.avgLoss = s.losses > 0 ? (s._grossLosses / s.losses) : 0;
+    s.avgPnl = s.totalTrades > 0 ? (s.netPnl / s.totalTrades) : 0;
+    s.avgWinPercent = s.wins > 0 ? (s._grossWins / s.wins / s.startingBalance * 100) : 0;
+    s.avgLossPercent = s.losses > 0 ? (s._grossLosses / s.losses / s.startingBalance * 100) : 0;
+    s.avgHoldTime = s.totalTrades > 0 ? this._formatDuration(s._totalHoldTime / s.totalTrades) : '0s';
+    s.avgHoldTimeWinners = s.wins > 0 ? this._formatDuration(s._winHoldTime / s.wins) : '0s';
+    s.avgHoldTimeLosers = s.losses > 0 ? this._formatDuration(s._lossHoldTime / s.losses) : '0s';
+
+    // ── Best / Worst ────────────────────────────────────────────────
+    if (s.totalTrades === 1 || pnl > s.bestTrade.pnl) {
+      s.bestTrade = { pnl: pnl, orderId: trade.orderId, date: new Date(trade.timestamp).toISOString() };
+    }
+    if (s.totalTrades === 1 || pnl < s.worstTrade.pnl) {
+      s.worstTrade = { pnl: pnl, orderId: trade.orderId, date: new Date(trade.timestamp).toISOString() };
+    }
+    s.largestPosition = Math.max(s.largestPosition, trade.usdValue);
+
+    // ── Risk metrics ────────────────────────────────────────────────
+    s.profitFactor = s._grossLosses > 0 ? (s._grossWins / s._grossLosses) : (s._grossWins > 0 ? Infinity : 0);
+    s.payoffRatio = s.avgLoss > 0 ? (s.avgWin / s.avgLoss) : (s.avgWin > 0 ? Infinity : 0);
+    s.expectancy = s.netPnl / s.totalTrades;
+    s.recoveryFactor = s.maxDrawdown > 0 ? (s.netPnl / s.maxDrawdown) : 0;
+    s.calmarRatio = s.maxDrawdownPercent > 0 ? (s.netPnlPercent / s.maxDrawdownPercent) : 0;
+
+    // ── Sharpe / Sortino (rolling window) ───────────────────────────
+    s._pnlArray.push(pnl);
+    if (s._pnlArray.length > ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlRollingWindow')) s._pnlArray = s._pnlArray.slice(-ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlRollingWindow'));
+    s.sharpeRatio = this._calcSharpe(s._pnlArray);
+    s.sortinoRatio = this._calcSortino(s._pnlArray);
+
+    // ── Today's stats ───────────────────────────────────────────────
+    const todayKey = new Date().toISOString().split('T')[0];
+    const tradeDayKey = this._dayKeyForTimestamp(trade.timestamp);
+    if (s._todayDate !== todayKey) {
+      s._todayDate = todayKey;
+      s.todayTrades = 0;
+      s.todayPnl = 0;
+      s.todayWins = 0;
+    }
+    if (tradeDayKey === todayKey) {
+      s.todayTrades++;
+      s.todayPnl += pnl;
+      if (isWin) s.todayWins++;
+    }
+    s.todayWinRate = s.todayTrades > 0 ? (s.todayWins / s.todayTrades * 100) : 0;
+  }
+
+  _calcSharpe(returns) {
+    if (returns.length < 2) return 0;
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (returns.length - 1);
+    const stdDev = Math.sqrt(variance);
+    return stdDev > 0 ? (mean / stdDev * Math.sqrt(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.sharpeAnnualizationPeriods'))) : 0;  // Annualized
+  }
+
+  _calcSortino(returns) {
+    if (returns.length < 2) return 0;
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const downsideReturns = returns.filter(r => r < 0);
+    if (downsideReturns.length === 0) return mean > 0 ? Infinity : 0;
+    const downsideVariance = downsideReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downsideReturns.length;
+    const downsideDev = Math.sqrt(downsideVariance);
+    return downsideDev > 0 ? (mean / downsideDev * Math.sqrt(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.sharpeAnnualizationPeriods'))) : 0;
+  }
+
+  _recordEquityPoint(trade) {
+    const point = {
+      timestamp: trade.timestamp,
+      tradeNumber: this.stats.totalTrades,
+      balance: this.stats.currentBalance,
+      netPnl: this.stats.netPnl,
+      drawdown: this.stats.currentDrawdown,
+      drawdownPct: this.stats.currentDrawdownPercent,
+      peak: this.stats.peakBalance
+    };
+
+    this.equityCurve.push(point);
+    if (this.equityCurve.length > this.config.maxEquityPoints) {
+      this.equityCurve = this.equityCurve.slice(-this.config.maxEquityPoints);
+    }
+
+    // This curve is derived from the confirmed ledger; no second writer.
+  }
+
+  _addToBucket(buckets, key, trade) {
+    if (!buckets[key]) {
+      buckets[key] = {
+        trades: 0, wins: 0, losses: 0, breakEvens: 0,
+        netPnl: 0, grossWins: 0, grossLosses: 0,
+        totalHoldTime: 0
+      };
+    }
+    const b = buckets[key];
+    b.trades++;
+    b.netPnl += trade.netPnl || 0;
+    b.totalHoldTime += trade.holdTimeMs;
+    if (trade.netPnl > 0) {
+      b.wins++;
+      b.grossWins += trade.netPnl;
+    } else if (trade.netPnl < 0) {
+      b.losses++;
+      b.grossLosses += Math.abs(trade.netPnl);
+    } else b.breakEvens++;
+  }
+
+  _formatDuration(ms) {
+    if (!ms || ms <= 0) return '0s';
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ${minutes % 60}m`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  }
+
+  _dayKeyForTimestamp(timestamp) {
+    const ms = Number(timestamp);
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    const date = new Date(ms);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().split('T')[0];
+  }
+}
+
+class TradeJournal extends JournalReport {
   constructor(config = {}) {
+    super(config);
     // ── Storage paths ──────────────────────────────────────────────────
     if (!config.dataDir) {
       throw new Error('[TRADE-JOURNAL-SCOPE] TradeJournal requires an explicit scoped dataDir; refusing unscoped data/journal default');
@@ -185,8 +682,6 @@ class TradeJournal {
     this.paths = {
       dir: dataDir,
       ledger: path.join(dataDir, 'trade-ledger.jsonl'),
-      equity: path.join(dataDir, 'equity-snapshots.jsonl'),
-      statsCache: path.join(dataDir, 'journal-stats.json'),
       exports: path.join(dataDir, 'exports')
     };
 
@@ -202,7 +697,6 @@ class TradeJournal {
       })(),
         maxInMemoryTrades: config.maxInMemoryTrades,
         maxEquityPoints: config.maxEquityPoints,
-        autoSaveInterval: config.autoSaveInterval,
       ...config
     };
 
@@ -219,11 +713,6 @@ class TradeJournal {
 
     // ── Rebuild state from ledger ─────────────────────────────────────
     this._rebuildFromLedger();
-
-    // ── Auto-save stats cache ─────────────────────────────────────────
-    this._autoSaveTimer = setInterval(() => {
-      this._saveStatsCache();
-    }, this.config.autoSaveInterval);
 
     console.log(`[TradeJournal] initialized | ${this.trades.length} historical trades loaded | Balance: $${this.stats.currentBalance.toFixed(2)}`);
   }
@@ -361,6 +850,9 @@ class TradeJournal {
       return null;
     }
 
+    if (exit.fillId && this.exitFillIds.has(exit.fillId)) {
+      return this.readClosedTrades().find(row => row.fillId === exit.fillId);
+    }
     const now = nonNegativeNumberOrNull(exit?.exitTimestamp);
     const entry = this.openTrades.get(orderId);
     if (!entry) {
@@ -432,6 +924,8 @@ class TradeJournal {
 
     const completedTrade = {
       event: 'EXIT',
+      accountingVersion: 2,
+      exitFees,
       timestamp: now,
       orderId,
       direction,
@@ -486,11 +980,7 @@ class TradeJournal {
     this._appendLedger(completedTrade);
     if (completedTrade.fillId) this.exitFillIds.add(completedTrade.fillId);
 
-    // ── Update in-memory trades ───────────────────────────────────────
-    this.trades.push(completedTrade);
-    if (this.trades.length > this.config.maxInMemoryTrades) {
-      this.trades = this.trades.slice(-this.config.maxInMemoryTrades);
-    }
+    this.recordCompletedTrade(completedTrade);
 
     // ── Update open trade lifecycle ───────────────────────────────────
     if (isPartialExit) {
@@ -505,10 +995,6 @@ class TradeJournal {
     } else {
       this.openTrades.delete(orderId);
     }
-
-    // Publish the same completed fill to statistics and its equity point.
-    this._updateStats(completedTrade);
-    this._recordEquityPoint(completedTrade);
 
     const outcome = netPnl > 0 ? 'WIN' : netPnl < 0 ? 'LOSS' : 'FLAT';
     const pnlPercentText = pnlPercent === null ? 'n/a' : `${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%`;
@@ -674,29 +1160,14 @@ class TradeJournal {
    * Get full performance stats — the crown jewel
    * @returns {Object} Complete analytics snapshot
    */
-  getStats() {
-    return { ...this.stats };
-  }
+
 
   /**
    * Get equity curve for charting
    * @param {number} [limit] - Max points to return (downsampled if needed)
    * @returns {Array} [{ timestamp, balance, equity, drawdown, drawdownPct }]
    */
-  getEquityCurve(limit = ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit')) {
-    if (this.equityCurve.length <= limit) return [...this.equityCurve];
-    // Downsample: keep first, last, and evenly spaced points
-    const step = Math.floor(this.equityCurve.length / limit);
-    const sampled = [];
-    for (let i = 0; i < this.equityCurve.length; i += step) {
-      sampled.push(this.equityCurve[i]);
-    }
-    // Always include the last point
-    if (sampled[sampled.length - 1] !== this.equityCurve[this.equityCurve.length - 1]) {
-      sampled.push(this.equityCurve[this.equityCurve.length - 1]);
-    }
-    return sampled;
-  }
+
 
   /**
    * Get trade history with filtering and pagination
@@ -712,264 +1183,33 @@ class TradeJournal {
    * @param {number} [filters.until]      - Timestamp, trades before this time
    * @returns {Object} { trades, total, page, pages }
    */
-  getTradeHistory(filters = {}) {
-    let filtered = [...this.trades];
 
-    if (filters.direction) filtered = filtered.filter(t => t.direction === filters.direction);
-    if (filters.regime) filtered = filtered.filter(t => t.regime === filters.regime);
-    if (filters.winners === true) filtered = filtered.filter(t => t.netPnl > 0);
-    if (filters.winners === false) filtered = filtered.filter(t => t.netPnl <= 0);
-    if (filters.minPnl != null) filtered = filtered.filter(t => t.netPnl >= filters.minPnl);
-    if (filters.maxPnl != null) filtered = filtered.filter(t => t.netPnl <= filters.maxPnl);
-    if (filters.since) filtered = filtered.filter(t => t.timestamp >= filters.since);
-    if (filters.until) filtered = filtered.filter(t => t.timestamp <= filters.until);
-
-    // Sort newest first
-    filtered.sort((a, b) => b.timestamp - a.timestamp);
-
-    const perPage = filters.perPage || ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.historyDefaultPerPage');
-    const page = filters.page || 1;
-    const total = filtered.length;
-    const pages = Math.ceil(total / perPage);
-    const start = (page - 1) * perPage;
-    const trades = filtered.slice(start, start + perPage);
-
-    return { trades, total, page, pages };
-  }
 
   /**
    * Performance breakdown by a given dimension
    * @param {'symbol'|'regime'|'pattern'|'hourOfDay'|'dayOfWeek'|'confidenceBand'|'exitReason'|'month'} dimension
    * @returns {Object} { [key]: { trades, wins, losses, netPnl, winRate, avgPnl, avgWin, avgLoss, profitFactor } }
    */
-  getPerformanceBreakdown(dimension) {
-    const buckets = {};
 
-    for (const trade of this.trades) {
-      let key;
-      switch (dimension) {
-        case 'symbol':
-          key = nonEmptyStringOrNull(trade.symbol);
-          if (!key) continue;
-          break;
-        case 'regime':
-          key = nonEmptyStringOrNull(trade.regime);
-          if (!key) continue;
-          break;
-        case 'pattern':
-          // A trade may have multiple patterns — count each
-          if (!trade.patterns || trade.patterns.length === 0) {
-            key = 'no_pattern';
-            this._addToBucket(buckets, key, trade);
-          } else {
-            for (const p of trade.patterns) {
-              const patternName = nonEmptyStringOrNull(p?.name);
-              if (patternName) this._addToBucket(buckets, patternName, trade);
-            }
-            continue; // already added
-          }
-          break;
-        case 'hourOfDay':
-          key = new Date(trade.entryTime || trade.timestamp).getUTCHours().toString().padStart(2, '0') + ':00';
-          break;
-        case 'dayOfWeek':
-          key = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(trade.entryTime || trade.timestamp).getUTCDay()];
-          break;
-        case 'confidenceBand':
-          const conf = finiteNumberOrNull(trade.confidence);
-          if (conf === null) continue;
-          if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand55')) key = '< 55%';
-          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand65')) key = '55-65%';
-          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand75')) key = '65-75%';
-          else if (conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand85')) key = '75-85%';
-          else key = '85%+';
-          break;
-        case 'exitReason':
-          key = nonEmptyStringOrNull(trade.exitReason);
-          if (!key) continue;
-          break;
-        case 'month':
-          const d = new Date(trade.timestamp);
-          key = `${d.getUTCFullYear()}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}`;
-          break;
-        default:
-          key = 'all';
-      }
-      this._addToBucket(buckets, key, trade);
-    }
-
-    // Compute derived stats for each bucket
-    for (const key of Object.keys(buckets)) {
-      const b = buckets[key];
-      b.winRate = b.trades > 0 ? (b.wins / b.trades * 100) : 0;
-      b.avgPnl = b.trades > 0 ? (b.netPnl / b.trades) : 0;
-      b.avgWin = b.wins > 0 ? (b.grossWins / b.wins) : 0;
-      b.avgLoss = b.losses > 0 ? (b.grossLosses / b.losses) : 0;
-      b.profitFactor = b.grossLosses !== 0 ? Math.abs(b.grossWins / b.grossLosses) : (b.grossWins > 0 ? Infinity : 0);
-      b.avgHoldTime = b.trades > 0 ? this._formatDuration(b.totalHoldTime / b.trades) : '0s';
-      b.expectancy = b.trades > 0 ? ((b.winRate / 100 * b.avgWin) - ((1 - b.winRate / 100) * Math.abs(b.avgLoss))) : 0;
-    }
-
-    return buckets;
-  }
 
   /**
    * Get daily summaries for calendar view
    * @param {number} [days] - Number of days back (default 90)
    * @returns {Array} [{ date, trades, wins, losses, netPnl, balance, drawdown }]
    */
-  getDailySummaries(days = ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.dailySummaryDefaultDays')) {
-    const cutoff = Date.now() - (days * 86400000);
-    const dailyMap = {};
 
-    for (const trade of this.trades) {
-      if (trade.timestamp < cutoff) continue;
-      const dateKey = new Date(trade.timestamp).toISOString().split('T')[0];
-      if (!dailyMap[dateKey]) {
-        dailyMap[dateKey] = {
-          date: dateKey,
-          trades: 0, wins: 0, losses: 0,
-          grossPnl: 0, fees: 0, netPnl: 0,
-          biggestWin: 0, biggestLoss: 0
-        };
-      }
-      const d = dailyMap[dateKey];
-      d.trades++;
-      d.grossPnl += trade.grossPnl || 0;
-      d.fees += trade.fees || 0;
-      d.netPnl += trade.netPnl || 0;
-      if (trade.netPnl > 0) {
-        d.wins++;
-        d.biggestWin = Math.max(d.biggestWin, trade.netPnl);
-      } else {
-        d.losses++;
-        d.biggestLoss = Math.min(d.biggestLoss, trade.netPnl);
-      }
-    }
-
-    return Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
-  }
 
   /**
    * Get streak information
    * @returns {Object} { current, longest, worstLosing, currentType }
    */
-  getStreaks() {
-    if (this.trades.length === 0) {
-      return { currentStreak: 0, currentType: 'none', longestWin: 0, longestLoss: 0, streakHistory: [] };
-    }
 
-    let currentStreak = 0;
-    let currentType = 'none';
-    let longestWin = 0;
-    let longestLoss = 0;
-    let tempWin = 0;
-    let tempLoss = 0;
-    const streakHistory = [];  // last 20 win/loss markers
-
-    for (const trade of this.trades) {
-      const pnl = trade.netPnl;
-      if (pnl > 0) {
-        streakHistory.push('W');
-        tempWin++;
-        tempLoss = 0;
-        longestWin = Math.max(longestWin, tempWin);
-      } else if (pnl < 0) {
-        streakHistory.push('L');
-        tempLoss++;
-        tempWin = 0;
-        longestLoss = Math.max(longestLoss, tempLoss);
-      } else {
-        streakHistory.push('F');
-        tempWin = 0;
-        tempLoss = 0;
-      }
-    }
-
-    // Current streak
-    const lastPnl = this.trades[this.trades.length - 1]?.netPnl;
-    if (lastPnl > 0) {
-      currentStreak = tempWin;
-      currentType = 'winning';
-    } else if (lastPnl < 0) {
-      currentStreak = tempLoss;
-      currentType = 'losing';
-    } else {
-      currentStreak = 0;
-      currentType = 'flat';
-    }
-
-    return {
-      currentStreak,
-      currentType,
-      longestWin,
-      longestLoss,
-      recentHistory: streakHistory.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.streakHistorySliceStart'))  // last 30 trades W/L pattern
-    };
-  }
 
   /**
    * Compact snapshot for WebSocket broadcast to dashboard
    * @returns {Object} Key stats + recent trades for live display
    */
-  getSnapshot() {
-    const s = this.stats;
-    const streaks = this.getStreaks();
-    const recentTrades = this.trades.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.snapshotTradesSliceStart')).reverse();
 
-    return {
-      module: 'TradeJournal',
-      // ── Headline numbers ──
-      totalTrades: s.totalTrades,
-      winRate: Number(s.winRate.toFixed(1)),
-      netPnl: Number(s.netPnl.toFixed(2)),
-      netPnlPercent: Number(s.netPnlPercent.toFixed(2)),
-      currentBalance: Number(s.currentBalance.toFixed(2)),
-      // ── Risk metrics ──
-      profitFactor: Number(s.profitFactor.toFixed(2)),
-      sharpeRatio: Number(s.sharpeRatio.toFixed(2)),
-      maxDrawdown: Number(s.maxDrawdownPercent.toFixed(2)),
-      currentDrawdown: Number(s.currentDrawdownPercent.toFixed(2)),
-      expectancy: Number(s.expectancy.toFixed(2)),
-      // ── Averages ──
-      avgWin: Number(s.avgWin.toFixed(2)),
-      avgLoss: Number(s.avgLoss.toFixed(2)),
-      avgHoldTime: s.avgHoldTime,
-      avgHoldTimeWinners: s.avgHoldTimeWinners,
-      avgHoldTimeLosers: s.avgHoldTimeLosers,
-      // ── Streaks ──
-      currentStreak: streaks.currentStreak,
-      currentStreakType: streaks.currentType,
-      longestWinStreak: streaks.longestWin,
-      longestLossStreak: streaks.longestLoss,
-      recentWL: streaks.recentHistory,
-      // ── Best / Worst ──
-      bestTrade: s.bestTrade,
-      worstTrade: s.worstTrade,
-      // ── Today ──
-      todayTrades: s.todayTrades,
-      todayPnl: Number(s.todayPnl.toFixed(2)),
-      todayWinRate: Number(s.todayWinRate.toFixed(1)),
-      // ── Open positions ──
-      openPositions: this.openTrades.size,
-      // ── Recent trades ──
-      recentTrades: recentTrades.map(t => ({
-        orderId: t.orderId,
-        symbol: t.symbol,
-        direction: t.direction,
-        entryPrice: t.entryPrice,
-        exitPrice: t.exitPrice,
-        netPnl: roundFiniteOrNull(t.netPnl),
-        pnlPercent: roundFiniteOrNull(t.pnlPercent),
-        outcome: outcomeFromPnl(t.netPnl),
-        holdTime: t.holdTimeFormatted,
-        exitReason: t.exitReason,
-        confidence: t.confidence,
-        regime: t.regime,
-        timestamp: t.timestamp
-      }))
-    };
-  }
 
 
   // ════════════════════════════════════════════════════════════════════════
@@ -987,13 +1227,13 @@ class TradeJournal {
   exportCSV(options = {}) {
     const since = options.since || 0;
     const until = options.until || Date.now();
-    const filtered = this.trades.filter(t => t.timestamp >= since && t.timestamp <= until);
+    const filtered = this.readClosedTrades().filter(t => t.timestamp >= since && t.timestamp <= until);
 
     const headers = [
       'Date', 'Time_UTC', 'Order_ID', 'Direction', 'Entry_Price', 'Exit_Price',
-      'Size_BTC', 'USD_Value', 'Gross_PnL', 'Fees', 'Net_PnL', 'PnL_Percent',
+      'Size_USD', 'USD_Value', 'Gross_PnL', 'Fees', 'Net_PnL', 'PnL_Percent',
       'Hold_Duration', 'Exit_Reason', 'Confidence', 'Regime', 'Patterns',
-      'RSI', 'MACD', 'Trend', 'Balance_After'
+      'RSI', 'MACD', 'Trend', 'Recorded_Balance_After', 'Symbol', 'Broker', 'Account', 'Mode', 'Timeframe', 'Fill_ID', 'Partial_Exit'
     ];
 
     const rows = filtered.map(t => {
@@ -1019,8 +1259,9 @@ class TradeJournal {
         t.indicators?.rsi?.toFixed(1) || '',
         t.indicators?.macd?.toFixed(4) || '',
         t.indicators?.trend || '',
-        t.balanceAfter?.toFixed(2) || ''
-      ].join(',');
+        t.balanceAfter?.toFixed(2) || '',
+        t.symbol, t.brokerId, t.accountId, t.executionMode, t.timeframe, t.fillId, t.partialExit
+      ].map(value => '"' + String(value ?? '').replaceAll('"', '""') + '"').join(',');
     });
 
     const csv = [headers.join(','), ...rows].join('\n');
@@ -1040,24 +1281,7 @@ class TradeJournal {
    * Export full performance report as JSON
    * @returns {Object} Complete report with all analytics
    */
-  exportReport() {
-    return {
-      generated: new Date().toISOString(),
-      stats: this.getStats(),
-      streaks: this.getStreaks(),
-      dailySummaries: this.getDailySummaries(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.reportDailySummaryDays')),
-      breakdowns: {
-        byRegime: this.getPerformanceBreakdown('regime'),
-        byPattern: this.getPerformanceBreakdown('pattern'),
-        byHour: this.getPerformanceBreakdown('hourOfDay'),
-        byDay: this.getPerformanceBreakdown('dayOfWeek'),
-        byConfidence: this.getPerformanceBreakdown('confidenceBand'),
-        byExitReason: this.getPerformanceBreakdown('exitReason'),
-        byMonth: this.getPerformanceBreakdown('month')
-      },
-      equityCurve: this.getEquityCurve(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.reportEquityCurveLimit'))
-    };
-  }
+
 
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1065,239 +1289,48 @@ class TradeJournal {
   // ════════════════════════════════════════════════════════════════════════
 
   destroy() {
-    if (this._autoSaveTimer) {
-      clearInterval(this._autoSaveTimer);
-      this._autoSaveTimer = null;
-    }
-    const result = this._saveStatsCache();
-    if (result?.success === false) return result;
-    console.log('[TradeJournal] destroyed, stats saved');
-    return result || { success: true };
+    // Confirmed rows are already appended. Derived caches have no shutdown work.
+    return { success: true };
   }
 
+  readClosedTrades() {
+    if (!fs.existsSync(this.paths.ledger)) return [];
+    return fs.readFileSync(this.paths.ledger, 'utf8').split('\n').filter(line => line.trim())
+      .map((line, index) => {
+        const row = JSON.parse(line);
+        this._assertLedgerRecordScope(row, index + 1);
+        return row;
+      }).filter(row => row.event === 'EXIT');
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   // PRIVATE: STATS ENGINE
   // ════════════════════════════════════════════════════════════════════════
 
-  _emptyStats() {
-    return {
-      // ── Counts ──
-      totalTrades: 0,
-      wins: 0,
-      losses: 0,
-      breakEvens: 0,
-      winRate: 0,
-      // ── P&L ──
-      grossPnl: 0,
-      totalFees: 0,
-      netPnl: 0,
-      netPnlPercent: 0,
-      // ── Balance ──
-      startingBalance: this.config.startingBalance,
-      currentBalance: this.config.startingBalance,
-      peakBalance: this.config.startingBalance,
-      // ── Drawdown ──
-      currentDrawdown: 0,
-      currentDrawdownPercent: 0,
-      maxDrawdown: 0,
-      maxDrawdownPercent: 0,
-      maxDrawdownRecoveryTime: 0,
-      // ── Averages ──
-      avgWin: 0,
-      avgLoss: 0,
-      avgPnl: 0,
-      avgWinPercent: 0,
-      avgLossPercent: 0,
-      avgHoldTime: '0s',
-      avgHoldTimeWinners: '0s',
-      avgHoldTimeLosers: '0s',
-      // ── Best / Worst ──
-      bestTrade: { pnl: 0, orderId: null, date: null },
-      worstTrade: { pnl: 0, orderId: null, date: null },
-      largestPosition: 0,
-      // ── Risk metrics ──
-      profitFactor: 0,
-      expectancy: 0,
-      sharpeRatio: 0,
-      sortinoRatio: 0,
-      calmarRatio: 0,
-      payoffRatio: 0,
-      recoveryFactor: 0,
-      // ── Today ──
-      todayTrades: 0,
-      todayPnl: 0,
-      todayWins: 0,
-      todayWinRate: 0,
-      // ── Internal accumulators (not exposed directly) ──
-      _grossWins: 0,
-      _grossLosses: 0,
-      _totalHoldTime: 0,
-      _winHoldTime: 0,
-      _lossHoldTime: 0,
-      _pnlArray: [],        // for Sharpe/Sortino — bounded in _updateStats
-      _todayDate: ''
-    };
-  }
+
 
   /**
    * Incrementally update stats when a new trade completes
    */
-  _updateStats(trade) {
-    const s = this.stats;
-    const pnl = trade.netPnl;
-    const isWin = pnl > 0;
-    const isBreakEven = pnl === 0;
 
-    // ── Counts ──────────────────────────────────────────────────────
-    s.totalTrades++;
-    if (isWin) s.wins++;
-    else if (isBreakEven) s.breakEvens++;
-    else s.losses++;
-    s.winRate = s.totalTrades > 0 ? (s.wins / s.totalTrades * 100) : 0;
-
-    // ── P&L ─────────────────────────────────────────────────────────
-    s.grossPnl += trade.grossPnl || 0;
-    s.totalFees += trade.fees || 0;
-    s.netPnl += pnl;
-    // FIX MIRROR-JOURNAL-INVARIANT: refuse silent NaN propagation through analytics.
-    // Belt-and-suspenders — constructor throw should prevent the state, but if
-    // upstream catch+ignores, this fires loudly rather than silently zeroing.
-    if (!Number.isFinite(s.startingBalance) || s.startingBalance <= 0) {
-      throw new Error(`[MIRROR-JOURNAL-INVARIANT] stats.startingBalance must be positive finite (got ${s.startingBalance}) — refusing NaN-corrupt analytics`);
-    }
-    s.netPnlPercent = (s.netPnl / s.startingBalance) * 100;
-
-    // ── Balance ─────────────────────────────────────────────────────
-    s.currentBalance = Number.isFinite(trade.balanceAfter) ? trade.balanceAfter : (s.currentBalance + pnl);
-    if (s.currentBalance > s.peakBalance) {
-      s.peakBalance = s.currentBalance;
-    }
-
-    // ── Drawdown ────────────────────────────────────────────────────
-    s.currentDrawdown = s.peakBalance - s.currentBalance;
-    s.currentDrawdownPercent = s.peakBalance > 0 ? (s.currentDrawdown / s.peakBalance * 100) : 0;
-    if (s.currentDrawdown > s.maxDrawdown) {
-      s.maxDrawdown = s.currentDrawdown;
-      s.maxDrawdownPercent = s.peakBalance > 0 ? (s.maxDrawdown / s.peakBalance * 100) : 0;
-    }
-
-    // ── Win/Loss accumulators ───────────────────────────────────────
-    if (isWin) {
-      s._grossWins += pnl;
-      s._winHoldTime += trade.holdTimeMs || 0;
-    } else if (!isBreakEven) {
-      s._grossLosses += Math.abs(pnl);
-      s._lossHoldTime += trade.holdTimeMs || 0;
-    }
-    s._totalHoldTime += trade.holdTimeMs || 0;
-
-    // ── Averages ────────────────────────────────────────────────────
-    s.avgWin = s.wins > 0 ? (s._grossWins / s.wins) : 0;
-    s.avgLoss = s.losses > 0 ? (s._grossLosses / s.losses) : 0;
-    s.avgPnl = s.totalTrades > 0 ? (s.netPnl / s.totalTrades) : 0;
-    s.avgWinPercent = s.wins > 0 ? (s._grossWins / s.wins / s.startingBalance * 100) : 0;
-    s.avgLossPercent = s.losses > 0 ? (s._grossLosses / s.losses / s.startingBalance * 100) : 0;
-    s.avgHoldTime = s.totalTrades > 0 ? this._formatDuration(s._totalHoldTime / s.totalTrades) : '0s';
-    s.avgHoldTimeWinners = s.wins > 0 ? this._formatDuration(s._winHoldTime / s.wins) : '0s';
-    s.avgHoldTimeLosers = s.losses > 0 ? this._formatDuration(s._lossHoldTime / s.losses) : '0s';
-
-    // ── Best / Worst ────────────────────────────────────────────────
-    if (pnl > s.bestTrade.pnl) {
-      s.bestTrade = { pnl: pnl, orderId: trade.orderId, date: new Date(trade.timestamp).toISOString() };
-    }
-    if (pnl < s.worstTrade.pnl) {
-      s.worstTrade = { pnl: pnl, orderId: trade.orderId, date: new Date(trade.timestamp).toISOString() };
-    }
-    s.largestPosition = Math.max(s.largestPosition, trade.usdValue || 0);
-
-    // ── Risk metrics ────────────────────────────────────────────────
-    s.profitFactor = s._grossLosses > 0 ? (s._grossWins / s._grossLosses) : (s._grossWins > 0 ? Infinity : 0);
-    s.payoffRatio = s.avgLoss > 0 ? (s.avgWin / s.avgLoss) : (s.avgWin > 0 ? Infinity : 0);
-    s.expectancy = (s.winRate / 100 * s.avgWin) - ((1 - s.winRate / 100) * s.avgLoss);
-    s.recoveryFactor = s.maxDrawdown > 0 ? (s.netPnl / s.maxDrawdown) : 0;
-    s.calmarRatio = s.maxDrawdownPercent > 0 ? (s.netPnlPercent / s.maxDrawdownPercent) : 0;
-
-    // ── Sharpe / Sortino (rolling window) ───────────────────────────
-    s._pnlArray.push(pnl);
-    if (s._pnlArray.length > ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlRollingWindow')) s._pnlArray = s._pnlArray.slice(-ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.pnlRollingWindow'));
-    s.sharpeRatio = this._calcSharpe(s._pnlArray);
-    s.sortinoRatio = this._calcSortino(s._pnlArray);
-
-    // ── Today's stats ───────────────────────────────────────────────
-    const todayKey = new Date().toISOString().split('T')[0];
-    const tradeDayKey = this._dayKeyForTimestamp(trade.timestamp);
-    if (s._todayDate !== todayKey) {
-      s._todayDate = todayKey;
-      s.todayTrades = 0;
-      s.todayPnl = 0;
-      s.todayWins = 0;
-    }
-    if (tradeDayKey === todayKey) {
-      s.todayTrades++;
-      s.todayPnl += pnl;
-      if (isWin) s.todayWins++;
-    }
-    s.todayWinRate = s.todayTrades > 0 ? (s.todayWins / s.todayTrades * 100) : 0;
-  }
 
   /**
    * Full recompute of all stats from trade array (used on startup)
    */
-  _recomputeAllStats() {
-    this.stats = this._emptyStats();
-    for (const trade of this.trades) {
-      this._updateStats(trade);
-    }
-  }
-
-
   // ════════════════════════════════════════════════════════════════════════
   // PRIVATE: RISK MATH
   // ════════════════════════════════════════════════════════════════════════
 
-  _calcSharpe(returns) {
-    if (returns.length < 2) return 0;
-    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-    const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (returns.length - 1);
-    const stdDev = Math.sqrt(variance);
-    return stdDev > 0 ? (mean / stdDev * Math.sqrt(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.sharpeAnnualizationPeriods'))) : 0;  // Annualized
-  }
 
-  _calcSortino(returns) {
-    if (returns.length < 2) return 0;
-    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-    const downsideReturns = returns.filter(r => r < 0);
-    if (downsideReturns.length === 0) return mean > 0 ? Infinity : 0;
-    const downsideVariance = downsideReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downsideReturns.length;
-    const downsideDev = Math.sqrt(downsideVariance);
-    return downsideDev > 0 ? (mean / downsideDev * Math.sqrt(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.sharpeAnnualizationPeriods'))) : 0;
-  }
+
+
 
 
   // ════════════════════════════════════════════════════════════════════════
   // PRIVATE: EQUITY TRACKING
   // ════════════════════════════════════════════════════════════════════════
 
-  _recordEquityPoint(trade) {
-    const point = {
-      timestamp: trade.timestamp,
-      tradeNumber: this.trades.length,
-      balance: this.stats.currentBalance,
-      netPnl: this.stats.netPnl,
-      drawdown: this.stats.currentDrawdown,
-      drawdownPct: this.stats.currentDrawdownPercent,
-      peak: this.stats.peakBalance
-    };
 
-    this.equityCurve.push(point);
-    if (this.equityCurve.length > this.config.maxEquityPoints) {
-      this.equityCurve = this.equityCurve.slice(-this.config.maxEquityPoints);
-    }
-
-    // Append to equity snapshots file
-    this._appendFile(this.paths.equity, JSON.stringify(point));
-  }
 
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1313,34 +1346,7 @@ class TradeJournal {
   }
 
   _appendLedger(record) {
-    this._appendFile(this.paths.ledger, JSON.stringify(record), { critical: true });
-  }
-
-  _appendFile(filepath, line, options = {}) {
-    try {
-      fs.appendFileSync(filepath, line + '\n', 'utf8');
-      return true;
-    } catch (err) {
-      console.error(`[TradeJournal] Failed to append to ${filepath}: ${err.message}`);
-      if (options.critical === true) throw err;
-      return false;
-    }
-  }
-
-  _saveStatsCache() {
-    try {
-      const cacheData = {
-        savedAt: Date.now(),
-        stats: { ...this.stats, _pnlArray: undefined },  // Don't save huge array
-        tradeCount: this.trades.length
-      };
-      const { writeJsonAtomic } = require('./AtomicWrite');
-      writeJsonAtomic(this.paths.statsCache, cacheData);
-      return { success: true };
-    } catch (err) {
-      console.error(`[TradeJournal] Failed to save stats cache: ${err.message}`);
-      return { success: false, code: 'TRADE_JOURNAL_STATS_SAVE_FAILED', reason: err.message };
-    }
+    fs.appendFileSync(this.paths.ledger, JSON.stringify(record) + '\n', 'utf8');
   }
 
   /**
@@ -1405,7 +1411,7 @@ class TradeJournal {
             size: positiveNumberOrNull(record.size) ?? exitUsdValue,
             usdValue: positiveNumberOrNull(record.usdValue) ?? exitUsdValue,
           };
-          this.trades.push(canonicalExitRecord);
+          this.recordCompletedTrade(canonicalExitRecord);
           if (record.fillId) this.exitFillIds.add(record.fillId);
           const remainingFromRecord = finiteNumberOrNull(record.remainingUsdValue ?? record.remainingSize);
           const tolerance = usdValueTolerance(entryUsdValue);
@@ -1509,28 +1515,6 @@ class TradeJournal {
         }
       }
 
-      // Bound in-memory trades
-      if (this.trades.length > this.config.maxInMemoryTrades) {
-        this.trades = this.trades.slice(-this.config.maxInMemoryTrades);
-      }
-
-      // Rebuild equity curve from equity snapshots file
-      if (fs.existsSync(this.paths.equity)) {
-        const eqRaw = fs.readFileSync(this.paths.equity, 'utf8');
-        const eqLines = eqRaw.split('\n').filter(l => l.trim());
-        for (const line of eqLines) {
-          try {
-            this.equityCurve.push(JSON.parse(line));
-          } catch { /* skip */ }
-        }
-        if (this.equityCurve.length > this.config.maxEquityPoints) {
-          this.equityCurve = this.equityCurve.slice(-this.config.maxEquityPoints);
-        }
-      }
-
-      // Recompute all stats from trades
-      this._recomputeAllStats();
-
       console.log(`TradeJournal: Rebuilt from ledger — ${this.trades.length} completed trades, ${this.openTrades.size} open positions`);
 
     } catch (err) {
@@ -1544,46 +1528,11 @@ class TradeJournal {
   // PRIVATE: HELPERS
   // ════════════════════════════════════════════════════════════════════════
 
-  _addToBucket(buckets, key, trade) {
-    if (!buckets[key]) {
-      buckets[key] = {
-        trades: 0, wins: 0, losses: 0,
-        netPnl: 0, grossWins: 0, grossLosses: 0,
-        totalHoldTime: 0
-      };
-    }
-    const b = buckets[key];
-    b.trades++;
-    b.netPnl += trade.netPnl || 0;
-    b.totalHoldTime += trade.holdTimeMs || 0;
-    if (trade.netPnl > 0) {
-      b.wins++;
-      b.grossWins += trade.netPnl;
-    } else {
-      b.losses++;
-      b.grossLosses += Math.abs(trade.netPnl);
-    }
-  }
 
-  _formatDuration(ms) {
-    if (!ms || ms <= 0) return '0s';
-    const seconds = Math.floor(ms / 1000);
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ${minutes % 60}m`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ${hours % 24}h`;
-  }
 
-  _dayKeyForTimestamp(timestamp) {
-    const ms = Number(timestamp);
-    if (!Number.isFinite(ms) || ms <= 0) return null;
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return null;
-    return date.toISOString().split('T')[0];
-  }
+
+
+
 
   _defaultCSVFilename() {
     return `ogzprime-trades-${new Date().toISOString().split('T')[0]}.csv`;
@@ -1628,3 +1577,4 @@ class TradeJournal {
 }
 
 module.exports = TradeJournal;
+module.exports.JournalReport = JournalReport;

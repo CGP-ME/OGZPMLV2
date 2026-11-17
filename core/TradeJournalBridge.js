@@ -566,12 +566,109 @@ class TradeJournalBridge {
         manualReconciliationRequired: true,
       });
     }
+    this._loadHistoricalJournalBundles();
     this._reconcileOpenStateTrades();
     this._startupJournalReconciliationPromise = this._reconcileJournalOpenTradesWithAuthoritativeState()
       .catch(error => this._recordStartupJournalBrokerPositionFailure(error));
     this._wireDashboardMessages();
     this._wireBroadcastCycle();
     return { reportingAvailable: !!this.journal, tradingAction: 'none' };
+  }
+
+  _loadHistoricalJournalBundles() {
+    this._journalInventoryIssues = [];
+    this._excludedLegacyDirectories = [];
+    try {
+      for (const entry of fs.readdirSync(this._journalBridgeConfig.journalRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name === 'exports') continue;
+        if (entry.name === 'replays') {
+          this._excludedLegacyDirectories.push(entry.name);
+          continue;
+        }
+        const parts = [];
+        let offset = 0;
+        for (let field = 0; field < 6; field++) {
+          const dash = entry.name.indexOf('-', offset);
+          const lengthText = entry.name.slice(offset, dash);
+          if (dash < 0 || !/^\d+$/.test(lengthText)) break;
+          const length = Number(lengthText);
+          const encoded = entry.name.slice(dash + 1, dash + 1 + length);
+          if (encoded.length !== length) break;
+          parts.push(decodeURIComponent(encoded));
+          offset = dash + 1 + length;
+          if (field < 5 && entry.name.slice(offset, offset + 2) !== '__') break;
+          if (field < 5) offset += 2;
+        }
+        const [executionMode, brokerId, accountId, assetClass, symbol, timeframe] = parts;
+        const scope = normalizePatternScope({ executionMode, brokerId, accountId, assetClass, symbol, timeframe, accountIdSource: 'persisted_journal_directory' }, 'TradeJournalBridge.inventory');
+        if (parts.length !== 6 || offset !== entry.name.length || !scope.ok || safeScopePathSegment(scope) !== entry.name) {
+          this._journalInventoryIssues.push({ directory: entry.name, reason: 'journal_directory_scope_unresolved' });
+          continue;
+        }
+        this._createJournalBundle(scope);
+      }
+    } catch (error) {
+      this._journalInventoryIssues.push({ reason: errorMessageOrNull(error) });
+    }
+    if (this._journalInventoryIssues.length) this._recordVisibilityFailure('journal_inventory_unavailable', {
+      phase: 'initialization', source: 'journalRoot', scope: null,
+      message: 'Historical journal scope inventory is incomplete',
+      context: { issues: this._journalInventoryIssues }, manualReconciliationRequired: true,
+    });
+  }
+
+  _reportingBundles() {
+    const scope = normalizePatternScope(this.context.readRuntimeScope() ?? {}, 'TradeJournalBridge.reportingAccount');
+    if (!scope.ok) return [];
+    return this._allJournalBundles().filter(bundle => bundle.scope.brokerId === scope.brokerId
+      && bundle.scope.accountId === scope.accountId && bundle.scope.executionMode === scope.executionMode);
+  }
+
+  _accountReport() {
+    const bundles = this._reportingBundles();
+    const unavailable = bundles.filter(bundle => !bundle.journal || bundle.failures.visibilityHistory || this._unresolvedJournalGaps(bundle).length > 0);
+    if (!bundles.length || unavailable.length || this._journalInventoryIssues?.length) {
+      return { status: 'unavailable', reason: 'Journal history is unavailable or incomplete for the active account.',
+        unavailableScopes: unavailable.map(bundle => ({ scope: bundle.scope, reason: bundle.failures.journal || bundle.failures.visibilityHistory || 'Confirmed execution rows are missing', missingRecords: this._unresolvedJournalGaps(bundle).map(record => ({ phase: record.phase, orderId: record.orderId, eventType: record.eventType })) })),
+        inventoryIssues: this._journalInventoryIssues || [] };
+    }
+    try {
+      const key = JSON.stringify([new Date().toISOString().slice(0, 10), ...bundles.map(bundle => {
+        const file = bundle.journal.paths.ledger;
+        const stat = fs.existsSync(file) ? fs.statSync(file) : null;
+        return [bundle.scope.scopeKey, stat?.size, stat?.mtimeMs, bundle.journal.openTrades.size];
+      })]);
+      if (this._accountReportCache?.key === key) return this._accountReportCache.value;
+      const trades = bundles.flatMap(bundle => bundle.journal.readClosedTrades()).sort((a, b) => a.timestamp - b.timestamp);
+      const invalid = trades.find(trade => ![trade.timestamp, trade.netPnl, trade.grossPnl, trade.fees, trade.holdTimeMs].every(value => Number.isFinite(value)));
+      if (invalid) {
+        this._recordVisibilityFailure('journal_report_record_unavailable', {
+          phase: 'report', source: 'trade-ledger.jsonl', scope: invalid, orderId: invalid.orderId,
+          message: 'A persisted exit lacks finite reporting facts', manualReconciliationRequired: true,
+        });
+        return { status: 'unavailable', reason: 'A persisted exit lacks finite reporting facts.' };
+      }
+      const report = new TradeJournal.JournalReport({
+        ...this._journalBridgeConfig, startingBalance: this._journalStartingBalance,
+        // Account reports and exports cover all persisted rows. The live
+        // per-scope journal retains its configured recent-trade window.
+        maxInMemoryTrades: trades.length,
+      });
+      for (const trade of trades) report.recordCompletedTrade(trade);
+      for (const bundle of bundles) for (const [id, entry] of bundle.journal.openTrades) report.openTrades.set(bundle.scope.scopeKey + ':' + id, entry);
+      const value = { status: 'available', report, scope: {
+        brokerId: bundles[0].scope.brokerId, accountId: bundles[0].scope.accountId,
+        executionMode: bundles[0].scope.executionMode,
+      }, includedScopes: bundles.map(bundle => bundle.scope.scopeKey), excludedLegacyDirectories: this._excludedLegacyDirectories || [] };
+      this._accountReportCache = { key, value };
+      return value;
+    } catch (error) {
+      this._recordVisibilityFailure('journal_report_unavailable', {
+        phase: 'report', source: 'trade-ledger.jsonl', message: errorMessageOrNull(error), manualReconciliationRequired: true,
+      });
+      return { status: 'unavailable', reason: 'The account journal could not be read; see its failure receipt.' };
+    }
   }
 
   _createJournalBundle(scope) {
@@ -605,7 +702,6 @@ class TradeJournalBridge {
         bundle.journal = new TradeJournal({
           ...this._journalBridgeConfig, dataDir: journalDataDir, scope,
           startingBalance: this._journalStartingBalance,
-          autoSaveInterval: this._journalBridgeConfig.autoSaveIntervalMs,
         });
         delete bundle.failures.journal;
       } catch (error) {
@@ -1664,116 +1760,10 @@ class TradeJournalBridge {
   }
 
   _combinedJournalSnapshot() {
-    const bundles = TradeJournalBridge.prototype._allJournalBundles.call(this);
-    const unavailable = bundles.filter(bundle => !bundle.journal || bundle.failures.visibilityHistory || this._unresolvedJournalGaps(bundle).length > 0);
-    if (!this._primaryScope || unavailable.length > 0) {
-      return {
-        module: 'TradeJournal', status: 'unavailable',
-        reason: 'Journal history is unavailable; trading execution is independent.',
-        unavailableScopes: unavailable.map(bundle => ({ scope: bundle.scope, reason: bundle.failures.journal || bundle.failures.visibilityHistory || 'Confirmed execution rows are missing from this journal', missingRecords: this._unresolvedJournalGaps(bundle).map(record => ({ phase: record.phase, orderId: record.orderId, eventType: record.eventType })) })),
-      };
-    }
-    if (bundles.length === 1) return { ...bundles[0].journal.getSnapshot(), status: 'available' };
-
-    const trades = this._combinedClosedTrades();
-    const netPnl = trades.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
-    const wins = trades.filter(trade => (finiteNumberOrNull(trade.netPnl) || 0) > 0);
-    const losses = trades.filter(trade => (finiteNumberOrNull(trade.netPnl) || 0) < 0);
-    const grossWins = wins.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
-    const grossLosses = losses.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
-    const todayKey = new Date().toISOString().split('T')[0];
-    const todayTrades = trades.filter(trade => new Date(Number(trade.timestamp || 0)).toISOString().split('T')[0] === todayKey);
-    const todayPnl = todayTrades.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
-    const todayWins = todayTrades.filter(trade => (finiteNumberOrNull(trade.netPnl) || 0) > 0).length;
-    const recentTrades = trades.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.snapshotTradesSliceStart')).reverse();
-    const startingBalance = finiteNumberOrNull(this._journalStartingBalance) || 0;
-    const totalTrades = trades.length;
-    const winRate = totalTrades > 0 ? (wins.length / totalTrades) * 100 : 0;
-    const avgWin = wins.length > 0 ? grossWins / wins.length : 0;
-    const avgLoss = losses.length > 0 ? grossLosses / losses.length : 0;
-    const profitFactor = grossLosses !== 0 ? Math.abs(grossWins / grossLosses) : (grossWins > 0 ? Infinity : 0);
-    const expectancy = totalTrades > 0 ? netPnl / totalTrades : 0;
-    const sortedByPnl = trades.slice().sort((a, b) => (finiteNumberOrNull(a.netPnl) || 0) - (finiteNumberOrNull(b.netPnl) || 0));
-
-    let currentStreak = 0;
-    let currentStreakType = 'none';
-    let longestWinStreak = 0;
-    let longestLossStreak = 0;
-    let runningWin = 0;
-    let runningLoss = 0;
-    const recentWL = [];
-    for (const trade of trades) {
-      const pnl = finiteNumberOrNull(trade.netPnl) || 0;
-      if (pnl > 0) {
-        recentWL.push('W');
-        runningWin += 1;
-        runningLoss = 0;
-        longestWinStreak = Math.max(longestWinStreak, runningWin);
-        currentStreak = runningWin;
-        currentStreakType = 'win';
-      } else if (pnl < 0) {
-        recentWL.push('L');
-        runningLoss += 1;
-        runningWin = 0;
-        longestLossStreak = Math.max(longestLossStreak, runningLoss);
-        currentStreak = runningLoss;
-        currentStreakType = 'loss';
-      } else {
-        recentWL.push('F');
-        runningWin = 0;
-        runningLoss = 0;
-        currentStreak = 0;
-        currentStreakType = 'flat';
-      }
-    }
-
-    return {
-      module: 'TradeJournal',
-      status: 'available',
-      scopeMode: 'multi-symbol-aggregate',
-      symbols: bundles.map(bundle => bundle.scope?.symbol).filter(Boolean),
-      totalTrades,
-      winRate: Number(winRate.toFixed(1)),
-      netPnl: Number(netPnl.toFixed(2)),
-      netPnlPercent: startingBalance > 0 ? Number((netPnl / startingBalance * 100).toFixed(2)) : 0,
-      currentBalance: Number((startingBalance + netPnl).toFixed(2)),
-      profitFactor: Number.isFinite(profitFactor) ? Number(profitFactor.toFixed(2)) : profitFactor,
-      sharpeRatio: 0,
-      maxDrawdown: 0,
-      currentDrawdown: 0,
-      expectancy: Number(expectancy.toFixed(2)),
-      avgWin: Number(avgWin.toFixed(2)),
-      avgLoss: Number(avgLoss.toFixed(2)),
-      avgHoldTime: '0s',
-      avgHoldTimeWinners: '0s',
-      avgHoldTimeLosers: '0s',
-      currentStreak,
-      currentStreakType,
-      longestWinStreak,
-      longestLossStreak,
-      recentWL: recentWL.slice(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.streakHistorySliceStart')),
-      bestTrade: sortedByPnl.length ? sortedByPnl[sortedByPnl.length - 1] : null,
-      worstTrade: sortedByPnl.length ? sortedByPnl[0] : null,
-      todayTrades: todayTrades.length,
-      todayPnl: Number(todayPnl.toFixed(2)),
-      todayWinRate: todayTrades.length > 0 ? Number((todayWins / todayTrades.length * 100).toFixed(1)) : 0,
-      openPositions: this._combinedOpenTradeCount(),
-      recentTrades: recentTrades.map(t => ({
-        orderId: t.orderId,
-        symbol: t.symbol,
-        direction: t.direction,
-        entryPrice: t.entryPrice,
-        exitPrice: t.exitPrice,
-        netPnl: roundedNumberOrNull(t.netPnl),
-        pnlPercent: roundedNumberOrNull(t.pnlPercent),
-        outcome: classifyReplayOutcome(t.netPnl, t.pnlPercent),
-        holdTime: t.holdTimeFormatted,
-        exitReason: t.exitReason,
-        confidence: t.confidence,
-        regime: t.regime,
-        timestamp: t.timestamp
-      }))
-    };
+    const result = this._accountReport();
+    if (result.status !== 'available') return { module: 'TradeJournal', ...result };
+    const { report, ...metadata } = result;
+    return { ...report.getSnapshot(), ...metadata, scopeMode: 'active-account', history: 'all_persisted_closed_fills' };
   }
 
   _combinedReplayList(limit = ConfigLoader.getInternalsFileValue('journal.bridgePolicy.combinedReplayDefaultLimit')) {
@@ -1783,92 +1773,9 @@ class TradeJournalBridge {
       .slice(0, limit);
   }
 
-  _addBreakdownTrade(buckets, key, trade) {
-    if (!key) return;
-    if (!buckets[key]) {
-      buckets[key] = {
-        trades: 0,
-        wins: 0,
-        losses: 0,
-        netPnl: 0,
-        grossWins: 0,
-        grossLosses: 0,
-        totalHoldTime: 0,
-      };
-    }
-    const bucket = buckets[key];
-    const pnl = finiteNumberOrNull(trade.netPnl) || 0;
-    bucket.trades += 1;
-    bucket.netPnl += pnl;
-    bucket.totalHoldTime += finiteNumberOrNull(trade.holdTimeMs) || 0;
-    if (pnl > 0) {
-      bucket.wins += 1;
-      bucket.grossWins += pnl;
-    } else if (pnl < 0) {
-      bucket.losses += 1;
-      bucket.grossLosses += pnl;
-    }
-  }
-
   _combinedPerformanceBreakdown(dimension) {
-    const bundles = TradeJournalBridge.prototype._allJournalBundles.call(this);
-    if (bundles.length === 1) return bundles[0].journal.getPerformanceBreakdown(dimension);
-
-    const buckets = {};
-    for (const trade of this._combinedClosedTrades()) {
-      switch (dimension) {
-        case 'symbol':
-          this._addBreakdownTrade(buckets, trade.symbol, trade);
-          break;
-        case 'regime':
-          this._addBreakdownTrade(buckets, trade.regime, trade);
-          break;
-        case 'pattern':
-          if (!Array.isArray(trade.patterns) || trade.patterns.length === 0) {
-            this._addBreakdownTrade(buckets, 'no_pattern', trade);
-          } else {
-            for (const pattern of trade.patterns) {
-              this._addBreakdownTrade(buckets, nonEmptyStringOrNull(pattern?.name), trade);
-            }
-          }
-          break;
-        case 'hourOfDay':
-          this._addBreakdownTrade(buckets, new Date(trade.entryTime || trade.timestamp).getUTCHours().toString().padStart(2, '0') + ':00', trade);
-          break;
-        case 'dayOfWeek':
-          this._addBreakdownTrade(buckets, ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(trade.entryTime || trade.timestamp).getUTCDay()], trade);
-          break;
-        case 'confidenceBand': {
-          const conf = finiteNumberOrNull(trade.confidence);
-          if (conf === null) break;
-          const key = conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand55') ? '< 55%' : conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand65') ? '55-65%' : conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand75') ? '65-75%' : conf < ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.confidenceBand85') ? '75-85%' : '85%+';
-          this._addBreakdownTrade(buckets, key, trade);
-          break;
-        }
-        case 'exitReason':
-          this._addBreakdownTrade(buckets, trade.exitReason, trade);
-          break;
-        case 'month': {
-          const date = new Date(trade.timestamp);
-          this._addBreakdownTrade(buckets, `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`, trade);
-          break;
-        }
-        default:
-          this._addBreakdownTrade(buckets, 'all', trade);
-      }
-    }
-
-    for (const bucket of Object.values(buckets)) {
-      bucket.winRate = bucket.trades > 0 ? (bucket.wins / bucket.trades * 100) : 0;
-      bucket.avgPnl = bucket.trades > 0 ? (bucket.netPnl / bucket.trades) : 0;
-      bucket.avgWin = bucket.wins > 0 ? (bucket.grossWins / bucket.wins) : 0;
-      bucket.avgLoss = bucket.losses > 0 ? (bucket.grossLosses / bucket.losses) : 0;
-      bucket.profitFactor = bucket.grossLosses !== 0 ? Math.abs(bucket.grossWins / bucket.grossLosses) : (bucket.grossWins > 0 ? Infinity : 0);
-      bucket.avgHoldTime = '0s';
-      bucket.expectancy = bucket.trades > 0 ? bucket.netPnl / bucket.trades : 0;
-    }
-
-    return buckets;
+    const result = this._accountReport();
+    return result.status === 'available' ? result.report.getPerformanceBreakdown(dimension) : null;
   }
 
   _loadReplay(orderId) {
@@ -1886,15 +1793,18 @@ class TradeJournalBridge {
   }
 
   _sendEquityCurve() {
-    this._send({ type: 'journal_equity', data: this.journal.getEquityCurve(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit')) });
+    const result = this._accountReport();
+    this._send({ type: 'journal_equity', status: result.status, reason: result.reason, scope: result.scope, data: result.status === 'available' ? result.report.getEquityCurve() : null });
   }
 
   _sendBreakdown(dimension) {
-    this._send({ type: 'journal_breakdown', data: this._combinedPerformanceBreakdown(dimension), dimension });
+    const result = this._accountReport();
+    this._send({ type: 'journal_breakdown', status: result.status, reason: result.reason, scope: result.scope, data: result.status === 'available' ? result.report.getPerformanceBreakdown(dimension) : null, dimension });
   }
 
   _sendCalendar() {
-    this._send({ type: 'journal_calendar', data: this.journal.getDailySummaries(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.dailySummaryDefaultDays')) });
+    const result = this._accountReport();
+    this._send({ type: 'journal_calendar', status: result.status, reason: result.reason, scope: result.scope, data: result.status === 'available' ? result.report.getDailySummaries() : null });
   }
 
   _sendReplay(orderId) {
@@ -1908,97 +1818,33 @@ class TradeJournalBridge {
   }
 
   _exportCSV() {
-    try {
-      const filepath = this.journal.exportCSV();
-      this._send({ type: 'journal_export_complete', format: 'csv', path: filepath });
-    } catch (err) { console.error(`[TradeJournalBridge] CSV export failed: ${err.message}`); }
+    const result = this._accountReport();
+    if (result.status !== 'available') return this._send({ type: 'journal_export_failed', reason: result.reason });
+    const fields = ['timestamp', 'orderId', 'fillId', 'brokerId', 'accountId', 'executionMode', 'symbol', 'timeframe', 'direction', 'entryPrice', 'exitPrice', 'usdValue', 'grossPnl', 'fees', 'netPnl', 'partialExit', 'holdTimeMs', 'exitReason'];
+    const quote = value => '"' + String(value ?? '').replaceAll('"', '""') + '"';
+    const csv = [fields.join(','), ...result.report.trades.map(row => fields.map(field => quote(row[field])).join(','))].join('\n');
+    this._writeReportExport(result, 'csv', csv);
   }
 
   _exportReport() {
+    const result = this._accountReport();
+    if (result.status !== 'available') return this._send({ type: 'journal_export_failed', reason: result.reason });
+    const { report, ...metadata } = result;
+    this._writeReportExport(result, 'json', JSON.stringify({ ...report.exportReport(), ...metadata }, null, 2));
+  }
+
+  _writeReportExport(result, format, content) {
+    const account = [result.scope.executionMode, result.scope.brokerId, result.scope.accountId].map(encodeURIComponent).join('--');
+    const filepath = path.join(this._journalBridgeConfig.journalRoot, 'exports', `${account}-${new Date().toISOString().slice(0, 10)}.${format}`);
     try {
-      const report = this.journal.exportReport();
-      const filepath = path.join(process.cwd(), 'data', 'journal', 'exports',
-        `ogzprime-report-${new Date().toISOString().split('T')[0]}.json`);
       fs.mkdirSync(path.dirname(filepath), { recursive: true });
-      const { writeJsonAtomic } = require('./AtomicWrite');
-      writeJsonAtomic(filepath, report);
-      this._send({ type: 'journal_export_complete', format: 'json', path: filepath });
-    } catch (err) { console.error(`[TradeJournalBridge] Report export failed: ${err.message}`); }
-  }
-
-
-  // ════════════════════════════════════════════════════════════════════════
-  // HTTP ROUTES — Register with Express or raw HTTP
-  // ════════════════════════════════════════════════════════════════════════
-
-  registerRoutes(app) {
-    const bridge = this;
-
-    app.get('/replay', (req, res) => res.sendFile(path.join(process.cwd(), 'public', 'trade-replay.html')));
-    app.get('/journal', (req, res) => res.sendFile(path.join(process.cwd(), 'public', 'trade-journal.html')));
-
-    app.get('/api/replay/adjacent', (req, res) => {
-      const all = bridge._combinedReplayList(ConfigLoader.getInternalsFileValue('journal.bridgePolicy.expressAdjacentReplayLimit'));
-      const idx = all.findIndex(r => r.orderId === req.query.id);
-      const target = idx + (parseInt(req.query.direction) || 1);
-      res.json({ orderId: (target >= 0 && target < all.length) ? all[target].orderId : null });
-    });
-
-    app.get('/api/replay/:id', (req, res) => {
-      const data = bridge._loadReplay(req.params.id);
-      data ? res.json(data) : res.status(404).json({ error: 'Replay not found' });
-    });
-
-    app.get('/api/replays', (req, res) => res.json(bridge._combinedReplayList(parseInt(req.query.limit) || ConfigLoader.getInternalsFileValue('journal.bridgePolicy.combinedReplayDefaultLimit'))));
-    app.get('/api/journal/stats', (req, res) => res.json(bridge._combinedJournalSnapshot()));
-    app.get('/api/journal/equity', (req, res) => res.json(bridge.journal.getEquityCurve(parseInt(req.query.limit) || ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit'))));
-    app.get('/api/journal/breakdown/:dim', (req, res) => res.json(bridge._combinedPerformanceBreakdown(req.params.dim)));
-
-    console.log('[TradeJournalBridge] HTTP routes registered (/journal, /replay, /api/*)');
-  }
-
-  /** Raw HTTP handler for non-Express servers */
-  handleRequest(req, res) {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const sendFile = (filePath) => {
-      if (fs.existsSync(filePath)) {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(fs.readFileSync(filePath));
-        return true;
-      }
-      return false;
-    };
-    const sendJSON = (data, status = 200) => {
-      res.writeHead(status, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
-      return true;
-    };
-
-    if (url.pathname === '/journal') return sendFile(path.join(process.cwd(), 'public', 'trade-journal.html'));
-    if (url.pathname === '/replay') return sendFile(path.join(process.cwd(), 'public', 'trade-replay.html'));
-
-    if (url.pathname.startsWith('/api/replay/adjacent')) {
-      const all = this._combinedReplayList(ConfigLoader.getInternalsFileValue('journal.bridgePolicy.expressAdjacentReplayLimit'));
-      const idx = all.findIndex(r => r.orderId === url.searchParams.get('id'));
-      const target = idx + (parseInt(url.searchParams.get('direction')) || 1);
-      return sendJSON({ orderId: (target >= 0 && target < all.length) ? all[target].orderId : null });
+      require('./AtomicWrite').writeStringAtomic(filepath, content, 'utf8');
+      this._send({ type: 'journal_export_complete', format, path: filepath, scope: result.scope });
+    } catch (error) {
+      this._recordVisibilityFailure('journal_export_failed', { phase: 'export', source: filepath, message: errorMessageOrNull(error) });
+      this._send({ type: 'journal_export_failed', reason: errorMessageOrNull(error) });
     }
-    if (url.pathname.startsWith('/api/replay/')) {
-      const id = url.pathname.split('/').pop();
-      const data = this._loadReplay(id);
-      return data ? sendJSON(data) : sendJSON({ error: 'Not found' }, 404);
-    }
-    if (url.pathname === '/api/replays') return sendJSON(this._combinedReplayList(parseInt(url.searchParams.get('limit')) || ConfigLoader.getInternalsFileValue('journal.bridgePolicy.combinedReplayDefaultLimit')));
-    if (url.pathname === '/api/journal/stats') return sendJSON(this._combinedJournalSnapshot());
-    if (url.pathname === '/api/journal/equity') return sendJSON(this.journal.getEquityCurve(ConfigLoader.getInternalsFileValue('journal.tradeJournalPolicy.equityCurveDefaultLimit')));
-    if (url.pathname.startsWith('/api/journal/breakdown/')) {
-      const dim = url.pathname.split('/').pop();
-      return sendJSON(this._combinedPerformanceBreakdown(dim));
-    }
-
-    return false;
   }
-
 
   // ════════════════════════════════════════════════════════════════════════
   // CLEANUP

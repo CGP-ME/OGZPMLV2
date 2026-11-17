@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-17",
+  "rootChecked": "data/journal",
+  "readOnly": true,
+  "counts": {
+    "ledgerFiles": 15,
+    "exitRows": 617,
+    "legacyRows": 617,
+    "missingFiniteFacts": 0,
+    "missingUsdValue": 0,
+    "duplicateFillIds": 0,
+    "parseFailures": 0,
+    "rootLedgerExists": true
+  },
+  "limits": "Does not prove broker reconciliation, active configuration path or historical fee correctness."
+}

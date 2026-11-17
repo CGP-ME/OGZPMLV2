@@ -59,7 +59,6 @@
   "journal": {
     "maxInMemoryTrades": 5000,
     "maxEquityPoints": 10000,
-    "autoSaveIntervalMs": 60000,
     "replayCandlesBefore": 60,
     "replayCandlesAfter": 30,
     "maxPendingVisibilityErrors": 50,

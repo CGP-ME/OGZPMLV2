@@ -1,0 +1,102 @@
+{
+  "question": "Which closed fills contribute to the journal's account totals and exports before and after a restart?",
+  "runId": "2026-11-17T00-07-50-668Z-c7c3235d1cb0",
+  "source": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "config/internals.json",
+      "core/TradeJournal.js",
+      "core/TradeJournalBridge.js",
+      "public/trade-journal.html"
+    ],
+    "tree": "ef1f3d8d43ab43e10cf9f51a46e509768372fd5f",
+    "baseTree": "db0a80bb4cdf45f619de5b6170b9a07a9b505d12",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-16T23-55-11-724Z-2635218-03772575e21a/source-BH1wnz.json",
+    "manifestSha256": "52e2bc9370c5d19dabf7d54008fad2a801d5f6a98399f4e1085a337191b2806d"
+  },
+  "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 2,
+    "selectedCount": 3,
+    "tally": {
+      "found_break": 1,
+      "no_break_found": 2,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "12e88e30e5934fe688c6b3bc988e84ab84ae3a87a6c51d424bfee4a3e9f951ab",
+        "absence": null
+      },
+      {
+        "reviewer": "astra",
+        "status": "succeeded",
+        "outcome": "found_break",
+        "rawVerdict": "found_break",
+        "answerSha256": "cb0a2befb44db4016a1ccddcd1401164dce94b80c98ff03058f9eed432edf5ef",
+        "absence": null
+      },
+      {
+        "reviewer": "fable",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "8e1d045cb7243f2b1e3a4728c17bdca9b8117a9b32fc9b17838eaadc3f9dbd69",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "majority",
+    "dissent": [
+      {
+        "reviewer": "astra",
+        "status": "succeeded",
+        "outcome": "found_break",
+        "rawVerdict": "found_break",
+        "answerSha256": "cb0a2befb44db4016a1ccddcd1401164dce94b80c98ff03058f9eed432edf5ef",
+        "absence": null
+      }
+    ],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "diagnostics": {
+    "qualifyingSeats": 3,
+    "verdictLabelsMatch": false,
+    "evidenceChecksPassed": false,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "issues": [
+      "evidence_failure",
+      "reviewer_verdict_labels_differ"
+    ],
+    "sharedVerdictLabel": null
+  },
+  "metadataWarnings": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "cost": {
+    "amount": 2.2680443,
+    "currency": "USD",
+    "complete": false,
+    "priced_attempts": 36,
+    "total_attempts": 38,
+    "cost_absences": [
+      "pricing_absent:codex-subscription/gpt-6-astra",
+      "pricing_absent:codex-subscription/gpt-6-astra"
+    ]
+  },
+  "allCompleteAnswersRead": true,
+  "dissentDisposition": "Astra identifies inherited fallback-only missing-fill evidence not being restored. This is a valid conditional reporting-availability defect, not a new retention/accounting regression. It is retained for the bounded reporting-persistence producer/consumer change; this delivery does not certify that path.",
+  "evidenceQualification": "617 existing scoped EXIT rows were inspected read-only: no parse failures, missing finite reporting facts, missing usdValue or repeated present fill IDs. All lack version-2 exit-fee provenance. This does not prove their historical financial correctness.",
+  "runtimeActivation": false
+}
