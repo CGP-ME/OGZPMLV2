@@ -40,7 +40,7 @@ class TRAIDecisionModule extends EventEmitter {
     super();
     
     // TRAI risk assessment is opinion-only; there is no configurable execution veto.
-    this.config = { ...config };
+    this.resources = { ...config };
     
     // State management
     this.state = {
@@ -68,6 +68,24 @@ class TRAIDecisionModule extends EventEmitter {
 
     // WebSocket client for dashboard broadcasts
     this.wsClient = null;
+  }
+
+  get config() {
+    const settings = ConfigLoader.get('trai');
+    return {
+      ...this.resources,
+      mode: settings.mode,
+      advisoryUnknownPatternThreshold: settings.advisoryUnknownPatternThreshold,
+      advisoryUnknownPatternPenaltyMultiplier: settings.advisoryUnknownPatternPenaltyMultiplier,
+      autonomousTraiWeight: settings.autonomousTraiWeight,
+      confidenceWeight: settings.weight,
+      maxRiskTolerance: settings.maxRisk,
+      emergencyStopLoss: settings.emergencyStopLoss,
+      minConfidenceOverride: settings.minConf,
+      maxConfidenceOverride: settings.maxConf,
+      minSampleSize: settings.legacyPatternMinSamples,
+      trackDecisions: settings.trackDecisions,
+    };
   }
 
   /**
@@ -154,6 +172,7 @@ class TRAIDecisionModule extends EventEmitter {
    * @returns {Object} Enhanced decision with TRAI input
    */
   async processDecision(signal, context) {
+    const config = this.config;
     console.log('[TRAI-CHECKPOINT-1] processDecision START');
     console.log(`[TRAI-CHECKPOINT-2] Input - action: ${signal.action}, confidence: ${signal.confidence}`);
 
@@ -174,7 +193,7 @@ class TRAIDecisionModule extends EventEmitter {
       id: Date.now(), // CODEX FIX: Add ID for learning feedback loop
       originalSignal: signal,
       createdAt: startTime,
-      mode: this.config.mode,
+      mode: config.mode,
       originalConfidence: confidenceInputInvalid ? null : normalizedSignal.confidence,
       confidenceInputInvalid,
       traiConfidence: 0,
@@ -210,7 +229,7 @@ class TRAIDecisionModule extends EventEmitter {
 
       // Step 2: Calculate TRAI's independent confidence score
       console.log('[TRAI-CHECKPOINT-6] Calling calculateConfidence');
-      decision.traiConfidence = await this.calculateConfidence(normalizedSignal, context, marketAnalysis);
+      decision.traiConfidence = await this.calculateConfidence(normalizedSignal, context, marketAnalysis, config);
       console.log(`[TRAI-CHECKPOINT-7] TRAI confidence calculated: ${decision.traiConfidence}`);
 
       // Step 2.5: Apply pattern pack multiplier to TRAI confidence
@@ -220,16 +239,17 @@ class TRAIDecisionModule extends EventEmitter {
         decision.traiConfidence = Math.max(0, Math.min(1, adjustedConf));
       }
       
-      decision.traiConfidence = Math.max(0, Math.min(this.config.maxConfidenceOverride, decision.traiConfidence));
+      decision.traiConfidence = Math.max(0, Math.min(config.maxConfidenceOverride, decision.traiConfidence));
 
       // Step 3: Blend confidences based on mode
       decision.finalConfidence = this.blendConfidences(
         normalizedSignal.confidence,
-        decision.traiConfidence
+        decision.traiConfidence,
+        config
       );
       
       // Step 4: Risk assessment and governance
-      decision.riskAssessment = await this.assessRisk(signal, context, decision.finalConfidence);
+      decision.riskAssessment = await this.assessRisk(signal, context, decision.finalConfidence, config);
 
       if (decision.confidenceInputInvalid) {
         decision.finalConfidence = 0;
@@ -248,7 +268,8 @@ class TRAIDecisionModule extends EventEmitter {
         : this.makeRecommendation(
           decision.finalConfidence,
           decision.riskAssessment,
-          signal.action
+          signal.action,
+          config
         );
       
       // Step 6: risk assessment is opinion-only. RiskManager owns entry authority.
@@ -287,7 +308,7 @@ class TRAIDecisionModule extends EventEmitter {
       }
       
       // Step 8: Apply position size adjustments
-      if (this.config.mode !== 'passive' && (decision.traiRecommendation === 'BUY' || decision.traiRecommendation === 'SELL')) {
+      if (config.mode !== 'passive' && (decision.traiRecommendation === 'BUY' || decision.traiRecommendation === 'SELL')) {
         decision.adjustments = this.calculateAdjustments(decision.finalConfidence, decision.riskAssessment);
       }
       
@@ -308,7 +329,7 @@ class TRAIDecisionModule extends EventEmitter {
     decision.processingTime = Date.now() - startTime;
 
     // Step 10: Log the decision (after processingTime is set!)
-    this.logDecision(decision, signal, context);
+    this.logDecision(decision, signal, context, config);
 
     // Emit decision event for monitoring
     this.emit('decision', decision);
@@ -482,7 +503,7 @@ class TRAIDecisionModule extends EventEmitter {
   /**
    * Calculate TRAI's independent confidence score
    */
-  async calculateConfidence(signal, context, marketAnalysis) {
+  async calculateConfidence(signal, context, marketAnalysis, config = this.config) {
     console.log('[TRAI-CALC-1] calculateConfidence START');
     console.log(`[TRAI-CALC-2] Input - signal.action: ${signal.action}, signal.confidence: ${signal.confidence}`);
 
@@ -582,7 +603,7 @@ class TRAIDecisionModule extends EventEmitter {
       const patternKey = this.generatePatternKey(signal, context);
       if (patternKey && this.patternMemory.has(patternKey)) {
         const history = this.patternMemory.get(patternKey);
-        if (history.samples >= this.config.minSampleSize) {
+        if (history.samples >= config.minSampleSize) {
           const successRate = history.successes / history.samples;
           confidence = confidence * ConfigLoader.get('internals.trai.confidencePolicy.currentWeight') + successRate * ConfigLoader.get('internals.trai.confidencePolicy.historyWeight'); // 30% weight to history
         }
@@ -647,10 +668,10 @@ class TRAIDecisionModule extends EventEmitter {
   /**
    * Blend TRAI confidence with original confidence
    */
-  blendConfidences(originalConfidence, traiConfidence) {
-    const weight = this.config.confidenceWeight;
+  blendConfidences(originalConfidence, traiConfidence, config = this.config) {
+    const weight = config.confidenceWeight;
 
-    switch (this.config.mode) {
+    switch (config.mode) {
       case 'passive':
         // TRAI observes but doesn't influence
         return originalConfidence;
@@ -658,14 +679,14 @@ class TRAIDecisionModule extends EventEmitter {
       case 'advisory':
         // Change 615: Restore Change 586 - TRAI learning caution
         // When TRAI confidence is below the configured advisory threshold, it hasn't learned the pattern yet
-        if (traiConfidence < ConfigLoader.get('trai.advisoryUnknownPatternThreshold')) {
-          return originalConfidence * ConfigLoader.get('trai.advisoryUnknownPatternPenaltyMultiplier'); // Slight caution penalty
+        if (traiConfidence < config.advisoryUnknownPatternThreshold) {
+          return originalConfidence * config.advisoryUnknownPatternPenaltyMultiplier;
         }
 
         // Change 599: TRAI BOOSTS confidence (additive), not blend (weighted average)
         // Original confidence is the sum of all indicators (RSI, MACD, EMAs, patterns, etc.)
         // TRAI adds intelligence layer on top
-        const traiBoost = traiConfidence * this.config.confidenceWeight; // 20% of TRAI's confidence
+        const traiBoost = traiConfidence * config.confidenceWeight;
         const boosted = originalConfidence + traiBoost;
         return Math.min(1.0, boosted); // Cap at 100%
 
@@ -676,7 +697,7 @@ class TRAIDecisionModule extends EventEmitter {
 
       case 'autonomous':
         // TRAI has primary control - use blend for this mode only
-        const autonomousTraiWeight = ConfigLoader.get('trai.autonomousTraiWeight');
+        const autonomousTraiWeight = config.autonomousTraiWeight;
         return traiConfidence * autonomousTraiWeight + originalConfidence * (1 - autonomousTraiWeight);
 
       default:
@@ -687,7 +708,7 @@ class TRAIDecisionModule extends EventEmitter {
   /**
    * Assess risk for the trade
    */
-  async assessRisk(signal, context, confidence) {
+  async assessRisk(signal, context, confidence, config = this.config) {
     const assessment = {
       riskScore: 0,
       maxLoss: 0,
@@ -732,7 +753,7 @@ class TRAIDecisionModule extends EventEmitter {
     const positionSize = Number.isFinite(context.positionSize) ? context.positionSize : null;
     const stopLoss = Number.isFinite(signal.stopLossPercent)
       ? signal.stopLossPercent
-      : (Number.isFinite(this.config.emergencyStopLoss) ? this.config.emergencyStopLoss : null);
+      : (Number.isFinite(config.emergencyStopLoss) ? config.emergencyStopLoss : null);
     if (positionSize == null) {
       assessment.factors.push('missing_position_size');
     } else if (stopLoss == null) {
@@ -742,7 +763,7 @@ class TRAIDecisionModule extends EventEmitter {
     }
     
     // Check if risk exceeds tolerance
-    if (assessment.maxLoss > this.config.maxRiskTolerance) {
+    if (assessment.maxLoss > config.maxRiskTolerance) {
       assessment.factors.push('max_loss_above_tolerance');
     }
     
@@ -755,18 +776,8 @@ class TRAIDecisionModule extends EventEmitter {
    * Make final recommendation based on confidence and risk
    * Change 586: Fixed to handle SELL signals properly
    */
-  makeRecommendation(confidence, riskAssessment, originalAction) {
-    // Change 598->2026-02-28: Honor minConfidenceOverride from config
-    // Determine minimum confidence threshold:
-    // 1) prefer explicit override from config (TRAI_MIN_CONF)
-    // 2) fall back to ConfigLoader centralized config
-    const minConfidence =
-      (this.config && typeof this.config.minConfidenceOverride === 'number'
-        ? this.config.minConfidenceOverride
-        : ConfigLoader.get('confidence.minTradeConfidence'));
-    if (!Number.isFinite(minConfidence)) {
-      throw new Error('[TRAI] minConfidence must resolve to a finite configured number');
-    }
+  makeRecommendation(confidence, riskAssessment, originalAction, config = this.config) {
+    const minConfidence = config.minConfidenceOverride;
 
     // Change 595: Simplified logic - trust the confidence threshold
     // If confidence exceeds threshold, approve the trade (unless vetoed by risk)
@@ -836,7 +847,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     const risk = (decision.riskAssessment.riskScore * 100).toFixed(1);
     const original = (decision.originalConfidence * 100).toFixed(1);
     const traiObserved = (decision.traiConfidence * 100).toFixed(1);
-    const traiContribution = this.config.mode === 'passive'
+    const traiContribution = decision.mode === 'passive'
       ? `TRAI observed ${traiObserved}%`
       : `TRAI +${traiObserved}%`;
 
@@ -991,8 +1002,8 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
    * Log decision for audit trail (JSONL telemetry)
    * Schema: tsMs, type, decisionId, cycleId, input (sanitized), output, meta
    */
-  logDecision(decision, signal, context) {
-    if (!this.config.trackDecisions) return;
+  logDecision(decision, signal, context, config = this.config) {
+    if (!config.trackDecisions) return;
 
     const scopedSymbol = signal?.symbol || context?.symbol || null;
     const scopedTimeframe = signal?.timeframe || context?.timeframe || null;
@@ -1057,14 +1068,14 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
         brokerId: scopedBrokerId,
         assetClass: scopedAssetClass,
         mode: scopedExecutionMode || tradingMode,
-        traiMode: this.config.mode,
+        traiMode: config.mode,
         latencyMs: decision.processingTime
       }
     };
 
     // Async fire-and-forget JSONL append (silent failure)
     fs.appendFile(
-      this.config.logPath,
+      config.logPath,
       JSON.stringify(telemetry) + "\n",
       () => {} // Ignore errors
     );
@@ -1088,14 +1099,6 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     };
   }
   
-  /**
-   * Update configuration dynamically
-   */
-  updateConfig(newConfig) {
-    this.config = { ...this.config, ...newConfig };
-    console.log('[TRAI] Configuration updated:', newConfig);
-  }
-
   /**
    * Record trade result for TRAI pattern memory learning
    * Call this when a trade closes to let TRAI learn from the outcome

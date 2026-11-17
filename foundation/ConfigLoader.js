@@ -1797,6 +1797,23 @@ function validate(config, sources = {}, opts = {}) {
     return { errors, warnings };
   }
   validateBotRuntimeContract(config, errors);
+  // Advisory consumers receive typed canonical values, including at boot.
+  // Use the same domains as the sole settings writer; do not invent a threshold.
+  for (const name of ['mode', 'weight', 'maxRisk', 'emergencyStopLoss', 'minConf',
+    'maxConf', 'legacyPatternMinSamples', 'trackDecisions',
+    'advisoryUnknownPatternThreshold', 'advisoryUnknownPatternPenaltyMultiplier',
+    'autonomousTraiWeight']) {
+    const key = `trai.${name}`;
+    const definition = EDITABLE_SETTINGS[key];
+    const value = readConfiguredPath(config, key);
+    if (typeof value !== definition.type
+      || (definition.values && !definition.values.includes(value))
+      || (definition.type === 'number' && (!Number.isFinite(value)
+        || value < definition.min || value > definition.max
+        || (definition.integer && !Number.isSafeInteger(value))))) {
+      errors.push(`${key} must match its declared settings domain`);
+    }
+  }
   const currentNewYorkDate = getCurrentNewYorkDate();
 
   if (!config.mode.launchProfile) {
@@ -2802,11 +2819,11 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['trackDecisions', 'Record TRAI decisions'],
     ['enableBacktest', 'Run TRAI during backtests'],
   ].map(([key, label]) => [`trai.${key}`, {
-    type: 'boolean', unit: 'boolean', label, effect: 'next_bot_initialization_restart_required',
+    type: 'boolean', unit: 'boolean', label, effect: key === 'trackDecisions' ? 'next_trai_decision' : 'next_bot_initialization_restart_required',
   }])),
   'trai.mode': {
     type: 'string', unit: 'mode', values: ['passive', 'advisory', 'hybrid', 'autonomous'],
-    label: 'TRAI advisory mode', effect: 'next_bot_initialization_restart_required',
+    label: 'TRAI advisory mode', effect: 'next_trai_decision',
   },
   ...Object.fromEntries([
     ['weight', 'TRAI confidence contribution', { unit: 'confidence multiplier', min: 0, max: Number.MAX_VALUE }],
@@ -2816,7 +2833,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['maxConf', 'TRAI advisory confidence ceiling', { unit: 'confidence fraction', min: 0, max: 1 }],
     ['legacyPatternMinSamples', 'TRAI legacy pattern minimum samples', { unit: 'samples', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
   ].map(([key, label, domain]) => [`trai.${key}`, {
-    type: 'number', ...domain, label, effect: 'next_bot_initialization_restart_required',
+    type: 'number', ...domain, label, effect: 'next_trai_decision',
   }])),
   ...Object.fromEntries([
     ['advisoryUnknownPatternThreshold', { type: 'number', unit: 'confidence fraction', min: 0, max: 1, label: 'TRAI advisory unknown-pattern confidence threshold', effect: 'next_trai_confidence_blend' }],

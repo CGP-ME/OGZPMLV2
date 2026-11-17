@@ -780,14 +780,6 @@ class OGZPrimeV14Bot {
     // ConfigLoader owns the single TRAI enablement decision and LLM configuration.
     if (resolvedConfig.config.trai.enabled === true) {
       this.trai = new TRAIDecisionModule({
-        mode: resolvedConfig.config.trai.mode,  // Start conservative
-        confidenceWeight: resolvedConfig.config.trai.weight,  // 20% influence
-        maxRiskTolerance: resolvedConfig.config.trai.maxRisk,
-        emergencyStopLoss: resolvedConfig.config.trai.emergencyStopLoss,
-        minConfidenceOverride: resolvedConfig.config.trai.minConf,
-        maxConfidenceOverride: resolvedConfig.config.trai.maxConf,
-        minSampleSize: resolvedConfig.config.trai.legacyPatternMinSamples,
-        trackDecisions: resolvedConfig.config.trai.trackDecisions,
         logPath: resolvedConfig.config.internals.trai.decisionLogPath,
         decisionHistoryLimit: resolvedConfig.config.internals.trai.decisionHistoryLimit,
         enableLLM: resolvedConfig.config.trai.llm.enabled,

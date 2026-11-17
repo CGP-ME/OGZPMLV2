@@ -1,0 +1,76 @@
+'use strict';
+const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
+process.env.PROFILE = 'paper';
+for (const key of ['KRAKEN_API_KEY', 'KRAKEN_API_SECRET', 'ALPACA_API_KEY', 'ALPACA_API_SECRET', 'WEBSOCKET_AUTH_TOKEN']) process.env[key] = 'synthetic-stop1-fixture';
+const loader = require(path.join(process.cwd(), 'foundation/ConfigLoader'));
+loader.load({ role: 'bot', loadDotenv: false, silent: true });
+let seq = 0;
+function save(changes) {
+  const { revisions } = loader.getCachedSnapshot();
+  const result = loader.saveSettings({ requestId: `trai-advice-${++seq}`, expectedRevision: revisions.settings, expectedSettingsHash: revisions.settingsHash, changes });
+  assert.equal(result.success, true, result.reason);
+  return result;
+}
+save({ 'trai.mode': 'passive', 'trai.trackDecisions': false, 'trai.weight': .2, 'trai.minConf': .1, 'trai.maxConf': .95, 'trai.maxRisk': 1, 'trai.emergencyStopLoss': .05, 'trai.legacyPatternMinSamples': 100 });
+const packPath = loader.get('trai.patternPackPath');
+fs.mkdirSync(path.dirname(packPath), { recursive: true });
+fs.writeFileSync(packPath, JSON.stringify({ patterns: [], antiPatterns: [], version: 'synthetic', source: 'fixture' }));
+const Module = require(path.join(process.cwd(), 'core/TRAIDecisionModule'));
+const logPath = 'data/fixture-trai-advice.jsonl';
+const advisor = new Module({ enableLLM: false, decisionHistoryLimit: 10, logPath });
+advisor._extractPatternMemoryFeatures = () => null; // No learned-bank lookup in this advisory-control proof.
+const scope = { symbol: 'BTC-USD', timeframe: '1h', brokerId: 'kraken', accountId: 'synthetic', assetClass: 'crypto', executionMode: 'paper' };
+const signal = { ...scope, action: 'BUY', confidence: .8, patterns: ['fixture-pattern'] };
+const context = { ...scope, price: 100, positionSize: 100, volatility: .01, trend: 'uptrend', regime: 'trending', volume: 100 };
+(async () => {
+  await advisor.initialize();
+  const key = advisor.generatePatternKey(signal, context);
+  assert.ok(key);
+  advisor.patternMemory.set(key, { samples: 1, successes: 1, failures: 0 });
+  const bank = advisor.patternMemory, history = advisor.decisionHistory;
+  const oldConfig = advisor.config;
+  const inFlight = advisor.processDecision(signal, context);
+  const saved = save({ 'trai.mode': 'advisory', 'trai.trackDecisions': true, 'trai.weight': .1, 'trai.minConf': .99, 'trai.maxConf': .5, 'trai.maxRisk': 2, 'trai.emergencyStopLoss': .03, 'trai.legacyPatternMinSamples': 1 });
+  const before = await inFlight;
+  assert.equal(before.mode, 'passive');
+  assert.equal(before.finalConfidence, .8);
+  const after = await advisor.processDecision(signal, context);
+  assert.equal(after.mode, 'advisory');
+  assert.equal(after.traiConfidence, .5);
+  assert.ok(Math.abs(after.finalConfidence - .85) < 1e-12);
+  assert.equal(after.traiRecommendation, 'HOLD');
+  assert.equal(after.riskAssessment.maxLoss, 3);
+  assert.ok(after.riskAssessment.factors.includes('max_loss_above_tolerance'));
+  assert.equal(after.vetoApplied, false);
+  assert.equal(after.riskAssessment.opinionOnly, true);
+  const market = await advisor.analyzeMarketConditions(context);
+  const oldMinimum = await advisor.calculateConfidence(signal, context, market, oldConfig);
+  const newMinimum = await advisor.calculateConfidence(signal, context, market);
+  assert.notEqual(oldMinimum, newMinimum);
+  assert.equal(advisor.patternMemory, bank);
+  assert.equal(advisor.decisionHistory, history);
+  for (let i = 0; i < 30 && !fs.existsSync(logPath); i++) await new Promise(resolve => setTimeout(resolve, 10));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const rows = fs.readFileSync(logPath, 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].meta.traiMode, 'advisory');
+  save({ 'trai.minConf': 0 });
+  assert.equal(advisor.makeRecommendation(0, {}, 'BUY'), 'BUY');
+  const settingsPath = 'config/settings.json', savedBytes = fs.readFileSync(settingsPath);
+  for (const invalid of [undefined, '0.1', 1.5]) {
+    const settings = JSON.parse(savedBytes);
+    if (invalid === undefined) delete settings.trai.minConf;
+    else settings.trai.minConf = invalid;
+    fs.writeFileSync(settingsPath, JSON.stringify(settings));
+    const check = require('node:child_process').spawnSync(process.execPath, ['-e', "try { require('./foundation/ConfigLoader').load({role:'bot',loadDotenv:false,silent:true}); process.exitCode=1; } catch(e) { if(!e.message.includes('trai.minConf must match')) { console.error(e.message); process.exitCode=2; } }"], { encoding: 'utf8' });
+    assert.equal(check.status, 0, check.stderr);
+  }
+  const extra = JSON.parse(savedBytes);
+  extra.trai.logPath = 'data/unapproved-resource-path';
+  extra.trai.enableLLM = true;
+  fs.writeFileSync(settingsPath, JSON.stringify(extra));
+  const resourceCheck = require('node:child_process').spawnSync(process.execPath, ['-e', "const assert=require('node:assert/strict');require('./foundation/ConfigLoader').load({role:'bot',loadDotenv:false,silent:true});const M=require('./core/TRAIDecisionModule');const m=new M({logPath:'data/explicit-resource',enableLLM:false});assert.equal(m.config.logPath,'data/explicit-resource');assert.equal(m.config.enableLLM,false);"], { encoding: 'utf8' });
+  assert.equal(resourceCheck.status, 0, resourceCheck.stderr);
+  fs.writeFileSync(settingsPath, savedBytes);
+  console.log('STOP1_TRAI_ADVICE_RECEIPT', JSON.stringify({ configuration: saved.configuration, before: { mode: before.mode, confidence: before.finalConfidence }, after: { mode: after.mode, confidence: after.finalConfidence, recommendation: after.traiRecommendation }, existingDecisionPolicyPreserved: true, retainedBankAndHistory: true, savedSampleThresholdUsed: true, telemetryRows: rows.length, zeroThresholdPreserved: true, opinionOnly: true, learnedLookup: 'explicit fixture seam', runtimeActivated: false }));
+})().catch(error => { console.error(error); process.exitCode = 1; });

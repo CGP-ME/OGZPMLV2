@@ -1,0 +1,78 @@
+{
+  "source": {
+    "tree": "eb538128523db918b30fcff42a06a18acc2bccf3",
+    "base": "198ce73bba54a060d42ee618f76642c7de02f8c5",
+    "sourceSha256": {
+      "core/TRAIDecisionModule.js": "4901cabf88010e69626b3dad294b6a0a7441b2e3214865eacb6098c878604f2c",
+      "run-empire-v2.js": "4fffbb13eb8e29982af582f90a2f02860705b88f2dfb52cd043b1d6a920b2711",
+      "foundation/ConfigLoader.js": "b35f580111d609a9755f80c57e3bc6ef0514f3e7ffd37cd5f2f6ffcdf9651582"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "proof": {
+    "configuration": {
+      "fingerprint": "d78556743c5b2f17e6ebdccc2f3defd967fe428f1054036559c3cfb54ada1439",
+      "role": "bot",
+      "settings": 24,
+      "internals": 13,
+      "settingsHash": "f65e8ce0018e8587264b6b81cedaf90565ca4b2f184f45a4886db43a954f8f71",
+      "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+    },
+    "before": {
+      "mode": "passive",
+      "confidence": 0.8
+    },
+    "after": {
+      "mode": "advisory",
+      "confidence": 0.8500000000000001,
+      "recommendation": "HOLD"
+    },
+    "existingDecisionPolicyPreserved": true,
+    "retainedBankAndHistory": true,
+    "savedSampleThresholdUsed": true,
+    "telemetryRows": 1,
+    "zeroThresholdPreserved": true,
+    "opinionOnly": true,
+    "learnedLookup": "explicit fixture seam",
+    "runtimeActivated": false,
+    "invalidBootThresholdCasesRefused": 3,
+    "unregisteredKeysCannotOverrideResourcePathOrEnablement": true
+  },
+  "reviews": [
+    {
+      "log": "before-producer-review.log",
+      "receiptVerdict": "no_break_found",
+      "costUsd": 0.072824
+    },
+    {
+      "log": "before-resource-review.log",
+      "receiptVerdict": "found_break",
+      "costUsd": 0.056119
+    },
+    {
+      "log": "incomplete-tool-text-review.log",
+      "receiptVerdict": "review_incomplete",
+      "costUsd": 0.017141
+    },
+    {
+      "log": "review.log",
+      "receiptVerdict": "no_break_found",
+      "costUsd": 0.068317
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "notFullPanel": true,
+  "resolution": [
+    "Final review no_break_found after explicit field mapping and producer admission.",
+    "The broad settings spread in the draft could override resources; removed before commit.",
+    "One attempt returned tool-call markup as its final answer and was retained as incomplete."
+  ],
+  "limitations": [
+    "Native decision proof uses an explicit no-learned-bank lookup seam and synthetic context; no provider or broker call.",
+    "Existing logDecision appendFile callback ignores write errors; current fixture proves successful writes only. This pre-existing telemetry fault handling remains a later walk finding.",
+    "Enable/disable lifecycle is a separate pending change."
+  ],
+  "runtimeActivated": false
+}
