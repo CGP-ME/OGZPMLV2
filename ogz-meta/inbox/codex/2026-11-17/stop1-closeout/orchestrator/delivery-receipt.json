@@ -1,0 +1,64 @@
+{
+  "source": {
+    "tree": "759635abad6beae3af68be97588035f2139438d8",
+    "base": "145ec6a46a12607170eeb4ed61a6b899a0f73490",
+    "sourceSha256": {
+      "core/StrategyOrchestrator.js": "3517dbea182aa895160fae51778ac150950d0f16ab7e47710ad83fe39bf4257a",
+      "foundation/ConfigLoader.js": "3a9720e893bc3443f850d365b8e77bec735e89a58696901f2f060eca8bcf9dbf"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "behavior": {
+    "configuration": {
+      "fingerprint": "ab8c6caccfa9c67d7604ad11008a24c15c28146a2033a8800e0a5731f09338a3",
+      "role": "bot",
+      "settings": 24,
+      "internals": 12,
+      "settingsHash": "753410e81c382e1d13f34af755904806dce0339f51714f60a70eb56610bb4d5b",
+      "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+    },
+    "observations": [
+      {
+        "strategy": "EMASMACrossover",
+        "admitted": true,
+        "confidence": 0.6699999999999999
+      },
+      {
+        "strategy": "MADynamicSR",
+        "admitted": true,
+        "confidence": 0.6699999999999999
+      },
+      {
+        "strategy": "LiquiditySweep",
+        "admitted": true,
+        "confidence": 0.6699999999999999
+      },
+      {
+        "strategy": "SmartMoneySweep",
+        "admitted": true,
+        "confidence": 0.6699999999999999
+      },
+      {
+        "strategy": "OGZTPO",
+        "admitted": true,
+        "confidence": null
+      }
+    ],
+    "mtfAdmitted": true,
+    "fields": 11,
+    "actualRegisteredEvaluators": true,
+    "signalModules": "explicit synthetic seam",
+    "runtimeActivated": false
+  },
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "verdict": "no_break_found",
+    "costUsd": 0.027106,
+    "notFullPanel": true,
+    "namedGap": "external readers of effect metadata not exhaustively reviewed; actual evaluator value path traced",
+    "answerPath": "ogz-meta/inbox/codex/2026-11-17/stop1-closeout/orchestrator/review-answer.txt"
+  },
+  "runtimeActivated": false
+}

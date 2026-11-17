@@ -884,19 +884,6 @@ class StrategyOrchestrator {
       console.log(`[StrategyOrchestrator] SOLO MODE: Only ${this.soloStrategies.join(', ')} enabled`);
     }
 
-    // FIX 2026-03-19: Load orchestrator config from ConfigLoader (no hardcodes)
-    this.minCandlesEMA = ConfigLoader.get('orchestrator.minCandlesEMA');
-    this.minCandlesMASR = ConfigLoader.get('orchestrator.minCandlesMASR');
-    this.minCandlesSweep = ConfigLoader.get('orchestrator.minCandlesSweep');
-    this.minCandlesSmartMoneySweep = ConfigLoader.get('orchestrator.minCandlesSmartMoneySweep');
-    this.minCandlesMTF = ConfigLoader.get('orchestrator.minCandlesMTF');
-    this.minCandlesTPO = ConfigLoader.get('orchestrator.minCandlesTPO');
-    this.fibDistanceEMA = ConfigLoader.get('orchestrator.fibDistanceEMA');
-    this.fibDistanceMASR = ConfigLoader.get('orchestrator.fibDistanceMASR');
-    this.fibDistanceSweep = ConfigLoader.get('orchestrator.fibDistanceSweep');
-    this.fibBoostNormal = ConfigLoader.get('orchestrator.fibBoostNormal');
-    this.fibBoostGolden = ConfigLoader.get('orchestrator.fibBoostGolden');
-
     // Stats tracking
     this.lastEvaluation = null;
     this.evalCount = 0;
@@ -1012,7 +999,7 @@ class StrategyOrchestrator {
     const input = ctx.extras.mtf;
     const timeframeAbsence = this._recordLatestCandleTimeframeAbsence(ctx);
     const unavailableReason = timeframeAbsence ? 'mtf_missing_candle_timeframe'
-      : ctx.priceHistory.length < this.minCandlesMTF ? 'insufficient_candles' : null;
+      : ctx.priceHistory.length < ConfigLoader.get('orchestrator.minCandlesMTF') ? 'insufficient_candles' : null;
     const confluence = unavailableReason ? null : input.confluence;
     this.mtfEvaluationCache = {
       evalCount: this.evalCount,
@@ -1561,10 +1548,6 @@ class StrategyOrchestrator {
     // ─── 1. EMA/SMA Crossover Strategy ───
     // FIX 2026-03-19: Self-contained — computes crossovers internally from raw candles
     const emaCrossoverModule = this.emaCrossoverModule;
-    const minCandlesEMA = this.minCandlesEMA;
-    const fibDistanceEMA = this.fibDistanceEMA;
-    const fibBoostNormal = this.fibBoostNormal;
-    const fibBoostGolden = this.fibBoostGolden;
     const diagEMA = this.diagFunnel.EMASMACrossover;
     if (shouldRegister('EMASMACrossover')) this.strategies.push({
       name: 'EMASMACrossover',
@@ -1572,7 +1555,7 @@ class StrategyOrchestrator {
         diagEMA.evaluated++;
         // Self-contained: compute signal from raw candle data
         const candles = ctx.priceHistory;
-        if (!candles || candles.length < minCandlesEMA) return null;
+        if (!candles || candles.length < ConfigLoader.get('orchestrator.minCandlesEMA')) return null;
 
         const latestCandle = candles[candles.length - 1];
         const scopedEmaCrossover = this._getSymbolStrategyModule(
@@ -1616,9 +1599,9 @@ class StrategyOrchestrator {
         // Fib level boost: if price is bouncing at a fib level, this is a stronger setup
         const fib = ctx.extras?.nearestFibLevel;
         let fibBoost = '';
-        if (fib && fib.distance < fibDistanceEMA) {
+        if (fib && fib.distance < ConfigLoader.get('orchestrator.fibDistanceEMA')) {
           // Price is within fib distance — boost confidence
-          const boost = fib.isGoldenZone ? fibBoostGolden : fibBoostNormal;
+          const boost = fib.isGoldenZone ? ConfigLoader.get('orchestrator.fibBoostGolden') : ConfigLoader.get('orchestrator.fibBoostNormal');
           conf = Math.min(1.0, conf + boost);
           fibBoost = ` + Fib ${(fib.level * 100).toFixed(1)}% (${fib.isGoldenZone ? 'GOLDEN ZONE' : 'near level'})`;
         }
@@ -1635,8 +1618,6 @@ class StrategyOrchestrator {
     // ─── 2. MA Dynamic S/R Strategy ───
     // FIX 2026-03-19: Self-contained — computes S/R levels internally from raw candles
     const maDynamicSRModule = this.maDynamicSRModule;
-    const minCandlesMASR = this.minCandlesMASR;
-    const fibDistanceMASR = this.fibDistanceMASR;
     const diagMASR = this.diagFunnel.MADynamicSR;
     if (shouldRegister('MADynamicSR')) this.strategies.push({
       name: 'MADynamicSR',
@@ -1644,7 +1625,7 @@ class StrategyOrchestrator {
         diagMASR.evaluated++;
         // Self-contained: compute signal from raw candle data
         const candles = ctx.priceHistory;
-        if (!candles || candles.length < minCandlesMASR) return null;
+        if (!candles || candles.length < ConfigLoader.get('orchestrator.minCandlesMASR')) return null;
 
         const latestCandle = candles[candles.length - 1];
         const scopedMaDynamicSR = this._getSymbolStrategyModule(
@@ -1680,8 +1661,8 @@ class StrategyOrchestrator {
         // Fib level boost: bounce at MA + fib level = very strong S/R
         const fib = ctx.extras?.nearestFibLevel;
         let fibBoost = '';
-        if (fib && fib.distance < fibDistanceMASR) {
-          const boost = fib.isGoldenZone ? fibBoostGolden : fibBoostNormal;
+        if (fib && fib.distance < ConfigLoader.get('orchestrator.fibDistanceMASR')) {
+          const boost = fib.isGoldenZone ? ConfigLoader.get('orchestrator.fibBoostGolden') : ConfigLoader.get('orchestrator.fibBoostNormal');
           conf = Math.min(1.0, conf + boost);
           fibBoost = ` + Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
         }
@@ -1701,15 +1682,13 @@ class StrategyOrchestrator {
     // ─── 3. Liquidity Sweep Strategy ───
     // FIX 2026-03-19: Self-contained — computes sweeps internally from raw candles
     const liquiditySweepModule = this.liquiditySweepModule;
-    const minCandlesSweep = this.minCandlesSweep;
-    const fibDistanceSweep = this.fibDistanceSweep;
     if (shouldRegister('LiquiditySweep')) this.strategies.push({
       name: 'LiquiditySweep',
       evaluate: (ctx) => {
         // Self-contained: compute signal from raw candle data
         const candles = ctx.priceHistory;
-        if (!candles || candles.length < minCandlesSweep) {
-          if (this.strategyDiagnostics) console.log(`[DIAG] LiquiditySweep: NOT ENOUGH CANDLES (${candles?.length || 0} < ${minCandlesSweep})`);
+        if (!candles || candles.length < ConfigLoader.get('orchestrator.minCandlesSweep')) {
+          if (this.strategyDiagnostics) console.log(`[DIAG] LiquiditySweep: NOT ENOUGH CANDLES (${candles?.length || 0} < ${ConfigLoader.get('orchestrator.minCandlesSweep')})`);
           return null;
         }
 
@@ -1742,8 +1721,8 @@ class StrategyOrchestrator {
         // Fib level boost: sweep reversal at a fib level = institutional level
         const fib = ctx.extras?.nearestFibLevel;
         let fibBoost = '';
-        if (fib && fib.distance < fibDistanceSweep) {
-          const boost = fib.isGoldenZone ? fibBoostGolden : fibBoostNormal;
+        if (fib && fib.distance < ConfigLoader.get('orchestrator.fibDistanceSweep')) {
+          const boost = fib.isGoldenZone ? ConfigLoader.get('orchestrator.fibBoostGolden') : ConfigLoader.get('orchestrator.fibBoostNormal');
           conf = Math.min(1.0, conf + boost);
           fibBoost = ` @ Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
         }
@@ -1932,13 +1911,12 @@ class StrategyOrchestrator {
     // ─── 8. OGZ TPO Strategy ───
     // FIX 2026-03-19: Self-contained — owns its TPO integration internally
     const tpoIntegrationModule = this.tpoIntegration;
-    const minCandlesTPO = this.minCandlesTPO;
     if (shouldRegister('OGZTPO')) this.strategies.push({
       name: 'OGZTPO',  // OGZ TPO strategy
       evaluate: (ctx) => {
         // Self-contained: compute TPO signal from raw candle data
         const candles = ctx.priceHistory;
-        if (!candles || candles.length < minCandlesTPO) return null;
+        if (!candles || candles.length < ConfigLoader.get('orchestrator.minCandlesTPO')) return null;
 
         const latestCandle = candles[candles.length - 1];
         const scopedTpoIntegration = this._getSymbolStrategyModule(
@@ -2046,7 +2024,7 @@ class StrategyOrchestrator {
         const smartMoneyFib = ConfigLoader.get('internals.orchestrator.smartMoneyFib');
         diagSMS.evaluated++;
         const candles = ctx.priceHistory;
-        if (!candles || candles.length < this.minCandlesSmartMoneySweep) return null;
+        if (!candles || candles.length < ConfigLoader.get('orchestrator.minCandlesSmartMoneySweep')) return null;
 
         const latestCandle = candles[candles.length - 1];
         const scopedSmartMoneySweep = this._getSymbolStrategyModule(
@@ -2078,7 +2056,7 @@ class StrategyOrchestrator {
         const fib = ctx.extras?.nearestFibLevel;
         let fibBoost = '';
         if (fib && fib.distance < smartMoneyFib.distancePercent) {
-          const boost = fib.isGoldenZone ? fibBoostGolden : fibBoostNormal;
+          const boost = fib.isGoldenZone ? ConfigLoader.get('orchestrator.fibBoostGolden') : ConfigLoader.get('orchestrator.fibBoostNormal');
           conf = Math.min(1.0, conf + boost);
           fibBoost = ` + Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
         }
