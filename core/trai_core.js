@@ -117,7 +117,10 @@ class TRAICore extends EventEmitter {
     this.modelLoaded = false;
 
     // Persistent LLM client (provider-agnostic: Mercury, Claude, OpenAI, Ollama)
-    this.persistentLLM = new PersistentLLMClient(this.config.llmConfig);
+    this.persistentLLM = new PersistentLLMClient(
+      this.config.llmConfig,
+      () => ConfigLoader.get('trai.llm'),
+    );
     this.llmReady = false;
 
     // Stats (legacy pool structure kept for monitoring compatibility)

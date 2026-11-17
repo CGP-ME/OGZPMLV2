@@ -97,7 +97,7 @@ function responseStopReason({ termination = null, statusCode = null, maxTokens =
 }
 
 class PersistentLLMClient {
-  constructor(config) {
+  constructor(config, readRequestSettings) {
     const resolvedConfig = requireConfigObject(config);
 
     this.providerName = requireString(resolvedConfig, 'provider').toLowerCase();
@@ -111,11 +111,16 @@ class PersistentLLMClient {
     this.baseUrl = requireString(resolvedConfig, 'baseUrl').replace(/\/+$/, '');
     this.model = requireString(resolvedConfig, 'model');
     this.apiKey = resolvedConfig.authRequired === false ? '' : requireString(resolvedConfig, 'apiKey');
-    this.maxTokens = requireInteger(resolvedConfig, 'maxTokens', { min: 1, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.maxTokensUpper') });
-    this.minimumTokens = requireInteger(resolvedConfig, 'minimumTokens', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.minimumTokensUpper') });
-    this.temperature = requireNumber(resolvedConfig, 'temperature', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.temperatureUpper') });
-    this.requestTimeoutMs = requireInteger(resolvedConfig, 'requestTimeoutMs', { min: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.timeoutLowerMs'), max: ConfigLoader.getInternalsFileValue('trai.clientPolicy.timeoutUpperMs') });
-    this.systemPrompt = requireString(resolvedConfig, 'systemPrompt');
+    this._requestSettings = {
+      maxTokens: requireInteger(resolvedConfig, 'maxTokens', { min: 1, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.maxTokensUpper') }),
+      minimumTokens: requireInteger(resolvedConfig, 'minimumTokens', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.minimumTokensUpper') }),
+      temperature: requireNumber(resolvedConfig, 'temperature', { min: 0, max: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.temperatureUpper') }),
+      requestTimeoutMs: requireInteger(resolvedConfig, 'requestTimeoutMs', { min: ConfigLoader.getInternalsFileValue('trai.resolverPolicy.timeoutLowerMs'), max: ConfigLoader.getInternalsFileValue('trai.clientPolicy.timeoutUpperMs') }),
+      systemPrompt: requireString(resolvedConfig, 'systemPrompt'),
+    };
+    // The bot explicitly supplies its live settings reader. Review clients retain
+    // their own resolved request policy and never inherit the bot's prompt.
+    this.readRequestSettings = readRequestSettings;
     this.openaiExtraBody = resolvedConfig.openaiExtraBody
       && typeof resolvedConfig.openaiExtraBody === 'object'
       && !Array.isArray(resolvedConfig.openaiExtraBody)
@@ -129,6 +134,16 @@ class PersistentLLMClient {
     this.totalLatency = 0;
     this.errors = 0;
   }
+
+  get requestSettings() {
+    return this.readRequestSettings ? this.readRequestSettings() : this._requestSettings;
+  }
+
+  get maxTokens() { return this.requestSettings.maxTokens; }
+  get minimumTokens() { return this.requestSettings.minimumTokens; }
+  get temperature() { return this.requestSettings.temperature; }
+  get requestTimeoutMs() { return this.requestSettings.requestTimeoutMs; }
+  get systemPrompt() { return this.requestSettings.systemPrompt; }
 
   /**
    * Initialize — verify provider is reachable

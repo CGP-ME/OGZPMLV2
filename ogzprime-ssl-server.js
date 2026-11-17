@@ -352,10 +352,14 @@ const PersistentLLMClient = require('./core/persistent_llm_client');
 const { resolveTraiLlmConfig } = require('./core/trai_llm_config');
 const { extractSymbol, hasTickerIntent } = require('./core/trai_symbol_extractor');
 let traiClient = null;
+let traiRequestSettings = dashboardRuntimeConfig.trai.llm;
 
 async function getTraiClient() {
   if (!traiClient) {
-    traiClient = new PersistentLLMClient(resolveTraiLlmConfig({ config: dashboardRuntimeConfig }));
+    traiClient = new PersistentLLMClient(
+      resolveTraiLlmConfig({ config: dashboardRuntimeConfig }),
+      () => traiRequestSettings,
+    );
     await traiClient.initialize();
   }
   return traiClient;
@@ -609,7 +613,7 @@ Give an educational, specific answer. If the question is about current events or
     const startTime = Date.now();
     // CHANGE 2026-04-22: raised default token budget so answers don't get
     // cut off mid-sentence when explaining market context + news.
-    const response = await client.generateResponse(fullPrompt, maxTokens || dashboardRuntimeConfig.trai.llm.maxTokens);
+    const response = await client.generateResponse(fullPrompt, maxTokens || client.maxTokens);
     const latency = Date.now() - startTime;
 
     res.json({
@@ -883,7 +887,7 @@ If no events found, return []. ONLY output the JSON array.`;
         // generateRawResponse: _cleanResponse()'s sentence-truncation chops
         // JSON mid-string (parse: "Unterminated string"). Raw + own fence
         // stripping + _validateEventsArray is the correct pipeline here.
-        const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
+        const response = await client.generateRawResponse(prompt);
         let events = [];
         try {
           const cleaned = String(response || '').replace(/```json|```/g, '').trim();
@@ -980,7 +984,7 @@ News: ${newsBlock}
 <<<END UNTRUSTED>>>
 
 ONLY output the JSON object.`;
-      const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
+      const response = await client.generateRawResponse(prompt);
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
@@ -1134,7 +1138,7 @@ ${JSON.stringify(tradeEntry)}
 <<<END UNTRUSTED>>>
 
 ONLY output the JSON object.`;
-      const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
+      const response = await client.generateRawResponse(prompt);
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         const validated = _validateTradeSummary(JSON.parse(cleaned));
@@ -1176,7 +1180,7 @@ ${results.results.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join('\n')
 <<<END UNTRUSTED>>>
 
 If no activity found, return []. ONLY output the JSON array.`;
-      const response = await client.generateRawResponse(prompt, dashboardRuntimeConfig.trai.llm.maxTokens);
+      const response = await client.generateRawResponse(prompt);
       let activities = [];
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
@@ -1967,6 +1971,7 @@ wss.on('connection', (ws, req) => {
           connectionId: connectionId,
           message: 'Bot registered successfully'
         }));
+        ws.send(JSON.stringify({ type: 'get_settings', requestId: `relay-settings:${connectionId}` }));
       }
 
       // Handle dashboard identification
@@ -2109,6 +2114,20 @@ wss.on('connection', (ws, req) => {
 
       if (data.type === 'settings_result') {
         if (ws.clientType === 'bot' && ws.botAuthenticated) {
+          if (data.success === true) {
+            // The bot is the sole settings writer. Use its full validated save
+            // receipt or reconnect snapshot; dashboards cannot publish policy here.
+            traiRequestSettings = {
+              maxTokens: data.fields['trai.llm.maxTokens'].value,
+              minimumTokens: data.fields['trai.llm.minimumTokens'].value,
+              temperature: data.fields['trai.llm.temperature'].value,
+              requestTimeoutMs: data.fields['trai.llm.requestTimeoutMs'].value,
+              systemPrompt: data.fields['trai.llm.systemPrompt'].value,
+            };
+            console.log('[TRAI_REQUEST_CONFIGURATION]', JSON.stringify({
+              ownerId: ws.connectionId, configuration: data.configuration,
+            }));
+          }
           const receipt = JSON.stringify({ ...data, ownerId: ws.connectionId });
           for (const client of wss.clients) {
             if (client.readyState === WebSocket.OPEN && client.authenticated && client.clientType === 'dashboard') {

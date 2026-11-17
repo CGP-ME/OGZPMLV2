@@ -2591,11 +2591,11 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['temperature', 'TRAI LLM sampling temperature', { type: 'number', min: 0, max: 2, unit: 'temperature' }],
     ['requestTimeoutMs', 'TRAI LLM request timeout', { type: 'number', min: 1000, max: 300000, integer: true, unit: 'milliseconds' }],
   ].map(([key, label, domain]) => [`trai.llm.${key}`, {
-    ...domain, label, effect: 'next_bot_initialization_restart_required',
+    ...domain, label, effect: 'next_trai_llm_request',
   }])),
   'trai.llm.systemPrompt': {
     type: 'string', pattern: '\\S', unit: 'instruction text', label: 'TRAI LLM system instruction',
-    effect: 'next_bot_initialization_restart_required',
+    effect: 'next_trai_llm_request',
   },
   'patternMemory.persistToDisk': { type: 'boolean', unit: 'boolean', label: 'Save learned patterns to disk', effect: 'next_pattern_memory_operation' },
   'patternMemory.saveIntervalMs': { type: 'number', min: 1, max: 2147483647, integer: true, unit: 'milliseconds', label: 'Learned-pattern save interval', effect: 'next_pattern_memory_operation' },

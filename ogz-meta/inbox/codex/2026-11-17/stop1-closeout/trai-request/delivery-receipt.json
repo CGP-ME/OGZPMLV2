@@ -1,0 +1,59 @@
+{
+  "source": {
+    "tree": "43fe04a693a52e20aff62886ba7f98a43990ca38",
+    "base": "51be1e282609eef9c8a689f595c009e551af4382",
+    "sourceSha256": {
+      "core/persistent_llm_client.js": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+      "core/trai_core.js": "29d7f4df3e0380fd6875a8e8b26c6f0cce443a62692e62e9c749e768ab92e810",
+      "foundation/ConfigLoader.js": "0b779f2ac386f09d8d5dd34b8f1af3bd7d512c11d5e582bdde0b292c47cd2f64",
+      "ogzprime-ssl-server.js": "99c134f496455a20dcc62202f9bcc97202dbccdd8df171195c85a7fa7fda2f15"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "sharedClientSha256": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039"
+  },
+  "proof": {
+    "configuration": {
+      "fingerprint": "2a13b6ab1ce9383ad5a56d9267f76af8cbd08fed23729876b145b22f0b6bec84",
+      "role": "bot",
+      "settings": 23,
+      "internals": 13,
+      "settingsHash": "247f0bb65c7a66df560b76edf5ef433345cc8d5fb691d26b4a045ecc415f9974",
+      "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+    },
+    "actualClientRequests": 5,
+    "savedControlsUsedByNextRequest": 5,
+    "minimumApplied": true,
+    "inFlightRequestUnchanged": true,
+    "independentReviewPromptAndPolicyUnchanged": true,
+    "providerAndCredentialIdentityUnchanged": true,
+    "existingDashboardClientAdoptsAuthenticatedBotReceipt": true,
+    "dashboardCannotPublishPolicy": true,
+    "transport": "Node HTTP seam; actual relay branch/client owner extracted with Babel; no provider calls",
+    "runtimeActivated": false
+  },
+  "reviews": [
+    {
+      "log": "before-dashboard-review.log",
+      "receiptVerdict": "no_break_found",
+      "costUsd": 0.039346
+    },
+    {
+      "log": "review.log",
+      "receiptVerdict": "no_break_found",
+      "costUsd": 0.069483
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "notFullPanel": true,
+  "limitations": [
+    "Native proof uses an HTTP transport seam and extracted real relay branch, not a live browser/provider handshake.",
+    "The authenticated bot producer always supplies the five typed fields. Receiver does not duplicate producer validation.",
+    "Current editable bounds equal resolver bounds: tokens 200000, temperature 2, timeout 1000..300000.",
+    "Server restart reads the persisted canonical settings at boot; this is not a substitute default.",
+    "Second review incorrectly claimed TRAICore has no settings callback; candidate core/trai_core.js:120-123 and native request proof show the callback. No code change warranted.",
+    "No provider, endpoint, model, credential or Mercury prompt was changed."
+  ],
+  "runtimeActivated": false
+}
