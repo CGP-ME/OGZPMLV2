@@ -1,30 +1,15 @@
 /**
  * trade-replay.js — TradeReplay: White-Box Trade Analysis Modal
  *
- * When an operator clicks a closed trade in the TradeLog, this module opens a
- * fullscreen modal overlay displaying:
- *   - Mini candlestick chart (~30 candles) centered on trade entry time
- *   - Entry marker (gold dot) and exit marker (green/red dot) with connecting line
- *   - Right sidebar: trade entry reasoning (pattern, strategy, indicators, news, whales)
- *   - Full narrator lines from around entry time, color-coded by decision type
- *   - Navigation: Previous/Next buttons to step through closed trades
- *   - Footer: Close button and session stats
- *
- * This is OGZPrime's core white-box differentiator — the visceral "see what the
- * AI was thinking" experience that black-box competitors cannot reproduce.
- *
- * Self-registers as OGZ.TradeReplay via OGZ.register().
- * Mounts modal overlay into <body> (fullscreen).
- *
- * Delegates to:
- *   - OGZ.TradeLog — for trade data and click event delegation
- *   - OGZ.ChainOfThought — for narrator lines around trade time
- *   - OGZ.PatternCard.PATTERN_DESCRIPTIONS — for human-readable pattern names (optional)
- *   - OGZ.ChartPanel.getCandlesAroundTime?.() — for real candle data (REQUIRED for chart;
- *     no synthetic fallback. If unavailable, the chart area shows an honest empty state.)
+ * Displays persisted, account-scoped replay facts requested through OGZ.Socket.
+ * LiveReport and ChartPanel supply the confirmed order ID and scope.
+ * Saved candle windows and actual event times drive the chart markers.
+ * Unrecorded reasoning and missing replay data remain visibly unavailable.
+ * The legacy TradeLog does not expose getTrade/getAllTrades; its obsolete
+ * delegation hook is removed rather than pretending that interface exists.
  *
  * Public API:
- *   init() — Mount modal scaffold, hook TradeLog click handler, inject styles
+ *   init() — Register saved-replay responses and inject styles
  *   openReplay(tradeData) — Programmatically open with a Trade object
  *   close() — Close modal and clean up
  *   setOnOpen(cb) — Register callback when modal opens
@@ -44,7 +29,7 @@
  * @property {number} pnlPercent
  * @property {string} [strategy] - e.g., 'Strategy-A'
  * @property {string} [pattern] - e.g., 'double_bottom'
- * @property {number} [confidence] - 0..1
+ * @property {number} [confidence] - recorded percentage, 0..100
  * @property {string[]} [narratorLines] - reasoning lines from around entry time
  * @property {Object} [indicatorsAtEntry] - { rsi, macd, atr, volume }
  * @property {string} [newsContext] - news headline or 'Clean'
@@ -486,10 +471,10 @@
      * @param {number} exitPrice - Exit price
      * @param {number} entryIdx - Index of entry candle
      * @param {number} exitIdx - Index of exit candle
-     * @param {boolean} isLong - true for long, false for short
+     * @param {number} pnl - recorded net result for outcome color
      * @returns {SVGElement}
      */
-    function renderMiniChart(candles, entryPrice, exitPrice, entryIdx, exitIdx, isLong) {
+    function renderMiniChart(candles, entryPrice, exitPrice, entryIdx, exitIdx, pnl) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('viewBox', `0 0 ${MINI_CHART_W} ${MINI_CHART_H}`);
         svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -570,8 +555,8 @@
         if (exitIdx >= 0 && exitIdx < candles.length) {
             const x = (exitIdx + 0.5) * candleWidth;
             const y = priceToY(exitPrice);
-            const exitColor = exitPrice > entryPrice ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)';
-            const exitRingColor = exitPrice > entryPrice ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+            const exitColor = pnl > 0 ? 'rgba(34, 197, 94, 0.8)' : pnl < 0 ? 'rgba(239, 68, 68, 0.8)' : 'rgba(160, 160, 160, 0.8)';
+            const exitRingColor = exitColor;
 
             // Outer ring
             const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -618,60 +603,33 @@
      * Render the full modal content from trade data.
      * @param {TradeRecord} trade
      */
-    function renderModal(trade) {
+    function renderModal(trade, replay) {
         if (!state.modalEl) return;
 
-        // Fetch real candles only — NO synthetic fallback. If unavailable,
-        // the chart area renders an honest "Chart data unavailable for this
-        // trade window" message below.
-        let candles = [];
-        try {
-            const chartPanel = OGZ.get?.('ChartPanel');
-            const realCandles = chartPanel?.getCandlesAroundTime?.(trade.entryTs, CANDLE_COUNT);
-            if (Array.isArray(realCandles) && realCandles.length > 0) {
-                candles = realCandles;
-            }
-        } catch (_) {}
-
-        // Calculate entry/exit candle indices (only when real candles exist)
-        let entryIdx = 0;
-        let exitIdx = 0;
-        if (candles.length > 0) {
-            entryIdx = Math.floor(candles.length / 3);
-            exitIdx = Math.floor(candles.length * 0.8);
-            if (trade.entryTs && trade.exitTs && candles[0].ts) {
-                const timePerCandle = (candles[candles.length - 1].ts - candles[0].ts) / candles.length;
-                if (timePerCandle > 0) {
-                    entryIdx = Math.floor((trade.entryTs - candles[0].ts) / timePerCandle);
-                    exitIdx = Math.floor((trade.exitTs - candles[0].ts) / timePerCandle);
-                    entryIdx = Math.max(0, Math.min(entryIdx, candles.length - 1));
-                    exitIdx = Math.max(0, Math.min(exitIdx, candles.length - 1));
-                }
-            }
-        }
+        const raw = [...(replay.candles || []), ...(replay.postExitCandles || [])];
+        const byTime = new Map(raw.map(row => [row.t, row]));
+        const saved = Array.from(byTime.values()).sort((a, b) => a.t - b.t);
+        const valid = saved.every(row => [row.t, row.o, row.h, row.l, row.c].every(Number.isFinite));
+        const candles = valid ? saved.map(row => ({ time: row.t, end: row.etime, open: row.o, high: row.h, low: row.l, close: row.c, volume: row.v })) : [];
+        const frame = replay.postExit?.scope?.timeframe?.match(/^(\d+)(m|h|d)$/);
+        const duration = frame ? Number(frame[1]) * { m: 60000, h: 3600000, d: 86400000 }[frame[2]] : null;
+        const indexAt = time => candles.findIndex(row => Number.isFinite(time) && row.time <= time && time < (row.end ?? (duration === null ? row.time : row.time + duration)));
+        const entryIdx = Number.isFinite(trade.entry) ? indexAt(trade.entryTs) : -1;
+        const exitIdx = Number.isFinite(trade.exit) ? indexAt(trade.exitTs) : -1;
 
         // Determine side
-        const side = (trade.side || 'long').toLowerCase();
+        const side = typeof trade.side === 'string' ? trade.side.toLowerCase() : '';
         const isLong = side === 'long' || side === 'buy';
-        const sideDisplay = isLong ? 'LONG' : 'SHORT';
+        const sideDisplay = isLong ? 'LONG' : ['short', 'sell_short'].includes(side) ? 'SHORT' : 'UNAVAILABLE';
         const sideColor = isLong ? 'var(--profit-color)' : 'var(--loss-color)';
 
         // P&L color
-        const pnl = trade.pnl || 0;
+        const pnl = trade.pnl;
         const pnlColor = pnl > 0 ? 'var(--profit-color)' : pnl < 0 ? 'var(--loss-color)' : 'var(--text-secondary)';
-        const pnlSign = pnl >= 0 ? '+' : '';
-        const pnlText = `${pnlSign}$${Math.abs(pnl).toFixed(2)} (${pnlSign}${(trade.pnlPercent || 0).toFixed(2)}%)`;
+        const pnlText = Number.isFinite(pnl) ? `${pnl < 0 ? '-' : pnl > 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)} (${Number.isFinite(trade.pnlPercent) ? trade.pnlPercent.toFixed(2) + '%' : 'percent unavailable'})` : 'P&L unavailable';
 
-        // Get narrator lines from ChainOfThought
+        // Unrecorded narrative must not be copied from the currently displayed symbol.
         const narratorLines = [];
-        try {
-            const cot = OGZ.get?.('ChainOfThought');
-            const allLines = cot?.getLines?.() || [];
-            const windowStart = trade.entryTs - 120000; // 2 min before
-            const windowEnd = trade.entryTs + 30000; // 30s after
-            const relevant = allLines.filter(line => line.ts >= windowStart && line.ts <= windowEnd);
-            narratorLines.push(...relevant);
-        } catch (_) {}
 
         // Pattern description
         let patternName = trade.pattern || 'Unknown';
@@ -681,7 +639,7 @@
             if (PATTERN_DESCRIPTIONS[trade.pattern]) {
                 patternName = PATTERN_DESCRIPTIONS[trade.pattern].title || patternName;
             }
-        } catch (_) {}
+        } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
 
         // Build HTML
         state.modalEl.innerHTML = `
@@ -690,16 +648,16 @@
                     <span class="tr-header-symbol">${trade.symbol || 'N/A'}</span>
                     <span class="tr-header-side ${isLong ? 'long' : 'short'}">${sideDisplay}</span>
                     <span class="tr-header-prices">
-                        $${(trade.entry || 0).toFixed(2)} → $${(trade.exit || 0).toFixed(2)}
+                        ${Number.isFinite(trade.entry) ? '$' + trade.entry.toFixed(2) : 'Unavailable'} → ${Number.isFinite(trade.exit) ? '$' + trade.exit.toFixed(2) : 'Unavailable'}
                     </span>
                 </div>
-                <div class="tr-header-pnl ${pnl > 0 ? 'win' : 'loss'}">${pnlText}</div>
+                <div class="tr-header-pnl ${pnl > 0 ? 'win' : pnl < 0 ? 'loss' : ''}">${pnlText}</div>
                 <button class="tr-close-btn" aria-label="Close">✕</button>
             </div>
 
             <div class="tr-content">
                 <div class="tr-chart-side">
-                    <div class="tr-chart-label">Entry & Exit</div>
+                    <div class="tr-chart-label">Saved candle windows; gaps may exist</div>
                     <div class="tr-mini-chart" id="trMiniChartContainer"></div>
                 </div>
 
@@ -713,10 +671,10 @@
                         </div>
                     ` : ''}
 
-                    ${trade.confidence ? `
+                    ${Number.isFinite(trade.confidence) ? `
                         <div class="tr-reasoning-row">
                             <div class="tr-reasoning-label">Confidence</div>
-                            <div class="tr-reasoning-value">${(trade.confidence * 100).toFixed(0)}%</div>
+                            <div class="tr-reasoning-value">${trade.confidence.toFixed(0)}%</div>
                         </div>
                     ` : ''}
 
@@ -729,12 +687,12 @@
 
                     <div class="tr-reasoning-row">
                         <div class="tr-reasoning-label">News Context</div>
-                        <div class="tr-reasoning-value">${trade.newsContext || 'Clean'}</div>
+                        <div class="tr-reasoning-value">${trade.newsContext || 'Not recorded'}</div>
                     </div>
 
                     <div class="tr-reasoning-row">
                         <div class="tr-reasoning-label">Whale Activity</div>
-                        <div class="tr-reasoning-value">${trade.whaleContext || 'None detected'}</div>
+                        <div class="tr-reasoning-value">${trade.whaleContext || 'Not recorded'}</div>
                     </div>
 
                     ${narratorLines.length > 0 ? `
@@ -778,13 +736,13 @@
         if (chartContainer) {
             chartContainer.innerHTML = '';
             if (candles.length > 0) {
-                const svg = renderMiniChart(candles, trade.entry, trade.exit, entryIdx, exitIdx, isLong);
+                const svg = renderMiniChart(candles, trade.entry, trade.exit, entryIdx, exitIdx, pnl);
                 chartContainer.appendChild(svg);
             } else {
                 const empty = document.createElement('div');
                 empty.className = 'tr-chart-empty';
                 empty.style.cssText = 'display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-secondary); font-size:11px; text-align:center; padding:24px;';
-                empty.textContent = 'Chart data unavailable for this trade window. (ChartPanel.getCandlesAroundTime did not return candles.)';
+                empty.textContent = 'Saved candle data is unavailable or invalid for this trade window.';
                 chartContainer.appendChild(empty);
             }
         }
@@ -795,9 +753,9 @@
         const prevBtn = document.getElementById('trPrevBtn');
         const nextBtn = document.getElementById('trNextBtn');
 
-        const onClose = () => { try { close(); } catch (_) {} };
-        const onPrev = () => { try { navigateTrade(-1); } catch (_) {} };
-        const onNext = () => { try { navigateTrade(1); } catch (_) {} };
+        const onClose = () => { try { close(); } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); } };
+        const onPrev = () => { try { navigateTrade(-1); } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); } };
+        const onNext = () => { try { navigateTrade(1); } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); } };
 
         closeBtn?.addEventListener('click', onClose);
         closeBtnFooter?.addEventListener('click', onClose);
@@ -808,6 +766,38 @@
         state.listeners.push({ el: closeBtnFooter, event: 'click', fn: onClose });
         state.listeners.push({ el: prevBtn, event: 'click', fn: onPrev });
         state.listeners.push({ el: nextBtn, event: 'click', fn: onNext });
+    }
+
+    function replayStatus(message) {
+        state.modalEl.textContent = message;
+        const button = document.createElement('button');
+        button.textContent = 'Close'; button.addEventListener('click', close);
+        state.modalEl.appendChild(button);
+    }
+
+    function requestSavedReplay(trade) {
+        const orderId = trade.orderId ?? trade.tradeId;
+        state.requestedReplay = { orderId, scopeKey: trade.scopeKey };
+        if (!orderId) { replayStatus('Saved replay unavailable: this trade record has no confirmed order ID.'); return; }
+        const socket = OGZ.get('Socket');
+        if (!socket?.isConnected()) { replayStatus('Authenticate the dashboard to load the saved replay.'); return; }
+        replayStatus('Loading saved trade replay...');
+        socket.send({ type: 'request_replay', ...state.requestedReplay });
+    }
+
+    function receiveReplay(message) {
+        if (!state.modalOpen || message.orderId !== state.requestedReplay?.orderId && message.data?.orderId !== state.requestedReplay?.orderId) return;
+        if (state.requestedReplay.scopeKey && message.scopeKey !== state.requestedReplay.scopeKey) return;
+        if (message.type !== 'replay_data') { replayStatus(`Saved replay unavailable: ${message.reason}`); return; }
+        const data = message.data;
+        renderModal({ orderId: data.orderId, symbol: data.postExit?.scope?.symbol,
+            side: data.direction, entry: data.entry?.price, exit: data.exit?.price,
+            entryTs: data.entry?.time, exitTs: data.exit?.time,
+            pnl: data.exit?.pnl, pnlPercent: data.exit?.pnlPercent,
+            confidence: data.entry?.confidence, strategy: data.entry?.entryStrategy,
+            pattern: data.entry?.patterns?.[0]?.name,
+            newsContext: data.entry?.newsContext, whaleContext: data.entry?.whaleContext,
+        }, data);
     }
 
     // ─── Modal Lifecycle ────────────────────────────────────────────────────
@@ -855,13 +845,13 @@
             state.modalEl.style.display = 'block';
 
             // Render content
-            renderModal(trade);
+            requestSavedReplay(trade);
 
             // Fire callback
             if (state.onOpenCallback) {
-                try { state.onOpenCallback(trade); } catch (_) {}
+                try { state.onOpenCallback(trade); } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
             }
-        } catch (_) {}
+        } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
     }
 
     /**
@@ -883,9 +873,9 @@
 
             // Fire callback
             if (state.onCloseCallback) {
-                try { state.onCloseCallback(); } catch (_) {}
+                try { state.onCloseCallback(); } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
             }
-        } catch (_) {}
+        } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
     }
 
     /**
@@ -898,60 +888,24 @@
             if (newIdx >= 0 && newIdx < state.allTrades.length) {
                 state.currentTradeIndex = newIdx;
                 const nextTrade = state.allTrades[newIdx];
-                renderModal(nextTrade);
+                state.currentTrade = nextTrade;
+                requestSavedReplay(nextTrade);
             }
-        } catch (_) {}
-    }
-
-    // ─── TradeLog Integration ───────────────────────────────────────────────
-    /**
-     * Hook into TradeLog row clicks.
-     */
-    function hookTradeLog() {
-        try {
-            const tradeLogContainer = document.getElementById('tradeLog');
-            if (!tradeLogContainer) return;
-
-            const onTradeRowClick = (e) => {
-                try {
-                    const row = e.target.closest('.trade-row');
-                    if (!row) return;
-
-                    // Try to get trade data from TradeLog
-                    const tradeLog = OGZ.get?.('TradeLog');
-                    if (!tradeLog) return;
-
-                    // Extract trade ID from data attribute or similar
-                    const tradeId = row.getAttribute('data-trade-id');
-                    if (!tradeId) return;
-
-                    // Query TradeLog for the trade data
-                    const trade = tradeLog.getTrade?.(tradeId) || {};
-
-                    if (trade && Object.keys(trade).length > 0) {
-                        // Fetch all closed trades for navigation
-                        state.allTrades = (tradeLog.getAllTrades?.() || []).filter(t => t.pnl != null);
-                        open(trade);
-                    }
-                } catch (_) {}
-            };
-
-            tradeLogContainer.addEventListener('click', onTradeRowClick);
-            state.listeners.push({ el: tradeLogContainer, event: 'click', fn: onTradeRowClick });
-        } catch (_) {}
+        } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
     }
 
     // ─── Public API ─────────────────────────────────────────────────────────
     const TradeReplay = {
         /**
-         * Initialize: inject styles, hook TradeLog.
+         * Initialize styles and saved-replay response handlers.
          */
         init() {
             try {
                 injectStyles();
-                hookTradeLog();
+                OGZ.get('Socket').registerHandler('replay_data', receiveReplay);
+                OGZ.get('Socket').registerHandler('replay_not_found', receiveReplay);
                 state.mounted = true;
-            } catch (_) {}
+            } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
         },
 
         /**
@@ -964,7 +918,7 @@
                     state.allTrades = [tradeData];
                     open(tradeData);
                 }
-            } catch (_) {}
+            } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
         },
 
         /**
@@ -973,7 +927,7 @@
         close() {
             try {
                 close();
-            } catch (_) {}
+            } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
         },
 
         /**
@@ -1003,6 +957,9 @@
             try {
                 close();
 
+                OGZ.get('Socket').unregisterHandler('replay_data', receiveReplay);
+                OGZ.get('Socket').unregisterHandler('replay_not_found', receiveReplay);
+
                 // Remove event listeners
                 state.listeners.forEach(({ el, event, fn }) => {
                     if (el) el.removeEventListener(event, fn);
@@ -1028,7 +985,7 @@
                 state.currentTrade = null;
                 state.backdropEl = null;
                 state.modalEl = null;
-            } catch (_) {}
+            } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
         },
     };
 
@@ -1045,5 +1002,5 @@
 
     try {
         window.OGZTradeReplay = TradeReplay;
-    } catch (_) {}
+    } catch (error) { console.error('[TradeReplay] Reporting UI error:', error); }
 })(window.OGZ = window.OGZ || {});

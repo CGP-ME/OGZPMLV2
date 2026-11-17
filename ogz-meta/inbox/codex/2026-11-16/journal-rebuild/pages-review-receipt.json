@@ -1,0 +1,66 @@
+{
+  "question": "Review source tree: 8bc5e0e6a426e1f2c656a96367f4749536e7e5f5; comparison baseline: 2eab1f90f33a719bfc4f6e005d464dbb65cc98ce. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nWhat determines whether the replay shown for a selected closed trade corresponds to that trade's saved record? Cite current producers, consumers, and any evidence gaps.",
+  "runId": "2026-11-17T00-28-51-379Z-69956a63fde3",
+  "source": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "public/js/panels/trade-replay.js"
+    ],
+    "tree": "8bc5e0e6a426e1f2c656a96367f4749536e7e5f5",
+    "baseTree": "2eab1f90f33a719bfc4f6e005d464dbb65cc98ce",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-17T00-27-49-685Z-2664486-3c04ec055149/source-nC7kuF.json",
+    "manifestSha256": "3d2d5c22f2e74664d4802d16e36eb47895e9cc9696b86d5a165272f51fe21044"
+  },
+  "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "unselectedReviewers": [
+    "astra",
+    "fable"
+  ],
+  "verdict": "no_break_found",
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "832914308327aff2fb39e64c66bf903c66496925cfab5e76b57e9fb8c459da49",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "runCost": {
+    "amount": 0.03856398,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 17,
+    "total_attempts": 17,
+    "cost_absences": []
+  },
+  "completeAnswerRead": true,
+  "failedFirstRun": "pages-review-failed-receipt.json",
+  "assessment": "Same neutral question was answered with the modal as the explicit starting path and full staged source available. Mercury traced modal, LiveReport, ChartPanel, Bridge and ReplayCapture; source conclusion supports the selected record lookup. Standalone page/auth behavior is separately exercised by the native receipt. This is not a full-panel or whole-module certification.",
+  "limitations": [
+    "No reviewer-executed runtime check",
+    "Full journal recentTrades producer and upstream chart marker input not read by reviewer",
+    "Harness retains coverage_insufficient, coverage_unresolved, whole_file_read_absent, inherited_section_incomplete and insufficient_qualifying_seats flags",
+    "No fresh RAG publication claimed; review used pinned source"
+  ]
+}

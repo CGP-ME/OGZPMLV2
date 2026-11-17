@@ -1274,6 +1274,7 @@
                     const tr = OGZ && typeof OGZ.get === 'function' ? OGZ.get('TradeReplay') : null;
                     if (tr && typeof tr.openReplay === 'function') {
                         tr.openReplay({
+                            orderId: target.orderId, scopeKey: target.scopeKey,
                             symbol: (document.getElementById('cp-assetSelector')?.value) || 'ASSET',
                             side: target.direction,
                             entry: target.isEntry ? target.price : (target.metadata?.entryPrice ?? target.price),
@@ -2539,6 +2540,8 @@
             // Stash full context for tooltip / click
             const ctxEntry = {
                 key,
+                orderId: td.orderId ?? td.tradeId ?? td.metadata?.orderId,
+                scopeKey: td.scopeKey ?? td.metadata?.scopeKey,
                 time: tsSec,
                 price,
                 action,

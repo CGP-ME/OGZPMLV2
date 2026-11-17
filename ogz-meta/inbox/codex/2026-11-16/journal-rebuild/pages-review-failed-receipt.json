@@ -1,0 +1,202 @@
+{
+  "runId": "2026-11-17T00-25-57-281Z-9325b7162b85",
+  "source": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "public/js/panels/chart-panel.js",
+      "public/js/panels/live-report.js",
+      "public/js/panels/trade-replay.js",
+      "public/trade-journal.html",
+      "public/trade-replay.html"
+    ],
+    "tree": "8bc5e0e6a426e1f2c656a96367f4749536e7e5f5",
+    "baseTree": "2eab1f90f33a719bfc4f6e005d464dbb65cc98ce",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-17T00-25-32-055Z-2662265-c6ce276047d0/source-mueiZN.json",
+    "manifestSha256": "3d2d5c22f2e74664d4802d16e36eb47895e9cc9696b86d5a165272f51fe21044"
+  },
+  "question": "Review source tree: 8bc5e0e6a426e1f2c656a96367f4749536e7e5f5; comparison baseline: 2eab1f90f33a719bfc4f6e005d464dbb65cc98ce. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nWhat determines whether the replay shown for a selected closed trade corresponds to that trade's saved record? Cite current producers, consumers, and any evidence gaps.",
+  "outcome": "review_incomplete",
+  "error": null,
+  "runCost": {
+    "amount": 0.00379325,
+    "currency": "USD",
+    "complete": false,
+    "priced_attempts": 5,
+    "total_attempts": 6,
+    "cost_absences": [
+      "provider_usage_absent"
+    ]
+  },
+  "toolCalls": [
+    {
+      "name": "read_review_receipt",
+      "calls": 8,
+      "succeeded": 8,
+      "failed": 0,
+      "call_details": [
+        {
+          "iteration": 1,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:b7a1957617bb381d4c93a9bce7499d36a99be1bd47cb1565273bbc0028817eb0",
+            "start_line": 1,
+            "end_line": 22
+          },
+          "result": {
+            "start_line": 1,
+            "end_line": 22,
+            "total_lines": 22
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 22,
+            "totalLines": 22
+          }
+        },
+        {
+          "iteration": 1,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:ed3d4edc322d04cd09f374f47eb31c7b2570bf0569486a19cb693d3956598241",
+            "start_line": 1,
+            "end_line": 13
+          },
+          "result": {
+            "start_line": 1,
+            "end_line": 13,
+            "total_lines": 13
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 13,
+            "totalLines": 13
+          }
+        },
+        {
+          "iteration": 2,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:dc78a0b5e61af77eec8c83f1eaa4ea7b180e0b08d00a5de50de1071f8bc1ace6",
+            "start_line": 1,
+            "end_line": 150
+          },
+          "result": {
+            "start_line": 1,
+            "end_line": 150,
+            "total_lines": 419
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 150,
+            "totalLines": 419
+          }
+        },
+        {
+          "iteration": 2,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:798bd22bc2d9a3dc3cb93c3211e21d5b14a0bc049d6722891c48c8178ee86b54",
+            "start_line": 1,
+            "end_line": 150
+          },
+          "result": {
+            "start_line": 1,
+            "end_line": 150,
+            "total_lines": 156
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 150,
+            "totalLines": 156
+          }
+        },
+        {
+          "iteration": 3,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:dc78a0b5e61af77eec8c83f1eaa4ea7b180e0b08d00a5de50de1071f8bc1ace6",
+            "start_line": 151,
+            "end_line": 300
+          },
+          "result": {
+            "start_line": 151,
+            "end_line": 300,
+            "total_lines": 419
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 151,
+            "endLine": 300,
+            "totalLines": 419
+          }
+        },
+        {
+          "iteration": 3,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:99c49adb33a4abe1f8ecbde4ec44b93aec8f6f7d8f042c35efafb4256981307d",
+            "start_line": 1,
+            "end_line": 150
+          },
+          "result": {
+            "start_line": 1,
+            "end_line": 150,
+            "total_lines": 328
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 150,
+            "totalLines": 328
+          }
+        },
+        {
+          "iteration": 4,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:dc78a0b5e61af77eec8c83f1eaa4ea7b180e0b08d00a5de50de1071f8bc1ace6",
+            "start_line": 301,
+            "end_line": 419
+          },
+          "result": {
+            "start_line": 301,
+            "end_line": 419,
+            "total_lines": 419
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 301,
+            "endLine": 419,
+            "totalLines": 419
+          }
+        },
+        {
+          "iteration": 4,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:99c49adb33a4abe1f8ecbde4ec44b93aec8f6f7d8f042c35efafb4256981307d",
+            "start_line": 151,
+            "end_line": 328
+          },
+          "result": {
+            "start_line": 151,
+            "end_line": 328,
+            "total_lines": 328
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 151,
+            "endLine": 328,
+            "totalLines": 328
+          }
+        }
+      ]
+    }
+  ],
+  "diagnosis": "Provider returned HTTP 400 content_filter_error after four successful read_review_receipt iterations, while reading ordinary reporting UI diffs. No source inspection or final answer completed. The provider did not identify a violating source location. No code defect or clean review is inferred.",
+  "retryScope": "Same neutral question and full pinned source, with the existing modal as the explicit starting path; policy and provider safeguards unchanged."
+}

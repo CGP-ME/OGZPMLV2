@@ -497,7 +497,7 @@
         .delay-5 { animation-delay: 0.25s; }
     </style>
 </head>
-<body>
+<body data-socket-stream="settings">
 <div class="app">
 
     <!-- ═══════════════════════════════════════════════════════════════
@@ -715,6 +715,8 @@
     </main>
 </div>
 
+<script src="/js/core.js"></script>
+<script src="/js/websocket.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════════════════
 // OGZPrime Trade Journal — Client-Side Logic
@@ -725,39 +727,26 @@ let journalData = null;
 let equityChart = null;
 let equitySeries = null;
 let drawdownSeries = null;
-let ws = null;
+const ws = OGZ.get('Socket');
 let activeTab = 'regime';
 
 // ── WebSocket Connection ──────────────────────────────────────────────────
 function connectWebSocket() {
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${location.host}/ws`;
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
+    for (const type of ['journal_snapshot', 'journal_equity', 'journal_breakdown', 'journal_calendar', 'journal_export_complete', 'journal_export_failed', 'trade', 'trade_closed', 'trade_closed_replay']) ws.registerHandler(type, handleMessage);
+    ws.registerHandler('auth_success', () => {
         document.getElementById('ws-status').classList.add('connected');
-        document.getElementById('ws-label').textContent = 'Live';
-        // Request journal snapshot
-        ws.send(JSON.stringify({ type: 'request_journal' }));
-        ws.send(JSON.stringify({ type: 'request_journal_breakdowns', dimension: activeTab }));
-        ws.send(JSON.stringify({ type: 'request_journal_equity' }));
-        ws.send(JSON.stringify({ type: 'request_journal_calendar' }));
-    };
-
-    ws.onclose = () => {
+        document.getElementById('ws-label').textContent = 'Authenticated; requesting journal';
+        ws.send({ type: 'request_journal' });
+        ws.send({ type: 'request_journal_breakdowns', dimension: activeTab });
+        ws.send({ type: 'request_journal_equity' });
+        ws.send({ type: 'request_journal_calendar' });
+    });
+    ws.registerHandler('socket_disconnected', () => {
         document.getElementById('ws-status').classList.remove('connected');
         document.getElementById('ws-label').textContent = 'Disconnected';
-        setTimeout(connectWebSocket, 3000);
-    };
-
-    ws.onerror = () => ws.close();
-
-    ws.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-            handleMessage(msg);
-        } catch (e) { /* ignore non-JSON */ }
-    };
+        handleMessage({ type: 'journal_snapshot', data: { status: 'unavailable', reason: 'Journal connection unavailable; reconnect to refresh these records.' } });
+    });
+    ws.connect();
 }
 
 function handleMessage(msg) {
@@ -797,14 +786,21 @@ function handleMessage(msg) {
         case 'journal_calendar':
             updateCalendar(msg.data || []);
             break;
+        case 'journal_export_complete':
+            alert(`${msg.format.toUpperCase()} saved: ${msg.path}`);
+            break;
+        case 'journal_export_failed':
+            alert(`Export unavailable: ${msg.reason}`);
+            break;
         // Also listen for live trade events to trigger refresh
         case 'trade':
         case 'trade_closed':
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'request_journal' }));
-                ws.send(JSON.stringify({ type: 'request_journal_equity' }));
-                ws.send(JSON.stringify({ type: 'request_journal_breakdowns', dimension: activeTab }));
-                ws.send(JSON.stringify({ type: 'request_journal_calendar' }));
+        case 'trade_closed_replay':
+            if (ws.isConnected()) {
+                ws.send({ type: 'request_journal' });
+                ws.send({ type: 'request_journal_equity' });
+                ws.send({ type: 'request_journal_breakdowns', dimension: activeTab });
+                ws.send({ type: 'request_journal_calendar' });
             }
             break;
     }
@@ -1002,8 +998,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         activeTab = btn.dataset.tab;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'request_journal_breakdowns', dimension: activeTab }));
+        if (ws.isConnected()) {
+            ws.send({ type: 'request_journal_breakdowns', dimension: activeTab });
         }
     });
 });
@@ -1099,23 +1095,23 @@ function updateCalendar(dailySummaries) {
 
 // ── Export Functions ───────────────────────────────────────────────────────
 function exportCSV() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'request_journal_export_csv' }));
-        alert('CSV export requested — check data/journal/exports/');
+    if (ws.isConnected()) {
+        ws.send({ type: 'request_journal_export_csv' });
+
     }
 }
 
 function exportReport() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'request_journal_export_report' }));
-        alert('Full report export requested — check data/journal/exports/');
+    if (ws.isConnected()) {
+        ws.send({ type: 'request_journal_export_report' });
+
     }
 }
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function formatUSD(n) {
-    if (n == null || isNaN(n)) return '$0.00';
+    if (!Number.isFinite(n)) return 'Unavailable';
     const abs = Math.abs(n);
     const sign = n < 0 ? '-' : '';
     if (abs >= 1000) return sign + '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1140,8 +1136,8 @@ function setVal(id, val, className) {
 
 // ── Auto-Refresh Timer ────────────────────────────────────────────────────
 setInterval(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'request_journal' }));
+    if (ws.isConnected()) {
+        ws.send({ type: 'request_journal' });
     }
 }, 15000);  // Refresh every 15s
 

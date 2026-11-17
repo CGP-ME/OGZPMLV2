@@ -1,0 +1,49 @@
+{
+  "source": {
+    "reviewRef": "8bc5e0e6a426e1f2c656a96367f4749536e7e5f5",
+    "reviewBase": "84cb0cb2f07dd71376001417625b22559736d662",
+    "sources": {
+      "public/trade-journal.html": "621e5ec59afdca45c0eb5791de63950ae5c64fac7bd7143a64748c96deb158e8",
+      "public/trade-replay.html": "ab27aee4eac04e578f7872900b3b659d64da212785178fbf2e30b7402178f8c1",
+      "public/js/panels/trade-replay.js": "559caca221a5fff324534ac7e4b617674b792211b533f18ca3c3671ba540480f",
+      "public/js/panels/chart-panel.js": "1771141357664b219ae1c7a26a72556162f8328c510822d76dbce640c0def5a9",
+      "public/js/panels/live-report.js": "7d6e930c37d439ada3f25c5ca2c96ef917673178abbf1aafce7578ba42f9d242"
+    },
+    "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-pages.cjs --fixture ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/pages-after.json -- node ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-pages.cjs",
+  "reproduceAfterCommit": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-pages.cjs -- node ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-pages.cjs --current",
+  "exitCode": 0,
+  "observed": {
+    "sourceHashes": {
+      "public/trade-journal.html": "621e5ec59afdca45c0eb5791de63950ae5c64fac7bd7143a64748c96deb158e8",
+      "public/trade-replay.html": "ab27aee4eac04e578f7872900b3b659d64da212785178fbf2e30b7402178f8c1",
+      "public/js/panels/trade-replay.js": "559caca221a5fff324534ac7e4b617674b792211b533f18ca3c3671ba540480f",
+      "public/js/panels/chart-panel.js": "1771141357664b219ae1c7a26a72556162f8328c510822d76dbce640c0def5a9",
+      "public/js/panels/live-report.js": "7d6e930c37d439ada3f25c5ca2c96ef917673178abbf1aafce7578ba42f9d242",
+      "public/js/core.js": "722eca749da3d708f47e369e0c6c109b8eaad207348e07427d5252e03c1eac2a",
+      "public/js/websocket.js": "66ceda68c57019af326617758788719c95114619f4a9600d3af46fdaed19ff48"
+    },
+    "actualSharedSocketExecuted": true,
+    "requestsWaitForAuthentication": true,
+    "reportingPagesDoNotSendAssetChanges": true,
+    "savedScopeMatched": true,
+    "savedLossDisplayed": "-$4.00",
+    "savedConfidenceDisplayed": "80%",
+    "missingIndicatorDisplayed": "Not recorded",
+    "partialAndFinalMarkersUseSavedEventTimes": true,
+    "noMarkerInventedAcrossGap": true,
+    "zeroVolumePreserved": true,
+    "zeroVolumeVwapUnavailable": true,
+    "missingFillHidesJournalTotals": true,
+    "exportFailureVisible": true,
+    "modalUsesSavedCandlesWithoutCurrentChart": true,
+    "modalHandlersRemovedOnTeardown": true,
+    "limitations": "Synthetic DOM/chart/wire; no live browser pixels, session credentials, bot activation or broker execution."
+  },
+  "fixtureCorrections": [
+    "First run compared equal arrays from different VM realms; normalized the fixture comparison only",
+    "Second run asserted the wrong existing modal ID; corrected the fixture to tradeReplayModal"
+  ],
+  "syntax": "All five changed JS files or HTML inline scripts parsed successfully with node --check"
+}

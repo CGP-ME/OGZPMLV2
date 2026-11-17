@@ -1,0 +1,24 @@
+{
+  "stagedSourceScan": {
+    "command": "node scripts/scan-secrets.js --staged",
+    "exitCode": 0,
+    "filesScanned": 5,
+    "findings": 0
+  },
+  "repositoryScan": {
+    "command": "npm run scan:secrets",
+    "exitCode": 1,
+    "findings": 85,
+    "files": 22,
+    "findingsInRebuildFiles": 0,
+    "status": "Findings outside this rebuild remain unclassified; no repository-wide security pass claimed."
+  },
+  "publicDashboard": {
+    "command": "npm run test:dashboard-token",
+    "exitCode": 1,
+    "error": "fetch failed",
+    "followup": "curl HEAD https://ogzprime.org/unified-dashboard.html failed with connection timeout after 20 seconds",
+    "status": "Public reachability and headers unverified. No server/authentication policy or long-lived secret changed."
+  },
+  "sourceAuthObservation": "Actual existing Socket executed in the isolated native fixture; auth request precedes reporting requests; no asset_change/request_historical sent by these reporting pages."
+}

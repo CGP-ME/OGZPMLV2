@@ -271,7 +271,7 @@
         .d5 { animation-delay: 0.25s; }
     </style>
 </head>
-<body>
+<body data-socket-stream="settings">
 <div class="app">
 
     <!-- Loading state -->
@@ -354,6 +354,7 @@
             <div id="chart-container"></div>
         </div>
 
+        <p id="capture-note" role="status"></p>
         <!-- Export Bar -->
         <div class="export-bar fade-in d5">
             <button class="btn" onclick="downloadJSON()">↓ Raw JSON</button>
@@ -363,6 +364,8 @@
     </div>
 </div>
 
+<script src="/js/core.js"></script>
+<script src="/js/websocket.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════════════════
 // Trade Replay Card — Client Logic
@@ -383,6 +386,9 @@ let vwapSeries = null;
 // ── Get orderId from URL ──────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 const orderId = params.get('id');
+const scopeKey = params.get('scope');
+const socket = OGZ.get('Socket');
+let replayList = [];
 
 if (!orderId) {
     document.getElementById('loading').innerHTML = '<span style="color:var(--loss);">No trade ID specified. Use ?id=ORDER_ID</span>';
@@ -391,42 +397,29 @@ if (!orderId) {
 }
 
 // ── Load replay data via WebSocket or fetch ───────────────────────────
-async function loadReplay(id) {
-    // Try HTTP first (simpler)
-    try {
-        const resp = await fetch(`/api/replay/${id}`);
-        if (resp.ok) {
-            replayData = await resp.json();
-            renderReplay();
-            return;
-        }
-    } catch { /* fall through to WebSocket */ }
-
-    // Fallback: WebSocket request
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${location.host}/ws`);
-    ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'request_replay', orderId: id }));
-    };
-    ws.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'replay_data' && msg.data) {
-                replayData = msg.data;
-                renderReplay();
-                ws.close();
-            } else if (msg.type === 'replay_not_found') {
-                document.getElementById('loading').innerHTML =
-                    `<span style="color:var(--loss);">Replay not found for ${id}</span>`;
-            }
-        } catch {}
-    };
-    ws.onerror = () => {
-        document.getElementById('loading').innerHTML =
-            '<span style="color:var(--loss);">Connection error</span>';
-    };
+function loadReplay(id) {
+    socket.registerHandler('auth_success', () => {
+        socket.send({ type: 'request_replay', orderId: id, scopeKey });
+        socket.send({ type: 'request_replay_list' });
+    });
+    socket.registerHandler('replay_data', msg => {
+        if (msg.data?.orderId !== id || scopeKey && msg.scopeKey !== scopeKey) return;
+        replayData = msg.data;
+        renderReplay();
+    });
+    socket.registerHandler('replay_not_found', msg => {
+        if (msg.orderId !== id || scopeKey && msg.scopeKey !== scopeKey) return;
+        document.getElementById('loading').textContent = `Replay unavailable: ${msg.reason}`;
+    });
+    socket.registerHandler('replay_list', msg => {
+        replayList = msg.data;
+        if (msg.status === 'partial') document.getElementById('capture-note').textContent = 'Some stored replays could not be read; the list is incomplete.';
+    });
+    socket.registerHandler('socket_disconnected', () => {
+        document.getElementById('capture-note').textContent = 'Disconnected; displayed replay is the last saved record received.';
+    });
+    socket.connect();
 }
-
 
 // ── Render everything ─────────────────────────────────────────────────
 function renderReplay() {
@@ -434,45 +427,40 @@ function renderReplay() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    const isWin = (d.exit?.pnl || 0) >= 0;
-    const pnl = d.exit?.pnl || 0;
-    const pnlPct = d.exit?.pnlPercent || 0;
-
-    // ── Verdict Banner ──
+    const pnl = d.exit?.pnl;
+    const pnlPct = d.exit?.pnlPercent;
+    const isWin = Number.isFinite(pnl) && pnl > 0;
     const verdict = document.getElementById('verdict');
-    verdict.classList.add(isWin ? 'win' : 'loss');
-    setText('v-emoji', isWin ? '✅' : '❌');
-    const pnlEl = document.getElementById('v-pnl');
-    pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}`;
-    pnlEl.style.color = isWin ? 'var(--profit)' : 'var(--loss)';
-    setText('v-direction', `${d.direction} Trade`);
-    setText('v-percent', `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`);
+    verdict.classList.remove('win', 'loss');
+    if (Number.isFinite(pnl) && pnl !== 0) verdict.classList.add(isWin ? 'win' : 'loss');
+    setText('v-emoji', Number.isFinite(pnl) ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'FLAT') : 'UNAVAILABLE');
+    setText('v-pnl', signedMoney(pnl));
+    document.getElementById('v-pnl').style.color = pnl > 0 ? 'var(--profit)' : pnl < 0 ? 'var(--loss)' : 'var(--text-muted)';
+    setText('v-direction', `${d.direction || 'Unavailable'} Trade`);
+    setText('v-percent', Number.isFinite(pnlPct) ? `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%` : 'Unavailable');
     setText('v-orderid', d.orderId);
-
-    // ── Timeline ──
-    setText('tl-entry-price', `$${(d.entry?.price || 0).toLocaleString()}`);
-    setText('tl-entry-time', d.entry?.time ? new Date(d.entry.time).toLocaleString() : '—');
-    setText('tl-exit-price', `$${(d.exit?.price || 0).toLocaleString()}`);
-    setText('tl-exit-time', d.exit?.time ? new Date(d.exit.time).toLocaleString() : '—');
-    setText('tl-hold-time', formatDuration(d.exit?.holdTimeMs || 0));
-    if (isWin) document.getElementById('tl-exit-node').classList.add('win');
-
-    // ── Stats ──
-    setText('s-conf', `${d.entry?.confidence || 0}%`);
-    setText('s-regime', d.entry?.regime || '—');
-    setText('s-reason', d.exit?.reason || '—');
-    setText('s-rsi', (d.entry?.indicators?.rsi || 0).toFixed(1));
-    setText('s-macd', (d.entry?.indicators?.macd || 0).toFixed(4));
-    setText('s-trend', d.entry?.indicators?.trend || '—');
+    setText('tl-entry-price', money(d.entry?.price));
+    setText('tl-entry-time', Number.isFinite(d.entry?.time) ? new Date(d.entry.time).toLocaleString() : 'Unavailable');
+    setText('tl-exit-price', money(d.exit?.price));
+    setText('tl-exit-time', Number.isFinite(d.exit?.time) ? new Date(d.exit.time).toLocaleString() : 'Unavailable');
+    setText('tl-hold-time', formatDuration(d.exit?.holdTimeMs));
+    document.getElementById('tl-exit-node').classList.toggle('win', isWin);
+    setText('s-conf', Number.isFinite(d.entry?.confidence) ? `${d.entry.confidence}%` : 'Not recorded');
+    setText('s-regime', d.entry?.regime || 'Not recorded');
+    setText('s-reason', d.exit?.reason || 'Not recorded');
+    setText('s-rsi', metric(d.entry?.indicators?.rsi, 1));
+    setText('s-macd', metric(d.entry?.indicators?.macd, 4));
+    setText('s-trend', d.entry?.indicators?.trend || 'Not recorded');
+    setText('capture-note', `${d.accountingBasis === 'confirmed_net_after_fees' ? 'Net P&L after recorded fees.' : 'Legacy recorded P&L; fee provenance is unverified.'} Saved candle windows; continuous trade coverage is not guaranteed. Post-exit capture: ${d.postExit?.capturedCandles ?? 'unknown'} / ${d.postExit?.requestedCandles ?? 'unknown'}.`);
 
     // ── Patterns ──
     const tagContainer = document.getElementById('pattern-tags');
     const patterns = d.entry?.patterns || [];
     if (patterns.length === 0) {
-        tagContainer.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">No patterns detected</span>';
+        tagContainer.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">No pattern records available</span>';
     } else {
         tagContainer.innerHTML = patterns.map(p =>
-            `<span class="pattern-tag">${p.name}<span class="p-conf">${(p.confidence || 0).toFixed(0)}%</span></span>`
+            `<span class="pattern-tag">${escapeHTML(p.name)}<span class="p-conf">${metric(p.confidence, 0)}</span></span>`
         ).join('');
     }
 
@@ -480,7 +468,7 @@ function renderReplay() {
     renderChart(d);
 
     // ── Title ──
-    document.title = `${isWin ? '✅' : '❌'} ${d.direction} ${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)} — OGZPrime Replay`;
+    document.title = `${d.direction || 'Replay'} ${signedMoney(pnl)} — OGZPrime Replay`;
 }
 
 
@@ -490,9 +478,10 @@ function renderReplay() {
 
 function renderChart(d) {
     const container = document.getElementById('chart-container');
-    const candles = d.candles || [];
+    if (chart) chart.remove();
+    const candles = [...(d.candles || []), ...(d.postExitCandles || [])];
 
-    if (candles.length === 0) {
+    if (!candles.length || candles.some(row => ![row.t, row.o, row.h, row.l, row.c, row.v].every(Number.isFinite))) {
         container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">No candle data captured for this trade</div>';
         return;
     }
@@ -549,7 +538,7 @@ function renderChart(d) {
     const chartData = candles.map(c => {
         let t = c.t;
         if (t > 9999999999) t = Math.floor(t / 1000);
-        return { time: t, open: c.o, high: c.h, low: c.l, close: c.c, volume: c.v || 0 };
+        return { time: t, open: c.o, high: c.h, low: c.l, close: c.c, volume: c.v, endTime: Number.isFinite(c.etime) ? Math.floor(c.etime / 1000) : null };
     }).sort((a, b) => a.time - b.time);
 
     // Deduplicate
@@ -564,31 +553,15 @@ function renderChart(d) {
 
     // ── Entry/Exit markers ──
     const markers = [];
-    const entryTime = d.entry?.time ? Math.floor(d.entry.time / 1000) : null;
-    const exitTime = d.exit?.time ? Math.floor(d.exit.time / 1000) : null;
-    const isLong = d.direction === 'BUY';
-
-    // Find closest candle times for markers
-    if (entryTime) {
-        const closestEntry = findClosestTime(uniqueData, entryTime);
-        markers.push({
-            time: closestEntry,
-            position: 'belowBar',
-            color: '#00ff88',
-            shape: 'arrowUp',
-            text: `ENTRY $${(d.entry?.price || 0).toFixed(0)}`
-        });
-    }
-    if (exitTime) {
-        const closestExit = findClosestTime(uniqueData, exitTime);
-        const exitColor = (d.exit?.pnl || 0) >= 0 ? '#00ff88' : '#ff3366';
-        markers.push({
-            time: closestExit,
-            position: 'aboveBar',
-            color: exitColor,
-            shape: 'arrowDown',
-            text: `EXIT $${(d.exit?.price || 0).toFixed(0)}`
-        });
+    const entryTime = Number.isFinite(d.entry?.time) ? Math.floor(d.entry.time / 1000) : null;
+    const isLong = ['BUY', 'long'].includes(d.direction);
+    const entryCandle = entryTime === null ? null : findClosestTime(uniqueData, entryTime);
+    if (entryCandle !== null && Number.isFinite(d.entry?.price)) markers.push({ time: entryCandle, position: isLong ? 'belowBar' : 'aboveBar', color: '#00ff88', shape: isLong ? 'arrowUp' : 'arrowDown', text: `ENTRY ${money(d.entry.price)}` });
+    const exits = Array.isArray(d.exitFills) ? d.exitFills.map(fill => ({ time: fill.timestamp, price: fill.exitPrice, partial: fill.partialExit })) : [{ time: d.exit?.time, price: d.exit?.price, partial: false }];
+    for (const exit of exits) {
+        if (!Number.isFinite(exit.time) || !Number.isFinite(exit.price)) continue;
+        const candleTime = findClosestTime(uniqueData, Math.floor(exit.time / 1000));
+        if (candleTime !== null) markers.push({ time: candleTime, position: isLong ? 'aboveBar' : 'belowBar', color: '#ffd700', shape: isLong ? 'arrowDown' : 'arrowUp', text: `${exit.partial ? 'PARTIAL' : 'EXIT'} ${money(exit.price)}` });
     }
 
     if (markers.length > 0) {
@@ -650,7 +623,7 @@ function renderChart(d) {
     // VWAP
     vwapSeries = chart.addLineSeries({ color: '#ff8800', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, visible: false });
     const vwap = calculateVWAP(uniqueData);
-    vwapSeries.setData(vwap.map((v, i) => ({ time: times[i], value: v })));
+    vwapSeries.setData(vwap.map((v, i) => Number.isFinite(v) ? { time: times[i], value: v } : { time: times[i] }));
 
     // Volume
     volumeSeries = chart.addHistogramSeries({
@@ -720,9 +693,9 @@ function calculateVWAP(candles) {
     let cumVol = 0, cumTP = 0;
     for (const c of candles) {
         const tp = (c.high + c.low + c.close) / 3;
-        const vol = c.volume || 1;
+        const vol = c.volume;
         cumVol += vol; cumTP += tp * vol;
-        vwap.push(cumVol > 0 ? cumTP / cumVol : tp);
+        vwap.push(cumVol > 0 ? cumTP / cumVol : null);
     }
     return vwap;
 }
@@ -764,18 +737,13 @@ document.querySelectorAll('.ind-toggle').forEach(btn => {
 document.getElementById('btn-prev')?.addEventListener('click', () => navigateTrade(-1));
 document.getElementById('btn-next')?.addEventListener('click', () => navigateTrade(1));
 
-async function navigateTrade(direction) {
-    try {
-        const resp = await fetch(`/api/replay/adjacent?id=${orderId}&direction=${direction}`);
-        if (resp.ok) {
-            const data = await resp.json();
-            if (data.orderId) {
-                window.location.href = `/replay?id=${data.orderId}`;
-            }
-        }
-    } catch { /* silent */ }
+function navigateTrade(direction) {
+    const index = replayList.findIndex(row => row.orderId === orderId && (!scopeKey || row.scopeKey === scopeKey));
+    const target = index >= 0 ? replayList[index + direction] : null;
+    if (!target) { setText('capture-note', 'No adjacent saved replay in the received list.'); return; }
+    const query = new URLSearchParams({ id: target.orderId, scope: target.scopeKey });
+    window.location.href = '/replay?' + query.toString();
 }
-
 
 // ══════════════════════════════════════════════════════════════════════════
 // SCREENSHOT
@@ -823,17 +791,23 @@ function setText(id, val) {
 }
 
 function findClosestTime(data, targetTime) {
-    let closest = data[0]?.time || 0;
-    let minDiff = Infinity;
-    for (const c of data) {
-        const diff = Math.abs(c.time - targetTime);
-        if (diff < minDiff) { minDiff = diff; closest = c.time; }
-    }
-    return closest;
+    const frame = replayData?.postExit?.scope?.timeframe?.match(/^(\d+)(m|h|d)$/);
+    const duration = frame ? Number(frame[1]) * { m: 60, h: 3600, d: 86400 }[frame[2]] : null;
+    const candle = data.find(row => {
+        const end = row.endTime ?? (duration === null ? null : row.time + duration);
+        return end !== null && row.time <= targetTime && targetTime < end;
+    });
+    return candle ? candle.time : null;
 }
 
+function metric(value, digits) { return Number.isFinite(value) ? value.toFixed(digits) : 'Not recorded'; }
+function money(value) { return Number.isFinite(value) ? '$' + value.toFixed(2) : 'Unavailable'; }
+function signedMoney(value) { return Number.isFinite(value) ? `${value < 0 ? '-' : value > 0 ? '+' : ''}$${Math.abs(value).toFixed(2)}` : 'Unavailable'; }
+function escapeHTML(value) { return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
 function formatDuration(ms) {
-    if (!ms || ms <= 0) return '0s';
+    if (!Number.isFinite(ms) || ms < 0) return 'Unavailable';
+    if (ms === 0) return '0s';
     const s = Math.floor(ms / 1000);
     if (s < 60) return `${s}s`;
     const m = Math.floor(s / 60);

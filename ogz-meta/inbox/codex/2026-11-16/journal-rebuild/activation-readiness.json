@@ -1,0 +1,120 @@
+{
+  "observedAt": "2026-11-17T00:32:39.707960+00:00",
+  "previousActivationCommit": "0f3227a8cb1661a9245227ae4a17006f89773854",
+  "previousActivationReceipt": "ogz-meta/inbox/codex/2026-11-16/runtime-proof/activation-provenance.json",
+  "inheritedRuntimeChecks": [
+    {
+      "path": "config/internals.json",
+      "priorSha256": "b990e9321745c84847e22a9fd05b95183b13160e40a99cbb636a0d0e727f27f5",
+      "currentSha256": "4a02cca17d55238ea7924ff2abd5abf012a782c0ea787cae547faa2cbcbc7e54",
+      "unchangedFromPriorActivation": false,
+      "beforeMatchesPriorActivation": true,
+      "currentMatchesRecordedRebuild": true
+    },
+    {
+      "path": "config/settings.json",
+      "priorSha256": "a2d0e57dfbe8e1ae930de2f31433de6c580073239a150d6779b2f67ed9a58ac5",
+      "currentSha256": "a2d0e57dfbe8e1ae930de2f31433de6c580073239a150d6779b2f67ed9a58ac5",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "priorSha256": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf",
+      "currentSha256": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "priorSha256": "d42cf7434cc02a040575ea0bbde8362c0a8929d2289faa7fa43da3cdd6782bb3",
+      "currentSha256": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1",
+      "unchangedFromPriorActivation": false,
+      "beforeMatchesPriorActivation": true,
+      "currentMatchesRecordedRebuild": true
+    },
+    {
+      "path": "core/StateManager.js",
+      "priorSha256": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e",
+      "currentSha256": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "priorSha256": "829b5a4d9a6fce5f17f4a5182bb02da37506d72c3242a0ed97931545a2f03e0b",
+      "currentSha256": "829b5a4d9a6fce5f17f4a5182bb02da37506d72c3242a0ed97931545a2f03e0b",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "priorSha256": "a89d9ccbaef8699055b66473fcd32eebd39d6e81016d47a59d2fbb18f1bb062f",
+      "currentSha256": "a89d9ccbaef8699055b66473fcd32eebd39d6e81016d47a59d2fbb18f1bb062f",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "priorSha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "currentSha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "priorSha256": "0a2e5b41add136607dd3cb2aa31e39aaa83df76178e5800ae5e3da38adde5738",
+      "currentSha256": "0a2e5b41add136607dd3cb2aa31e39aaa83df76178e5800ae5e3da38adde5738",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "priorSha256": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2",
+      "currentSha256": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "priorSha256": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+      "currentSha256": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "priorSha256": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+      "currentSha256": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "priorSha256": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+      "currentSha256": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "priorSha256": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+      "currentSha256": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "priorSha256": "dad75cf4250cec733701508eb3858a2941ceafacafaa511304dd5af23ac32367",
+      "currentSha256": "dad75cf4250cec733701508eb3858a2941ceafacafaa511304dd5af23ac32367",
+      "unchangedFromPriorActivation": true
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "priorSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+      "currentSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+      "unchangedFromPriorActivation": true
+    }
+  ],
+  "priorBotPid": 2557111,
+  "priorBotPidStillExists": true,
+  "plannedCommand": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-prime-v2",
+    "--update-env"
+  ],
+  "activationPerformed": false,
+  "approval": "Separate runtime approval pending for this structured rebuild",
+  "limits": "Matching inherited source hashes establish absence of additional source changes; they do not certify unrelated inherited behavior. Static pages can be served immediately on refresh."
+}

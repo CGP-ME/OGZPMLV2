@@ -987,6 +987,7 @@
         }
         const row = {
             orderId:    d.orderId,
+            scopeKey:   d.scopeKey,
             direction:  d.direction || null,
             entryPrice: d.entryPrice,
             exitPrice:  d.exitPrice,
