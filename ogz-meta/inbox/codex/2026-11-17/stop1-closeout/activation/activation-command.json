@@ -1,0 +1,21 @@
+{
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-supervisor,ogz-websocket,ogz-stripe,ogz-prime-v2",
+    "--update-env"
+  ],
+  "startedAt": "2026-11-17T05:42:53.616351+00:00",
+  "completedAt": "2026-11-17T05:42:55.189161+00:00",
+  "exitCode": 0,
+  "environmentSource": "config/internals.json:deployment.pm2.launchEnvironment plus services.supervisor.pm2Home; per-role ecosystem env",
+  "environmentKeys": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PM2_HOME"
+  ]
+}

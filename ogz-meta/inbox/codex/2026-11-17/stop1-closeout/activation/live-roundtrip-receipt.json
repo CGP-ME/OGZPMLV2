@@ -1,0 +1,125 @@
+{
+  "startedAt": "2026-11-17T05:44:58.406Z",
+  "key": "trai.llm.maxTokens",
+  "purpose": "Live canonical save/read/restore; advisory request size only",
+  "messages": [
+    {
+      "operation": "read_before",
+      "requestId": "74e87cc2-6036-4a3e-a124-388399eb7673",
+      "ownerId": "client_1794894177512_lts0h574f",
+      "success": true,
+      "configuration": {
+        "fingerprint": "2641b27d1f74a1081645fcab9a1890b11b677e69e78294796c265e076985051f",
+        "role": "bot",
+        "settings": 22,
+        "internals": 13,
+        "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "value": 7750,
+      "source": "config:settings.json:trai",
+      "effect": "next_trai_llm_request"
+    },
+    {
+      "operation": "save_changed",
+      "requestId": "94f502f1-434e-4776-98ee-196c50de4420",
+      "ownerId": "client_1794894177512_lts0h574f",
+      "success": true,
+      "changed": true,
+      "applied": true,
+      "saved": true,
+      "configuration": {
+        "fingerprint": "ba2309b31cdf1e3790fb05ff10783eaffa627b134143b132b80a8e24a1c2910c",
+        "role": "bot",
+        "settings": 23,
+        "internals": 13,
+        "settingsHash": "04a097fd34d73d56c1faac3dd83915057f7fe9a205e8da8af595b5c633fc9fd0",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "value": 7751,
+      "source": "config:settings.json:trai",
+      "effect": "next_trai_llm_request"
+    },
+    {
+      "operation": "read_changed",
+      "requestId": "afe6433d-fd0e-4ad6-93b0-eba56a8789ac",
+      "ownerId": "client_1794894177512_lts0h574f",
+      "success": true,
+      "configuration": {
+        "fingerprint": "ba2309b31cdf1e3790fb05ff10783eaffa627b134143b132b80a8e24a1c2910c",
+        "role": "bot",
+        "settings": 23,
+        "internals": 13,
+        "settingsHash": "04a097fd34d73d56c1faac3dd83915057f7fe9a205e8da8af595b5c633fc9fd0",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "value": 7751,
+      "source": "config:settings.json:trai",
+      "effect": "next_trai_llm_request"
+    },
+    {
+      "operation": "restore_original",
+      "requestId": "89ae6c73-4adb-44c8-9ab1-592262aad01f",
+      "ownerId": "client_1794894177512_lts0h574f",
+      "success": true,
+      "changed": true,
+      "applied": true,
+      "saved": true,
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "value": 7750,
+      "source": "config:settings.json:trai",
+      "effect": "next_trai_llm_request"
+    },
+    {
+      "operation": "read_restored",
+      "requestId": "a2bf3771-76cd-4d9f-b94d-f4467698e750",
+      "ownerId": "client_1794894177512_lts0h574f",
+      "success": true,
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "value": 7750,
+      "source": "config:settings.json:trai",
+      "effect": "next_trai_llm_request"
+    }
+  ],
+  "positionsBefore": {
+    "SIM_1794888000804_befnv8": {
+      "symbol": "BTC-USD",
+      "direction": "short",
+      "entryPrice": 64959.7039,
+      "sizeUsd": 143.01209721201846,
+      "frozenPolicy": "bb3d84974e0122ab05a325c68d1f9080dbac29b0cd7db9fa81c360b7c6ff99a1",
+      "operatorStop": null
+    }
+  },
+  "positionsAfter": {
+    "SIM_1794888000804_befnv8": {
+      "symbol": "BTC-USD",
+      "direction": "short",
+      "entryPrice": 64959.7039,
+      "sizeUsd": 143.01209721201846,
+      "frozenPolicy": "bb3d84974e0122ab05a325c68d1f9080dbac29b0cd7db9fa81c360b7c6ff99a1",
+      "operatorStop": null
+    }
+  },
+  "success": true,
+  "originalValue": 7750,
+  "temporaryValue": 7751,
+  "restored": true,
+  "positionAndFrozenPolicyUnchanged": true,
+  "completedAt": "2026-11-17T05:44:58.871Z",
+  "policyHashMethod": "sha256 of JSON.stringify(policy), preserving parsed property order"
+}

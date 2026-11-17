@@ -1,0 +1,32 @@
+{
+  "source": {
+    "tree": "993f74f04575ed3de94fd09ce2ca9ea35053a0bb",
+    "base": "3f04258e582f497006ec53ad25be91684ad76269",
+    "settingsBlobSha256": "0da4b968e2dc563fcb0fbe2f5937f79dc9147ef785f16ccb6fbabee2517e582b",
+    "semanticChanges": [
+      {
+        "path": "revision",
+        "from": 22,
+        "to": 24
+      }
+    ],
+    "allOtherParsedValuesEqual": true
+  },
+  "resolvedBaseTree": "99e0e9afcd848e3c5defe31fad739a72c31bad0d",
+  "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "verdict": "no_break_found",
+    "blocking": false,
+    "iterations": 10,
+    "costUsd": 0.01895,
+    "notFullPanel": true
+  },
+  "finding": "Revision 22 -> 24 is the only parsed-value difference. Formatting has no effect on canonical hashes; revision changes settingsHash and fingerprint as recorded by the live save receipts.",
+  "runtimeAlreadyAppliedThroughCanonicalWriter": true,
+  "noFurtherRestartRequired": true,
+  "totalRecordedReviewAttemptsThisClosure": 18,
+  "totalRecordedReviewCostUsd": 0.950819
+}

@@ -1,0 +1,28 @@
+{
+  "configuration": {
+    "fingerprint": "0aed32001adc8c1f159c7c0054f289e67bf221983388180aefe2bcf82cb5e2bf",
+    "role": "bot",
+    "settings": 23,
+    "internals": 13,
+    "settingsHash": "19be4846f0227b81e695643f4b137e1b0bfa28d8b0db4e5a56a22dd9eb55cb8d",
+    "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+  },
+  "directions": [
+    "long",
+    "short"
+  ],
+  "actualStateManagerOpenSaveAndRestore": true,
+  "globalSaveOnlyChangesNewPolicy": true,
+  "originalPoliciesPreserved": true,
+  "operatorStopPersistsBeforeAcknowledgment": true,
+  "otherTradeUnchanged": true,
+  "globalFileUnchangedByStopEdits": true,
+  "duplicateDoesNotRewrite": true,
+  "scopeAndRevisionRefused": true,
+  "restoredExitConsumerUsesOperatorStop": true,
+  "shippedUiSubmitAndReceiptExecuted": true,
+  "shippedRelayRoutesToSelectedOwner": true,
+  "receipts": 8,
+  "transport": "actual UI functions and relay routing extracted by AST, actual WebSocketManager and full state/exit modules; DOM rendering and socket seams; synthetic paper trades in disposable state",
+  "runtimeActivated": false
+}

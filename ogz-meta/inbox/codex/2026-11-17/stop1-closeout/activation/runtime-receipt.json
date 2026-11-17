@@ -1,0 +1,739 @@
+{
+  "observedAt": "2026-11-17T05:50:46.084545+00:00",
+  "activation": {
+    "command": [
+      "pm2",
+      "restart",
+      "ecosystem.config.js",
+      "--only",
+      "ogz-supervisor,ogz-websocket,ogz-stripe,ogz-prime-v2",
+      "--update-env"
+    ],
+    "startedAt": "2026-11-17T05:42:53.616351+00:00",
+    "completedAt": "2026-11-17T05:42:55.189161+00:00",
+    "exitCode": 0,
+    "environmentSource": "config/internals.json:deployment.pm2.launchEnvironment plus services.supervisor.pm2Home; per-role ecosystem env",
+    "environmentKeys": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "PM2_HOME"
+    ]
+  },
+  "activatedHead": "3f04258e582f497006ec53ad25be91684ad76269",
+  "branch": "codex/archive-legacy-env",
+  "sourceIncludesPreservedInheritedWork": true,
+  "sourceManifest": [
+    {
+      "path": "TierFeatureFlags.js",
+      "sha256": "273c3be752a94d47244596c8b0cc0961d291c53a3390d305813abb81d01f3d55"
+    },
+    {
+      "path": "config/internals.json",
+      "sha256": "eaaf939db0f73ca3b7ec3bbc344de31b14c935d51711ac2a4a42a9a7922371c8"
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "a2d0e57dfbe8e1ae930de2f31433de6c580073239a150d6779b2f67ed9a58ac5"
+    },
+    {
+      "path": "core/EnhancedPatternRecognition.js",
+      "sha256": "750cbb3a7b40056a949d70ead9249af65d5566c1b0751179eeccbd940e2c862e"
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "sha256": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf"
+    },
+    {
+      "path": "core/FibonacciDetector.js",
+      "sha256": "c8973ba0b14ae27a1e7dca771b6189d72bf01cca5b28d5a1a4d42d98e4330330"
+    },
+    {
+      "path": "core/OptimizedIndicators.js",
+      "sha256": "4d267fd3fc955b05e42732e02f679bb34cbfe91627b0078dcf784c5058df7c76"
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "sha256": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1"
+    },
+    {
+      "path": "core/PerformanceAnalyzer.js",
+      "sha256": "c7c39eca75304124e1f9f197d0cd885759115dc7b3ade45c1ba0c5a5b8214ab2"
+    },
+    {
+      "path": "core/StateManager.js",
+      "sha256": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e"
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "sha256": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b"
+    },
+    {
+      "path": "core/SymbolTradingContext.js",
+      "sha256": "e9c6a89ec041890103d3114599968da13a0456406be7680a47d244c8b421c793"
+    },
+    {
+      "path": "core/TRAIDecisionModule.js",
+      "sha256": "b0f50bb1a43f353ce8608812815a24dc5a35f335bf69a08500b508b32209d701"
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "sha256": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81"
+    },
+    {
+      "path": "core/UnifiedPatternMemory.js",
+      "sha256": "25129ac09fbf3f1e1c98e6d805cd6d2a8dce6e7165bb4eb0967bb58e9b15d712"
+    },
+    {
+      "path": "core/WebSocketManager.js",
+      "sha256": "57d471ce8a20fea271ac5db53a517c9574e73dc8a4dd4b92555c4253d4f00713"
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3"
+    },
+    {
+      "path": "core/indicators/IndicatorEngine.js",
+      "sha256": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3"
+    },
+    {
+      "path": "core/persistent_llm_client.js",
+      "sha256": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039"
+    },
+    {
+      "path": "core/trai_core.js",
+      "sha256": "29d7f4df3e0380fd6875a8e8b26c6f0cce443a62692e62e9c749e768ab92e810"
+    },
+    {
+      "path": "ecosystem.config.js",
+      "sha256": "26a2a68118ea16c2e3c06b75b51c3aed1fe89fc56fcb0912e5095fea9716b555"
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "sha256": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937"
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "sha256": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2"
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "sha256": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3"
+    },
+    {
+      "path": "modules/MultiTimeframeAdapter.js",
+      "sha256": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a"
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "sha256": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1"
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "sha256": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f"
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "sha256": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367"
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "sha256": "15c6d6bac683a2780c4b788fc43f149b0fe62c3847862915e82270ed5f0529a8"
+    },
+    {
+      "path": "public/stripe-checkout.js",
+      "sha256": "262a7b9a515f51539b71f13c6f53dfbcc102121800b591ac5641e199519203ef"
+    },
+    {
+      "path": "run-empire-v2.js",
+      "sha256": "348cab3b31997eb1827af7fae5ef1215cc328746566babb13859398a38a2579b"
+    },
+    {
+      "path": "scripts/supervisor-daemon.js",
+      "sha256": "4da0a416174ab0aa9e4ef496215a4980db04cc5c82f91ab2a469e20e4cf4048c"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+    }
+  ],
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2869657,
+      "status": "online",
+      "restarts": 1,
+      "startedAt": 1794894174558,
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/scripts/supervisor-daemon.js",
+      "onlyAuthorizedRestartObserved": true,
+      "environmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_APP_INSTANCE",
+        "NODE_CHANNEL_FD",
+        "NODE_CHANNEL_SERIALIZATION_MODE",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "automation",
+        "autorestart",
+        "autostart",
+        "created_at",
+        "cwd",
+        "exec_interpreter",
+        "exec_mode",
+        "exit_code",
+        "instance_var",
+        "kill_retry_time",
+        "km_link",
+        "max_restarts",
+        "merge_logs",
+        "min_uptime",
+        "name",
+        "namespace",
+        "node_version",
+        "ogz-supervisor",
+        "pm_cwd",
+        "pm_err_log_path",
+        "pm_exec_path",
+        "pm_id",
+        "pm_out_log_path",
+        "pm_pid_path",
+        "pm_uptime",
+        "pmx",
+        "prev_restart_delay",
+        "restart_delay",
+        "restart_time",
+        "script",
+        "status",
+        "treekill",
+        "unique_id",
+        "unstable_restarts",
+        "username",
+        "version",
+        "vizion",
+        "vizion_running",
+        "watch",
+        "windowsHide"
+      ],
+      "bootstrap": {
+        "PROFILE": null,
+        "DOTENV_CONFIG_PATH": null,
+        "BACKTEST_RUN_DESCRIPTOR_PATH": null,
+        "NODE_ENV": "production",
+        "PM2_HOME": "/home/linuxuser/.pm2"
+      },
+      "archivedTradingOverridesPresent": [],
+      "nodeEnvMatchesCanonicalDeploymentPosture": true
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2869648,
+      "status": "online",
+      "restarts": 1,
+      "startedAt": 1794894174363,
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/ogzprime-ssl-server.js",
+      "onlyAuthorizedRestartObserved": true,
+      "environmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_APP_INSTANCE",
+        "NODE_CHANNEL_FD",
+        "NODE_CHANNEL_SERIALIZATION_MODE",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "automation",
+        "autorestart",
+        "autostart",
+        "created_at",
+        "cwd",
+        "exec_interpreter",
+        "exec_mode",
+        "exit_code",
+        "instance_var",
+        "kill_retry_time",
+        "km_link",
+        "max_restarts",
+        "merge_logs",
+        "min_uptime",
+        "name",
+        "namespace",
+        "node_version",
+        "ogz-websocket",
+        "pm_cwd",
+        "pm_err_log_path",
+        "pm_exec_path",
+        "pm_id",
+        "pm_out_log_path",
+        "pm_pid_path",
+        "pm_uptime",
+        "pmx",
+        "prev_restart_delay",
+        "restart_time",
+        "script",
+        "status",
+        "treekill",
+        "unique_id",
+        "unstable_restarts",
+        "username",
+        "version",
+        "vizion",
+        "vizion_running",
+        "watch",
+        "windowsHide"
+      ],
+      "bootstrap": {
+        "PROFILE": null,
+        "DOTENV_CONFIG_PATH": null,
+        "BACKTEST_RUN_DESCRIPTOR_PATH": null,
+        "NODE_ENV": "production",
+        "PM2_HOME": "/home/linuxuser/.pm2"
+      },
+      "archivedTradingOverridesPresent": [],
+      "nodeEnvMatchesCanonicalDeploymentPosture": true
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2869656,
+      "status": "online",
+      "restarts": 1,
+      "startedAt": 1794894174554,
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/public/stripe-checkout.js",
+      "onlyAuthorizedRestartObserved": true,
+      "environmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_APP_INSTANCE",
+        "NODE_CHANNEL_FD",
+        "NODE_CHANNEL_SERIALIZATION_MODE",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "automation",
+        "autorestart",
+        "autostart",
+        "created_at",
+        "cwd",
+        "exec_interpreter",
+        "exec_mode",
+        "exit_code",
+        "instance_var",
+        "kill_retry_time",
+        "km_link",
+        "max_restarts",
+        "merge_logs",
+        "min_uptime",
+        "name",
+        "namespace",
+        "node_version",
+        "ogz-stripe",
+        "pm_cwd",
+        "pm_err_log_path",
+        "pm_exec_path",
+        "pm_id",
+        "pm_out_log_path",
+        "pm_pid_path",
+        "pm_uptime",
+        "pmx",
+        "prev_restart_delay",
+        "restart_time",
+        "script",
+        "status",
+        "treekill",
+        "unique_id",
+        "unstable_restarts",
+        "username",
+        "version",
+        "vizion",
+        "vizion_running",
+        "watch",
+        "windowsHide"
+      ],
+      "bootstrap": {
+        "PROFILE": null,
+        "DOTENV_CONFIG_PATH": null,
+        "BACKTEST_RUN_DESCRIPTOR_PATH": null,
+        "NODE_ENV": "production",
+        "PM2_HOME": "/home/linuxuser/.pm2"
+      },
+      "archivedTradingOverridesPresent": [],
+      "nodeEnvMatchesCanonicalDeploymentPosture": true
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2869703,
+      "status": "online",
+      "restarts": 3,
+      "startedAt": 1794894175130,
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/run-empire-v2.js",
+      "onlyAuthorizedRestartObserved": true,
+      "environmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_APP_INSTANCE",
+        "NODE_CHANNEL_FD",
+        "NODE_CHANNEL_SERIALIZATION_MODE",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "PROFILE",
+        "automation",
+        "autorestart",
+        "autostart",
+        "created_at",
+        "cwd",
+        "exec_interpreter",
+        "exec_mode",
+        "exit_code",
+        "instance_var",
+        "kill_retry_time",
+        "km_link",
+        "max_restarts",
+        "merge_logs",
+        "min_uptime",
+        "name",
+        "namespace",
+        "node_version",
+        "ogz-prime-v2",
+        "pm_cwd",
+        "pm_err_log_path",
+        "pm_exec_path",
+        "pm_id",
+        "pm_out_log_path",
+        "pm_pid_path",
+        "pm_uptime",
+        "pmx",
+        "prev_restart_delay",
+        "restart_delay",
+        "restart_time",
+        "script",
+        "status",
+        "treekill",
+        "unique_id",
+        "unstable_restarts",
+        "username",
+        "version",
+        "vizion",
+        "vizion_running",
+        "watch",
+        "windowsHide"
+      ],
+      "bootstrap": {
+        "PROFILE": "paper",
+        "DOTENV_CONFIG_PATH": null,
+        "BACKTEST_RUN_DESCRIPTOR_PATH": null,
+        "NODE_ENV": "production",
+        "PM2_HOME": "/home/linuxuser/.pm2"
+      },
+      "archivedTradingOverridesPresent": [],
+      "nodeEnvMatchesCanonicalDeploymentPosture": true
+    }
+  ],
+  "configuration": {
+    "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+    "role": "bot",
+    "settings": 24,
+    "internals": 13,
+    "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+    "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+  },
+  "profile": "paper",
+  "editableFieldCount": 1397,
+  "allEditableSourcesCanonicalSettings": true,
+  "allEditableValuesRestoredToPreActivation": true,
+  "restartRequiredDescriptors": 0,
+  "positionPreservation": [
+    {
+      "id": "SIM_1794888000804_befnv8",
+      "symbol": "BTC-USD",
+      "direction": "short",
+      "entryPrice": 64959.7039,
+      "sizeUsd": 143.01209721201846,
+      "policySha256": "838d93b176cd6aaef21ce9433e0b768af1b4eecda85468e0399b87564675816f",
+      "operatorStop": null,
+      "stillOpen": true,
+      "entryFactsPreserved": true,
+      "frozenPolicyPreserved": true,
+      "operatorStopPreserved": true
+    }
+  ],
+  "pauseReason": null,
+  "symbolHalts": {},
+  "hydration": {
+    "hydrated": [
+      {
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "candles": 60,
+        "latestEndTime": 1794894300000
+      },
+      {
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "candles": 60,
+        "latestEndTime": 1794894240000
+      },
+      {
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "candles": 60,
+        "latestEndTime": 1794894300000
+      },
+      {
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "candles": 60,
+        "latestEndTime": 1794895200000
+      },
+      {
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "candles": 60,
+        "latestEndTime": 1794902400000
+      }
+    ],
+    "unavailable": [],
+    "ready": true,
+    "recoveryPending": []
+  },
+  "hotSaveAndRestoreConfirmedInBotAndRelayLogs": true,
+  "settingsApplied": [
+    {
+      "requestId": "94f502f1-434e-4776-98ee-196c50de4420",
+      "configuration": {
+        "fingerprint": "ba2309b31cdf1e3790fb05ff10783eaffa627b134143b132b80a8e24a1c2910c",
+        "role": "bot",
+        "settings": 23,
+        "internals": 13,
+        "settingsHash": "04a097fd34d73d56c1faac3dd83915057f7fe9a205e8da8af595b5c633fc9fd0",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    },
+    {
+      "requestId": "89ae6c73-4adb-44c8-9ab1-592262aad01f",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    }
+  ],
+  "relayConfigurationReceipts": [
+    {
+      "ownerId": "client_1794894177512_lts0h574f",
+      "configuration": {
+        "fingerprint": "ba2309b31cdf1e3790fb05ff10783eaffa627b134143b132b80a8e24a1c2910c",
+        "role": "bot",
+        "settings": 23,
+        "internals": 13,
+        "settingsHash": "04a097fd34d73d56c1faac3dd83915057f7fe9a205e8da8af595b5c633fc9fd0",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    },
+    {
+      "ownerId": "client_1794894177512_lts0h574f",
+      "configuration": {
+        "fingerprint": "ba2309b31cdf1e3790fb05ff10783eaffa627b134143b132b80a8e24a1c2910c",
+        "role": "bot",
+        "settings": 23,
+        "internals": 13,
+        "settingsHash": "04a097fd34d73d56c1faac3dd83915057f7fe9a205e8da8af595b5c633fc9fd0",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    },
+    {
+      "ownerId": "client_1794894177512_lts0h574f",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    },
+    {
+      "ownerId": "client_1794894177512_lts0h574f",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    },
+    {
+      "ownerId": "client_1794894177512_lts0h574f",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    }
+  ],
+  "decisionRecordCountAtCurrentRevision": 32,
+  "decisionSamples": [
+    {
+      "traceId": "trace_1794894607487_gkru68",
+      "timestamp": "2026-11-17T05:50:07.490Z",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "status": "skip",
+      "skipReason": "no_exit_condition",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    },
+    {
+      "traceId": "trace_1794894622487_klmq20",
+      "timestamp": "2026-11-17T05:50:22.488Z",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "status": "skip",
+      "skipReason": "no_exit_condition",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    },
+    {
+      "traceId": "trace_1794894637511_tkh5e3",
+      "timestamp": "2026-11-17T05:50:37.513Z",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "status": "skip",
+      "skipReason": "no_exit_condition",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      }
+    }
+  ],
+  "health": {
+    "/api/health": {
+      "status": 200,
+      "bytes": 209,
+      "cacheControl": "no-store"
+    },
+    "/control-panel.html": {
+      "status": 200,
+      "bytes": 6989,
+      "cacheControl": "no-store"
+    },
+    "checkout": {
+      "port": 3001,
+      "acceptsConnection": true
+    },
+    "supervisorRecovery": {
+      "httpStatusLine": "HTTP/1.1 200 OK",
+      "responseReceived": true
+    }
+  },
+  "history": {
+    "filesChecked": 619,
+    "missing": 0,
+    "priorByteRangesPreserved": 616,
+    "tradeLedgerFiles": 16,
+    "allTradeLedgerPriorBytesPreserved": true,
+    "changedReplayFiles": [
+      "SIM_1793772000843_gf0enf.json",
+      "SIM_1793337300457_yj7n0t.json",
+      "SIM_1793921400702_8sgwe4.json"
+    ],
+    "limit": "Existing replay files advanced post-exit capture. Prior full replay payloads were not backed up in this activation; field-by-field preservation of rewritten replays is not claimed."
+  },
+  "stderrClassification": {
+    "ogz-supervisor": {},
+    "ogz-websocket": {},
+    "ogz-stripe": {},
+    "ogz-prime-v2": {
+      "preexisting_30m_1d_nonactive_subscription": 870,
+      "shutdown_socket_closed": 1,
+      "journal_open_exposure_refusal": 1
+    }
+  },
+  "logManifest": {
+    "ogz-supervisor": {
+      "pm_out_log_path": {
+        "lineCount": 15,
+        "sha256": "1aa671725014a1d7e74066579fa4cc68879717d03f92e22f6fb4471847456bd4"
+      },
+      "pm_err_log_path": {
+        "lineCount": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "ogz-websocket": {
+      "pm_out_log_path": {
+        "lineCount": 2328,
+        "sha256": "5412ada19050939838aabca4dd33e5f78e69177486e092689fc5c6446839a9c9"
+      },
+      "pm_err_log_path": {
+        "lineCount": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "ogz-stripe": {
+      "pm_out_log_path": {
+        "lineCount": 1,
+        "sha256": "b20440c1b822db543780f32fc5f35d55d33ae140bfb2f64c7c7228e761d65931"
+      },
+      "pm_err_log_path": {
+        "lineCount": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "ogz-prime-v2": {
+      "pm_out_log_path": {
+        "lineCount": 16678,
+        "sha256": "913c31c817a51ab32faf32f3b61d28e68c800c46f07771377d1296cc976a89a1"
+      },
+      "pm_err_log_path": {
+        "lineCount": 872,
+        "sha256": "af1b623b884e25985dd351140c824b3227dd8176d6b5ada0e3cfea862845e497"
+      }
+    }
+  },
+  "limitations": [
+    "No live trade stop was changed; UI/relay functions and actual state/exit modules were exercised in isolation.",
+    "No rendered-browser proof, stock-session or full session-switch certification in this Stop 1 activation.",
+    "Auxiliary role ownership uses current isolated source checks, actual bootstrap environments and startup paths. Runtime settings identity is directly returned by the bot; no auxiliary introspection endpoint was added.",
+    "No fresh RAG publication or complete-panel consensus is claimed."
+  ],
+  "policyHashMethod": "sha256 of Python json.dumps(policy, sort_keys=True, separators=(comma, colon)), UTF-8",
+  "startupObservations": [
+    "Supervisor observed one HTTP 502 during relay reload and then returned to HEALTHY.",
+    "TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are absent from .env; Telegram prompt delivery is not established.",
+    "Supervisor deadman URL is absent and its boot log explicitly reports disabled."
+  ]
+}
