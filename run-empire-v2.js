@@ -720,10 +720,7 @@ class OGZPrimeV14Bot {
 
     // Phase 2 REWRITE: AdvancedExecutionLayer deleted - OrderRouter+OrderExecutor handle execution
 
-    this.performanceAnalyzer = new PerformanceAnalyzer({
-      ...resolvedConfig.config.performanceAnalysis,
-      ...resolvedConfig.config.internals.performanceAnalysis,
-    });
+    this.performanceAnalyzer = new PerformanceAnalyzer();
 
     // Initialize Pattern Exit Model (shadow mode by default)
     this.patternExitModel = null;

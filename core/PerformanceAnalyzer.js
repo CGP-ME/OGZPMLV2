@@ -50,19 +50,9 @@ class PerformanceAnalyzer {
   /**
    * Initialize the performance analysis system
    * 
-   * @param {Object} config - Configuration options
-   * @param {number} [config.minTradesForAnalysis=20] - Minimum trades before generating insights
-   * @param {number} [config.edgeDecayLookback=50] - Trades to analyze for edge decay
-   * @param {number} [config.edgeDecayThreshold=0.3] - Edge decay threshold (30% reduction)
-   * @param {number} [config.entryQualityWeight=0.4] - Weight for entry timing in quality score
-   * @param {number} [config.exitQualityWeight=0.4] - Weight for exit timing in quality score
-   * @param {number} [config.patternAccuracyWeight=0.2] - Weight for pattern accuracy
-   * @param {string} [config.tradesDbPath] - Path for trades database storage
-   * @param {number} [config.recommendationInterval=50] - Trades between recommendations
-   * @param {number} [config.minRecommendationConfidence=0.7] - Min confidence for recommendations
-   * @param {number} [config.alertOnTradesBelow=70] - Quality score threshold for alerts
+   * Customer controls and storage policy come from the canonical config files.
    */
-  constructor(config) {
+  constructor() {
     // ========================================================================
     // CONFIGURATION MANAGEMENT
     // ========================================================================
@@ -71,7 +61,6 @@ class PerformanceAnalyzer {
      * Performance analyzer configuration
      * @type {Object}
      */
-    this.config = config;
     
     // ========================================================================
     // STATE INITIALIZATION
@@ -86,6 +75,13 @@ class PerformanceAnalyzer {
     console.log(`   Edge decay lookback: ${this.config.edgeDecayLookback} trades`);
   }
   
+  get config() {
+    return {
+      ...ConfigLoader.get('performanceAnalysis'),
+      ...ConfigLoader.get('internals.performanceAnalysis'),
+    };
+  }
+
   /**
    * Reset analyzer state to initial conditions
    * 
@@ -1124,11 +1120,7 @@ module.exports = PerformanceAnalyzer;
  * // 1. INITIALIZE PERFORMANCE ANALYZER
  * const PerformanceAnalyzer = require('./core/PerformanceAnalyzer');
  * 
- * const analyzer = new PerformanceAnalyzer({
- *   minTradesForAnalysis: 20,
- *   edgeDecayLookback: 50,
- *   tradesDbPath: './data/trades_analysis.json'
- * });
+ * const analyzer = new PerformanceAnalyzer();
  * 
  * // 2. PROCESS TRADE FOR ANALYSIS
  * const tradeResult = {

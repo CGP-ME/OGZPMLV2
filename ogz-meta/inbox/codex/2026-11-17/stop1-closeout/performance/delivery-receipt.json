@@ -1,0 +1,43 @@
+{
+  "source": {
+    "tree": "596e634c34bc867aef014373595cd60c320de20f",
+    "base": "f0503298c5e6203f734e012a1294ba5acd055847",
+    "sourceSha256": {
+      "core/PerformanceAnalyzer.js": "c7c39eca75304124e1f9f197d0cd885759115dc7b3ade45c1ba0c5a5b8214ab2",
+      "run-empire-v2.js": "83d9a5721cdc2052e771a221033dc8dcfbd4d10dc1027d564f7d20e9029ba300",
+      "foundation/ConfigLoader.js": "d25d03cd01fa5219762e1e5ac853b05a969394cbf7f64daab4639c8cfddc2a44"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "proof": {
+    "configuration": {
+      "fingerprint": "0840a415f3fa14079930a0332df31518e03ef62154fce7bed5e71013c736afb4",
+      "role": "bot",
+      "settings": 23,
+      "internals": 12,
+      "settingsHash": "3e420361bbf9ac04ac78cee519ed3427c7f7801348219dbcaf4a49ea017a6e18",
+      "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+    },
+    "before": 64,
+    "after": 70,
+    "expected": 70,
+    "zeroWeightPreserved": true,
+    "historyIdentityPreserved": true,
+    "analysisMinimumAdopted": true
+  },
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "verdict": "no_break_found",
+    "costUsd": 0.100512,
+    "notFullPanel": true,
+    "limits": [
+      "source review, native execution recorded separately",
+      "targeted file windows",
+      "historical changelog describes superseded constructor retention"
+    ],
+    "answerPath": "ogz-meta/inbox/codex/2026-11-17/stop1-closeout/performance/review-answer.txt"
+  },
+  "runtimeActivated": false
+}
