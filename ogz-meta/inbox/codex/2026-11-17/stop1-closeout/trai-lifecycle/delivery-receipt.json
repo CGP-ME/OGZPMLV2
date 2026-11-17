@@ -1,0 +1,65 @@
+{
+  "source": {
+    "tree": "19c59dd112fc68cc3370b0107050f50b1ec2f722",
+    "base": "571eca9116ec0baa02747fe1f6d17cd46f0c4156",
+    "sourceSha256": {
+      "core/TRAIDecisionModule.js": "b0f50bb1a43f353ce8608812815a24dc5a35f335bf69a08500b508b32209d701",
+      "core/TradingLoop.js": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259",
+      "core/WebSocketManager.js": "57d471ce8a20fea271ac5db53a517c9574e73dc8a4dd4b92555c4253d4f00713",
+      "foundation/ConfigLoader.js": "b7aacb2c044898aa067d01fc413c9644669535a43c49c50b445d20f053b77a68",
+      "run-empire-v2.js": "348cab3b31997eb1827af7fae5ef1215cc328746566babb13859398a38a2579b"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "proof": {
+    "configuration": {
+      "fingerprint": "27d12e583adce56ee1a7858f6d086cac9f7e31504dca1936aa77c2b4a58eb3c6",
+      "role": "bot",
+      "settings": 24,
+      "internals": 13,
+      "settingsHash": "733dfcf90286d035578dfe270de59d6188e8b9a4f29714c856b00433187c6f28",
+      "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+    },
+    "realSettingsSaves": 10,
+    "retainedConsumerContexts": 3,
+    "disabledBootDoesNotConstructAdvisor": true,
+    "initializeSharedAcrossConcurrentCalls": true,
+    "enabledReusesBank": true,
+    "reconnectedSocketRebound": true,
+    "disabledChatNamed": true,
+    "backtestParticipationReadsSavedValue": true,
+    "failedInitializationRecorded": true,
+    "noAutomaticPaidRetryLoop": true,
+    "explicitReenableRetriesOnce": true,
+    "providerAttempts": 3,
+    "seams": [
+      "provider Core only",
+      "runner getter/callback/query and context getters extracted from current source",
+      "operation tracking and audit sinks",
+      "backtest mode predicate"
+    ],
+    "runtimeActivated": false
+  },
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "verdict": "no_break_found",
+    "blocking": false,
+    "iterations": 17,
+    "costUsd": 0.062372,
+    "notFullPanel": true,
+    "metadata": "insufficient_qualifying_seats; verdict_labels_match=no is not semantic consensus"
+  },
+  "findingsAndResolution": [
+    "Failed initialization retains one rejected promise until explicit disable/re-enable. Existing consumers catch or check unavailable core; this avoids repeating provider initialization on each candle. Per-cycle error logs remain visible.",
+    "enableBacktest now gates all retained advisor consumers, including backtest summary/chat. Previously only TradingLoop obeyed it. This implements the current Run TRAI during backtests setting consistently."
+  ],
+  "limitations": [
+    "Provider Core was an explicit fixture seam, not a real paid request.",
+    "Runner getter, callback, query handler and three context getters were extracted from the exact candidate source; the full bot was not started in this proof.",
+    "No complete adversarial-panel vote or current RAG publication is claimed.",
+    "Runtime activation remains separate."
+  ],
+  "runtimeActivated": false
+}

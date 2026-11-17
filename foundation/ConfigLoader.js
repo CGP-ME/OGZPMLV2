@@ -1799,7 +1799,7 @@ function validate(config, sources = {}, opts = {}) {
   validateBotRuntimeContract(config, errors);
   // Advisory consumers receive typed canonical values, including at boot.
   // Use the same domains as the sole settings writer; do not invent a threshold.
-  for (const name of ['mode', 'weight', 'maxRisk', 'emergencyStopLoss', 'minConf',
+  for (const name of ['enabled', 'enableBacktest', 'mode', 'weight', 'maxRisk', 'emergencyStopLoss', 'minConf',
     'maxConf', 'legacyPatternMinSamples', 'trackDecisions',
     'advisoryUnknownPatternThreshold', 'advisoryUnknownPatternPenaltyMultiplier',
     'autonomousTraiWeight']) {
@@ -2819,7 +2819,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['trackDecisions', 'Record TRAI decisions'],
     ['enableBacktest', 'Run TRAI during backtests'],
   ].map(([key, label]) => [`trai.${key}`, {
-    type: 'boolean', unit: 'boolean', label, effect: key === 'trackDecisions' ? 'next_trai_decision' : 'next_bot_initialization_restart_required',
+    type: 'boolean', unit: 'boolean', label, effect: key === 'trackDecisions' ? 'next_trai_decision' : 'next_trai_operation',
   }])),
   'trai.mode': {
     type: 'string', unit: 'mode', values: ['passive', 'advisory', 'hybrid', 'autonomous'],

@@ -60,6 +60,8 @@ class TRAIDecisionModule extends EventEmitter {
     
     // TRAI Core instance (will be initialized)
     this.traiCore = null;
+    this._initialization = null;
+    this._initializationFailed = false;
 
     // Pattern pack integration (loads harvested patterns for confidence adjustment)
     this.patternIntegration = new TRAIPatternIntegration(
@@ -120,7 +122,16 @@ class TRAIDecisionModule extends EventEmitter {
   /**
    * Initialize TRAI Decision Module
    */
-  async initialize() {
+  initialize(retryFailed = false) {
+    if (this.state.isInitialized) return Promise.resolve();
+    if (!this._initialization || (retryFailed && this._initializationFailed)) {
+      this._initializationFailed = false;
+      this._initialization = this._initialize();
+    }
+    return this._initialization;
+  }
+
+  async _initialize() {
     try {
       console.log('[TRAI] Initializing Decision Module...');
       
@@ -158,6 +169,7 @@ class TRAIDecisionModule extends EventEmitter {
       this.emit('initialized');
       
     } catch (error) {
+      this._initializationFailed = true;
       console.error('[TRAI] Initialization failed:', error.message);
       throw error;
     }
@@ -173,6 +185,7 @@ class TRAIDecisionModule extends EventEmitter {
    */
   async processDecision(signal, context) {
     const config = this.config;
+    await this.initialize();
     console.log('[TRAI-CHECKPOINT-1] processDecision START');
     console.log(`[TRAI-CHECKPOINT-2] Input - action: ${signal.action}, confidence: ${signal.confidence}`);
 

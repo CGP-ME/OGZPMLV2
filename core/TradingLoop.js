@@ -2153,8 +2153,7 @@ class TradingLoop {
   // ═══════════════════════════════════════════════════════════════
 
   _runTRAI(direction, orchResult, indicators, patterns, regime, price, symbol, marketData = null, timeframe) {
-    const skipTRAI = this.ctx.config.enableBacktestMode && !this.ctx.traiEnableBacktest;
-    if (!this.ctx.trai || skipTRAI) return;
+    if (!this.ctx.trai) return;
 
     try {
       const patternScope = this._patternScope(symbol, timeframe);

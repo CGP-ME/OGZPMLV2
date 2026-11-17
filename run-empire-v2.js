@@ -775,27 +775,8 @@ class OGZPrimeV14Bot {
     // Rate limiting now handled by MIN_TRADE_CONFIDENCE threshold + position sizing
     this.rateLimiter = null;
 
-    // TRAI DECISION MODULE (Change 574 - Opus Architecture + Codex Fix)
-    // OPTIMIZECEPTION FIX: Skip TRAI initialization when disabled (4x faster backtests)
-    // ConfigLoader owns the single TRAI enablement decision and LLM configuration.
-    if (resolvedConfig.config.trai.enabled === true) {
-      this.trai = new TRAIDecisionModule({
-        logPath: resolvedConfig.config.internals.trai.decisionLogPath,
-        decisionHistoryLimit: resolvedConfig.config.internals.trai.decisionHistoryLimit,
-        enableLLM: resolvedConfig.config.trai.llm.enabled,
-        llmConfig: resolveTraiLlmConfig({ config: resolvedConfig.config }),
-        staticBrainPath: resolvedConfig.config.internals.trai.staticBrainPath,
-        enableVoice: resolvedConfig.config.services.voice.audioEnabled,
-        enableVideo: resolvedConfig.config.services.voice.videoEnabled,
-        memoryTopK: resolvedConfig.config.internals.trai.memoryTopK,
-        memoryMaxJournalEntries: resolvedConfig.config.internals.trai.memoryMaxJournalEntries,
-        elevenlabsApiKey: resolvedConfig.config.services.voice.elevenlabsApiKey,
-        didApiKey: resolvedConfig.config.services.voice.didApiKey,
-      });
-    } else {
-      this.trai = null;  // TRAI disabled for fast optimization runs
-      console.log('[TRAI] disabled for fast backtest mode');
-    }
+    // Retain one advisor across enable/disable saves; consumers read the live owner.
+    this._trai = null;
 
     // Phase 2 REWRITE: tradingBrain deleted - orchestrator handles confidence
 
@@ -1108,7 +1089,22 @@ class OGZPrimeV14Bot {
     this.dashboardWs = null;
     this.dashboardWsConnected = false;
     this.onSettingsApplied = (snapshot, receipt) => {
+      const previouslyEnabled = resolvedConfig.config.trai.enabled
+        && (!resolvedConfig.config.mode.backtest || resolvedConfig.config.trai.enableBacktest);
       resolvedConfig = snapshot;
+      const advisor = this.trai;
+      if (!previouslyEnabled && advisor) {
+        this._trackRuntimeOperation('trai_settings_initialize', () => advisor.initialize(true)).then(() => {
+          console.log('[TRAI_SETTINGS_READY]', JSON.stringify({
+            requestId: receipt.requestId, configuration: receipt.configuration,
+          }));
+        }, error => {
+          captureRuntimeFatal('optionalServiceInitializationFailed', error, 'trai_settings_initialization', {
+            service: 'trai', continued: true, requestId: receipt.requestId,
+            configuration: receipt.configuration,
+          });
+        });
+      }
       this.patternChecker.memory.refreshPersistenceSchedule();
       runtimeAuditSink.bindConfiguration(snapshot);
       runtimeAuditSink.setSourceReceiptId(`config:${snapshot.fingerprint}`);
@@ -1359,6 +1355,7 @@ class OGZPrimeV14Bot {
     // Phase 2 REWRITE: executionLayer, tradingBrain, tradingOptimizations deleted
     // Phase 3 REWRITE: entryDecider deleted - gate checks in TradingLoop
     // Phase 4 REWRITE: Added orderRouter + maxProfitManager
+    const traiOwner = this;
     this.orderExecutor = new OrderExecutor({
       performanceAnalyzer: this.performanceAnalyzer,
       patternChecker: this.patternChecker,
@@ -1366,7 +1363,7 @@ class OGZPrimeV14Bot {
       patternExitShadowMode: this.patternExitShadowMode,
       backtestRecorder: this.backtestRecorder,
       riskManager: this.riskManager,
-      trai: this.trai,
+      get trai() { return traiOwner.trai; },
       config: this.config,
       pendingTraiDecisions: this.pendingTraiDecisions,
       tradingPair: this.tradingPair,
@@ -1449,14 +1446,13 @@ class OGZPrimeV14Bot {
       evalRules: resolvedConfig.config.evalRules,
       riskManager: this.riskManager,
       pendingTraiDecisions: this.pendingTraiDecisions,
-      trai: this.trai,
+      get trai() { return traiOwner.trai; },
       backtestRecorder: this.backtestRecorder,
       orderExecutor: this.orderExecutor,
       // ConfigLoader injection - mode flags
       backtestFast: resolvedConfig.config.backtest.fast,
       backtestMode: resolvedConfig.config.mode.backtest,
       testMode: resolvedConfig.config.mode.testMode,
-      traiEnableBacktest: resolvedConfig.config.trai.enableBacktest,
       // HIGH-16: execution.candleTimeframe threaded into ctx for orchestrator validation
       candleTimeframe: this.candleTimeframe,
       get regimeDetection() { return ConfigLoader.get('regimeDetection'); },
@@ -1488,7 +1484,7 @@ class OGZPrimeV14Bot {
     this.backtestRunner = new BacktestRunner({
       __dirname: __dirname,
       patternChecker: this.patternChecker,
-      trai: this.trai,
+      get trai() { return traiOwner.trai; },
       backtestRecorder: this.backtestRecorder,
       runtimeConfig: resolvedConfig.config,
       // DynamicPositionSizer NOT WIRED - stats printing disabled
@@ -1502,6 +1498,31 @@ class OGZPrimeV14Bot {
     console.log('All modules initialized successfully');
     console.log(`   Risk Management: ENABLED`);
     console.log(`   Change 513 Compliance: \n`);
+  }
+
+  get trai() {
+    if (ConfigLoader.get('trai.enabled') !== true
+      || (ConfigLoader.get('mode.backtest') && ConfigLoader.get('trai.enableBacktest') !== true)) return null;
+    if (!this._trai) {
+      const config = ConfigLoader.getCachedSnapshot().config;
+      this._trai = new TRAIDecisionModule({
+        logPath: config.internals.trai.decisionLogPath,
+        decisionHistoryLimit: config.internals.trai.decisionHistoryLimit,
+        enableLLM: config.trai.llm.enabled,
+        llmConfig: resolveTraiLlmConfig({ config }),
+        staticBrainPath: config.internals.trai.staticBrainPath,
+        enableVoice: config.services.voice.audioEnabled,
+        enableVideo: config.services.voice.videoEnabled,
+        memoryTopK: config.internals.trai.memoryTopK,
+        memoryMaxJournalEntries: config.internals.trai.memoryMaxJournalEntries,
+        elevenlabsApiKey: config.services.voice.elevenlabsApiKey,
+        didApiKey: config.services.voice.didApiKey,
+      });
+    }
+    if (this.dashboardWs && this._trai.wsClient !== this.dashboardWs) {
+      this._trai.setWebSocketClient(this.dashboardWs);
+    }
+    return this._trai;
   }
 
   /**
@@ -2035,9 +2056,10 @@ class OGZPrimeV14Bot {
     this.isRunning = true;
 
     // Initialize TRAI Decision Module (Change 574)
-    if (this.trai) {
+    const advisor = this.trai;
+    if (advisor) {
       try {
-        await this._trackRuntimeOperation('trai_initialize', () => this.trai.initialize());
+        await this._trackRuntimeOperation('trai_initialize', () => advisor.initialize());
         if (this._shutdownRequested) return;
         console.log('TRAI Decision Module initialized - IN THE HOT PATH!\n');
       } catch (error) {
@@ -2047,7 +2069,6 @@ class OGZPrimeV14Bot {
         });
         console.error('[WARNING] TRAI initialization failed:', runtimeAuditSink.redactForOutput(error));
         console.log('   Bot will continue without TRAI...\n');
-        this.trai = null;
       }
     }
 
@@ -3716,8 +3737,17 @@ class OGZPrimeV14Bot {
    */
   async handleTraiQuery(msg) {
     const { query, queryId, sessionId } = msg;
+    const advisor = this.trai;
+    if (!advisor) {
+      if (this.dashboardWs?.readyState === 1) {
+        this.dashboardWs.send(JSON.stringify({ type: 'trai_response', queryId, sessionId,
+          error: 'trai_disabled', response: 'TRAI is disabled in the current settings.' }));
+      }
+      return;
+    }
 
     try {
+      await advisor.initialize();
       // CHANGE 2026-01-31: Fetch REAL market context from web (detects asset from query)
       const webContext = await this.fetchWebMarketContext(query);
 
@@ -3775,10 +3805,10 @@ class OGZPrimeV14Bot {
       };
 
       // Process query with TRAICore (chat/queries go to core, not decision module)
-      if (!this.trai.traiCore) {
+      if (!advisor.traiCore) {
         throw new Error('TRAI Core not available - LLM inference server not running');
       }
-      const response = await this.trai.traiCore.processQuery(query, marketContext);
+      const response = await advisor.traiCore.processQuery(query, marketContext);
 
       // Send response back to dashboard
       if (this.dashboardWs && this.dashboardWs.readyState === 1) {
@@ -3971,7 +4001,7 @@ class OGZPrimeV14Bot {
       ['ema_crossover', this.emaCrossover, 'destroy'],
       ['ma_dynamic_sr', this.maDynamicSR, 'destroy'],
       ['liquidity_sweep', this.liquiditySweep, 'destroy'],
-      ['trai_core', this.trai?.traiCore, 'shutdown'],
+      ['trai_core', this._trai?.traiCore, 'shutdown'],
       ['risk_manager', this.riskManager, 'shutdown'],
     ];
     for (const [name, owner, method] of strategyCleanup) {

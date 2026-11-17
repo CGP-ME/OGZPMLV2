@@ -368,7 +368,7 @@ class WebSocketManager {
           }
 
           // TRAI Chat Support - Tech support queries from dashboard
-          if (msg.type === 'trai_query' && this.ctx.trai) {
+          if (msg.type === 'trai_query') {
             console.log('[TRAI] Received chat query:', msg.query?.substring(0, ConfigLoader.getInternalsFileValue('transport.dashboardClient.queryLogMaxChars')) + '...');
             this.ctx.handleTraiQuery(msg);
           }
