@@ -22,7 +22,7 @@ spec = importlib.util.spec_from_file_location('matrix', root / 'tools/backtest-m
 assert spec is not None and spec.loader is not None
 matrix = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(matrix)
-matrix.require_isolation()
+assert not matrix.rejected(matrix.require_isolation())
 settings_path = root / 'config/settings.json'
 settings = json.loads(settings_path.read_text())
 assert settings['launchProfiles']['paper']['pipeline']['enableMarketRegime'] is False

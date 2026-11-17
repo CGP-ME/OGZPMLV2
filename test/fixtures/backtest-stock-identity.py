@@ -29,7 +29,7 @@ spec = importlib.util.spec_from_file_location('matrix', root / 'tools/backtest-m
 assert spec is not None and spec.loader is not None
 matrix = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(matrix)
-matrix.require_isolation()
+assert not matrix.rejected(matrix.require_isolation())
 settings = json.loads((root / 'config/settings.json').read_text())
 if args == ['scope']:
     import subprocess
@@ -105,22 +105,17 @@ for symbol in args or ['AAPL']:
     candles = [dict(timestamp=1704205800000, open=10, high=11, low=9,
                     close=10.5, volume=10000, symbol=symbol, timeframe='15m', complete=True)]
     if symbol == 'BRK.B':
-        try:
-            matrix.validate_plan(plan, settings)
-        except ValueError as error:
-            assert str(error) == 'tradingPair must be a canonical ticker or pair'
-            print('DOTTED_SYMBOL_UNSUPPORTED ' + str(error), flush=True)
-            continue
-        raise AssertionError('Dotted symbol unexpectedly accepted')
+        result = matrix.validate_plan(plan, settings)
+        assert matrix.rejected(result) and result['detail'] == 'tradingPair must be a canonical ticker or pair'
+        print('DOTTED_SYMBOL_UNSUPPORTED ' + result['detail'], flush=True)
+        continue
     cells = matrix.validate_plan(plan, settings)
-    matrix.validate_candles(candles, plan['identity'])
+    assert not matrix.rejected(cells), cells
+    assert cells == matrix.expand_grid(plan)
+    assert matrix.validate_candles(candles, plan['identity']) == candles
     for field, wrong in [('symbol', 'OTHER'), ('timeframe', '5m')]:
-        try:
-            matrix.validate_candles([{**candles[0], field: wrong}], plan['identity'])
-        except ValueError as error:
-            assert str(error) == f'candle[0].{field} conflicts with identity'
-        else:
-            raise AssertionError(f'{field} mismatch accepted')
+        result = matrix.validate_candles([{**candles[0], field: wrong}], plan['identity'])
+        assert matrix.rejected(result) and result['detail'] == f'candle[0].{field} conflicts with identity'
     result = matrix.run_cell(dict(plan=plan, cell=cells[0], candles=candles))
     print('SYNTHETIC_IDENTITY_RESULT ' + json.dumps(dict(symbol=symbol, result=result)), flush=True)
     assert result['runnerExitCode'] == 0, (symbol, result.get('failure'))

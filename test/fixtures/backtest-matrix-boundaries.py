@@ -11,7 +11,7 @@ spec = importlib.util.spec_from_file_location('matrix', root / 'tools/backtest-m
 assert spec is not None and spec.loader is not None
 matrix = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(matrix)
-matrix.require_isolation()
+assert not matrix.rejected(matrix.require_isolation())
 cell = {'id': 'source-drift-observation', 'confidence': .4, 'atrMinPercent': .1, 'stopLoss': -.5}
 # Real child CLI must reject an unexpected source before configuration or app startup.
 payload = {'cell': cell, 'sources': {'tools/backtest-matrix.py': 'deliberately-not-a-source-digest'}}

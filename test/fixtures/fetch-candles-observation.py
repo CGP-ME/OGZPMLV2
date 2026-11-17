@@ -106,13 +106,11 @@ class Observation(unittest.TestCase):
         self.assertEqual(client('https://api.exchange.coinbase.com/products/BTC-USD/candles',{},{}), [])
         self.assertIn(2.0, waits)
         self.assertEqual(len(calls), 2)
-        with self.assertRaises(module.FetchError):
-            client('https://evil.example/data',{}, {'APCA-API-KEY-ID':'synthetic'})
+        self.assertEqual(client('https://evil.example/data',{}, {'APCA-API-KEY-ID':'synthetic'}).code, 'disallowed_data_url')
         class Denied:
             def open(self, request, timeout):
                 raise urllib.error.HTTPError(request.full_url,403,'secret error',{},io.BytesIO(b'secret body'))
-        with self.assertRaisesRegex(module.FetchError, '^http_403$'):
-            module.HTTPClient(args, opener=Denied(), sleep=waits.append)('https://data.alpaca.markets/v2/stocks/bars',{}, {})
+        self.assertEqual(module.HTTPClient(args, opener=Denied(), sleep=waits.append)('https://data.alpaca.markets/v2/stocks/bars',{}, {}).code, 'http_403')
         self.assertIsNone(module.NoRedirect().redirect_request(None,None,302,'',{},'https://evil.example'))
         proc = subprocess.run(['python3',str(SOURCE),'--list-timeframes'],capture_output=True,text=True)
         self.assertEqual(proc.returncode, 0)
@@ -190,7 +188,16 @@ class Observation(unittest.TestCase):
                 return [[args.start,'10.1234567890123456789','12','9','11','4',args.end-1]]
             self.assertEqual(module.run(args,transport=transport),0)
             text = (args.output/'candles.json').read_text()
-            matrix.validate_candles(json.loads(text), {'tradingPair':'BTC-USDT','candleTimeframe':'1m'})
+            loaded = json.loads(text)
+            identity = {'tradingPair':'BTC-USDT','candleTimeframe':'1m'}
+            checked = matrix.validate_candles(loaded, identity)
+            self.assertFalse(matrix.rejected(checked), checked)
+            self.assertEqual(checked, loaded)
+            mismatched = [{**loaded[0], 'symbol':'BTC-USD'}]
+            refused = matrix.validate_candles(mismatched, identity)
+            self.assertTrue(matrix.rejected(refused), refused)
+            with self.assertRaises(AssertionError):
+                self.assertFalse(matrix.rejected(refused), refused)
             self.assertEqual(json.loads(text,parse_float=Decimal)[0]['open'],Decimal('10.1234567890123456789'))
 
     def test_08_malformed_and_unfinished_fail_closed(self):
@@ -237,7 +244,7 @@ class Observation(unittest.TestCase):
             def transport(url,params,headers):
                 calls.append(params)
                 if len(calls)==2:
-                    raise module.FetchError('network_retry_exhausted')
+                    return module.Unavailable('network_retry_exhausted', 'request')
                 return [[args.start,'10','12','9','11','4',args.start+59999]]
             self.assertEqual(module.run(args,transport=transport),1)
             self.assertFalse((args.output/'candles.json').exists())

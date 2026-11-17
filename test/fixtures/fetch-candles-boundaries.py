@@ -30,10 +30,9 @@ class Boundaries(unittest.TestCase):
             with self.subTest(start=start, end=end), tempfile.TemporaryDirectory() as root:
                 output = Path(root)/'new'
                 with patch.object(m, 'run', return_value=0) as run, contextlib.redirect_stderr(io.StringIO()):
-                    with self.assertRaises(SystemExit) as error:
-                        m.main(['--asset','crypto','--symbol','BTC-USD','--timeframe','1m',
-                                '--sources','bitstamp','--start',start,'--end',end,'--output',str(output)])
-                    self.assertEqual(error.exception.code, 2)
+                    code = m.main(['--asset','crypto','--symbol','BTC-USD','--timeframe','1m',
+                                   '--sources','bitstamp','--start',start,'--end',end,'--output',str(output)])
+                    self.assertEqual(code, 2)
                     run.assert_not_called()
                 self.assertFalse(output.exists())
 

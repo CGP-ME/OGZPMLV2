@@ -42,20 +42,10 @@ assert hasattr(m, 'validate_candles'), 'Matrix must reject malformed market inpu
 valid = [{'timestamp': 1793629800000, 'open': 10, 'high': 11, 'low': 9, 'close': 10, 'volume': 30}]
 assert m.validate_candles(valid, plan['identity']) == valid
 for invalid in ([], valid + valid, [{**valid[0], 'close': 12}], [{**valid[0], 'volume': -1}], [{**valid[0], 'symbol': 'NVDA'}]):
-    try:
-        m.validate_candles(invalid, plan['identity'])
-    except ValueError:
-        pass
-    else:
-        raise AssertionError(f'Malformed candles admitted: {invalid}')
+    assert m.rejected(m.validate_candles(invalid, plan['identity'])), "Unusable input admitted"
 assert hasattr(m, 'validate_plan'), 'Plan schema must reject unknown/misspelled axes'
-m.validate_plan(plan, settings)
-try:
-    m.validate_plan({**plan, 'confidnce': [0.7]}, settings)
-except ValueError:
-    pass
-else:
-    raise AssertionError('Misspelled/extra axes silently accepted')
+assert m.validate_plan(plan, settings) == cells
+assert m.rejected(m.validate_plan({**plan, 'confidnce': [0.7]}, settings)), "Unusable input admitted"
 assert hasattr(m, 'consumer_evidence'), 'Persist observed policy values and mismatches, not just requested settings'
 trade = {'tradeId': 'synthetic', 'strategyName': 'EMASMACrossover', 'frozenExitPolicy': {'contract': {
     'stopLossPercent': -0.5, 'minConfidence': 0.4, 'atrMinPercent': 0.1}}}
@@ -146,14 +136,11 @@ for strategy in settings['exitContracts']:
     owner_plan = {**plan, 'strategies': [strategy],
                   'stopLoss': {'paths': [f'exitContracts.{strategy}.{key}'], 'unit': unit, 'values': [value]}}
     if strategy in owner_cases:
-        m.validate_plan(owner_plan, settings)
+        admitted = m.validate_plan(owner_plan, settings)
+        assert not m.rejected(admitted), admitted
+        assert admitted == m.expand_grid(owner_plan)
     else:
-        try:
-            m.validate_plan(owner_plan, settings)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError(f'Unsupported producer owner admitted: {strategy}.{key}')
+        assert m.rejected(m.validate_plan(owner_plan, settings)), "Unusable input admitted"
 # A numeric field planted on a supported strategy is not a supported owner.
 for strategy, (key, unit, value) in owner_cases.items():
     fake = json.loads(json.dumps(settings))
@@ -163,12 +150,7 @@ for strategy, (key, unit, value) in owner_cases.items():
     wrong_plan = {**plan, 'strategies': [strategy], 'stopLoss': {
         'paths': [f'exitContracts.{strategy}.{wrong}'],
         'unit': 'percent_buffer' if wrong == 'stopBufferPct' else 'atr_multiple', 'values': [.1]}}
-    try:
-        m.validate_plan(wrong_plan, fake)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError(f'Cross-owner field admitted: {strategy}.{wrong}')
+    assert m.rejected(m.validate_plan(wrong_plan, fake)), "Unusable input admitted"
 assert settings == original
 print(json.dumps({'observation': 'explicit producer owner admission; unsupported and cross-owner paths rejected before trades'}))
 if '--integration' in __import__('sys').argv:

@@ -1,0 +1,560 @@
+{
+  "schemaVersion": 1,
+  "scope": "Matrix/downloader explicit failure routing and consumer reconciliation; no runtime activation",
+  "base": "689c1621c6053455640074887b7050d541396c58",
+  "reviewedSourceTree": "56a31cca6bdd53332ee97c450433662cfbf04c2b",
+  "branch": "codex/archive-legacy-env",
+  "ownedSHA256": {
+    "tools/backtest-matrix.py": "6fc4d360cdbe4e3749b9fe7e7bbef5a187509c2ed35f36e4b9df94ec48d09ad8",
+    "tools/BACKTEST-MATRIX.md": "c69fc68d376ae6d1f2210f1d1ec73256b56e06ada16cfc195dd393fccc7c8a9f",
+    "test/fixtures/backtest-matrix-observation.py": "3b18e1a4b318061c2ae6e99758adc33fa8420e63d28af007ba5c92af2ea25eb3",
+    "test/fixtures/backtest-matrix-boundaries.py": "83655e50fd5be2838bdb4b9a08d5482d42a6a97446fd828a9669e766bd882af0",
+    "test/fixtures/backtest-strategy-admission.py": "c0a8912191db8cb34b1efcd34ebc17ea743461e6d1118f29e1c659f097b84ae5",
+    "test/fixtures/backtest-stock-identity.py": "d03e8f848841b0195784a2d924064d152ffdabde9c8775cbc44d925c8441a403",
+    "test/fixtures/backtest-matrix-doctrine.py": "19b7c328e0ad69ae3e390a59f302a72413a0317d6f15c4ab4ea99f60323588e7",
+    "tools/fetch-candles.py": "b7b06ddfa54146e2a2a38785b9847c78beef26937e9c3835ff7e4b85e9eb3079",
+    "tools/FETCH-CANDLES.md": "1ce9ddc74b34922ecd76c63b5d59b6b073a3bce640085a3eb7ca898ce7b2001e",
+    "test/fixtures/fetch-candles-observation.py": "56ccb7cdc87d333c7cfe8e55a0ac48ac658e2f760050bc2731271a0511819a04",
+    "test/fixtures/fetch-candles-boundaries.py": "defc0f5fb90ec4a85ca9282823ef0df6470dec4225f7b735cc3cf476d3e05aec",
+    "test/fixtures/fetch-candles-doctrine.py": "a0e1472429d6962d682719efed91f6d8d2a0003ac61d083c665a3721442b74c9"
+  },
+  "testedSources": 850,
+  "verificationCommands": 25,
+  "verification": [
+    {
+      "name": "fetch-doctrine",
+      "exit": 0,
+      "logSHA256": "fe6076234460f5bb0f18de90d20eb73dbe1019370e0036c1c088491376f8e5e8",
+      "evidence": [
+        "Ran 13 tests in 1.096s",
+        "OK"
+      ]
+    },
+    {
+      "name": "fetch-observation",
+      "exit": 0,
+      "logSHA256": "2ad552ccf8d496622e70301fc64e4ba9dd61770596e5ede6b363f5f23e5c7c86",
+      "evidence": [
+        "Ran 10 tests in 0.615s",
+        "OK"
+      ]
+    },
+    {
+      "name": "fetch-boundaries",
+      "exit": 0,
+      "logSHA256": "c8ef456ac38962a9502c0269a00cce596142582abe6fcacde6657acac62f86fb",
+      "evidence": [
+        "Ran 11 tests in 0.177s",
+        "OK"
+      ]
+    },
+    {
+      "name": "matrix-input",
+      "exit": 0,
+      "logSHA256": "8e75da54c59ec71df94093e5c796baa6ca44f79f88a80ed5388031ec3d2bfe1a",
+      "evidence": [
+        "INPUT_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-cli",
+      "exit": 0,
+      "logSHA256": "69129e5c559b0a5f035c0f9dcf09457e95d6ce93b09d628add13d706120be4ab",
+      "evidence": [
+        "CLI_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-worker",
+      "exit": 0,
+      "logSHA256": "50b8dd5210bf01611b6c42f23500fa3ea142cbc2c9545214102f2bdc8c505d64",
+      "evidence": [
+        "WORKER_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-publication",
+      "exit": 0,
+      "logSHA256": "4d9db464dd1057bb5dfef6780fed7d4eb35c757278b0891c6eef6914119576ff",
+      "evidence": [
+        "PUBLICATION_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-shapes",
+      "exit": 0,
+      "logSHA256": "fdc105a4cc4dbd9967f126cba6647bb3a336e3eb788d348e16f84686555edf4e",
+      "evidence": [
+        "SHAPES_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-reports",
+      "exit": 0,
+      "logSHA256": "84e4356006d75e6206b588eeb14c9e79611c1d7446ad6f1aa60556143ff03f7b",
+      "evidence": [
+        "REPORT_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-receipt",
+      "exit": 0,
+      "logSHA256": "18b3f60b1460918356dbbd1c32a46f9a0743d328d585191ec8841f1e35c9e757",
+      "evidence": [
+        "RECEIPT_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-trade-rows",
+      "exit": 0,
+      "logSHA256": "c4c9e5999f7e0cda1d2ade7b17c868932dbfb4f22f5d40beda30a45c76bebc36",
+      "evidence": [
+        "NATIVE_RECEIPT_ACCEPTED complete 320",
+        "NATIVE_RECEIPT_ACCEPTED no_trades 1",
+        "TRADE_ROW_OBSERVED empty_trade failed 1",
+        "TRADE_ROW_REJECTED_HEALTHY_CONTINUED empty_trade",
+        "TRADE_ROW_OBSERVED missing_strategyName failed 1",
+        "TRADE_ROW_REJECTED_HEALTHY_CONTINUED missing_strategyName",
+        "TRADE_ROW_OBSERVED nonstring_strategyName failed 1",
+        "TRADE_ROW_REJECTED_HEALTHY_CONTINUED nonstring_strategyName",
+        "TRADE_ROW_OBSERVED missing_frozenExitPolicy failed 1",
+        "TRADE_ROW_REJECTED_HEALTHY_CONTINUED missing_frozenExitPolicy",
+        "TRADE_ROW_OBSERVED nonobject_frozenExitPolicy failed 1",
+        "TRADE_ROW_REJECTED_HEALTHY_CONTINUED nonobject_frozenExitPolicy",
+        "TRADE_ROW_OBSERVED missing_contract failed 1",
+        "TRADE_ROW_REJECTED_HEALTHY_CONTINUED missing_contract",
+        "TRADE_ROW_OBSERVED nonobject_contract failed 1",
+        "TRADE_ROW_REJECTED_HEALTHY_CONTINUED nonobject_contract",
+        "NATIVE_TRADE_ROWS_PASS"
+      ]
+    },
+    {
+      "name": "matrix-boundaries",
+      "exit": 0,
+      "logSHA256": "d2e89e4a5beee06e34796dc2f9ddb781a58d7e2640bd0e9fa7d9f5b3d5328986",
+      "evidence": []
+    },
+    {
+      "name": "matrix-native",
+      "exit": 0,
+      "logSHA256": "5fcb26e515c540b5d4912120b86728a4fc9a85a49c013cab1245f338612b87b0",
+      "evidence": [
+        {
+          "type": "NATIVE_MATRIX_OBSERVATION",
+          "symbol": null,
+          "status": "complete",
+          "candles": 320,
+          "trades": 96,
+          "errors": 0,
+          "executionErrors": 0,
+          "windowEndErrors": 0,
+          "mismatches": 0
+        }
+      ]
+    },
+    {
+      "name": "matrix-admission",
+      "exit": 0,
+      "logSHA256": "431a72d2c0c6e56f3b20b61c40647e61c7d0285977763f66d0291a44adea6e5b",
+      "evidence": []
+    },
+    {
+      "name": "matrix-five",
+      "exit": 0,
+      "logSHA256": "c3fab0ab368e26a73648ae5bff5bf0caef6278cf30d06d4295fae0696a078367",
+      "evidence": [
+        {
+          "type": "SYNTHETIC_IDENTITY_RESULT",
+          "symbol": "TSLA",
+          "status": "no_trades",
+          "candles": 1,
+          "trades": 0,
+          "errors": 0,
+          "executionErrors": 0,
+          "windowEndErrors": 0,
+          "mismatches": 0
+        },
+        {
+          "type": "SYNTHETIC_IDENTITY_RESULT",
+          "symbol": "RIOT",
+          "status": "no_trades",
+          "candles": 1,
+          "trades": 0,
+          "errors": 0,
+          "executionErrors": 0,
+          "windowEndErrors": 0,
+          "mismatches": 0
+        },
+        {
+          "type": "SYNTHETIC_IDENTITY_RESULT",
+          "symbol": "MARA",
+          "status": "no_trades",
+          "candles": 1,
+          "trades": 0,
+          "errors": 0,
+          "executionErrors": 0,
+          "windowEndErrors": 0,
+          "mismatches": 0
+        },
+        {
+          "type": "SYNTHETIC_IDENTITY_RESULT",
+          "symbol": "AAPL",
+          "status": "no_trades",
+          "candles": 1,
+          "trades": 0,
+          "errors": 0,
+          "executionErrors": 0,
+          "windowEndErrors": 0,
+          "mismatches": 0
+        },
+        {
+          "type": "SYNTHETIC_IDENTITY_RESULT",
+          "symbol": "NVDA",
+          "status": "no_trades",
+          "candles": 1,
+          "trades": 0,
+          "errors": 0,
+          "executionErrors": 0,
+          "windowEndErrors": 0,
+          "mismatches": 0
+        },
+        "STOCK_IDENTITY_PASS"
+      ]
+    },
+    {
+      "name": "matrix-scope",
+      "exit": 0,
+      "logSHA256": "6e1925f88c6585d23c5a05e0a68e3c5590cc492b33c955fa69bf2ffd3222d48c",
+      "evidence": [
+        "LEGACY_PRODUCER_TO_RUNNER_PASS",
+        "SCOPE_AND_LEGACY_REGRESSIONS_PASS"
+      ]
+    },
+    {
+      "name": "matrix-real",
+      "exit": 0,
+      "logSHA256": "d3befec6b48f14c441257e949b999cb44668f82dd0373cf980d14b23235aab9b",
+      "evidence": [
+        "ACTUAL_TSLA_REPLAY_PASS"
+      ]
+    },
+    {
+      "name": "combined",
+      "exit": 0,
+      "logSHA256": "b0ed018a46ffaecb3690306cf592db80ee7d391fead84f5a50fde3753a1a7279",
+      "evidence": [
+        "COMBINED_SYNTHETIC_PASS {\"provider\": \"alpaca\", \"bars\": 1, \"workerStatus\": \"no_trades\", \"rejectedMismatch\": \"candles_failed\", \"nativeProcessingErrors\": 0}"
+      ]
+    },
+    {
+      "name": "parent-http-boundary",
+      "exit": 0,
+      "logSHA256": "a16e6396aba03667811d95c4f04fadb74bfd87ff04cdf7858f1c39fc327b0473",
+      "evidence": []
+    },
+    {
+      "name": "parent-publication-limit",
+      "exit": 0,
+      "logSHA256": "74ac00ba68fb7d574b3c3fed07d325ede26fe7357ffd4747958f5c96ad508f33",
+      "evidence": [
+        "PUBLICATION_LIMIT_OBSERVATION {\"exit\": 1, \"receiptStatus\": \"success\", \"candlesExist\": false, \"cleanupDiagnostic\": true, \"failureReceiptDiagnostic\": true}"
+      ]
+    },
+    {
+      "name": "matrix-fix01-receipts",
+      "exit": 0,
+      "logSHA256": "2ca701d05fcb07222d1d5a47fe7f6da0ad5737de7b1e7ba160da2c6d51bd681f",
+      "evidence": [
+        "NATIVE_RECEIPT_ACCEPTED complete 320",
+        "NATIVE_RECEIPT_ACCEPTED no_trades 1",
+        "EXTERNAL_MUTATION_REJECTED missing_trades",
+        "EXTERNAL_MUTATION_REJECTED missing_coverage",
+        "EXTERNAL_MUTATION_REJECTED missing_configuration",
+        "EXTERNAL_MUTATION_REJECTED missing_exit",
+        "EXTERNAL_MUTATION_REJECTED bool_exit",
+        "EXTERNAL_MUTATION_REJECTED nonzero_exit",
+        "EXTERNAL_MUTATION_REJECTED missing_complete",
+        "EXTERNAL_MUTATION_REJECTED false_complete",
+        "EXTERNAL_MUTATION_REJECTED coverage_false",
+        "EXTERNAL_MUTATION_REJECTED count",
+        "EXTERNAL_MUTATION_REJECTED bool_count",
+        "EXTERNAL_MUTATION_REJECTED candle_count",
+        "EXTERNAL_MUTATION_REJECTED fingerprint",
+        "EXTERNAL_MUTATION_REJECTED missing_fingerprint",
+        "EXTERNAL_MUTATION_REJECTED status",
+        "EXTERNAL_MUTATION_REJECTED bad_status",
+        "NATIVE_EXTERNAL_RECEIPTS_PASS"
+      ]
+    },
+    {
+      "name": "matrix-fix01-incomplete",
+      "exit": 0,
+      "logSHA256": "84ab75ce90812f7378af64b6403dd5bf0f5772da7f9ac525bca4b1bf52354da3",
+      "evidence": [
+        "INPUT_ROUTING_PASS"
+      ]
+    },
+    {
+      "name": "matrix-fix01-owner-mutation",
+      "exit": 0,
+      "logSHA256": "ca8b214a5ca47337caf9cf3228f63ef3572f2bb07b194eab3ebb51cf12202427",
+      "evidence": [
+        "MUTATED_FIXTURE_EXIT 1"
+      ]
+    },
+    {
+      "name": "fetch-fix01-rejection",
+      "exit": 0,
+      "logSHA256": "57e08fb1d1f6462574ae19111e03aea9943664f74246a1b583ab10f80d764502",
+      "evidence": []
+    },
+    {
+      "name": "parent-trade-row",
+      "exit": 0,
+      "logSHA256": "2ce593c8ce3ab856f27b3777ec6afc1bfde86d88593db316e4bbf6ef3181d521",
+      "evidence": [
+        "COUNT_PRESERVING_ROW_OBSERVATION {\"nativeRejection\": true, \"nativeFailure\": \"report_failed\", \"aggregateStatus\": \"failed\", \"workerFailure\": \"worker_report_failed\", \"inputTradeCount\": 96, \"summaryTradeCount\": 96}",
+        "COUNT_PRESERVING_ROW_AND_HEALTHY_CONTINUATION_PASS"
+      ]
+    }
+  ],
+  "siteAccounting": {
+    "matrix": {
+      "sites": 43,
+      "originalKinds": {
+        "Raise": 38,
+        "Assert": 2,
+        "ExceptHandler": 3
+      },
+      "missing": [],
+      "extra": [],
+      "currentRaiseAssert": []
+    },
+    "fetch": {
+      "sites": 58,
+      "originalKinds": {
+        "Raise": 42,
+        "ExceptHandler": 16
+      },
+      "missing": [],
+      "extra": [],
+      "currentRaiseAssert": [
+        {
+          "line": 712,
+          "kind": "Raise",
+          "source": "raise SystemExit(main())"
+        }
+      ]
+    }
+  },
+  "siteAccountingMeaning": "All101 original sites have dispositions, not101 independently executed tests or101 defects.",
+  "reviews": {
+    "fetch": "five exact hashes, scoped static PASS",
+    "matrix": "seven exact hashes, final row correction and new committed producer compatibility PASS",
+    "mercury": [
+      {
+        "runId": "2026-11-17T03-50-59-766Z-82370d1aec7f",
+        "model": [
+          "mercury-3"
+        ],
+        "selected": [
+          "mercury"
+        ],
+        "unselected": [
+          "astra",
+          "fable"
+        ],
+        "codeOutcome": "no_break_found",
+        "panelDecision": {
+          "verdict": "no_break_found",
+          "majorityOutcome": "no_break_found",
+          "majorityRequired": 1,
+          "selectedCount": 1,
+          "tally": {
+            "found_break": 0,
+            "no_break_found": 1,
+            "cannot_verify": 0,
+            "absent": 0
+          },
+          "votes": [
+            {
+              "reviewer": "mercury",
+              "status": "succeeded",
+              "outcome": "no_break_found",
+              "rawVerdict": "no_break_found",
+              "answerSha256": "53765c1f67f63d05107367b4eaa35f3c9f48dfa59b274e7d5ce1e79172a21f21",
+              "absence": null
+            }
+          ],
+          "reviewComplete": true,
+          "agreement": "unanimous",
+          "dissent": [],
+          "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+        },
+        "diagnostics": {
+          "namedAbsences": [
+            "coverage_insufficient",
+            "coverage_unresolved",
+            "inherited_section_incomplete"
+          ],
+          "namedBreaks": [],
+          "candidateSet": {
+            "examined": 5,
+            "total": 5
+          },
+          "candidateCoverage": {
+            "expectedTotal": 1,
+            "unresolved": [],
+            "complete": false,
+            "authorityReady": false,
+            "fourthShapeAdditions": [],
+            "fourthShapeAdditionCount": 0
+          },
+          "changedFileCount": 1,
+          "changedJsCount": 0,
+          "fourthShapeAdditionCount": 0,
+          "executionProvenance": {
+            "runChecks": []
+          }
+        },
+        "cost": {
+          "amount": 0.02255585,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 11,
+          "total_attempts": 11,
+          "cost_absences": []
+        },
+        "parentQualification": [
+          "Narrow no-break code outcome accepted only for structural receipt reconciliation and per-cell continuation, not whole-tool/whole-program certification.",
+          "insufficient_qualifying_seats is old diagnostic requiring >=2 while current explicit single-seat decision is complete; no multi-peer consensus claimed.",
+          "coverage flags reflect diagnostic-only explicit continuation not recomputing original candidate coverage; not erased or promoted to full audit.",
+          "INHERITED heading used markdown without colon; sectionValue parser has no matching heading. Text identifies exact path but parser flag remains. No paid format retry.",
+          "Do not adopt every nonconforming receipt rejected or mismatch impossible under corruption: external admission does not recompute policy/economics; native producer checks mismatches. Last correction is structural only.",
+          "Reviewer overstates newly added consumer evidence: baseline already has consumer_evidence. Source/diff proves receipt admission addition, not first addition of all worker checks."
+        ]
+      },
+      {
+        "runId": "2026-11-17T03-58-03-166Z-daf03d40a7b5",
+        "model": [
+          "mercury-3"
+        ],
+        "selected": [
+          "mercury"
+        ],
+        "unselected": [
+          "astra",
+          "fable"
+        ],
+        "codeOutcome": "no_break_found",
+        "panelDecision": {
+          "verdict": "no_break_found",
+          "majorityOutcome": "no_break_found",
+          "majorityRequired": 1,
+          "selectedCount": 1,
+          "tally": {
+            "found_break": 0,
+            "no_break_found": 1,
+            "cannot_verify": 0,
+            "absent": 0
+          },
+          "votes": [
+            {
+              "reviewer": "mercury",
+              "status": "succeeded",
+              "outcome": "no_break_found",
+              "rawVerdict": "no_break_found",
+              "answerSha256": "342422ca7b2d3671aae8da156073de8a0767bd8201a9f1568d68f6f9f98c1189",
+              "absence": null
+            }
+          ],
+          "reviewComplete": true,
+          "agreement": "unanimous",
+          "dissent": [],
+          "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+        },
+        "diagnostics": {
+          "namedAbsences": [
+            "coverage_insufficient",
+            "coverage_unresolved",
+            "inherited_section_incomplete"
+          ],
+          "namedBreaks": [],
+          "candidateSet": {
+            "examined": 1,
+            "total": 1
+          },
+          "candidateCoverage": {
+            "expectedTotal": 1,
+            "unresolved": [],
+            "complete": false,
+            "authorityReady": false,
+            "fourthShapeAdditions": [],
+            "fourthShapeAdditionCount": 0
+          },
+          "changedFileCount": 1,
+          "changedJsCount": 0,
+          "fourthShapeAdditionCount": 0,
+          "executionProvenance": {
+            "runChecks": []
+          }
+        },
+        "cost": {
+          "amount": 0.03106672,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 14,
+          "total_attempts": 14,
+          "cost_absences": []
+        },
+        "parentQualification": [
+          "Narrow source-fallback/storage distinction no-break outcome, not crash-durable publication.",
+          "Full-source delivery recorded; explicit continuation retains diagnostic-only candidate coverage and inherited-section missing-path flags. No retry or altered review settings.",
+          "Reject blanket inherited none: fallback loop already existed, cleanup limitations and raw-field provenance loss remain.",
+          "Reject no downstream consumers: reviewer file filters/grep scope do not prove Python or external consumers absent.",
+          "Named deferral FETCH-STORAGE-FALLBACK-METADATA: source storage-fault attempt says fallback next_allowed_source although run terminates; control-flow termination verified, descriptive metadata remains inaccurate. No new correction loop.",
+          "Selected changed path is one; source tree actually contains12 owned changed files. Review is NOT whole-tree coverage."
+        ]
+      }
+    ]
+  },
+  "deferrals": {
+    "FETCH-S02-PUBLICATION": "Inherited persistent-filesystem stale success marker; run fails loudly but cleanup/failed receipt can be prevented. Not crash-atomic/durable.",
+    "FETCH-RAW-PROVENANCE": "rawPagesFile stores admitted fields, not complete provider envelope/invalid raw values. Historical provenance not reconstructed.",
+    "MATRIX-PUBLIC-LAUNCHER": "Full host -> nested isolated worker invocation unexercised; transport seam mocked, native worker separately executed.",
+    "FEATURE-PARITY": "Single-native-frame OHLC, fresh isolated stores, absent external models/MTF; stop trigger/geometry feature effects and full liquidation-equity ranking unproven.",
+    "FETCH-STORAGE-FALLBACK-METADATA": "Storage-fault attempt can label fallback next_allowed_source though the run terminates. Descriptive inconsistency explicitly deferred; no actual storage fallback."
+  },
+  "privateEvidence": {
+    "directory": "/home/linuxuser/.hermes/attachments/TOOL-DOCTRINE-REPAIR",
+    "artifacts": {
+      "review-source-03.json": "1e001bf3fc931839b8d90afb3cf765cbd004bb25a0c10f2284b415a903370a11",
+      "parent-verification-03.json": "e7f057dd967c3d41bfef756418732f92aec28ed659f1955a472b7c55458eacac",
+      "parent-verification-03-reconciled.json": "a12613429350e75e855afd5d7130cdfbfbd18c6083f3a9f692dc889f9092e472",
+      "audit-dispositions-03.json": "a5d8326f37ce79bf2640a55fee520e9bbedf3d4dca08eb3bedc20d74a1727c4c",
+      "fetch-review-02.json": "08d85650a80820220ded039fe239156f9f2d7476c950d021aa00913aac033f45",
+      "matrix-review-03.json": "62c0b43d854136f2060803a6e67c7969fb1ec7513cc406f634f541ef6578c40a",
+      "mercury-matrix-03.log": "4a3373c22e744a91c763de1e9ba97dd9637e95de976dc52789367a51c8306fe3",
+      "mercury-matrix-03-reconciled.json": "6f93c88c5524772b4f5d72f4c13ab1d53d7a9637363fd795a8d284dce738c310",
+      "mercury-fetch-03.log": "9854766a3ad47852c634e9ac0391bb2a09017b9ceb21bd7d16bbd2228017244f",
+      "mercury-fetch-03-reconciled.json": "b5ef1199e642a37fe499635f176164d569cb3f9c47df0c0911a54b26b5f03110",
+      "parent-trade-row-red-01.log": "84dcdc68248b61a583502935054790c988945ce292fa94e9689137515e05dd81",
+      "parent-http-boundary-red-02.log": "c16211f45608941f685ebe156662fa59ad460087903c89648014df327bf5d591"
+    }
+  },
+  "preservation": {
+    "unrelatedDirtyTrackedFiles": 20,
+    "originalWorkingChangelogSHA256": "42d6fd82483634e8b383fc1d0917bcd05e2a651a53d60037f6baafc31c972159",
+    "stagedChangelog": "only new owned prefix on committed baseline; original working suffix unchanged",
+    "sourceTestIdentity": "All850 frozen-source hashes match staged source tree; later additions are this receipt and changelog only",
+    "reviewHarnessDirtySHA256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "activation": {
+    "runtimeRestart": false,
+    "settingsChanged": false,
+    "credentialChanges": false,
+    "networkTradingCalls": false,
+    "ragRebuild": false
+  },
+  "delivery": "Git history gives final commit; remote readback receipt retained in private evidence directory after push."
+}
