@@ -1,0 +1,326 @@
+{
+  "source": {
+    "tree": "7af0b493617337364468faf9eaac1044067fc4d7",
+    "base": "8ecd5505958543a84b3ded5bb6547290ba6f6906",
+    "sourceSha256": {
+      "foundation/ConfigLoader.js": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "beforeProblems": [
+    {
+      "key": "services.supervisor",
+      "source": "config:settings.json:services.supervisor",
+      "reason": "canonical_source_path_absent"
+    }
+  ],
+  "effectiveRoleValuesUnchanged": true,
+  "workingSourceProof": {
+    "roles": [
+      {
+        "role": "bot",
+        "profile": "paper",
+        "fingerprint": "f28011f0c2a74479b804b80278739dddd9db6cebe14ebee06778282a5f23af12",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "ef93eea951045fd0896a0387ca5637357c4cc50c1fceac6d4b483c1bf372d075",
+        "leaves": 2720,
+        "sources": 3755,
+        "sourceKinds": {
+          "config:settings.json": 2296,
+          "derived": 9,
+          "config:internals.json": 1428,
+          "dotenv": 13,
+          "env": 1,
+          "explicit": 8
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "bot",
+        "profile": "production",
+        "fingerprint": "2f064f1365feac2416947c2921293e878dd2855ec6d2467c35a7b917dc4b7ffd",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "eaff9d2f2991871f5299aa995eb36c125c9c5ac2c8d3b6bcf9743796ba6f290b",
+        "leaves": 2720,
+        "sources": 3755,
+        "sourceKinds": {
+          "config:settings.json": 2296,
+          "derived": 9,
+          "config:internals.json": 1428,
+          "dotenv": 13,
+          "env": 1,
+          "explicit": 8
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "dashboard",
+        "profile": "paper",
+        "fingerprint": "4eda05e1b5a4900acd2e7bb477ae39471f31f4df155dcc359a8f91878cf9690a",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "fd8c266f05a428461ea425fbc1c0ba3c9e71f232ce9c64d52cba65eca3102959",
+        "leaves": 146,
+        "sources": 190,
+        "sourceKinds": {
+          "config:settings.json": 46,
+          "config:internals.json": 134,
+          "dotenv": 3,
+          "explicit": 6,
+          "derived": 1
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "supervisor",
+        "profile": "paper",
+        "fingerprint": "c7a8e4d4b6b8cb391c139b36c46c91d93a4298934e8669350d856521562e7f0e",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "4807345eaa17ee28153f555b0165cc97207dc952ea1027b928345217bdbf794f",
+        "leaves": 43,
+        "sources": 52,
+        "sourceKinds": {
+          "config:internals.json": 46,
+          "dotenv": 4,
+          "config:settings.json": 2
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "checkout",
+        "profile": "paper",
+        "fingerprint": "863d45ba0861a17ce454515628ef2ccd97552d8ddad0c084eadec22ad88b2fb4",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "b44aeb9e19fcfc5fc3b4f7f014ee5b7f1729287012b2454d62c64163015b728e",
+        "leaves": 9,
+        "sources": 12,
+        "sourceKinds": {
+          "config:settings.json": 11,
+          "explicit": 1
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "market-data-tool",
+        "profile": "paper",
+        "fingerprint": "ae9314b70623a9b51cfd91c0e0be49aa126a2ffe7e7cc66cae84683c9933e9a7",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "b9d3f18f690848649114d913ad8c528fc5cded1838f313293c7391934410e672",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "57dcac6c1a01424b4251c6b2f01619fecfd4a426afa3eba14623178ee36d44a5",
+        "leaves": 32,
+        "sources": 44,
+        "sourceKinds": {
+          "config:settings.json": 16,
+          "derived": 3,
+          "explicit": 3,
+          "config:internals.json": 22
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      }
+    ],
+    "archivedEnvironmentNames": 184,
+    "freshProcessPerSnapshot": true,
+    "credentialValues": "synthetic only",
+    "runtimeActivated": false
+  },
+  "candidateProof": {
+    "roles": [
+      {
+        "role": "bot",
+        "profile": "paper",
+        "fingerprint": "d57821ac91525b91cd972c8fc73b8be63d2035126464400c92fe954d8672122f",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "c43f0a19114d119ee945d014685f247e02b212aabafec1585ba3f9fbd0970967",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "82ec56cab5621cf59a526895a5d7e27d458e469b5e1f1b3ea952989cc86b24f3",
+        "leaves": 2719,
+        "sources": 3763,
+        "sourceKinds": {
+          "config:settings.json": 2304,
+          "derived": 9,
+          "config:internals.json": 1428,
+          "dotenv": 13,
+          "env": 1,
+          "explicit": 8
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "bot",
+        "profile": "production",
+        "fingerprint": "0e0bd5b266700993b7859dc7442d6020a66f28dc0f0b284a0158795b4e1e595a",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "c43f0a19114d119ee945d014685f247e02b212aabafec1585ba3f9fbd0970967",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "d02fd11e2cae2a98964cf1f90fc372c4c065891ab359ce2dc8f2b02c592bbe9e",
+        "leaves": 2719,
+        "sources": 3763,
+        "sourceKinds": {
+          "config:settings.json": 2304,
+          "derived": 9,
+          "config:internals.json": 1428,
+          "dotenv": 13,
+          "env": 1,
+          "explicit": 8
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "dashboard",
+        "profile": "paper",
+        "fingerprint": "4eda05e1b5a4900acd2e7bb477ae39471f31f4df155dcc359a8f91878cf9690a",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "c43f0a19114d119ee945d014685f247e02b212aabafec1585ba3f9fbd0970967",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "5415b473de28cd513f3e29ded00344e4f6cee1765e37209fed86c086369b9f13",
+        "leaves": 146,
+        "sources": 190,
+        "sourceKinds": {
+          "config:settings.json": 46,
+          "config:internals.json": 134,
+          "dotenv": 3,
+          "explicit": 6,
+          "derived": 1
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "supervisor",
+        "profile": "paper",
+        "fingerprint": "c7a8e4d4b6b8cb391c139b36c46c91d93a4298934e8669350d856521562e7f0e",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "c43f0a19114d119ee945d014685f247e02b212aabafec1585ba3f9fbd0970967",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "4807345eaa17ee28153f555b0165cc97207dc952ea1027b928345217bdbf794f",
+        "leaves": 43,
+        "sources": 52,
+        "sourceKinds": {
+          "config:internals.json": 46,
+          "dotenv": 4,
+          "config:settings.json": 2
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "checkout",
+        "profile": "paper",
+        "fingerprint": "863d45ba0861a17ce454515628ef2ccd97552d8ddad0c084eadec22ad88b2fb4",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "c43f0a19114d119ee945d014685f247e02b212aabafec1585ba3f9fbd0970967",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "b44aeb9e19fcfc5fc3b4f7f014ee5b7f1729287012b2454d62c64163015b728e",
+        "leaves": 9,
+        "sources": 12,
+        "sourceKinds": {
+          "config:settings.json": 11,
+          "explicit": 1
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      },
+      {
+        "role": "market-data-tool",
+        "profile": "paper",
+        "fingerprint": "ae9314b70623a9b51cfd91c0e0be49aa126a2ffe7e7cc66cae84683c9933e9a7",
+        "revisions": {
+          "settings": 22,
+          "internals": 13,
+          "settingsHash": "c43f0a19114d119ee945d014685f247e02b212aabafec1585ba3f9fbd0970967",
+          "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+        },
+        "configSha256": "57dcac6c1a01424b4251c6b2f01619fecfd4a426afa3eba14623178ee36d44a5",
+        "leaves": 32,
+        "sources": 44,
+        "sourceKinds": {
+          "config:settings.json": 16,
+          "derived": 3,
+          "explicit": 3,
+          "config:internals.json": 22
+        },
+        "sourceProblems": [],
+        "allSourcesResolved": true,
+        "archivedEnvironmentCannotOverride": true
+      }
+    ],
+    "archivedEnvironmentNames": 184,
+    "freshProcessPerSnapshot": true,
+    "credentialValues": "synthetic only",
+    "runtimeActivated": false
+  },
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "verdict": "no_break_found",
+    "blocking": false,
+    "iterations": 14,
+    "costUsd": 0.038151,
+    "notFullPanel": true,
+    "metadata": "insufficient_qualifying_seats; label agreement metadata is not semantic consensus"
+  },
+  "runtimeActivated": false
+}

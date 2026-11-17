@@ -580,6 +580,7 @@ function buildRoleConfig(role) {
       alpacaApiKey: credentialForRole(role, 'ALPACA_API_KEY', sources, 'broker.alpacaApiKey'),
       alpacaApiSecret: credentialForRole(role, 'ALPACA_API_SECRET', sources, 'broker.alpacaApiSecret'),
     };
+    sources['services.supervisor'] = 'derived:dashboard-supervisor-recovery-projection';
     return {
       config: {
         schemaVersion: settingsConfigFile.schemaVersion,
