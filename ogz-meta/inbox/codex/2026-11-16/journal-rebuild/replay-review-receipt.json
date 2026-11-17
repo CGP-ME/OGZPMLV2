@@ -1,0 +1,66 @@
+{
+  "question": "Review source tree: 9072e16d3cef417a4ed20929349b7c2575e6153f; comparison baseline: d9e8c55ec661b47c3df686487d0dc170840a0257. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nWhich persisted reporting records are read when capturing and displaying a closed trade after startup? Cite the relevant producers and consumers, and identify any evidence gaps.",
+  "runId": "2026-11-17T00-13-48-776Z-e758a3f25c9a",
+  "source": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "core/TradeJournalBridge.js",
+      "core/TradeReplayCapture.js"
+    ],
+    "tree": "9072e16d3cef417a4ed20929349b7c2575e6153f",
+    "baseTree": "d9e8c55ec661b47c3df686487d0dc170840a0257",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-17T00-12-50-135Z-2653173-02f4989d7731/source-nGZ4im.json",
+    "manifestSha256": "3cf833027fd27c088ad85e595825474e03ba233811e74af2df86bcaa1366314d"
+  },
+  "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "unselectedReviewers": [
+    "astra",
+    "fable"
+  ],
+  "verdict": "no_break_found",
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "725721f349d145a9183da2bb982923836915f7e3fcf25cdf899ca6971eb60dc8",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "runCost": {
+    "amount": 0.04210896,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 16,
+    "total_attempts": 16,
+    "cost_absences": []
+  },
+  "completeAnswerRead": true,
+  "assessment": "Mercury mapped persisted producers and consumers and reported no break. This was a scoped source investigation, not an exhaustive correctness audit. Native behavior is recorded separately. No full-panel consensus is claimed.",
+  "limitations": [
+    "No reviewer-executed runtime checks",
+    "Full TradeJournal constructor/paths object and complete IPC handler inventory not read",
+    "Harness retains coverage_insufficient, coverage_unresolved, whole_file_read_absent, inherited_section_incomplete and insufficient_qualifying_seats flags"
+  ],
+  "resolvedPriorFinding": "The previous accounting review identified saved missing-fill evidence in the emergency error ledger being omitted at startup. This candidate reads that existing file with exact scope matching; native observation preserves report unavailability through process recreation."
+}

@@ -59,11 +59,7 @@ function nonEmptyStringOrNull(value) {
 function jsonCloneOrNull(value) {
   if (value === null || value === undefined) return null;
   if (typeof value !== 'object') return null;
-  try {
-    return JSON.parse(JSON.stringify(value));
-  } catch {
-    return null;
-  }
+  return JSON.parse(JSON.stringify(value));
 }
 
 function firstNonEmptyString(...values) {
@@ -98,9 +94,6 @@ function replayScope(scope, caller) {
 
 class TradeReplayCapture {
   constructor(config = {}) {
-    if (!config.replayDir) {
-      throw new Error('[TradeReplayCapture] replayDir is required; refusing unscoped data/journal/replays default');
-    }
     this.replayDir = config.replayDir;
     this.candlesBefore = config.candlesBefore;
     this.candlesAfter = config.candlesAfter;
@@ -114,6 +107,22 @@ class TradeReplayCapture {
       fs.mkdirSync(this.replayDir, { recursive: true });
     }
 
+    this.loadFailures = [];
+    for (const file of fs.readdirSync(this.replayDir).filter(file => file.endsWith('.json') && !file.endsWith('.entry.json'))) {
+      try {
+        const replay = JSON.parse(fs.readFileSync(path.join(this.replayDir, file), 'utf8'));
+        const scope = replayScope(replay.postExit?.scope, 'TradeReplayCapture.savedPostExit');
+        if (replay.postExit?.complete === false && Number.isInteger(replay.postExit.requestedCandles) && scope) {
+          this.postExitCaptures.set(replay.orderId, {
+            filepath: path.join(this.replayDir, file), replay, scope,
+            candleEndTimes: new Set(replay.postExitCandles.map(candle => candle.etime)),
+            persistedCandleCount: replay.postExitCandles.length,
+          });
+        }
+      } catch (error) {
+        this.loadFailures.push({ file, reason: error.message });
+      }
+    }
     console.log('[TradeReplayCapture] initialized');
   }
 
@@ -127,10 +136,17 @@ class TradeReplayCapture {
     const id = nonEmptyStringOrNull(orderId);
     const direction = nonEmptyStringOrNull(entryData?.direction);
     const price = positiveNumberOrNull(entryData?.price);
-    if (!id || !direction || price === null || !priceHistory || priceHistory.length === 0) return null;
+    const timestamp = nonNegativeNumberOrNull(entryData?.timestamp);
+    if (!id || path.basename(id) !== id || !direction || price === null || timestamp === null) return null;
+    const entryPath = path.join(this.replayDir, `${id}.entry.json`);
+    if (fs.existsSync(entryPath)) {
+      const saved = JSON.parse(fs.readFileSync(entryPath, 'utf8'));
+      this.pendingEntries.set(id, saved);
+      return saved;
+    }
 
     // Grab the last N candles leading up to entry
-    const candleSnapshot = priceHistory.slice(-this.candlesBefore).map(candle => ({
+    const candleSnapshot = (Array.isArray(priceHistory) ? priceHistory : []).slice(-this.candlesBefore).map(candle => ({
       o: o(candle), h: h(candle), l: l(candle), c: c(candle), v: v(candle),
       t: t(candle)  // timestamp in ms
     }));
@@ -141,7 +157,7 @@ class TradeReplayCapture {
       direction,
       entry: {
         // TRC-MED-02: prefer caller-supplied timestamp over wall clock
-        time: entryData.timestamp ?? Date.now(),
+        time: timestamp,
         // TRC-MED-01: ?? on numerics (preserve zero); ?? null on strings.
         // Replay is non-critical — null-propagate rather than throw.
         price,
@@ -175,9 +191,12 @@ class TradeReplayCapture {
         riskGates: jsonCloneOrNull(entryData.riskGates)
       },
       candlesAtEntry: candleSnapshot,
+      candleContext: candleSnapshot.length ? 'captured_at_entry' : 'unavailable_at_entry',
       scope: replayScope(scope, 'TradeReplayCapture.captureEntry')
     });
-    return this.pendingEntries.get(id);
+    const saved = this.pendingEntries.get(id);
+    require('./AtomicWrite').writeJsonCompactAtomic(entryPath, saved);
+    return saved;
   }
 
   /**
@@ -193,9 +212,25 @@ class TradeReplayCapture {
 
   captureExitResult(orderId, exitData, priceHistory, scope = null) {
     const id = nonEmptyStringOrNull(orderId);
-    if (!id) return { status: 'unavailable', reason: 'missing_order_id', path: null };
+    if (!id || path.basename(id) !== id) return { status: 'unavailable', reason: 'invalid_order_id', path: null };
 
-    const pending = this.pendingEntries.get(id);
+    const completedPath = path.join(this.replayDir, `${id}.json`);
+    if (fs.existsSync(completedPath)) {
+      const previous = this.loadReplay(id);
+      if (previous.status !== 'available') return { status: 'unavailable', reason: previous.reason, path: null };
+      return previous.data.exit?.time === exitData.exitTimestamp
+        ? { status: 'saved', reason: null, path: completedPath }
+        : { status: 'unavailable', reason: 'existing_replay_exit_conflict', path: null };
+    }
+    let pending = this.pendingEntries.get(id);
+    const entryPath = path.join(this.replayDir, `${id}.entry.json`);
+    if (!pending && fs.existsSync(entryPath)) {
+      try {
+        pending = JSON.parse(fs.readFileSync(entryPath, 'utf8'));
+      } catch (error) {
+        return { status: 'unavailable', reason: 'entry_capture_unreadable', message: error.message, path: null };
+      }
+    }
     if (!pending) {
       console.warn(`[TradeReplayCapture] Refusing exit replay for ${id}; missing entry capture`);
       return { status: 'unavailable', reason: 'missing_entry_capture', path: null };
@@ -204,8 +239,9 @@ class TradeReplayCapture {
     const exitPrice = positiveNumberOrNull(exitData?.price ?? exitData?.exitPrice);
     const reason = nonEmptyStringOrNull(exitData?.reason);
     const pnl = finiteNumberOrNull(exitData?.pnl);
-    const holdTimeMs = nonNegativeNumberOrNull(exitData?.holdTime) ?? nonNegativeNumberOrNull(Date.now() - pending.capturedAt);
-    if (exitPrice === null || !reason || pnl === null || holdTimeMs === null) {
+    const holdTimeMs = nonNegativeNumberOrNull(exitData?.holdTime);
+    const exitTimestamp = nonNegativeNumberOrNull(exitData?.exitTimestamp);
+    if (exitPrice === null || !reason || pnl === null || holdTimeMs === null || exitTimestamp === null) {
       console.warn(`[TradeReplayCapture] Refusing incomplete exit replay for ${id}`);
       return { status: 'unavailable', reason: 'invalid_exit_input', path: null };
     }
@@ -243,9 +279,13 @@ class TradeReplayCapture {
       orderId: id,
       direction: pending.direction,
       _noEntryCapture: false,
+      accountingBasis: exitData.accountingBasis,
+      exitFills: exitData.exitFills,
+      candleContext: pending.candleContext,
+      captureScope: 'entry_and_exit_windows_plus_recorded_post_exit_candles',
       entry: pending.entry,
       exit: {
-        time: exitData.exitTimestamp ?? Date.now(),
+        time: exitTimestamp,
         price: exitPrice,
         reason,
         pnl,
@@ -253,6 +293,7 @@ class TradeReplayCapture {
         holdTimeMs
       },
       candles: mergedCandles,
+      exitCandleContext: currentCandles.length ? 'captured_at_exit' : 'unavailable_at_exit',
       candleCount: mergedCandles.length,
       postExitCandles: [],
       postExit: {
@@ -282,7 +323,7 @@ class TradeReplayCapture {
       console.log(`[TradeReplayCapture] Replay saved: ${id} (${mergedCandles.length} candles)`);
     } catch (err) {
       console.warn(`[TradeReplayCapture] Replay save failed: ${err.message}`);
-      return { status: 'retryable', reason: 'persistence_failure', path: null };
+      return { status: 'retryable', reason: 'persistence_failure', message: err.message, path: null };
     }
 
     this.pendingEntries.delete(id);
@@ -354,49 +395,38 @@ class TradeReplayCapture {
    * @returns {Object|null} Replay data
    */
   loadReplay(orderId) {
-    const filepath = path.join(this.replayDir, `${orderId}.json`);
-    if (!fs.existsSync(filepath)) return null;
+    const id = nonEmptyStringOrNull(orderId);
+    if (!id || path.basename(id) !== id) return { status: 'unavailable', reason: 'invalid_order_id', data: null };
+    const filepath = path.join(this.replayDir, `${id}.json`);
+    if (!fs.existsSync(filepath)) return { status: 'missing', reason: 'replay_not_recorded', data: null };
     try {
-      return JSON.parse(fs.readFileSync(filepath, 'utf8'));
-    } catch {
-      return null;
+      return { status: 'available', data: JSON.parse(fs.readFileSync(filepath, 'utf8')) };
+    } catch (error) {
+      return { status: 'unavailable', reason: error.message, data: null };
     }
   }
 
-  /**
-   * List all available replays
-   * @param {number} [limit] - Max to return
-   * @returns {Array} [{ orderId, direction, pnl, savedAt }]
-   */
   listReplays(limit = ConfigLoader.getInternalsFileValue('journal.replayCapturePolicy.listDefaultLimit')) {
+    const data = [];
+    const failures = [];
     try {
-      const files = fs.readdirSync(this.replayDir)
-        .filter(f => f.endsWith('.json'))
-        .sort()
-        .slice(-limit);
-
-      return files.map(f => {
+      for (const file of fs.readdirSync(this.replayDir).filter(file => file.endsWith('.json') && !file.endsWith('.entry.json'))) {
         try {
-          const data = JSON.parse(fs.readFileSync(path.join(this.replayDir, f), 'utf8'));
-          const orderId = nonEmptyStringOrNull(data.orderId);
-          if (!orderId) return null;
-          return {
-            orderId,
-            direction: nonEmptyStringOrNull(data.direction),
-            pnl: finiteNumberOrNull(data.exit?.pnl),
-            entryPrice: positiveNumberOrNull(data.entry?.price),
-            exitPrice: positiveNumberOrNull(data.exit?.price),
-            reason: nonEmptyStringOrNull(data.exit?.reason),
-            savedAt: nonNegativeNumberOrNull(data.savedAt)
-          };
-        } catch {
-          return null;
-        }
-      }).filter(Boolean);
-    } catch {
-      return [];
-    }
+          const replay = JSON.parse(fs.readFileSync(path.join(this.replayDir, file), 'utf8'));
+          if (!nonEmptyStringOrNull(replay.orderId) || !Number.isFinite(replay.savedAt)) {
+            failures.push({ file, reason: 'replay_identity_or_timestamp_missing' });
+            continue;
+          }
+          data.push({ orderId: replay.orderId, direction: replay.direction, pnl: finiteNumberOrNull(replay.exit?.pnl),
+            savedAt: replay.savedAt, scopeKey: replay.postExit?.scope?.scopeKey,
+            accountingBasis: replay.accountingBasis || 'legacy_recorded_value' });
+        } catch (error) { failures.push({ file, reason: error.message }); }
+      }
+    } catch (error) { failures.push({ reason: error.message }); }
+    data.sort((a, b) => b.savedAt - a.savedAt);
+    return { status: failures.length ? 'partial' : 'available', data: data.slice(0, limit), failures };
   }
+
 }
 
 module.exports = TradeReplayCapture;

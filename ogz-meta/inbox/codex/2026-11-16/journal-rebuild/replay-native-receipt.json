@@ -1,0 +1,40 @@
+{
+  "source": {
+    "reviewRef": "9072e16d3cef417a4ed20929349b7c2575e6153f",
+    "reviewBase": "2257178e423f34133fb3586bdabf8c23372aea7a",
+    "sources": {
+      "core/TradeReplayCapture.js": "6bd8d7dad6f9ed47bfc1e158f59438e582cfb0e8c339a994600b16b69d52611c",
+      "core/TradeJournalBridge.js": "4f828c84daaab48d5f3d2628b133ca67f50711d1c7d17a0cf9f60604a53380f7"
+    },
+    "harnessReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-replay.cjs --fixture ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/replay-observation-source.json -- node ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-replay.cjs",
+  "reproduceAfterCommit": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-replay.cjs -- node ogz-meta/inbox/codex/2026-11-16/journal-rebuild/fixtures/observe-replay.cjs --current",
+  "exitCode": 0,
+  "observed": {
+    "entrySavedAtEntry": true,
+    "entryBytesPreserved": true,
+    "partialFillSavedAtExit": true,
+    "completedExitFills": 2,
+    "netPnl": -3.9999999999999947,
+    "entryTime": 1794874080000,
+    "exitTime": 1794874200000,
+    "accountingBasis": "confirmed_net_after_fees",
+    "postExitCandles": 2,
+    "postExitComplete": true,
+    "zeroVolumePreserved": true,
+    "mostRecentSelectedByTimestamp": true,
+    "corruptHistoryReportedAndPreserved": true,
+    "pathEscapeRefused": true,
+    "simulatedProcessRecreation": 4,
+    "closedNotificationNetPnl": -3.9999999999999947,
+    "partialDidNotClaimFullClose": true,
+    "savedMissingFillEvidenceRemainsUnavailable": true
+  },
+  "isolation": "Synthetic account, prices, filesystem errors and socket/trace collaborators; actual TradeJournalBridge, TradeJournal and TradeReplayCapture. Source overlay was compared byte-for-byte with the staged tree.",
+  "limitations": [
+    "No live process activation or broker execution",
+    "Ordinary append/atomic rename does not establish power-loss durability",
+    "Pre-existing positions without a saved entry capture cannot acquire historical entry context retroactively"
+  ]
+}
