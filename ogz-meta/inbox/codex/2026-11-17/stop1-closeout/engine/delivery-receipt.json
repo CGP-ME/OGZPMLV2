@@ -1,0 +1,51 @@
+{
+  "source": {
+    "tree": "1fc954bea73467671507758c5ae47f4b5942ede1",
+    "base": "fdbb1a7900a311dd4cc29f1bb0df311287c0dcdb",
+    "sourceSha256": {
+      "core/indicators/IndicatorEngine.js": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3",
+      "foundation/ConfigLoader.js": "622694481c18fd5d515872b39c01f777e0d9ea54086c7b14d463e51c05517dc9"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "proof": [
+    {
+      "configuration": {
+        "fingerprint": "c6b4a88753f46eb7376cbaea76270a5a742148772bc2eb0f669bb913010e909f",
+        "role": "bot",
+        "settings": 23,
+        "internals": 12,
+        "settingsHash": "122fdc3ea69701e6fec5b2fab4c4d3c5496c4c5810c842a4a3d774cd9c64e5f3",
+        "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+      },
+      "before": 71.72792419615598,
+      "after": 84.08221089037124,
+      "expected": 84.08221089037124,
+      "retainedHistory": 80
+    },
+    {
+      "existingEngines": 2,
+      "fullIndicatorSnapshotMatchesFresh": true,
+      "boundedHistoryRollover": true,
+      "intrabarRevisionUsesNewPolicy": true,
+      "oldSnapshotPreserved": true,
+      "unrelatedSavePreservesState": true,
+      "zeroPeriodRejected": true
+    }
+  ],
+  "review": {
+    "selected": [
+      "mercury"
+    ],
+    "verdict": "no_break_found",
+    "costUsd": 0.044468,
+    "notFullPanel": true,
+    "limits": [
+      "bounded retained history, not full lifetime history",
+      "updates on existing public calculation/read methods",
+      "initial canonical config remains supplied by existing production callers"
+    ],
+    "answerPath": "ogz-meta/inbox/codex/2026-11-17/stop1-closeout/engine/review-answer.txt"
+  },
+  "runtimeActivated": false
+}

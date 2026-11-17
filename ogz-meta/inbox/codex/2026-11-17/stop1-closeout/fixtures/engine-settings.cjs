@@ -1,0 +1,40 @@
+'use strict';
+const assert=require('node:assert/strict'),path=require('node:path');
+process.env.PROFILE='paper';
+for(const key of ['KRAKEN_API_KEY','KRAKEN_API_SECRET','ALPACA_API_KEY','ALPACA_API_SECRET','WEBSOCKET_AUTH_TOKEN'])process.env[key]='synthetic-stop1-fixture';
+const loader=require(path.join(process.cwd(),'foundation/ConfigLoader'));
+loader.load({role:'bot',loadDotenv:false,silent:true});
+let seq=0;
+function save(changes){const {revisions}=loader.getCachedSnapshot();return loader.saveSettings({requestId:`engine-${++seq}`,expectedRevision:revisions.settings,expectedSettingsHash:revisions.settingsHash,changes});}
+const Engine=require(path.join(process.cwd(),'core/indicators/IndicatorEngine'));
+const config=symbol=>({...loader.get('indicators.engine'),...loader.get('internals.indicators.engine'),symbol,tf:'1m'});
+const engines=['BTC-USD','ETH-USD'].map(symbol=>new Engine(config(symbol)));
+const candles=Array.from({length:80},(_,i)=>{const c=100+i/5+Math.sin(i/3)*7;return {o:c-0.5,c,h:c+2,l:c-2,v:100+i,t:1700000000000+i*60000};});
+for(const engine of engines)engine.computeBatch(candles);
+const bounded=new Engine({...config('BTC-USD'),maxCandles:24});bounded.computeBatch(candles);
+const retained=[...bounded._previousCandleChunk,...bounded._currentCandleChunk];
+const before=engines[0].getSnapshot();
+const saved=save({'indicators.engine.rsiPeriod':7,'indicators.engine.emaPeriods':[9,20,50,200,5],'indicators.engine.bbPeriod':8,'indicators.engine.bbStdDev':1.5});
+assert.equal(saved.success,true,saved.reason);
+const after=engines[0].getSnapshot();
+const fresh=new Engine(config('BTC-USD'));fresh.computeBatch(candles);
+const expected=fresh.getSnapshot();
+console.log('STOP1_ENGINE_RECEIPT',JSON.stringify({configuration:saved.configuration,before:before.indicators.rsi,after:after.indicators.rsi,expected:expected.indicators.rsi,retainedHistory:engines[0].candles.length}));
+if(!process.argv.includes('--observe')){
+ assert.notEqual(before.indicators.rsi,expected.indicators.rsi);
+ assert.deepEqual(after.indicators,expected.indicators);
+ assert.deepEqual(engines[1].getSnapshot().indicators,expected.indicators);
+ const rebuilt=new Engine({...config('BTC-USD'),maxCandles:24});rebuilt.computeBatch(retained);
+ assert.deepEqual(bounded.getSnapshot().indicators,rebuilt.getSnapshot().indicators);
+ const held=JSON.stringify(before);
+ const revised={...candles.at(-1),c:candles.at(-1).c+1,h:candles.at(-1).h+1};
+ engines[0].updateCandle(revised);
+ fresh.computeBatch([...candles.slice(0,-1),revised]);
+ assert.deepEqual(engines[0].getSnapshot().indicators,fresh.getSnapshot().indicators);
+ assert.equal(JSON.stringify(before),held);
+ const raw=JSON.stringify(engines[0].getRawState());
+ const unrelated=save({'orchestrator.fibBoostNormal':loader.get('orchestrator.fibBoostNormal')+0.001});assert.equal(unrelated.success,true);
+ assert.equal(JSON.stringify(engines[0].getRawState()),raw);
+ const invalid=save({'indicators.engine.smaPeriods':[0,20]});assert.equal(invalid.success,false);
+ console.log('STOP1_ENGINE_RESULT',JSON.stringify({existingEngines:2,fullIndicatorSnapshotMatchesFresh:true,boundedHistoryRollover:true,intrabarRevisionUsesNewPolicy:true,oldSnapshotPreserved:true,unrelatedSavePreservesState:true,zeroPeriodRejected:true}));
+}

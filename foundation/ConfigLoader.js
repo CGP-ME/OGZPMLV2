@@ -2834,7 +2834,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['smaPeriods', 'SMA periods'], ['emaPeriods', 'EMA periods'],
   ].map(([key, label]) => [`indicators.engine.${key}`, {
     type: 'array', itemType: 'number', itemInteger: true, itemMin: 0, minItems: 1,
-    unit: 'candles', label, effect: 'next_engine_initialization_restart_required',
+    unit: 'candles', label, effect: 'next_indicator_observation_recalculates_retained_history',
   }])),
   ...Object.fromEntries([
     ['bbPeriod', 'Bollinger period', 'candles', 1], ['atrPeriod', 'ATR period', 'candles', 1],
@@ -2851,7 +2851,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['trendMinPivots', 'Minimum trend pivots', 'pivots', 1], ['trendMaxLookback', 'Trendline lookback', 'candles', 1],
   ].map(([key, label, unit, min]) => [`indicators.engine.${key}`, {
     type: 'number', unit, min, max: Number.MAX_SAFE_INTEGER, integer: true,
-    label, effect: 'next_engine_initialization_restart_required',
+    label, effect: 'next_indicator_observation_recalculates_retained_history',
   }])),
   ...Object.fromEntries([
     ['bbStdDev', 'Bollinger standard-deviation multiplier', 'multiplier', 0],
@@ -2860,34 +2860,34 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['srClusterPct', 'Support/resistance clustering fraction', 'fraction', 0],
   ].map(([key, label, unit, min]) => [`indicators.engine.${key}`, {
     type: 'number', unit, min, max: Number.MAX_VALUE,
-    label, effect: 'next_engine_initialization_restart_required',
+    label, effect: 'next_indicator_observation_recalculates_retained_history',
   }])),
   ...Object.fromEntries([
     ['twoPoleNormalizeByATR', 'Normalize two-pole oscillator by ATR'],
     ['ogzTpoEnabled', 'Enable OGZ TPO oscillator'],
     ['ogzTpoEmitMarkers', 'Emit OGZ TPO markers'],
   ].map(([key, label]) => [`indicators.engine.${key}`, {
-    type: 'boolean', unit: 'boolean', label, effect: 'next_engine_initialization_restart_required',
+    type: 'boolean', unit: 'boolean', label, effect: 'next_indicator_observation_recalculates_retained_history',
   }])),
   'indicators.engine.macdFast': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
-    label: 'MACD fast period', effect: 'next_engine_initialization_restart_required',
+    label: 'MACD fast period', effect: 'next_indicator_observation_recalculates_retained_history',
   },
   'indicators.engine.macdSlow': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
-    label: 'MACD slow period', effect: 'next_engine_initialization_restart_required',
+    label: 'MACD slow period', effect: 'next_indicator_observation_recalculates_retained_history',
   },
   'indicators.engine.macdSignal': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
-    label: 'MACD signal period', effect: 'next_engine_initialization_restart_required',
+    label: 'MACD signal period', effect: 'next_indicator_observation_recalculates_retained_history',
   },
   'indicators.engine.ogzTpoLagBars': {
     type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true,
-    label: 'OGZ TPO lag bars', effect: 'next_engine_initialization_restart_required',
+    label: 'OGZ TPO lag bars', effect: 'next_indicator_observation_recalculates_retained_history',
   },
   'indicators.engine.ichimokuDisplacement': {
     type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true,
-    label: 'Ichimoku displacement', effect: 'next_engine_initialization_restart_required',
+    label: 'Ichimoku displacement', effect: 'next_indicator_observation_recalculates_retained_history',
   },
   ...Object.fromEntries(["EMASMACrossover", "LiquiditySweep", "BreakRetest", "RSI", "MADynamicSR", "CandlePattern", "MarketRegime", "OGZTPO", "OpeningRangeBreakout", "SmartMoneySweep", "DonchianBreakout", "PropSafeEMAPullback", "EMATrendRetest", "RSI2MeanReversion", "TimeSeriesMomentum", "NoWickImbalance"].flatMap(strategyName => [
     ['tier1', 'First profit target'], ['tier2', 'Second profit target'],

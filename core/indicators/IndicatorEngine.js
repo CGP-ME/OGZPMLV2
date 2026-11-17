@@ -39,6 +39,7 @@ class IndicatorEngine {
       throw new Error(`[MIRROR-INDICATOR-SYMBOL] IndicatorEngine constructor requires explicit symbol (got ${JSON.stringify(config?.symbol)}) - refusing BTC-USD default`);
     }
     this.config = { ...config };
+    this._indicatorSettings = ConfigLoader.get('indicators.engine');
 
     this.candles = []; // rolling candle buffer
     this.state = this._blankState();
@@ -190,7 +191,22 @@ class IndicatorEngine {
 
   // ---------- Public API ----------
 
+  _refreshSettings() {
+    const settings = ConfigLoader.get('indicators.engine');
+    if (settings === this._indicatorSettings) return;
+    const changed = JSON.stringify(settings) !== JSON.stringify(this._indicatorSettings);
+    this._indicatorSettings = settings;
+    if (!changed) return;
+
+    // Rebuild accumulators and revision checkpoints from retained source bars.
+    // A new period must not inherit an accumulator calculated with the old one.
+    const history = [...this._previousCandleChunk, ...this._currentCandleChunk];
+    this.config = { ...this.config, ...settings };
+    this.computeBatch(history);
+  }
+
   updateCandle(c) {
+    this._refreshSettings();
     this._validateCandle(c);
 
     const candleTime = _t(c);
@@ -347,6 +363,7 @@ class IndicatorEngine {
   }
 
   getSnapshot() {
+    this._refreshSettings();
     // Build flat DTO structure per OGZPrime Master Engineering Spec
     const s = this.state;
     const lastCandle = s.lastCandle;
@@ -406,11 +423,13 @@ class IndicatorEngine {
 
   // Legacy method for backward compatibility - returns raw state
   getRawState() {
+    this._refreshSettings();
     return JSON.parse(JSON.stringify(this.state));
   }
 
   // Chart-ready packet you can send to dashboard
   getRenderPacket({ maxPoints } = {}) {
+    this._refreshSettings();
     const cap = maxPoints || this.config.maxSeriesPoints;
 
     const packLines = [];
@@ -1515,6 +1534,7 @@ class IndicatorEngine {
     this.obvState = { obv: 0, prevClose: null };
     this.mfiState = { posFlow: [], negFlow: [], mfi: null };
     this.twoPoleState = { filt: null, filt2: null, osc: null };
+    this.ogzTpoState = { last: null, signal: null };
     this.atrState = { prevClose: null, atr: null };
     this.vwapState = { sessionKey: null, cumPV: 0, cumV: 0, vwap: null };
     this.ichimokuState = { tenkan: null, kijun: null, senkouA: null, senkouB: null, chikou: null, senkouAForward: [], senkouBForward: [] };
@@ -1535,6 +1555,7 @@ class IndicatorEngine {
     for (const key of Reflect.ownKeys(source)) {
       if (
         key === 'config' ||
+        key === '_indicatorSettings' ||
         key === '_latestCandleCheckpoint' ||
         key === '_previousCandleChunk' ||
         key === '_previousCandleCheckpoint' ||
