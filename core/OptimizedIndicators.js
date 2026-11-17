@@ -29,6 +29,7 @@
 
 const { c: _c, o: _o, h: _h, l: _l, v: _v } = require('./CandleHelper');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
+const { createHash } = require('node:crypto');
 const { createTraceId, emitTrace } = require('./TraceSpine');
 const ConfigLoader = require('../foundation/ConfigLoader');
 
@@ -43,7 +44,8 @@ class OptimizedIndicators {
   constructor() {
     const indicatorSettings = ConfigLoader.get('indicators.optimized');
     const indicatorInternals = ConfigLoader.get('internals.indicators.optimized');
-    this.config = {
+    this._settings = indicatorSettings;
+    this._config = {
       ...indicatorSettings,
       ...indicatorInternals,
     };
@@ -52,6 +54,7 @@ class OptimizedIndicators {
 
     // MACD signal line history for proper EMA calculation
     this.macdHistory = [];
+    this.macdInputs = [];
     this.maxMacdHistory = this.config.macdHistorySize;
 
     const TwoPoleOscillator = require('./TwoPoleOscillator');
@@ -63,13 +66,39 @@ class OptimizedIndicators {
     console.log('[OptimizedIndicators] initialized with scalper caching');
   }
 
+  get config() {
+    const settings = ConfigLoader.get('indicators.optimized');
+    if (settings !== this._settings) {
+      const previous = this._settings;
+      this._settings = settings;
+      if (JSON.stringify(settings) !== JSON.stringify(previous)) {
+        const internals = ConfigLoader.get('internals.indicators.optimized');
+        this._config = { ...settings, ...internals };
+        this.cache.clear();
+        if (settings.macdFastPeriod !== previous.macdFastPeriod
+          || settings.macdSlowPeriod !== previous.macdSlowPeriod) {
+          this.macdHistory = this.macdInputs.map(({ candles }) => (
+            candles.length < settings.macdSlowPeriod ? null : this._macdLine(candles)
+          ));
+        }
+        if (JSON.stringify(settings.twoPole) !== JSON.stringify(previous.twoPole)) {
+          const prices = this.twoPoleOscillator.priceHistory.slice();
+          const TwoPoleOscillator = require('./TwoPoleOscillator');
+          this.twoPoleOscillator = new TwoPoleOscillator({ ...settings.twoPole, ...internals.twoPole });
+          for (const price of prices) this.twoPoleOscillator.update(price);
+        }
+      }
+    }
+    return this._config;
+  }
+
   /**
    * SCALPER CACHING SYSTEM
    * Prevents redundant calculations in high-frequency trading
    */
   getScalperCacheKey(indicator, data, ...params) {
     // Create deterministic cache key from data and parameters
-    const dataHash = data.map(d => _c(d)).join(',').substring(0, ConfigLoader.get('internals.indicators.optimized.cacheKeyPrefixCodeUnits'));
+    const dataHash = createHash('sha256').update(data.map(d => _c(d)).join(',')).digest('hex');
     return `${indicator}_${dataHash}_${params.join('_')}`;
   }
 
@@ -109,7 +138,7 @@ class OptimizedIndicators {
 
       const rsi = this.calculateRSI(data.slice(-(this.config.rsiPeriod + 1)));
 
-      const macdData = this.calculateMACD(data.slice(-this.config.macdSlowPeriod));
+      const macdData = this.calculateMACD(data);
 
       const volatility = this.calculateVolatility(data.slice(-this.config.volatilityPeriod));
 
@@ -228,24 +257,24 @@ class OptimizedIndicators {
       };
     }
 
-    // Validate data structure
-    const firstCandle = priceData[0];
-    const lastCandle = priceData[priceData.length - 1];
-
-    // CRITICAL FIX: Use most recent data, not oldest!
-    const ema12 = this.calculateEMA(priceData.slice(-this.config.macdFastPeriod), this.config.macdFastPeriod);
-    const ema26 = this.calculateEMA(priceData.slice(-this.config.macdSlowPeriod), this.config.macdSlowPeriod);
-
-    const macdLine = ema12 - ema26;
+    const macdLine = this._macdLine(priceData);
 
     // FIX: Properly calculate signal line as 9-period EMA of MACD
     // Maintain MACD history for accurate signal line calculation
-    this.macdHistory.push(macdLine);
-    if (this.macdHistory.length > this.maxMacdHistory) {
-      this.macdHistory.shift(); // Remove oldest
+    const key = this.getScalperCacheKey('MACD', priceData);
+    // A settings refresh recalculates an observation; it does not create a new one.
+    if (this.macdInputs.at(-1)?.key !== key) {
+      this.macdInputs.push({ key, candles: priceData.map(candle => ({ c: _c(candle) })) });
+      this.macdHistory.push(macdLine);
+      if (this.macdHistory.length > this.maxMacdHistory) {
+        this.macdHistory.shift();
+        this.macdInputs.shift();
+      }
     }
 
-    if (this.macdHistory.length < this.config.macdSignalPeriod) {
+    const macdForSignal = this.macdHistory.slice(-this.config.macdSignalPeriod);
+    if (macdForSignal.length < this.config.macdSignalPeriod
+      || macdForSignal.some(value => !Number.isFinite(value))) {
       return {
         available: false,
         status: 'unavailable',
@@ -259,11 +288,17 @@ class OptimizedIndicators {
       };
     }
 
-    const macdForSignal = this.macdHistory.slice(-this.config.macdSignalPeriod);
     const signalLine = this.calculateEMA(macdForSignal.map(val => ({ c: val })), this.config.macdSignalPeriod);
 
     const histogram = macdLine - signalLine;
     return { macdLine, signalLine, histogram, macd: macdLine, signal: signalLine };
+  }
+
+  _macdLine(priceData) {
+    const { macdFastPeriod, macdSlowPeriod } = this.config;
+    const fast = this._calculateEMACore(priceData.slice(-macdFastPeriod), macdFastPeriod);
+    const slow = this._calculateEMACore(priceData.slice(-macdSlowPeriod), macdSlowPeriod);
+    return fast - slow;
   }
 
   /**

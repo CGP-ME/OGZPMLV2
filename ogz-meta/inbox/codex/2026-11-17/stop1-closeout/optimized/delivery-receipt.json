@@ -1,0 +1,68 @@
+{
+  "source": {
+    "tree": "50540d2311b47c30cb4896621266b58c51d569f3",
+    "base": "29ea2bcd730966fab75d84267fbb4c8c01ad51c8",
+    "sourceSha256": {
+      "core/OptimizedIndicators.js": "4d267fd3fc955b05e42732e02f679bb34cbfe91627b0078dcf784c5058df7c76",
+      "foundation/ConfigLoader.js": "6ecc2d20ac07bceb6a0347672208ff44baca9e97f0207245b618885786224e2f",
+      "config/internals.json": "437d32d543440f4b428643549bc2d7d915fad595c163a351a40554dd94f70b37"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "proof": {
+    "configuration": {
+      "fingerprint": "20c67ce9b3bf3c73ec9b192b7c5e9b2e4e13a86ec114de651e7417867dcf2c84",
+      "role": "bot",
+      "settings": 23,
+      "internals": 13,
+      "settingsHash": "f735120af13e3a84243d63626fc2c2322275297c33d7808e59f79744b25a1984",
+      "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+    },
+    "before": {
+      "macdLine": -2.007149613060861,
+      "signalLine": 0.6750546632290662,
+      "histogram": -2.682204276289927,
+      "macd": -2.007149613060861,
+      "signal": 0.6750546632290662
+    },
+    "after": {
+      "macdLine": 6.241705039300982,
+      "signalLine": 2.2378417692058417,
+      "histogram": 4.00386327009514,
+      "macd": 6.241705039300982,
+      "signal": 2.2378417692058417
+    },
+    "retainedSourceWindows": 50,
+    "sameObservationNotDuplicated": true,
+    "statelessIndicatorsMatchFresh": true,
+    "oscillatorMatchesRetainedReplay": true,
+    "oldResultUnchanged": true,
+    "unrelatedSavePreservesState": true,
+    "insufficientHistoryNamedUntilReplenished": true,
+    "runtimeActivated": false,
+    "growingHistoryDistinctObservations": 16
+  },
+  "reviews": [
+    {
+      "log": "before-cache-review.log",
+      "receiptVerdict": "no_break_found",
+      "costUsd": 0.050933
+    },
+    {
+      "log": "review.log",
+      "receiptVerdict": "no_break_found",
+      "costUsd": 0.04907
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "notFullPanel": true,
+  "limits": [
+    "First source review missed the growing-history prefix collision, subsequently reproduced and fixed before delivery.",
+    "MACD remains stateful on a shared instance; revisiting identical data after other observations can reuse an older signal result. Cross-symbol/timeframe isolation belongs to the next data-path stop and is not certified here.",
+    "Recalculation uses retained history only.",
+    "Replaying the oscillator reproduces signal logs; it submits no orders.",
+    "No live runtime activation or full trading correctness proof."
+  ]
+}

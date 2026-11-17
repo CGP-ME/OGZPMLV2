@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 12,
+  "revision": 13,
   "confidenceSizing": {
     "minMultiplier": 0.5,
     "maxMultiplier": 2.5,
@@ -1024,8 +1024,7 @@
         "deltaLogDigits": 1,
         "priceLogDigits": 2,
         "riskLogDigits": 2
-      },
-      "cacheKeyPrefixCodeUnits": 50
+      }
     },
     "candleProcessorPolicy": {
       "renderRequestMaxPoints": 200,
