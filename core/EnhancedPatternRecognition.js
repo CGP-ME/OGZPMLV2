@@ -374,14 +374,8 @@ class FeatureExtractor {
 class EnhancedPatternChecker {
   /**
    * Create a new pattern checker
-   * @param {Object} options - Configuration options
    */
-  constructor(options) {
-    this.options = {
-      ...options,
-      signatureQuantizationSteps: ConfigLoader.get('internals.patternRecognition.signatureQuantizationSteps'),
-    };
-
+  constructor() {
     // Initialize pattern memory system - uses UnifiedPatternMemory singleton
     // CHANGE 2026-03-18: Replaced PatternMemorySystem with UnifiedPatternMemory
     // One store for pipeline writes + TRAI reads. DTW and exact matching available.
@@ -396,6 +390,13 @@ class EnhancedPatternChecker {
 
     // Store last evaluated features for reference
     this.lastEvaluatedFeatures = null;
+  }
+
+  get options() {
+    return {
+      ...ConfigLoader.get('patternRecognition'),
+      signatureQuantizationSteps: ConfigLoader.get('internals.patternRecognition.signatureQuantizationSteps'),
+    };
   }
 
   /**

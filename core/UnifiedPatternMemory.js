@@ -204,12 +204,7 @@ class UnifiedPatternMemory {
 
   constructor() {
     const runtimeConfig = ConfigLoader.load({ silent: true }).config;
-    const patternMemoryConfig = resolvePatternMemoryConfig();
-    this.config = Object.freeze({
-      ...patternMemoryConfig,
-      persistToDisk: patternMemoryConfig.persistToDisk
-        && (!runtimeConfig.mode.backtest || runtimeConfig.internals.patternMemory.saveInBacktest === true),
-    });
+    resolvePatternMemoryConfig();
 
     // Storage path is keyed by mode and an asset bucket. Rules:
     //   Live/paper: asset CLASS (stocks vs crypto) — stocks share one bank across
@@ -240,12 +235,30 @@ class UnifiedPatternMemory {
     // Periodic prune + save. The runtime cap must be enforced while the
     // process is alive, not only during shutdown cleanup.
     this._saveTimer = null;
-    if (this.config.persistToDisk) {
-      this._saveTimer = setInterval(() => this.pruneAndSave(), this.config.saveIntervalMs);
-    }
+    this._saveSchedule = null;
+    this.refreshPersistenceSchedule();
 
     const patternCount = Object.keys(this.#patterns).length;
     console.log(`[UnifiedPatternMemory] Initialized: ${patternCount} patterns, mode=${mode}, persist=${this.config.persistToDisk}`);
+  }
+
+  get config() {
+    const settings = ConfigLoader.get('patternMemory');
+    return {
+      ...settings,
+      persistToDisk: settings.persistToDisk
+        && (!ConfigLoader.get('mode.backtest') || ConfigLoader.get('internals.patternMemory.saveInBacktest') === true),
+    };
+  }
+
+  refreshPersistenceSchedule() {
+    const { persistToDisk, saveIntervalMs } = this.config;
+    if (this._saveSchedule?.persistToDisk === persistToDisk
+        && this._saveSchedule?.saveIntervalMs === saveIntervalMs) return;
+    if (this._saveTimer) clearInterval(this._saveTimer);
+    this._saveTimer = persistToDisk
+      ? setInterval(() => this.pruneAndSave(), saveIntervalMs) : null;
+    this._saveSchedule = { persistToDisk, saveIntervalMs };
   }
 
   get patterns() {
@@ -709,8 +722,7 @@ class UnifiedPatternMemory {
   }
 
   _load() {
-    if (!this.config.persistToDisk) return;
-
+    // Disabling disk writes must not discard knowledge already in this bank.
     try {
       this._loadWithRollbackOrThrow(this.storagePath);
     } catch (err) {
@@ -741,8 +753,8 @@ class UnifiedPatternMemory {
   _loadBackupForMissingPrimary(storagePath, backupPath) {
     try {
       const result = this._loadFromPathOrThrow(backupPath);
-      this._writeSnapshotDataOrThrow(storagePath, this._buildSnapshotData());
-      console.warn(`[UnifiedPatternMemory] Primary pattern bank missing; restored from backup: ${backupPath}`);
+      if (this.config.persistToDisk) this._writeSnapshotDataOrThrow(storagePath, this._buildSnapshotData());
+      console.warn(`[UnifiedPatternMemory] Primary pattern bank missing; backup loaded: ${backupPath}; primaryWritten=${this.config.persistToDisk}`);
       return { ...result, recoveredFromBackup: true, backupPath };
     } catch (backupError) {
       throw new Error(`UnifiedPatternMemory primary pattern bank missing and backup failed: ${backupError.message}`);
@@ -757,8 +769,8 @@ class UnifiedPatternMemory {
 
     try {
       const result = this._loadFromPathOrThrow(backupPath);
-      this._writeSnapshotDataOrThrow(storagePath, this._buildSnapshotData());
-      console.warn(`[UnifiedPatternMemory] Recovered pattern bank from backup: ${backupPath}`);
+      if (this.config.persistToDisk) this._writeSnapshotDataOrThrow(storagePath, this._buildSnapshotData());
+      console.warn(`[UnifiedPatternMemory] Backup loaded: ${backupPath}; primaryWritten=${this.config.persistToDisk}`);
       return { ...result, recoveredFromBackup: true, backupPath };
     } catch (backupError) {
       throw new Error(`UnifiedPatternMemory primary and backup pattern banks both failed. primary=${primaryError.message}; backup=${backupError.message}`);
@@ -766,9 +778,6 @@ class UnifiedPatternMemory {
   }
 
   _loadFromPathOrThrow(storagePath) {
-    if (!this.config.persistToDisk) {
-      return { loaded: false, exists: false, patternCount: Object.keys(this.#patterns).length };
-    }
     if (!fs.existsSync(storagePath)) {
       this.#patterns = {};
       this.stats = buildDefaultStats();
@@ -1173,8 +1182,13 @@ class UnifiedPatternMemory {
       clearInterval(this._saveTimer);
       this._saveTimer = null;
     }
+    this._saveSchedule = null;
     const result = this.pruneAndSave();
     if (result?.success === false) return result;
+    if (result?.skipped) {
+      console.log(`[UnifiedPatternMemory] Cleanup complete. Persistence disabled; ${Object.keys(this.#patterns).length} patterns retained in memory.`);
+      return result;
+    }
     console.log(`[UnifiedPatternMemory] Cleanup complete. ${Object.keys(this.#patterns).length} patterns saved.`);
     return result || { success: true };
   }

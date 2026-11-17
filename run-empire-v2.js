@@ -667,7 +667,7 @@ class OGZPrimeV14Bot {
       requestRuntimeShutdown(1);
       return;
     }
-    this.patternChecker = new EnhancedPatternChecker(resolvedConfig.config.patternRecognition);
+    this.patternChecker = new EnhancedPatternChecker();
     console.log('[CHECKPOINT-009] EnhancedPatternChecker created');
 
     // Initialize OGZ Two-Pole Oscillator (pure function implementation from V2)
@@ -795,7 +795,6 @@ class OGZPrimeV14Bot {
         staticBrainPath: resolvedConfig.config.internals.trai.staticBrainPath,
         enableVoice: resolvedConfig.config.services.voice.audioEnabled,
         enableVideo: resolvedConfig.config.services.voice.videoEnabled,
-        enablePatternMemory: resolvedConfig.config.features.enableLearning,
         memoryTopK: resolvedConfig.config.internals.trai.memoryTopK,
         memoryMaxJournalEntries: resolvedConfig.config.internals.trai.memoryMaxJournalEntries,
         elevenlabsApiKey: resolvedConfig.config.services.voice.elevenlabsApiKey,
@@ -1118,6 +1117,7 @@ class OGZPrimeV14Bot {
     this.dashboardWsConnected = false;
     this.onSettingsApplied = (snapshot, receipt) => {
       resolvedConfig = snapshot;
+      this.patternChecker.memory.refreshPersistenceSchedule();
       runtimeAuditSink.bindConfiguration(snapshot);
       runtimeAuditSink.setSourceReceiptId(`config:${snapshot.fingerprint}`);
       logRuntimeConfigProof(snapshot, ConfigLoader);

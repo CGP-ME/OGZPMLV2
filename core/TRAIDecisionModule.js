@@ -118,7 +118,6 @@ class TRAIDecisionModule extends EventEmitter {
               llmConfig: this.config.llmConfig,
               enableVoice: this.config.enableVoice,
               enableVideo: this.config.enableVideo,
-              enablePatternMemory: this.config.enablePatternMemory,
               memoryTopK: this.config.memoryTopK,
               memoryMaxJournalEntries: this.config.memoryMaxJournalEntries,
               elevenlabsApiKey: this.config.elevenlabsApiKey,

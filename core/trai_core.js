@@ -112,7 +112,6 @@ class TRAICore extends EventEmitter {
       : null;
 
     // Pattern memory — UnifiedPatternMemory singleton
-    this.patternMemory = this.config.enablePatternMemory ? getUnifiedPatternMemory() : null;
 
     this.initialized = false;
     this.modelLoaded = false;
@@ -142,6 +141,10 @@ class TRAICore extends EventEmitter {
   // ═══════════════════════════════════════════════════════════════
   // INITIALIZATION
   // ═══════════════════════════════════════════════════════════════
+
+  get patternMemory() {
+    return ConfigLoader.get('features.enableLearning') ? getUnifiedPatternMemory() : null;
+  }
 
   async initialize() {
     try {

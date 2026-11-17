@@ -1,0 +1,65 @@
+{
+  "source": {
+    "tree": "084292e503190c45199849dde61d96eede75c5bf",
+    "base": "d3ff9702299ac45ae0b5d218445e050da130bdd6",
+    "sourceSha256": {
+      "core/UnifiedPatternMemory.js": "25129ac09fbf3f1e1c98e6d805cd6d2a8dce6e7165bb4eb0967bb58e9b15d712",
+      "core/EnhancedPatternRecognition.js": "750cbb3a7b40056a949d70ead9249af65d5566c1b0751179eeccbd940e2c862e",
+      "core/trai_core.js": "3c9830460d86a528195c3d41dda8388112a9fd3e4302627d70db1eb8fd7dccfd",
+      "core/TRAIDecisionModule.js": "4617a78cb2ec3426294db754a22c36238149cb513781f3d11a581b5d2506ad05",
+      "run-empire-v2.js": "bf3d616efd5b25ee893f890745fbe2c155afb7a98e3e97da0282c66fb585153a",
+      "TierFeatureFlags.js": "273c3be752a94d47244596c8b0cc0961d291c53a3390d305813abb81d01f3d55",
+      "foundation/ConfigLoader.js": "dcbb5ae249e70b8baebcaa366ec9641af2c863fb1ad06b5f04eb2f16d24e5c68"
+    },
+    "harnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "proof": {
+    "configuration": {
+      "fingerprint": "cf2036e5bf36494f1cf412d1b68a1a18a4566c02d1f455e18f9b4fe6e8670474",
+      "role": "bot",
+      "settings": 23,
+      "internals": 12,
+      "settingsHash": "2fdb2e49f96b3f969cc60cdeaf47f8237b62a3f9e8f39e342210d8325ba588f7",
+      "internalsHash": "a9c2a7433e82e80aa6d9f019f419001f0e2c416a7fd5af738b357e5f22cc9cd8"
+    },
+    "before": "insufficient_data",
+    "after": "learned_success",
+    "retainedMemory": true,
+    "newPatternConfidence": 0.37,
+    "learningTogglePreservesBank": true,
+    "persistenceTogglePreservesSavedAndNewPatterns": true,
+    "disabledStartupReadsWithoutWriting": true,
+    "timerActuallySaved": true,
+    "unrelatedSavePreservesTimer": true,
+    "settingsReceipts": 6,
+    "callback": "actual runner callback via AST; audit logging seams",
+    "runtimeActivated": false
+  },
+  "reviews": [
+    {
+      "question": "persistence",
+      "reportedVerdict": "no_break_found",
+      "receiptVerdict": "review_incomplete",
+      "costUsd": 0.077334,
+      "answerPath": "ogz-meta/inbox/codex/2026-11-17/stop1-closeout/learning/review-persistence-answer.txt"
+    },
+    {
+      "question": "consumers",
+      "reportedVerdict": "no_break_found",
+      "receiptVerdict": "no_break_found",
+      "costUsd": 0.085486,
+      "answerPath": "ogz-meta/inbox/codex/2026-11-17/stop1-closeout/learning/review-consumers-answer.txt"
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "notFullPanel": true,
+  "limitations": [
+    "First review answer parsed as no_claim despite textual no_break_found; second independent consumer review qualified and covers persistence wiring too.",
+    "Both reviews use targeted source windows; coverage metadata warnings remain.",
+    "Disabled writes and the configured save interval do not guarantee durability before the next scheduled write.",
+    "Existing external-bank load/recovery throws remain outside this config consumer change."
+  ],
+  "runtimeActivated": false
+}

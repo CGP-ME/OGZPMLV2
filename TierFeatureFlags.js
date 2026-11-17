@@ -201,11 +201,7 @@ class TierFeatureFlags {
       case 'ml':
         try {
           const { EnhancedPatternChecker } = require('./core/EnhancedPatternRecognition.js');
-          return new EnhancedPatternChecker({
-            unlimitedPatterns: true,
-            aiPowered: true,
-            maxPatterns: 1000
-          });
+          return new EnhancedPatternChecker();
         } catch (error) {
           console.log('EnhancedPatternRecognition not available');
           return null;
