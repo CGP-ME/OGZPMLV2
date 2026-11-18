@@ -1,0 +1,1104 @@
+{
+  "baseline": true,
+  "results": [
+    {
+      "symbol": "NVDA",
+      "subscribedFrames": [
+        "15m",
+        "1m",
+        "5m",
+        "1h",
+        "4h"
+      ],
+      "registeredFrames": [
+        "15m",
+        "1m",
+        "5m",
+        "1h",
+        "4h"
+      ],
+      "hydratedFrames": [
+        "15m",
+        "1m",
+        "5m",
+        "1h",
+        "4h"
+      ],
+      "entryFrames": [
+        "15m",
+        "1h",
+        "1m",
+        "4h",
+        "5m"
+      ],
+      "series": [
+        {
+          "timeframe": "1m",
+          "expected": {
+            "t": 1794959940000,
+            "o": 105.5,
+            "h": 108.5,
+            "l": 104.5,
+            "c": 106.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794959940000,
+            "o": 105.5,
+            "h": 108.5,
+            "l": 104.5,
+            "c": 106.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 106.5
+        },
+        {
+          "timeframe": "5m",
+          "expected": {
+            "t": 1794959700000,
+            "o": 205.5,
+            "h": 208.5,
+            "l": 204.5,
+            "c": 206.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794959700000,
+            "o": 205.5,
+            "h": 208.5,
+            "l": 204.5,
+            "c": 206.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 206.5
+        },
+        {
+          "timeframe": "15m",
+          "expected": {
+            "t": 1794959100000,
+            "o": 305.5,
+            "h": 308.5,
+            "l": 304.5,
+            "c": 306.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794959100000,
+            "o": 305.5,
+            "h": 308.5,
+            "l": 304.5,
+            "c": 306.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 306.5
+        },
+        {
+          "timeframe": "30m",
+          "expected": {
+            "t": 1794958200000,
+            "o": 405.5,
+            "h": 408.5,
+            "l": 404.5,
+            "c": 406.5,
+            "v": 165
+          },
+          "actual": null,
+          "coherent": false,
+          "mtfClose": null
+        },
+        {
+          "timeframe": "1h",
+          "expected": {
+            "t": 1794956400000,
+            "o": 505.5,
+            "h": 508.5,
+            "l": 504.5,
+            "c": 506.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794956400000,
+            "o": 505.5,
+            "h": 508.5,
+            "l": 504.5,
+            "c": 506.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 506.5
+        },
+        {
+          "timeframe": "4h",
+          "expected": {
+            "t": 1794945600000,
+            "o": 605.5,
+            "h": 608.5,
+            "l": 604.5,
+            "c": 606.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794945600000,
+            "o": 605.5,
+            "h": 608.5,
+            "l": 604.5,
+            "c": 606.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 606.5
+        },
+        {
+          "timeframe": "1d",
+          "expected": {
+            "t": 1794873600000,
+            "o": 705.5,
+            "h": 708.5,
+            "l": 704.5,
+            "c": 706.5,
+            "v": 165
+          },
+          "actual": null,
+          "coherent": false,
+          "mtfClose": null
+        }
+      ],
+      "confirmation": {
+        "candleEndTime": 1794960000000,
+        "frames": [
+          {
+            "timeframe": "1m",
+            "count": 61,
+            "latest": {
+              "o": 105.5,
+              "h": 108.5,
+              "l": 104.5,
+              "c": 106.5,
+              "v": 165,
+              "t": 1794959940000,
+              "etime": 1794960000000,
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-612",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:NVDA:1m",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "5m",
+            "count": 61,
+            "latest": {
+              "o": 205.5,
+              "h": 208.5,
+              "l": 204.5,
+              "c": 206.5,
+              "v": 165,
+              "t": 1794959700000,
+              "etime": 1794960000000,
+              "timeframe": "5m",
+              "symbol": "NVDA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-615",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:NVDA:5m",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "15m",
+            "count": 61,
+            "latest": {
+              "o": 305.5,
+              "h": 308.5,
+              "l": 304.5,
+              "c": 306.5,
+              "v": 165,
+              "t": 1794959100000,
+              "etime": 1794960000000,
+              "timeframe": "15m",
+              "symbol": "NVDA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-614",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:NVDA:15m",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "1h",
+            "count": 61,
+            "latest": {
+              "o": 505.5,
+              "h": 508.5,
+              "l": 504.5,
+              "c": 506.5,
+              "v": 165,
+              "t": 1794956400000,
+              "etime": 1794960000000,
+              "timeframe": "1h",
+              "symbol": "NVDA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-616",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:NVDA:1h",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "4h",
+            "count": 61,
+            "latest": {
+              "o": 605.5,
+              "h": 608.5,
+              "l": 604.5,
+              "c": 606.5,
+              "v": 165,
+              "t": 1794945600000,
+              "etime": 1794960000000,
+              "timeframe": "4h",
+              "symbol": "NVDA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-617",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:NVDA:4h",
+              "scopeKeyVersion": 2
+            }
+          }
+        ],
+        "confluence": {
+          "module": "MultiTimeframe",
+          "source": "MultiTimeframeAdapter.crossFrameScore",
+          "timestamp": 1795032446164,
+          "readyTimeframes": [
+            "1m",
+            "5m",
+            "15m",
+            "1h",
+            "4h"
+          ],
+          "totalTimeframes": 5,
+          "minReadyTimeframes": 2,
+          "available": true,
+          "unavailableReason": null,
+          "bullishCount": 5,
+          "bearishCount": 0,
+          "neutralCount": 0,
+          "overallBias": "neutral",
+          "confluenceScore": -0.1279478494421172,
+          "confidence": 1,
+          "rsiAverage": 100,
+          "rsiExtreme": true,
+          "trendAlignment": 1,
+          "timeframeSignals": {
+            "1m": {
+              "signal": "neutral",
+              "strength": 2.7755575615628914e-17,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.05
+            },
+            "5m": {
+              "signal": "neutral",
+              "strength": 2.7755575615628914e-17,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.08
+            },
+            "15m": {
+              "signal": "neutral",
+              "strength": 0.09839241006720056,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.1
+            },
+            "1h": {
+              "signal": "bearish",
+              "strength": 0.17846532687266883,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.15
+            },
+            "4h": {
+              "signal": "bearish",
+              "strength": 0.19860163032672992,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.17
+            }
+          },
+          "shouldTrade": false,
+          "direction": "neutral",
+          "reasoning": []
+        }
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "subscribedFrames": [
+        "15m",
+        "1m",
+        "5m",
+        "1h",
+        "4h"
+      ],
+      "registeredFrames": [
+        "15m",
+        "1m",
+        "5m",
+        "1h",
+        "4h"
+      ],
+      "hydratedFrames": [
+        "15m",
+        "1m",
+        "5m",
+        "1h",
+        "4h"
+      ],
+      "entryFrames": [
+        "15m",
+        "1h",
+        "1m",
+        "4h",
+        "5m"
+      ],
+      "series": [
+        {
+          "timeframe": "1m",
+          "expected": {
+            "t": 1794959940000,
+            "o": 1105.5,
+            "h": 1108.5,
+            "l": 1104.5,
+            "c": 1106.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794959940000,
+            "o": 1105.5,
+            "h": 1108.5,
+            "l": 1104.5,
+            "c": 1106.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 1106.5
+        },
+        {
+          "timeframe": "5m",
+          "expected": {
+            "t": 1794959700000,
+            "o": 1205.5,
+            "h": 1208.5,
+            "l": 1204.5,
+            "c": 1206.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794959700000,
+            "o": 1205.5,
+            "h": 1208.5,
+            "l": 1204.5,
+            "c": 1206.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 1206.5
+        },
+        {
+          "timeframe": "15m",
+          "expected": {
+            "t": 1794959100000,
+            "o": 1305.5,
+            "h": 1308.5,
+            "l": 1304.5,
+            "c": 1306.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794959100000,
+            "o": 1305.5,
+            "h": 1308.5,
+            "l": 1304.5,
+            "c": 1306.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 1306.5
+        },
+        {
+          "timeframe": "30m",
+          "expected": {
+            "t": 1794958200000,
+            "o": 1405.5,
+            "h": 1408.5,
+            "l": 1404.5,
+            "c": 1406.5,
+            "v": 165
+          },
+          "actual": null,
+          "coherent": false,
+          "mtfClose": null
+        },
+        {
+          "timeframe": "1h",
+          "expected": {
+            "t": 1794956400000,
+            "o": 1505.5,
+            "h": 1508.5,
+            "l": 1504.5,
+            "c": 1506.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794956400000,
+            "o": 1505.5,
+            "h": 1508.5,
+            "l": 1504.5,
+            "c": 1506.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 1506.5
+        },
+        {
+          "timeframe": "4h",
+          "expected": {
+            "t": 1794945600000,
+            "o": 1605.5,
+            "h": 1608.5,
+            "l": 1604.5,
+            "c": 1606.5,
+            "v": 165
+          },
+          "actual": {
+            "t": 1794945600000,
+            "o": 1605.5,
+            "h": 1608.5,
+            "l": 1604.5,
+            "c": 1606.5,
+            "v": 165
+          },
+          "coherent": true,
+          "mtfClose": 1606.5
+        },
+        {
+          "timeframe": "1d",
+          "expected": {
+            "t": 1794873600000,
+            "o": 1705.5,
+            "h": 1708.5,
+            "l": 1704.5,
+            "c": 1706.5,
+            "v": 165
+          },
+          "actual": null,
+          "coherent": false,
+          "mtfClose": null
+        }
+      ],
+      "confirmation": {
+        "candleEndTime": 1794960000000,
+        "frames": [
+          {
+            "timeframe": "1m",
+            "count": 61,
+            "latest": {
+              "o": 1105.5,
+              "h": 1108.5,
+              "l": 1104.5,
+              "c": 1106.5,
+              "v": 165,
+              "t": 1794959940000,
+              "etime": 1794960000000,
+              "timeframe": "1m",
+              "symbol": "TSLA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-613",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "5m",
+            "count": 61,
+            "latest": {
+              "o": 1205.5,
+              "h": 1208.5,
+              "l": 1204.5,
+              "c": 1206.5,
+              "v": 165,
+              "t": 1794959700000,
+              "etime": 1794960000000,
+              "timeframe": "5m",
+              "symbol": "TSLA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-619",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:5m",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "15m",
+            "count": 61,
+            "latest": {
+              "o": 1305.5,
+              "h": 1308.5,
+              "l": 1304.5,
+              "c": 1306.5,
+              "v": 165,
+              "t": 1794959100000,
+              "etime": 1794960000000,
+              "timeframe": "15m",
+              "symbol": "TSLA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-618",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:15m",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "1h",
+            "count": 61,
+            "latest": {
+              "o": 1505.5,
+              "h": 1508.5,
+              "l": 1504.5,
+              "c": 1506.5,
+              "v": 165,
+              "t": 1794956400000,
+              "etime": 1794960000000,
+              "timeframe": "1h",
+              "symbol": "TSLA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-620",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1h",
+              "scopeKeyVersion": 2
+            }
+          },
+          {
+            "timeframe": "4h",
+            "count": 61,
+            "latest": {
+              "o": 1605.5,
+              "h": 1608.5,
+              "l": 1604.5,
+              "c": 1606.5,
+              "v": 165,
+              "t": 1794945600000,
+              "etime": 1794960000000,
+              "timeframe": "4h",
+              "symbol": "TSLA",
+              "symbolSource": "payload",
+              "timeframeSource": "payload",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "traceId": "fixture-621",
+              "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:4h",
+              "scopeKeyVersion": 2
+            }
+          }
+        ],
+        "confluence": {
+          "module": "MultiTimeframe",
+          "source": "MultiTimeframeAdapter.crossFrameScore",
+          "timestamp": 1795032446169,
+          "readyTimeframes": [
+            "1m",
+            "5m",
+            "15m",
+            "1h",
+            "4h"
+          ],
+          "totalTimeframes": 5,
+          "minReadyTimeframes": 2,
+          "available": true,
+          "unavailableReason": null,
+          "bullishCount": 5,
+          "bearishCount": 0,
+          "neutralCount": 0,
+          "overallBias": "bearish",
+          "confluenceScore": -0.25612875385339356,
+          "confidence": 1,
+          "rsiAverage": 100,
+          "rsiExtreme": true,
+          "trendAlignment": 1,
+          "timeframeSignals": {
+            "1m": {
+              "signal": "bearish",
+              "strength": 0.24454311500960627,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.05
+            },
+            "5m": {
+              "signal": "bearish",
+              "strength": 0.24915085247100363,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.08
+            },
+            "15m": {
+              "signal": "bearish",
+              "strength": 0.2530516431924944,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.1
+            },
+            "1h": {
+              "signal": "bearish",
+              "strength": 0.2592966027295227,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.15
+            },
+            "4h": {
+              "signal": "bearish",
+              "strength": 0.2618349173089882,
+              "rsi": 100,
+              "trend": "bullish",
+              "weight": 0.17
+            }
+          },
+          "shouldTrade": true,
+          "direction": "sell",
+          "reasoning": []
+        }
+      }
+    }
+  ],
+  "subscriptionObservations": [
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "15m"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "1m"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "5m"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "1h"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "4h"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "15m"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "1m"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "5m"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "1h"
+    },
+    {
+      "methodName": "_activateStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "4h"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "15m"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "1m"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "5m"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "1h"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "NVDA",
+      "timeframe": "4h"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "15m"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "1m"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "5m"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "1h"
+    },
+    {
+      "methodName": "_transitionToStocks",
+      "brokerId": "alpaca",
+      "operation": "subscribe_candles",
+      "symbol": "TSLA",
+      "timeframe": "4h"
+    }
+  ],
+  "observationOnlyEvents": [],
+  "restoreEligibility": [
+    {
+      "timeframe": "1m",
+      "eligible": true,
+      "reason": "same_session_paper_restore",
+      "tradeIds": [
+        "fixture-trade"
+      ]
+    },
+    {
+      "timeframe": "5m",
+      "eligible": true,
+      "reason": "same_session_paper_restore",
+      "tradeIds": [
+        "fixture-trade"
+      ]
+    },
+    {
+      "timeframe": "15m",
+      "eligible": true,
+      "reason": "same_session_paper_restore",
+      "tradeIds": [
+        "fixture-trade"
+      ]
+    },
+    {
+      "timeframe": "30m",
+      "eligible": false,
+      "reason": "persisted_trade_scope_or_exit_mismatch",
+      "tradeId": "fixture-trade"
+    },
+    {
+      "timeframe": "1h",
+      "eligible": true,
+      "reason": "same_session_paper_restore",
+      "tradeIds": [
+        "fixture-trade"
+      ]
+    },
+    {
+      "timeframe": "4h",
+      "eligible": true,
+      "reason": "same_session_paper_restore",
+      "tradeIds": [
+        "fixture-trade"
+      ]
+    },
+    {
+      "timeframe": "1d",
+      "eligible": false,
+      "reason": "persisted_trade_scope_or_exit_mismatch",
+      "tradeId": "fixture-trade"
+    }
+  ],
+  "decisionCount": 10,
+  "closedCandleReceipts": 10,
+  "restCalls": [
+    {
+      "phase": "hydration",
+      "symbol": "NVDA",
+      "timeframe": "15m",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "NVDA",
+      "timeframe": "1h",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "NVDA",
+      "timeframe": "4h",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "count": 60
+    },
+    {
+      "phase": "hydration",
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "count": 60
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "15m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "1h",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "4h",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "15m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "1h",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "NVDA",
+      "timeframe": "4h",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "count": 2
+    },
+    {
+      "phase": "stream",
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "count": 2
+    }
+  ],
+  "sourceSha256": {
+    "run-empire-v2.js": "9e76745dc2a8ffbd4cc2b28a0e8cdbe1914e374cd56255424b36a73a62937274",
+    "core/SessionRouter.js": "84106f6356e0e53af4cac5bcef930ae6622280417594a417fba93b2d6a5f14bd",
+    "config/settings.json": "0da4b968e2dc563fcb0fbe2f5937f79dc9147ef785f16ccb6fbabee2517e582b",
+    "core/StrategyOrchestrator.js": "3517dbea182aa895160fae51778ac150950d0f16ab7e47710ad83fe39bf4257a",
+    "brokers/AlpacaAdapter.js": "9dfe6e70b5084ad74633e13ee81b2ecc4f0ed90e29b0fce9094e76549cd4a2be",
+    "core/CandleProcessor.js": "cad9adc3ed9ae02e94eb518d6a50eabc36c688cf40904b50fd389d2a3d9633f7",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "core/TradingLoop.js": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259",
+    "core/ReplayClosedCandleBoundary.js": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+    "modules/MultiTimeframeAdapter.js": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+    "foundation/ConfigLoader.js": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324"
+  },
+  "seams": [
+    "Synthetic broker REST and stream messages, account scope, persistence and order-dispatch observer",
+    "Actual SessionRouter subscription blocks, not complete transitions",
+    "Actual runner context registration, REST hydration, OHLC handler and decision capture",
+    "Actual Alpaca adapter, CandleProcessor, canonical store, indicators and per-symbol MTF service methods",
+    "No real broker/browser/PM2 activation or performance/profit claim"
+  ]
+}

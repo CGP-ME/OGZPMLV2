@@ -694,13 +694,14 @@ class OGZPrimeV14Bot {
       throw new Error(`[BOOT][Timeframe] execution.candleTimeframe missing/invalid (${runtimeCandleTimeframe}) - refusing to start without a real candle timeframe`);
     }
     this.candleTimeframe = runtimeCandleTimeframe.trim();
-    this.evaluationTimeframes = ConfigLoader.get('orchestrator.mtfTimeframes');
+    this.observationTimeframes = ConfigLoader.get('orchestrator.mtfTimeframes');
+    this.evaluationTimeframes = ConfigLoader.get('orchestrator.entryTimeframes');
     this.candleAggregator = new CandleAggregator();
 
     this.strategyOrchestrator = new StrategyOrchestrator({
       // CHANGE 2026-02-28: Use ConfigLoader for minStrategyConfidence
       minStrategyConfidence: ConfigLoader.get('confidence.minStrategyConfidence'),
-      mtfBaseTimeframe: [...this.evaluationTimeframes].sort(
+      mtfBaseTimeframe: [...this.observationTimeframes].sort(
         (a, b) => this.candleAggregator.getIntervalMs(a) - this.candleAggregator.getIntervalMs(b)
       )[0],
     });
@@ -949,6 +950,7 @@ class OGZPrimeV14Bot {
         this.lastBrokerDataSymbol = sym;
         this.lastBrokerDataTimeframe = tf;
         const activeTf = this.candleTimeframe;
+        const observationFrame = this.observationTimeframes.includes(tf);
         const evaluationFrame = this.evaluationTimeframes.includes(tf);
         // The price's observation time is distinct from its candle's scheduled end.
         const markEventTimeMs = ohlcTimestampMs(eventData.priceTimestamp);
@@ -985,8 +987,8 @@ class OGZPrimeV14Bot {
         const priorSymbolCandle = candleContext?.priceHistory?.at(-1);
         this.storeTimeframeCandle(tf, ohlcData, sym);
         const storedCandle = this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
-        if (evaluationFrame) {
-          const closedCandle = confirmedClosedCandleAtBoundary({
+        if (observationFrame) {
+          const closedCandle = evaluationFrame ? confirmedClosedCandleAtBoundary({
             candleClosed: eventData.candleClosed,
             candleRevision: eventData.candleRevision,
             priorCandle: priorSymbolCandle,
@@ -994,7 +996,7 @@ class OGZPrimeV14Bot {
             incomingCandle: { ...storedCandle?.candle, ...scopeEnvelope, symbol: sym },
             incomingScope: scopeEnvelope,
             symbol: sym,
-          });
+          }) : null;
           // Snapshot Kraken's completed bar before ingesting its next forming
           // bar. Alpaca's completed payload is captured after ingestion below.
           let decisionInput = closedCandle && eventData.candleClosed === false
@@ -1019,6 +1021,14 @@ class OGZPrimeV14Bot {
               () => this.runTradingCycle(sym, traceId, tf, decisionInput),
               { reportFailure: true }
             );
+          } else if (!evaluationFrame) {
+            emitTrace(this, 'CANDLE_OBSERVATION_ONLY', {
+              ...scopeEnvelope,
+              traceId,
+              symbol: sym,
+              timeframe: tf,
+              reason: 'configured_for_observation_not_entry',
+            });
           } else if (storedCandle && !storedCandle.isNewCandle) {
             const skipKey = `session:${sym}:${tf}`;
             this._visActiveTfUpdateSkipped ??= new Set();
@@ -1029,14 +1039,14 @@ class OGZPrimeV14Bot {
           }
         } else {
           this.timeframeDiagnostics.nonActiveTimeframeDrops += 1;
-          console.error(`[OHLC][TIMEFRAME-NON-ACTIVE] dropped non-active timeframe payload count=${this.timeframeDiagnostics.nonActiveTimeframeDrops} symbol=${sym} sourceTimeframe=${tf} activeTimeframe=${activeTf}`);
-          emitTrace(this, 'NON_ACTIVE_TIMEFRAME_DROPPED', {
+          console.error(`[OHLC][TIMEFRAME-UNCONFIGURED] dropped unconfigured timeframe payload count=${this.timeframeDiagnostics.nonActiveTimeframeDrops} symbol=${sym} sourceTimeframe=${tf} activeTimeframe=${activeTf}`);
+          emitTrace(this, 'UNCONFIGURED_TIMEFRAME_DROPPED', {
             traceId,
             source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
             symbol: sym,
             sourceTimeframe: tf,
             activeTimeframe: activeTf,
-            reason: 'timeframe_not_selected',
+            reason: 'timeframe_not_configured_for_observation',
           });
         }
       };
@@ -1857,7 +1867,7 @@ class OGZPrimeV14Bot {
     for (const symbol of symbols) {
       const frames = [];
       let unavailable = null;
-      for (const timeframe of new Set([this.candleTimeframe, ...this.evaluationTimeframes])) {
+      for (const timeframe of new Set([this.candleTimeframe, ...this.observationTimeframes])) {
         const timeframeMs = this.candleAggregator.getIntervalMs(timeframe);
         const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
           brokerId: broker.getBrokerName(),
@@ -3275,7 +3285,7 @@ class OGZPrimeV14Bot {
     for (const sym of symbols) {
       try {
         const byTimeframe = new Map();
-        for (const timeframe of new Set([metadata.timeframe, ...this.evaluationTimeframes])) {
+        for (const timeframe of new Set([metadata.timeframe, ...this.observationTimeframes])) {
           const ctx = new SymbolTradingContext(sym, this._candleStore, {
             timeframe,
             indicatorConfig: {

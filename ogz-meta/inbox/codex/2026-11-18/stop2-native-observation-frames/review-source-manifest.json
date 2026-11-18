@@ -1,0 +1,77 @@
+{
+  "kind": "relevant-source-manifest-excerpt",
+  "fullManifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T20-10-40-293Z-4122063-e00f6757bade/source-l0C7xN.json",
+  "fullManifestSha256": "21c03c788292be603cffe5635522cb2ab61cc0e3c16743014646d11af5df5e23",
+  "tree": "a9000c55d188a7614f71262ebc34ba6cf69c18e0",
+  "baseTree": "1e5d0c8117ca9377e69d046717485623c2244ec1",
+  "capturedFileCount": 730,
+  "excludedPathCount": 6678,
+  "files": [
+    {
+      "file": "brokers/AlpacaAdapter.js",
+      "object": "a153fd70cb0ff0a4098e3792d7272aa0d5697b57",
+      "sha256": "9dfe6e70b5084ad74633e13ee81b2ecc4f0ed90e29b0fce9094e76549cd4a2be",
+      "bytes": 56961
+    },
+    {
+      "file": "config/settings.json",
+      "object": "937df125f754f8372d63ae77364f76cd36c5b3df",
+      "sha256": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+      "bytes": 137022
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "object": "b32cbf29e04e6d004efd0c83531e5df11ecc2542",
+      "sha256": "cad9adc3ed9ae02e94eb518d6a50eabc36c688cf40904b50fd389d2a3d9633f7",
+      "bytes": 52709
+    },
+    {
+      "file": "core/CandleStore.js",
+      "object": "a45f5734500c485b695207a2621f4821fb71782e",
+      "sha256": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "bytes": 14621
+    },
+    {
+      "file": "core/ReplayClosedCandleBoundary.js",
+      "object": "3d0ae62b3ae489c61adacc20060741b3d4ddb511",
+      "sha256": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+      "bytes": 1482
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "object": "6781198a3cc394ffce0b8351f804fe36190f3418",
+      "sha256": "29df1064e9940fd191c65f00344ee2e9f8c4044902024f000feff699bbf80df8",
+      "bytes": 84532
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "object": "404df14728d77c452a22a0734fd40fdc5b2f7ce2",
+      "sha256": "3517dbea182aa895160fae51778ac150950d0f16ab7e47710ad83fe39bf4257a",
+      "bytes": 135660
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "object": "dbc62d656eb67d610d4c303bd4157a751a94efd4",
+      "sha256": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259",
+      "bytes": 101102
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "object": "dbc6092dec1bb1ef06c3735b8616a51cc2cc3540",
+      "sha256": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324",
+      "bytes": 267302
+    },
+    {
+      "file": "modules/MultiTimeframeAdapter.js",
+      "object": "a1e73f0633f5e8d649c31da9a93c286d04d69a58",
+      "sha256": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+      "bytes": 21525
+    },
+    {
+      "file": "run-empire-v2.js",
+      "object": "ec8603c5013c75899d0319a13a1c504ce92c3f83",
+      "sha256": "d9718ce28bfcc32edadf9cfd7612198d53dff6bfc418067d6c182a6b5ddcf7dd",
+      "bytes": 189888
+    }
+  ]
+}

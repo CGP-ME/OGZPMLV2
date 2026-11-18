@@ -1,0 +1,16 @@
+{
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-native-observation-frames/fixtures/native-frames.cjs",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-native-observation-frames/fixtures/native-frames.cjs"
+  ],
+  "startedAtUtc": "2026-11-18T20:15:20.496293+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 3.985,
+  "fixtureSha256": "e436fe826b9074d916f71235517e2f5c9976fbfa5c0ff5e554da9df12e4182fe",
+  "logSha256": "30907dfd00530471fa84f00eb6847de41f87ef566501cda24c4abaaac9643799"
+}

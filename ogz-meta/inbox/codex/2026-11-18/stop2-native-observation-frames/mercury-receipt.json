@@ -1,0 +1,376 @@
+{
+  "run_id": "2026-11-18T20-11-45-234Z-87fb176aeba6",
+  "started_at": "2026-11-18T20:10:40.293Z",
+  "head_sha": "930cb272452b4d9c5c6a0da88b5f69c1fa916024",
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "review_scope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "config/settings.json",
+      "core/SessionRouter.js",
+      "run-empire-v2.js"
+    ],
+    "tree": "a9000c55d188a7614f71262ebc34ba6cf69c18e0",
+    "baseTree": "1e5d0c8117ca9377e69d046717485623c2244ec1",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T20-10-40-293Z-4122063-e00f6757bade/source-l0C7xN.json",
+    "manifestSha256": "21c03c788292be603cffe5635522cb2ab61cc0e3c16743014646d11af5df5e23"
+  },
+  "files_opened": [
+    "CHANGELOG.md:6250-6280",
+    "config/settings.json:3580-3630",
+    "core/SessionRouter.js:130-170",
+    "core/SessionRouter.js:1335-1370",
+    "core/SessionRouter.js:1370-1420",
+    "core/SessionRouter.js:1630-1670",
+    "core/StrategyOrchestrator.js:900-960",
+    "foundation/ConfigLoader.js:2530-2570",
+    "modules/MultiTimeframeAdapter.js:345-365",
+    "modules/MultiTimeframeAdapter.js:40-130",
+    "run-empire-v2.js:1860-1890",
+    "run-empire-v2.js:2487-2560",
+    "run-empire-v2.js:685-715",
+    "run-empire-v2.js:860-920",
+    "run-empire-v2.js:920-1065"
+  ],
+  "file_reads": [
+    {
+      "file": "config/settings.json",
+      "startLine": 3580,
+      "endLine": 3630,
+      "totalLines": 3947,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 685,
+      "endLine": 715,
+      "totalLines": 4133,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 920,
+      "endLine": 1065,
+      "totalLines": 4133,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "startLine": 1630,
+      "endLine": 1670,
+      "totalLines": 2031,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "startLine": 2530,
+      "endLine": 2570,
+      "totalLines": 4665,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 860,
+      "endLine": 920,
+      "totalLines": 4133,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "startLine": 130,
+      "endLine": 170,
+      "totalLines": 2031,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "startLine": 900,
+      "endLine": 960,
+      "totalLines": 3107,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "CHANGELOG.md",
+      "startLine": 6250,
+      "endLine": 6280,
+      "totalLines": 11007,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "modules/MultiTimeframeAdapter.js",
+      "startLine": 40,
+      "endLine": 130,
+      "totalLines": 520,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "modules/MultiTimeframeAdapter.js",
+      "startLine": 345,
+      "endLine": 365,
+      "totalLines": 520,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "startLine": 1370,
+      "endLine": 1420,
+      "totalLines": 2031,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "startLine": 1335,
+      "endLine": 1370,
+      "totalLines": 2031,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 1860,
+      "endLine": 1890,
+      "totalLines": 4133,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 2487,
+      "endLine": 2560,
+      "totalLines": 4133,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    }
+  ],
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "namedBreaks": [],
+    "candidateSet": null,
+    "candidateCoverage": {
+      "expectedTotal": 3,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 3,
+    "changedJsCount": 2,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "termination": "answer_given",
+  "iterations": 17,
+  "verdict": "no_break_found",
+  "error": null,
+  "run_tokens": {
+    "input": 496528,
+    "uncached_input": 339146,
+    "cached_input": 157382,
+    "output": 15621,
+    "total": 512149,
+    "complete": true,
+    "attempts_with_usage": 18,
+    "total_attempts": 18
+  },
+  "run_cost": {
+    "amount": 0.04066619,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 18,
+    "total_attempts": 18,
+    "cost_absences": []
+  },
+  "tools_invoked": [
+    {
+      "name": "find_definition",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 14,
+      "succeeded": 14,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 15,
+      "succeeded": 15,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    }
+  ],
+  "reviewer_panel": {
+    "requested": [
+      "mercury"
+    ],
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit",
+    "reviewIntent": "adversarial",
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "reported_decision": {
+      "verdict": "no_break_found",
+      "majorityOutcome": "no_break_found",
+      "majorityRequired": 1,
+      "selectedCount": 1,
+      "tally": {
+        "found_break": 0,
+        "no_break_found": 1,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "no_break_found",
+          "rawVerdict": "no_break_found",
+          "answerSha256": "9fd80550cd3febd6b65297c71120610f462549855f8d849649fbbbcf037ea348",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    },
+    "seats": [
+      {
+        "id": "mercury",
+        "label": "Mercury",
+        "status": "succeeded",
+        "verdict": "no_break_found",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "failed": false,
+        "unavailable": false,
+        "identityConflict": false,
+        "evidenceBasis": [
+          "successful_repo_tool",
+          "verified_current_diff"
+        ],
+        "evidenceChecksPassed": true,
+        "qualifying": true,
+        "self_report_complete": true,
+        "self_report_missing_fields": [],
+        "named_absences": [],
+        "doctrineReview": {
+          "namedAbsences": [
+            "coverage_insufficient",
+            "coverage_unresolved",
+            "whole_file_read_absent",
+            "inherited_section_incomplete"
+          ],
+          "namedBreaks": [],
+          "candidateSet": null,
+          "candidateCoverage": {
+            "expectedTotal": 3,
+            "unresolved": [],
+            "complete": false,
+            "authorityReady": false,
+            "fourthShapeAdditions": [],
+            "fourthShapeAdditionCount": 0
+          },
+          "changedFileCount": 3,
+          "changedJsCount": 2,
+          "fourthShapeAdditionCount": 0,
+          "executionProvenance": {
+            "runChecks": []
+          }
+        },
+        "seat_tokens": {
+          "input": 492917,
+          "uncached_input": 335535,
+          "cached_input": 157382,
+          "output": 15619,
+          "total": 508536,
+          "complete": true,
+          "attempts_with_usage": 17,
+          "total_attempts": 17
+        },
+        "seat_cost": {
+          "amount": 0.04059397,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 17,
+          "total_attempts": 17,
+          "cost_absences": []
+        }
+      }
+    ],
+    "evidenceRound": {
+      "required": false,
+      "status": "not_required"
+    }
+  }
+}

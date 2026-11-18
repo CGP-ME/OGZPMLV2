@@ -1,0 +1,26 @@
+{
+  "baseCommit": "930cb272452b4d9c5c6a0da88b5f69c1fa916024",
+  "candidateTree": "a9000c55d188a7614f71262ebc34ba6cf69c18e0",
+  "verifiedSourceSha256": {
+    "run-empire-v2.js": "d9718ce28bfcc32edadf9cfd7612198d53dff6bfc418067d6c182a6b5ddcf7dd",
+    "core/SessionRouter.js": "29df1064e9940fd191c65f00344ee2e9f8c4044902024f000feff699bbf80df8",
+    "config/settings.json": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+    "core/StrategyOrchestrator.js": "3517dbea182aa895160fae51778ac150950d0f16ab7e47710ad83fe39bf4257a",
+    "brokers/AlpacaAdapter.js": "9dfe6e70b5084ad74633e13ee81b2ecc4f0ed90e29b0fce9094e76549cd4a2be",
+    "core/CandleProcessor.js": "cad9adc3ed9ae02e94eb518d6a50eabc36c688cf40904b50fd389d2a3d9633f7",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "core/TradingLoop.js": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259",
+    "core/ReplayClosedCandleBoundary.js": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+    "modules/MultiTimeframeAdapter.js": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+    "foundation/ConfigLoader.js": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324"
+  },
+  "harnessSha256": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "trai_brain/mercury-bridge/adversarial-review.js": "e2c2111c480396c50ed7c84335816071dd6c02b819ada15230a205d625b23e8f",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c"
+  },
+  "qualification": "Inherited unstaged react-loop.js implementation used; review source pinned separately to staged tree.",
+  "reviewRunId": "2026-11-18T20-11-45-234Z-87fb176aeba6",
+  "resolvedBaseTree": "1e5d0c8117ca9377e69d046717485623c2244ec1"
+}

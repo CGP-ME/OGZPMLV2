@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=a9000c55d188a7614f71262ebc34ba6cf69c18e0",
+    "--review-base=930cb272452b4d9c5c6a0da88b5f69c1fa916024",
+    "--change-path=run-empire-v2.js",
+    "--change-path=core/SessionRouter.js",
+    "--change-path=config/settings.json",
+    "What determines whether a received broker OHLC timeframe is ingested and considered by MTF confirmation versus dispatching an entry decision? Trace the configuration producer and runtime consumers in this source snapshot, cite current file:line evidence, and identify concrete inconsistencies or verification gaps."
+  ],
+  "startedAtUtc": "2026-11-18T20:10:39.395519+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 75.535,
+  "logSha256": "99783e638749a1f1a039f9e619840da63c1bdc8cd5f63a407d8e8d174fdecd32"
+}

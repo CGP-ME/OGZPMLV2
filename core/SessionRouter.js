@@ -1643,13 +1643,13 @@ class SessionRouter extends EventEmitter {
         ), { symbols: this.stockSymbols, timeframe });
       }
 
-      const evaluationTimeframes = new Set([timeframe, ...this.ctx.evaluationTimeframes]);
+      const observationTimeframes = new Set([timeframe, ...this.ctx.observationTimeframes]);
       for (const symbol of this.stockSymbols) {
         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
-          for (const evaluationTimeframe of evaluationTimeframes) {
+          for (const observationTimeframe of observationTimeframes) {
             await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
-              this.alpacaAdapter.subscribeToCandles(symbol, evaluationTimeframe)
-            ), { symbol, timeframe: evaluationTimeframe });
+              this.alpacaAdapter.subscribeToCandles(symbol, observationTimeframe)
+            ), { symbol, timeframe: observationTimeframe });
           }
         }
       }
@@ -1922,13 +1922,13 @@ class SessionRouter extends EventEmitter {
           this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols)
         ), { symbols: this.stockSymbols, timeframe });
       }
-      const evaluationTimeframes = new Set([timeframe, ...this.ctx.evaluationTimeframes]);
+      const observationTimeframes = new Set([timeframe, ...this.ctx.observationTimeframes]);
       for (const symbol of this.stockSymbols) {
         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
-          for (const evaluationTimeframe of evaluationTimeframes) {
+          for (const observationTimeframe of observationTimeframes) {
             await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
-              this.alpacaAdapter.subscribeToCandles(symbol, evaluationTimeframe)
-            ), { symbol, timeframe: evaluationTimeframe });
+              this.alpacaAdapter.subscribeToCandles(symbol, observationTimeframe)
+            ), { symbol, timeframe: observationTimeframe });
           }
         }
       }
