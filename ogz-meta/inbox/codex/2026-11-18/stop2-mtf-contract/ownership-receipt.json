@@ -1,0 +1,261 @@
+{
+  "sourceHashes": {
+    "run-empire-v2.js": "9e76745dc2a8ffbd4cc2b28a0e8cdbe1914e374cd56255424b36a73a62937274",
+    "core/CandleProcessor.js": "4cc8413cfea806b2047be3521998506914b57591e6008c9c3db7d533532cee40",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "core/ContractValidator.js": "d18f2e5f7cfae85fbaef6e943263f3408b09cd7c408a36bbc77f05fae6462b09",
+    "config/internals.json": "eaaf939db0f73ca3b7ec3bbc344de31b14c935d51711ac2a4a42a9a7922371c8"
+  },
+  "cases": {
+    "sharedHistoryReplacement": {
+      "writes": [
+        "NVDA 1m @ 100",
+        "TSLA 1m @ 200"
+      ],
+      "retained": [
+        {
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "t": 1794873600000,
+          "etime": 1794873660000,
+          "o": 199,
+          "h": 202,
+          "l": 198,
+          "c": 200,
+          "v": 10
+        }
+      ]
+    },
+    "olderRevision": {
+      "mirror": [
+        {
+          "t": 1794873600000,
+          "etime": 1794873660000,
+          "o": 99,
+          "h": 102,
+          "l": 98,
+          "c": 100,
+          "v": 10
+        },
+        {
+          "t": 1794873660000,
+          "etime": 1794873720000,
+          "o": 107,
+          "h": 110,
+          "l": 106,
+          "c": 108,
+          "v": 20
+        },
+        {
+          "t": 1794873600000,
+          "etime": 1794873660000,
+          "o": 104,
+          "h": 107,
+          "l": 103,
+          "c": 105,
+          "v": 12
+        }
+      ],
+      "canonical": [
+        {
+          "symbol": "NVDA",
+          "timeframe": "1m",
+          "t": 1794873600000,
+          "etime": 1794873660000,
+          "o": 104,
+          "h": 107,
+          "l": 103,
+          "c": 105,
+          "v": 12
+        },
+        {
+          "symbol": "NVDA",
+          "timeframe": "1m",
+          "t": 1794873660000,
+          "etime": 1794873720000,
+          "o": 107,
+          "h": 110,
+          "l": 106,
+          "c": 108,
+          "v": 20
+        }
+      ]
+    },
+    "correctedCandleEnvelope": {
+      "incomingCorrection": {
+        "symbol": "NVDA",
+        "timeframe": "1m",
+        "t": 1794873600000,
+        "etime": 1794873660000,
+        "o": 104,
+        "h": 107,
+        "l": 103,
+        "c": 105,
+        "v": 12
+      },
+      "newestCanonical": {
+        "symbol": "NVDA",
+        "timeframe": "1m",
+        "t": 1794873660000,
+        "etime": 1794873720000,
+        "o": 107,
+        "h": 110,
+        "l": 106,
+        "c": 108,
+        "v": 20
+      },
+      "marketData": {
+        "symbol": "NVDA",
+        "price": 108,
+        "timestamp": 1794873660000,
+        "timeframe": "1m",
+        "systemTime": 1795014845140,
+        "volume": 20,
+        "open": 107,
+        "high": 110,
+        "low": 106
+      },
+      "payload": {
+        "type": "price",
+        "symbol": "NVDA",
+        "asset": "NVDA",
+        "price": 105,
+        "close": 105,
+        "volume": 20,
+        "timestamp": 1794873660000,
+        "timeframe": "1m",
+        "candle": {
+          "symbol": "NVDA",
+          "timeframe": "1m",
+          "open": 104,
+          "high": 107,
+          "low": 103,
+          "close": 105,
+          "volume": 12,
+          "timestamp": 1794873660000
+        },
+        "indicators": {},
+        "candles": [
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "t": 1794873600000,
+            "etime": 1794873660000,
+            "o": 199,
+            "h": 202,
+            "l": 198,
+            "c": 200,
+            "v": 10
+          },
+          {
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "t": 1794873660000,
+            "etime": 1794873720000,
+            "o": 107,
+            "h": 110,
+            "l": 106,
+            "c": 108,
+            "v": 20
+          },
+          {
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "t": 1794873600000,
+            "etime": 1794873660000,
+            "o": 104,
+            "h": 107,
+            "l": 103,
+            "c": 105,
+            "v": 12
+          }
+        ],
+        "overlays": {},
+        "equity": 1000,
+        "position": 0,
+        "totalTrades": 0,
+        "totalPnL": 0,
+        "winRate": 0,
+        "data": {
+          "symbol": "NVDA",
+          "asset": "NVDA",
+          "price": 105,
+          "close": 105,
+          "volume": 20,
+          "timestamp": 1794873660000,
+          "candle": {
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "open": 104,
+            "high": 107,
+            "low": 103,
+            "close": 105,
+            "volume": 12,
+            "timestamp": 1794873660000
+          },
+          "indicators": {},
+          "candles": [
+            {
+              "symbol": "TSLA",
+              "timeframe": "1m",
+              "t": 1794873600000,
+              "etime": 1794873660000,
+              "o": 199,
+              "h": 202,
+              "l": 198,
+              "c": 200,
+              "v": 10
+            },
+            {
+              "symbol": "NVDA",
+              "timeframe": "1m",
+              "t": 1794873660000,
+              "etime": 1794873720000,
+              "o": 107,
+              "h": 110,
+              "l": 106,
+              "c": 108,
+              "v": 20
+            },
+            {
+              "symbol": "NVDA",
+              "timeframe": "1m",
+              "t": 1794873600000,
+              "etime": 1794873660000,
+              "o": 104,
+              "h": 107,
+              "l": 103,
+              "c": 105,
+              "v": 12
+            }
+          ],
+          "timeframe": "1m",
+          "overlays": {},
+          "equity": 1000,
+          "position": 0,
+          "totalTrades": 0,
+          "totalPnL": 0,
+          "winRate": 0
+        }
+      }
+    },
+    "indicatorSource": {
+      "rootEngineRsi": 11,
+      "suppliedRenderRsi": 77,
+      "selectedRsi": 11
+    }
+  },
+  "seams": [
+    "AST-extracted current runner storage methods and CandleProcessor declarations/helpers",
+    "Actual CandleStore with synthetic candles",
+    "Literal internals JSON lookup instead of full ConfigLoader startup",
+    "Synthetic indicator snapshots, account summary and transport surroundings"
+  ],
+  "limits": [
+    "No complete runner or live broker",
+    "No connected dashboard or order",
+    "Reproduces current source defects, does not verify a repair",
+    "No production changes or PM2 operations"
+  ]
+}
