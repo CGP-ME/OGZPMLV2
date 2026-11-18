@@ -1,0 +1,29 @@
+{
+  "checkedAtUtc": "2026-11-18T09:08:31.516292+00:00",
+  "baseCommit": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+  "unchangedInheritedFiles": {
+    "config/internals.json": true,
+    "config/settings.json": true,
+    "core/ExitContractManager.js": true,
+    "core/OrderExecutor.js": true,
+    "core/StateManager.js": true,
+    "core/StrategyOrchestrator.js": true,
+    "core/TradingLoop.js": true,
+    "core/dto/DecisionLedgerSchema.js": true,
+    "foundation/ConfigLoader.js": true,
+    "modules/DonchianBreakout.js": true,
+    "modules/EMATrendRetest.js": true,
+    "modules/PropSafeEMAPullback.js": true,
+    "modules/RSI2MeanReversion.js": true,
+    "modules/TimeSeriesMomentum.js": true,
+    "ogzprime-ssl-server.js": true,
+    "test/mercury-astra-challenger.test.js": true,
+    "test/session-router-fail-safe.test.js": true,
+    "test/trade-replay-capture-contract.test.js": true,
+    "trai_brain/mercury-bridge/react-loop.js": true
+  },
+  "inheritedChangelogSuffixSha256": "d2ee7c508164268aa7fe90a4829b5501a320292c74663687710787f8cf7c695e",
+  "ownedEntrySha256": "7abf204ea4117d11a0afa7ab1bd2886583e0fe1500705f1b3246d2130aed0de9",
+  "stagedChangelogIsOnlyOwnedPrefix": true,
+  "noActivation": true
+}

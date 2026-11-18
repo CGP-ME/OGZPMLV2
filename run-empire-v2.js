@@ -905,6 +905,7 @@ class OGZPrimeV14Bot {
           symbolSource,
           timeframe: tf,
           payloadSymbol: eventData.symbol || raw?.symbol || raw?.S || null,
+          candleRevision: eventData.candleRevision === true,
         });
         const normalizedOhlcData = normalizeOhlc(raw);
         if (!normalizedOhlcData) {
@@ -987,6 +988,7 @@ class OGZPrimeV14Bot {
         if (evaluationFrame) {
           const closedCandle = confirmedClosedCandleAtBoundary({
             candleClosed: eventData.candleClosed,
+            candleRevision: eventData.candleRevision,
             priorCandle: priorSymbolCandle,
             lastDecisionCandle: candleContext.lastDecisionCandle,
             incomingCandle: { ...storedCandle?.candle, ...scopeEnvelope, symbol: sym },

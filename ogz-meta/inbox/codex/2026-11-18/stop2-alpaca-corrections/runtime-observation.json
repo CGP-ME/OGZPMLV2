@@ -1,0 +1,38 @@
+{
+  "readAtUtc": "2026-11-18T08:50:09.902421+00:00",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2869657,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUtc": "2026-11-17T05:42:54.558000+00:00",
+      "profile": null
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2869648,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUtc": "2026-11-17T05:42:54.363000+00:00",
+      "profile": null
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2869656,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUtc": "2026-11-17T05:42:54.554000+00:00",
+      "profile": null
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2869703,
+      "status": "online",
+      "restarts": 3,
+      "startedAtUtc": "2026-11-17T05:42:55.130000+00:00",
+      "profile": "paper"
+    }
+  ],
+  "activationPerformed": false
+}

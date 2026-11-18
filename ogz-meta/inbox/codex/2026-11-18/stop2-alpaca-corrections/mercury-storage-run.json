@@ -1,0 +1,33 @@
+{
+  "startedAtUtc": "2026-11-18T09:04:37.037385+00:00",
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=53d1cf5857cf7b30a6c9e8a33be4b4b228c63934",
+    "--review-base=HEAD",
+    "--change-path=core/CandleProcessor.js",
+    "When an Alpaca minute-bar revision updates an already stored candle, what values subsequently reach the canonical candle history, frame indicators and latest market-data snapshot? Trace the producer and consumers with current file:line evidence and identify any material defect or uncertainty."
+  ],
+  "candidateTree": "53d1cf5857cf7b30a6c9e8a33be4b4b228c63934",
+  "baseCommit": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+  "harnessHashes": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "trai_brain/mercury-bridge/adversarial-review.js": "e2c2111c480396c50ed7c84335816071dd6c02b819ada15230a205d625b23e8f",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c",
+    "mercury.config.json": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a"
+  },
+  "inheritedDirtyHarness": [
+    "trai_brain/mercury-bridge/react-loop.js"
+  ],
+  "selectedSeats": [
+    "mercury"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 88.883,
+  "logSha256": "777b9432f64c5994da082609019dae6c01efe634b9da0a289ccc883b9ea01e5a"
+}

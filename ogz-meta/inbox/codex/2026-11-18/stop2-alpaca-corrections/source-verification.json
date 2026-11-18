@@ -1,0 +1,32 @@
+{
+  "checkedAtUtc": "2026-11-18T09:03:04.751942+00:00",
+  "baseCommit": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+  "candidateTree": "53d1cf5857cf7b30a6c9e8a33be4b4b228c63934",
+  "productionSources": {
+    "brokers/AlpacaAdapter.js": {
+      "sha256": "9dfe6e70b5084ad74633e13ee81b2ecc4f0ed90e29b0fce9094e76549cd4a2be",
+      "candidateBlob": "a153fd70cb0ff0a4098e3792d7272aa0d5697b57",
+      "stagedBlob": "a153fd70cb0ff0a4098e3792d7272aa0d5697b57"
+    },
+    "core/CandleProcessor.js": {
+      "sha256": "4cc8413cfea806b2047be3521998506914b57591e6008c9c3db7d533532cee40",
+      "candidateBlob": "c4283da72d1dacfec2a0a5c38011bf5c1a60e0fe",
+      "stagedBlob": "c4283da72d1dacfec2a0a5c38011bf5c1a60e0fe"
+    },
+    "core/ReplayClosedCandleBoundary.js": {
+      "sha256": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+      "candidateBlob": "3d0ae62b3ae489c61adacc20060741b3d4ddb511",
+      "stagedBlob": "3d0ae62b3ae489c61adacc20060741b3d4ddb511"
+    },
+    "run-empire-v2.js": {
+      "sha256": "9e76745dc2a8ffbd4cc2b28a0e8cdbe1914e374cd56255424b36a73a62937274",
+      "candidateBlob": "86659c93f365cce6665b550c98c9e80f145408a1",
+      "stagedBlob": "86659c93f365cce6665b550c98c9e80f145408a1"
+    }
+  },
+  "inheritedFilesPreserved": 20,
+  "nativeFixtureSha256": "c0cd26a4afec25ec63dec2f8116d936cd1dcc4f20ecbdd4f23cc19f924e14002",
+  "candidateProofFixtureMatches": true,
+  "addedThrowOrCatch": false,
+  "noActivation": true
+}

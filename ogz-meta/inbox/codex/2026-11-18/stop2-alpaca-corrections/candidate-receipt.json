@@ -1,0 +1,303 @@
+{
+  "baseline": false,
+  "outcome": {
+    "subscriptionAndReplayIncludeCorrections": true,
+    "nativeCorrectionStored": true,
+    "nativeCorrectionDoesNotAppend": true,
+    "higherFrameCorrectionStored": true,
+    "otherSymbolUnchanged": true,
+    "decisionsRemainImmutable": true,
+    "historicalCorrectionKeepsLatestMarketData": true,
+    "historicalCorrectionKeepsLatestMark": true,
+    "unchangedRestBarsNotReemitted": true,
+    "historicalCorrectionNotNewDecision": true,
+    "indicatorsMatchCorrectedHistory": true,
+    "mtfStoresCorrection": true,
+    "firstRevisionWithNoDecisionCursorDoesNotEnter": true,
+    "pendingRevisionRefetchedOnce": true,
+    "normalCloseAfterRevisionStillDispatches": true,
+    "mixedRefreshPreservesNormalClose": true,
+    "restFailureEmittedWithSymbol": true,
+    "retiredSubscriptionCannotPublishOrRefetch": true,
+    "unsubscribeIncludesCorrections": true
+  },
+  "commands": [
+    {
+      "action": "subscribe",
+      "bars": [
+        "NVDA"
+      ],
+      "updatedBars": [
+        "NVDA"
+      ]
+    },
+    {
+      "action": "subscribe",
+      "bars": [
+        "TSLA"
+      ],
+      "updatedBars": [
+        "TSLA"
+      ]
+    },
+    {
+      "action": "subscribe",
+      "trades": [],
+      "quotes": [],
+      "bars": [
+        "NVDA",
+        "TSLA"
+      ],
+      "updatedBars": [
+        "NVDA",
+        "TSLA"
+      ]
+    },
+    {
+      "action": "unsubscribe",
+      "trades": [],
+      "quotes": [],
+      "bars": [
+        "NVDA",
+        "TSLA"
+      ],
+      "updatedBars": [
+        "NVDA",
+        "TSLA"
+      ]
+    }
+  ],
+  "restCalls": [
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 2
+    }
+  ],
+  "sourceHashes": {
+    "brokers/AlpacaAdapter.js": "9dfe6e70b5084ad74633e13ee81b2ecc4f0ed90e29b0fce9094e76549cd4a2be",
+    "core/CandleProcessor.js": "4cc8413cfea806b2047be3521998506914b57591e6008c9c3db7d533532cee40",
+    "core/ReplayClosedCandleBoundary.js": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+    "run-empire-v2.js": "9e76745dc2a8ffbd4cc2b28a0e8cdbe1914e374cd56255424b36a73a62937274",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "core/indicators/IndicatorEngine.js": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3",
+    "core/SymbolTradingContext.js": "e9c6a89ec041890103d3114599968da13a0456406be7680a47d244c8b421c793",
+    "core/TradingLoop.js": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259",
+    "core/StateManager.js": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1",
+    "modules/MultiTimeframeAdapter.js": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+    "foundation/ConfigLoader.js": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324",
+    "config/settings.json": "0da4b968e2dc563fcb0fbe2f5937f79dc9147ef785f16ccb6fbabee2517e582b",
+    "config/internals.json": "437d32d543440f4b428643549bc2d7d915fad595c163a351a40554dd94f70b37"
+  },
+  "sample": {
+    "nativeCorrection": {
+      "o": 104,
+      "h": 107,
+      "l": 103,
+      "c": 105,
+      "v": 1050,
+      "t": 1794992040000,
+      "etime": 1794992100000,
+      "timeframe": "1m",
+      "symbol": "NVDA",
+      "symbolSource": "payload",
+      "timeframeSource": "payload",
+      "brokerId": "alpaca",
+      "accountId": "fixture-account",
+      "accountIdSource": "fixture",
+      "assetClass": "stocks",
+      "executionMode": "paper",
+      "traceId": "fixture-5",
+      "scopeKey": "paper:alpaca:fixture-account:stocks:NVDA:1m",
+      "scopeKeyVersion": 2
+    },
+    "higherCorrection": {
+      "o": 104,
+      "h": 107,
+      "l": 103,
+      "c": 105,
+      "v": 1050,
+      "t": 1794991800000,
+      "etime": 1794992100000,
+      "timeframe": "5m",
+      "symbol": "NVDA",
+      "symbolSource": "payload",
+      "timeframeSource": "payload",
+      "brokerId": "alpaca",
+      "accountId": "fixture-account",
+      "accountIdSource": "fixture",
+      "assetClass": "stocks",
+      "executionMode": "paper",
+      "traceId": "fixture-6",
+      "scopeKey": "paper:alpaca:fixture-account:stocks:NVDA:5m",
+      "scopeKeyVersion": 2
+    },
+    "correctedHistoryIndicators": {
+      "rsi": 92.33454754017579,
+      "atr": 4.57704081632653,
+      "macd": 2.295958096319225,
+      "macdSignal": 1.1472116416033775
+    }
+  },
+  "decisionCount": 18,
+  "closedCandleReceiptCount": 18,
+  "correctionEvents": [
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "end": 1794992100000,
+      "close": 105
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "end": 1794992100000,
+      "close": 105
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "end": 1794992100000,
+      "close": 107
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "end": 1794992100000,
+      "close": 202
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "end": 1794992220000,
+      "close": 111
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "end": 1794992220000,
+      "close": 111
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "end": 1794992100000,
+      "close": 109
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "end": 1794992400000,
+      "close": 210
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "end": 1794992400000,
+      "close": 210
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "end": 1794992340000,
+      "close": 115
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "end": 1794992520000,
+      "close": 123
+    }
+  ],
+  "limits": [
+    "Synthetic broker transport/REST responses and scoped account in disposable namespace; no paid broker request or order",
+    "Actual adapter, runner OHLC handler, normalizer, CandleProcessor, CandleStore, symbol contexts, indicators, MTF and decision capture",
+    "Runner startup, SessionRouter transitions, strategy selection, order execution and live dashboard are not instantiated",
+    "Journal, scope supplier, transport and trade dispatch are observation seams; this is not live activation proof"
+  ]
+}

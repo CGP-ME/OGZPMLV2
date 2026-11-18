@@ -1,0 +1,42 @@
+{
+  "startedAtUtc": "2026-11-18T08:52:08.355889+00:00",
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=bfbb856530da10438308dec115ee52e16ce3f852",
+    "--review-base=HEAD",
+    "--change-path=brokers/AlpacaAdapter.js",
+    "Under what conditions can an Alpaca bar correction cause a new entry decision in this candidate? Cite the producing adapter event and the live consumer, and identify any concrete defect or uncertainty. The live OHLC consumer is wired in run-empire-v2.js."
+  ],
+  "candidateTree": "bfbb856530da10438308dec115ee52e16ce3f852",
+  "baseCommit": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+  "harnessHashes": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "trai_brain/mercury-bridge/adversarial-review.js": "e2c2111c480396c50ed7c84335816071dd6c02b819ada15230a205d625b23e8f",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c",
+    "mercury.config.json": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a"
+  },
+  "inheritedDirtyHarness": [
+    "trai_brain/mercury-bridge/react-loop.js"
+  ],
+  "selectedSeats": [
+    "mercury"
+  ],
+  "priorFailureDiagnosis": {
+    "priorLog": "mercury.local.log",
+    "providerFinishReason": "length",
+    "promptTokensAtFailure": 28838,
+    "completionTokensAtFailure": 7649,
+    "reasoningTokensAtFailure": 7649,
+    "content": null,
+    "change": "Question narrowed to entry dispatch; direct consumer file supplied as source pointer. Token setting and harness unchanged."
+  },
+  "exitCode": 0,
+  "elapsedSeconds": 75.365,
+  "logSha256": "6be1507ecfaf2b1e846ce724cbb62bb023612e90284fedf91b2e370ea5b9e63c"
+}

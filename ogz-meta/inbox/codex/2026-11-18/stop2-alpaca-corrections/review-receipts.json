@@ -1,0 +1,657 @@
+{
+  "runs": [
+    {
+      "run_id": "2026-11-18T08-50-17-537Z-221e389ba727",
+      "created_at": "2026-11-18T08:50:17.537Z",
+      "started_at": "2026-11-18T08:49:32.250Z",
+      "branch": "codex/archive-legacy-env",
+      "head_sha": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+      "prompt_excerpt": "Review source tree: bfbb856530da10438308dec115ee52e16ce3f852; comparison baseline: 6fd67e5c38208dc8139144b88085a408901e6cb7. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nHow is an Alpaca late bar correction propagated from its stream message through candle-dependent state and entry dispatch in this candidate? Establish any material correctness defect or unresolved gap from current producer/consumer file:line evidence.",
+      "retrieval": {
+        "method": "source_snapshot",
+        "embedding": {
+          "status": "not_requested",
+          "error": null
+        }
+      },
+      "review_scope": {
+        "source": "explicit_change_paths",
+        "paths": [
+          "brokers/AlpacaAdapter.js"
+        ],
+        "tree": "bfbb856530da10438308dec115ee52e16ce3f852",
+        "baseTree": "6fd67e5c38208dc8139144b88085a408901e6cb7",
+        "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T08-49-32-250Z-3745785-18915bfc6aeb/source-GI6BCV.json",
+        "manifestSha256": "c9517f76e180bfc093bb9f6934999bee0a29d771c70a99b2ad00a1f39873c0fb"
+      },
+      "options": {
+        "retrievalMode": null,
+        "topK": null,
+        "maxIterations": null,
+        "decisionSteerIteration": 60,
+        "decisionSteerSentAt": null,
+        "maxTokens": 7750,
+        "captureTrace": false,
+        "noTools": false,
+        "reviewers": [
+          "mercury"
+        ]
+      },
+      "verdict": "review_incomplete",
+      "termination": "error",
+      "iterations": 9,
+      "error": null,
+      "run_tokens": {
+        "input": 197727,
+        "uncached_input": 121910,
+        "cached_input": 75817,
+        "output": 9971,
+        "total": 207698,
+        "complete": true,
+        "attempts_with_usage": 11,
+        "total_attempts": 11
+      },
+      "run_cost": {
+        "amount": 0.01635424,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 11,
+        "total_attempts": 11,
+        "cost_absences": []
+      },
+      "files_opened": [
+        "brokers/AlpacaAdapter.js:1120-1291",
+        "brokers/AlpacaAdapter.js:700-900",
+        "core/ReplayClosedCandleBoundary.js:1-33",
+        "core/SessionRouter.js:1180-1330"
+      ],
+      "panel": {
+        "selected": [
+          "mercury"
+        ],
+        "unselected": [
+          "astra",
+          "fable"
+        ],
+        "diagnostics": {
+          "qualifyingSeats": 0,
+          "verdictLabelsMatch": false,
+          "evidenceChecksPassed": false,
+          "identitiesAttested": true,
+          "identitiesIndependent": true,
+          "issues": [
+            "selected_seat_unavailable",
+            "insufficient_qualifying_seats",
+            "evidence_failure"
+          ],
+          "sharedVerdictLabel": null
+        },
+        "reported_decision": {
+          "verdict": "review_incomplete",
+          "majorityOutcome": null,
+          "majorityRequired": 1,
+          "selectedCount": 1,
+          "tally": {
+            "found_break": 0,
+            "no_break_found": 0,
+            "cannot_verify": 0,
+            "absent": 1
+          },
+          "votes": [
+            {
+              "reviewer": "mercury",
+              "status": "failed",
+              "outcome": null,
+              "rawVerdict": null,
+              "answerSha256": "55334f7716c11eac039bae9199a9783c1c5fedcd73abd16b2c63dbd53375364e",
+              "absence": "reviewer_answer_absent"
+            }
+          ],
+          "reviewComplete": false,
+          "agreement": "unresolved",
+          "dissent": [],
+          "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+        }
+      },
+      "sourceEvidenceManifest": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-49-32-250z-3745785-18915bfc6aeb/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-49-32-250z-3745785-18915bfc6aeb/current-change-evidence.txt:1",
+        "sha256": "fcea0fff50d2bbb864ebce52b1320781099ee39ab68089bc5789ad49d9ae7e36",
+        "bytes": 82869,
+        "lines": 1461,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-49-32-250z-3745785-18915bfc6aeb/manifest.json",
+        "manifest_sha256": "9c6b312c5fe0c872732c926072d05922dd00a884ba5d1a5695649c7a98ce2ce2",
+        "manifest_bytes": 7576
+      }
+    },
+    {
+      "run_id": "2026-11-18T08-53-15-790Z-eec187f39ac5",
+      "created_at": "2026-11-18T08:53:15.790Z",
+      "started_at": "2026-11-18T08:52:09.084Z",
+      "branch": "codex/archive-legacy-env",
+      "head_sha": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+      "prompt_excerpt": "Review source tree: bfbb856530da10438308dec115ee52e16ce3f852; comparison baseline: 6fd67e5c38208dc8139144b88085a408901e6cb7. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nUnder what conditions can an Alpaca bar correction cause a new entry decision in this candidate? Cite the producing adapter event and the live consumer, and identify any concrete defect or uncertainty. The live OHLC consumer is wired in run-empire-v2.js.",
+      "retrieval": {
+        "method": "source_snapshot",
+        "embedding": {
+          "status": "not_requested",
+          "error": null
+        }
+      },
+      "review_scope": {
+        "source": "explicit_change_paths",
+        "paths": [
+          "brokers/AlpacaAdapter.js"
+        ],
+        "tree": "bfbb856530da10438308dec115ee52e16ce3f852",
+        "baseTree": "6fd67e5c38208dc8139144b88085a408901e6cb7",
+        "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T08-52-09-084Z-3748128-2f8256c1759e/source-iSPVR4.json",
+        "manifestSha256": "c9517f76e180bfc093bb9f6934999bee0a29d771c70a99b2ad00a1f39873c0fb"
+      },
+      "options": {
+        "retrievalMode": null,
+        "topK": null,
+        "maxIterations": null,
+        "decisionSteerIteration": 60,
+        "decisionSteerSentAt": null,
+        "maxTokens": 7750,
+        "captureTrace": false,
+        "noTools": false,
+        "reviewers": [
+          "mercury"
+        ]
+      },
+      "verdict": "found_break",
+      "termination": "answer_given",
+      "iterations": 12,
+      "error": null,
+      "run_tokens": {
+        "input": 353204,
+        "uncached_input": 255838,
+        "cached_input": 97366,
+        "output": 23911,
+        "total": 377115,
+        "complete": true,
+        "attempts_with_usage": 13,
+        "total_attempts": 13
+      },
+      "run_cost": {
+        "amount": 0.03454545,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 13,
+        "total_attempts": 13,
+        "cost_absences": []
+      },
+      "files_opened": [
+        "brokers/AlpacaAdapter.js:1-100",
+        "brokers/AlpacaAdapter.js:1100-1292",
+        "brokers/AlpacaAdapter.js:1205-1248",
+        "brokers/AlpacaAdapter.js:735-966",
+        "core/ReplayClosedCandleBoundary.js:1-33",
+        "core/SessionRouter.js:1190-1260",
+        "run-empire-v2.js:3351-3420",
+        "run-empire-v2.js:850-1038"
+      ],
+      "panel": {
+        "selected": [
+          "mercury"
+        ],
+        "unselected": [
+          "astra",
+          "fable"
+        ],
+        "diagnostics": {
+          "qualifyingSeats": 1,
+          "verdictLabelsMatch": false,
+          "evidenceChecksPassed": true,
+          "identitiesAttested": true,
+          "identitiesIndependent": true,
+          "issues": [
+            "insufficient_qualifying_seats"
+          ],
+          "sharedVerdictLabel": null
+        },
+        "reported_decision": {
+          "verdict": "found_break",
+          "majorityOutcome": "found_break",
+          "majorityRequired": 1,
+          "selectedCount": 1,
+          "tally": {
+            "found_break": 1,
+            "no_break_found": 0,
+            "cannot_verify": 0,
+            "absent": 0
+          },
+          "votes": [
+            {
+              "reviewer": "mercury",
+              "status": "succeeded",
+              "outcome": "found_break",
+              "rawVerdict": "found_break",
+              "answerSha256": "1f931f8bb82cb97e9f77a3725b90285a46b753e0f95ff757b4ac6b25b4865b8a",
+              "absence": null
+            }
+          ],
+          "reviewComplete": true,
+          "agreement": "unanimous",
+          "dissent": [],
+          "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+        }
+      },
+      "sourceEvidenceManifest": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-52-09-084z-3748128-2f8256c1759e/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-52-09-084z-3748128-2f8256c1759e/current-change-evidence.txt:1",
+        "sha256": "c57966a9957c7e34e2586a0433c414c26248dc8ba498fca65f141c3f2dcf7957",
+        "bytes": 82869,
+        "lines": 1461,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-52-09-084z-3748128-2f8256c1759e/manifest.json",
+        "manifest_sha256": "197ce82a47223b3aa7452b6246b9c21db2bdfd4e89f1fd1679dc67229145d859",
+        "manifest_bytes": 7576
+      }
+    },
+    {
+      "run_id": "2026-11-18T08-58-00-722Z-850700210522",
+      "created_at": "2026-11-18T08:58:00.722Z",
+      "started_at": "2026-11-18T08:57:27.038Z",
+      "branch": "codex/archive-legacy-env",
+      "head_sha": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+      "prompt_excerpt": "Review source tree: 53d1cf5857cf7b30a6c9e8a33be4b4b228c63934; comparison baseline: 6fd67e5c38208dc8139144b88085a408901e6cb7. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nUnder what conditions can an Alpaca bar correction cause a new entry decision in this candidate? Cite the producing adapter event and the live consumer, and identify any concrete defect or uncertainty. The live OHLC consumer is wired in run-empire-v2.js.",
+      "retrieval": {
+        "method": "source_snapshot",
+        "embedding": {
+          "status": "not_requested",
+          "error": null
+        }
+      },
+      "review_scope": {
+        "source": "explicit_change_paths",
+        "paths": [
+          "brokers/AlpacaAdapter.js"
+        ],
+        "tree": "53d1cf5857cf7b30a6c9e8a33be4b4b228c63934",
+        "baseTree": "6fd67e5c38208dc8139144b88085a408901e6cb7",
+        "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T08-57-27-038Z-3752365-04a5339c668f/source-rpXZoR.json",
+        "manifestSha256": "289fe7d33a52387522eb15b8fa089b8800a07ab67e1e5f5a0ca064ac1f79d8f6"
+      },
+      "options": {
+        "retrievalMode": null,
+        "topK": null,
+        "maxIterations": null,
+        "decisionSteerIteration": 60,
+        "decisionSteerSentAt": null,
+        "maxTokens": 7750,
+        "captureTrace": false,
+        "noTools": false,
+        "reviewers": [
+          "mercury"
+        ]
+      },
+      "verdict": "review_incomplete",
+      "termination": "error",
+      "iterations": 7,
+      "error": null,
+      "run_tokens": {
+        "input": 134393,
+        "uncached_input": 70167,
+        "cached_input": 64226,
+        "output": 9068,
+        "total": 143461,
+        "complete": true,
+        "attempts_with_usage": 9,
+        "total_attempts": 9
+      },
+      "run_cost": {
+        "amount": 0.01074598,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 9,
+        "total_attempts": 9,
+        "cost_absences": []
+      },
+      "files_opened": [
+        "brokers/AlpacaAdapter.js:1-100",
+        "brokers/AlpacaAdapter.js:1120-1298",
+        "brokers/AlpacaAdapter.js:700-922"
+      ],
+      "panel": {
+        "selected": [
+          "mercury"
+        ],
+        "unselected": [
+          "astra",
+          "fable"
+        ],
+        "diagnostics": {
+          "qualifyingSeats": 0,
+          "verdictLabelsMatch": false,
+          "evidenceChecksPassed": false,
+          "identitiesAttested": true,
+          "identitiesIndependent": true,
+          "issues": [
+            "selected_seat_unavailable",
+            "insufficient_qualifying_seats",
+            "evidence_failure"
+          ],
+          "sharedVerdictLabel": null
+        },
+        "reported_decision": {
+          "verdict": "review_incomplete",
+          "majorityOutcome": null,
+          "majorityRequired": 1,
+          "selectedCount": 1,
+          "tally": {
+            "found_break": 0,
+            "no_break_found": 0,
+            "cannot_verify": 0,
+            "absent": 1
+          },
+          "votes": [
+            {
+              "reviewer": "mercury",
+              "status": "failed",
+              "outcome": null,
+              "rawVerdict": null,
+              "answerSha256": "55334f7716c11eac039bae9199a9783c1c5fedcd73abd16b2c63dbd53375364e",
+              "absence": "reviewer_answer_absent"
+            }
+          ],
+          "reviewComplete": false,
+          "agreement": "unresolved",
+          "dissent": [],
+          "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+        }
+      },
+      "sourceEvidenceManifest": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-57-27-038z-3752365-04a5339c668f/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-57-27-038z-3752365-04a5339c668f/current-change-evidence.txt:1",
+        "sha256": "74e1ceabfdc2f890ba83161a11b9b0a181f4b5cf7d980065ddadee245cf8560a",
+        "bytes": 83869,
+        "lines": 1475,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-57-27-038z-3752365-04a5339c668f/manifest.json",
+        "manifest_sha256": "d1f2c54ad2e015d8b12a3ba4862902b1d893ccbbaeb8b3216f107daee0ae29f1",
+        "manifest_bytes": 7576
+      }
+    },
+    {
+      "run_id": "2026-11-18T09-03-40-259Z-221cf04d8271",
+      "created_at": "2026-11-18T09:03:40.259Z",
+      "started_at": "2026-11-18T08:59:42.383Z",
+      "branch": "codex/archive-legacy-env",
+      "head_sha": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+      "prompt_excerpt": "Review source tree: 53d1cf5857cf7b30a6c9e8a33be4b4b228c63934; comparison baseline: 6fd67e5c38208dc8139144b88085a408901e6cb7. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nHow is a requested-timeframe Alpaca candle handled when a native revision arrives before its first regular close? Follow the emitted event from brokers/AlpacaAdapter.js through the live consumer in run-empire-v2.js, citing current file:line evidence and any concrete defect or uncertainty.",
+      "retrieval": {
+        "method": "source_snapshot",
+        "embedding": {
+          "status": "not_requested",
+          "error": null
+        }
+      },
+      "review_scope": {
+        "source": "explicit_change_paths",
+        "paths": [
+          "core/ReplayClosedCandleBoundary.js"
+        ],
+        "tree": "53d1cf5857cf7b30a6c9e8a33be4b4b228c63934",
+        "baseTree": "6fd67e5c38208dc8139144b88085a408901e6cb7",
+        "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T08-59-42-383Z-3754572-238cac35a8b0/source-N2Yq5f.json",
+        "manifestSha256": "289fe7d33a52387522eb15b8fa089b8800a07ab67e1e5f5a0ca064ac1f79d8f6"
+      },
+      "options": {
+        "retrievalMode": null,
+        "topK": null,
+        "maxIterations": null,
+        "decisionSteerIteration": 60,
+        "decisionSteerSentAt": null,
+        "maxTokens": 7750,
+        "captureTrace": false,
+        "noTools": false,
+        "reviewers": [
+          "mercury"
+        ]
+      },
+      "verdict": "no_break_found",
+      "termination": "answer_given",
+      "iterations": 22,
+      "error": null,
+      "run_tokens": {
+        "input": 956888,
+        "uncached_input": 765701,
+        "cached_input": 191187,
+        "output": 36063,
+        "total": 992951,
+        "complete": true,
+        "attempts_with_usage": 23,
+        "total_attempts": 23
+      },
+      "run_cost": {
+        "amount": 0.09079964,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 23,
+        "total_attempts": 23,
+        "cost_absences": []
+      },
+      "files_opened": [
+        "6fd67e5c38208dc8139144b88085a408901e6cb7:core/ReplayClosedCandleBoundary.js:1-30",
+        "brokers/AlpacaAdapter.js:1-51",
+        "brokers/AlpacaAdapter.js:1180-1298",
+        "brokers/AlpacaAdapter.js:740-800",
+        "core/CandleProcessor.js:340-440",
+        "core/CandleProcessor.js:440-570",
+        "core/CandleProcessor.js:690-800",
+        "core/ReplayClosedCandleBoundary.js:1-33",
+        "core/SessionRouter.js:1187-1224",
+        "core/SessionRouter.js:1225-1250",
+        "core/SymbolTradingContext.js:1-51",
+        "core/SymbolTradingContext.js:51-133",
+        "core/TradingLoop.js:1017-1090",
+        "run-empire-v2.js:2259-2340",
+        "run-empire-v2.js:2486-2540",
+        "run-empire-v2.js:3250-3310",
+        "run-empire-v2.js:3307-3380",
+        "run-empire-v2.js:880-1020"
+      ],
+      "panel": {
+        "selected": [
+          "mercury"
+        ],
+        "unselected": [
+          "astra",
+          "fable"
+        ],
+        "diagnostics": {
+          "qualifyingSeats": 1,
+          "verdictLabelsMatch": false,
+          "evidenceChecksPassed": true,
+          "identitiesAttested": true,
+          "identitiesIndependent": true,
+          "issues": [
+            "insufficient_qualifying_seats"
+          ],
+          "sharedVerdictLabel": null
+        },
+        "reported_decision": {
+          "verdict": "no_break_found",
+          "majorityOutcome": "no_break_found",
+          "majorityRequired": 1,
+          "selectedCount": 1,
+          "tally": {
+            "found_break": 0,
+            "no_break_found": 1,
+            "cannot_verify": 0,
+            "absent": 0
+          },
+          "votes": [
+            {
+              "reviewer": "mercury",
+              "status": "succeeded",
+              "outcome": "no_break_found",
+              "rawVerdict": "no_break_found",
+              "answerSha256": "b7d312efb627be181c7a70da6edb4b45ba03dd6bce9aaadf54105fceb4b0a9e9",
+              "absence": null
+            }
+          ],
+          "reviewComplete": true,
+          "agreement": "unanimous",
+          "dissent": [],
+          "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+        }
+      },
+      "sourceEvidenceManifest": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-59-42-383z-3754572-238cac35a8b0/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-59-42-383z-3754572-238cac35a8b0/current-change-evidence.txt:1",
+        "sha256": "0939913f2cba0743fab537f237931afd484e0959e537b20f046c1e687a73bd75",
+        "bytes": 26703,
+        "lines": 83,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t08-59-42-383z-3754572-238cac35a8b0/manifest.json",
+        "manifest_sha256": "a60d23aecc5bc5fa9fa8f6c755f413e2dbd1a7dbba2f929ed1feee4e22557db7",
+        "manifest_bytes": 6867
+      }
+    },
+    {
+      "run_id": "2026-11-18T09-05-57-765Z-21f27daff4d2",
+      "created_at": "2026-11-18T09:05:57.765Z",
+      "started_at": "2026-11-18T09:04:37.690Z",
+      "branch": "codex/archive-legacy-env",
+      "head_sha": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+      "prompt_excerpt": "Review source tree: 53d1cf5857cf7b30a6c9e8a33be4b4b228c63934; comparison baseline: 6fd67e5c38208dc8139144b88085a408901e6cb7. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nWhen an Alpaca minute-bar revision updates an already stored candle, what values subsequently reach the canonical candle history, frame indicators and latest market-data snapshot? Trace the producer and consumers with current file:line evidence and identify any material defect or uncertainty.",
+      "retrieval": {
+        "method": "source_snapshot",
+        "embedding": {
+          "status": "not_requested",
+          "error": null
+        }
+      },
+      "review_scope": {
+        "source": "explicit_change_paths",
+        "paths": [
+          "core/CandleProcessor.js"
+        ],
+        "tree": "53d1cf5857cf7b30a6c9e8a33be4b4b228c63934",
+        "baseTree": "6fd67e5c38208dc8139144b88085a408901e6cb7",
+        "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T09-04-37-690Z-3758444-d7ba5bb5bc3a/source-wmsgM2.json",
+        "manifestSha256": "289fe7d33a52387522eb15b8fa089b8800a07ab67e1e5f5a0ca064ac1f79d8f6"
+      },
+      "options": {
+        "retrievalMode": null,
+        "topK": null,
+        "maxIterations": null,
+        "decisionSteerIteration": 60,
+        "decisionSteerSentAt": null,
+        "maxTokens": 7750,
+        "captureTrace": false,
+        "noTools": false,
+        "reviewers": [
+          "mercury"
+        ]
+      },
+      "verdict": "no_break_found",
+      "termination": "answer_given",
+      "iterations": 22,
+      "error": null,
+      "run_tokens": {
+        "input": 726959,
+        "uncached_input": 539171,
+        "cached_input": 187788,
+        "output": 22236,
+        "total": 749195,
+        "complete": true,
+        "attempts_with_usage": 23,
+        "total_attempts": 23
+      },
+      "run_cost": {
+        "amount": 0.06327256,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 23,
+        "total_attempts": 23,
+        "cost_absences": []
+      },
+      "files_opened": [
+        "core/CandleProcessor.js:1-120",
+        "core/CandleProcessor.js:1000-1150",
+        "core/CandleProcessor.js:1150-1228",
+        "core/CandleProcessor.js:413-440",
+        "core/CandleProcessor.js:441-644",
+        "core/CandleProcessor.js:850-1000",
+        "core/CandleStore.js:1-140",
+        "core/CandleStore.js:140-300",
+        "core/CandleStore.js:300-364",
+        "core/SymbolTradingContext.js:30-133",
+        "core/indicators/IndicatorEngine.js:200-300",
+        "run-empire-v2.js:3300-3390"
+      ],
+      "panel": {
+        "selected": [
+          "mercury"
+        ],
+        "unselected": [
+          "astra",
+          "fable"
+        ],
+        "diagnostics": {
+          "qualifyingSeats": 1,
+          "verdictLabelsMatch": false,
+          "evidenceChecksPassed": true,
+          "identitiesAttested": true,
+          "identitiesIndependent": true,
+          "issues": [
+            "insufficient_qualifying_seats"
+          ],
+          "sharedVerdictLabel": null
+        },
+        "reported_decision": {
+          "verdict": "no_break_found",
+          "majorityOutcome": "no_break_found",
+          "majorityRequired": 1,
+          "selectedCount": 1,
+          "tally": {
+            "found_break": 0,
+            "no_break_found": 1,
+            "cannot_verify": 0,
+            "absent": 0
+          },
+          "votes": [
+            {
+              "reviewer": "mercury",
+              "status": "succeeded",
+              "outcome": "no_break_found",
+              "rawVerdict": "no_break_found",
+              "answerSha256": "3d900596c54d344aa3e96bf4cf8ccbb613840fb333c846a3b45a3bdc067f44f5",
+              "absence": null
+            }
+          ],
+          "reviewComplete": true,
+          "agreement": "unanimous",
+          "dissent": [],
+          "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+        }
+      },
+      "sourceEvidenceManifest": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t09-04-37-690z-3758444-d7ba5bb5bc3a/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t09-04-37-690z-3758444-d7ba5bb5bc3a/current-change-evidence.txt:1",
+        "sha256": "3159722ada870b2ea175e8e77b92215836f550c0a08e41dd5ee3288b16901c13",
+        "bytes": 90387,
+        "lines": 1301,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-18/2026-11-18t09-04-37-690z-3758444-d7ba5bb5bc3a/manifest.json",
+        "manifest_sha256": "d32cd887772f91cc7ce2468de08086406aa072d1d607fa2fb20b461ff0f160e1",
+        "manifest_bytes": 7567
+      }
+    }
+  ],
+  "totalRecordedCostUsd": 0.21571787,
+  "authorVerificationNotes": [
+    "The original adapter ignored native u messages. The close-order review baseline claim about revisions reaching the old selector is conditional on delivery, not an observed original end-to-end behavior.",
+    "The REST completed-bar filter is explicit in AlpacaAdapter._emitRequestedClosedBar; the fixture returns forming candles as well and demonstrates their exclusion. External reconnection completeness is not established.",
+    "The priceHistory getter returns a fresh shallow copy. Its live-array comment is inaccurate and was not changed in this runtime repair.",
+    "CandleProcessor close validation is not a complete non-finite-input proof: its local check is falsy/isNaN. The reviewer statement about all non-finite inputs is not adopted as a schema audit.",
+    "Historical dashboard price labeling remains a verified pre-existing chart-path issue. This delivery does not certify dashboard correctness.",
+    "Only Mercury was selected. Single-seat diagnostics do not represent a multi-model consensus. The two final receipts report no_break_found with complete selected-seat voting."
+  ]
+}

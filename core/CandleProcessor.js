@@ -1070,23 +1070,25 @@ class CandleProcessor {
     // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
     const acceptedAsNew = this.processNewCandle(candle, { traceId, source: 'handleMarketData' });
 
-    // Store latest market data
+    // A late correction replaces its historical bar without moving the current
+    // market-data snapshot backward. Read the newest bar from the canonical store.
+    const latestCandle = frameCtx.priceHistory.at(-1);
     // MED-07: propagate null for unparseable volume instead of phantom 0.
     // Distinguishes "no trades" (legitimate zero) from "broker fed garbage"
     // (null). Downstream consumers must check finiteness before using.
-    const _parsedVolume = parseFloat(volume);
+    const _parsedVolume = parseFloat(latestCandle.v);
     const marketData = {
-      symbol: candle.symbol || null,
-      price,
-      timestamp: candleTimeMs,  // Use candle's actual timestamp
-      timeframe: candle.timeframe,
+      symbol: latestCandle.symbol,
+      price: latestCandle.c,
+      timestamp: latestCandle.t,
+      timeframe: latestCandle.timeframe,
       sessionRouterEpoch: wrappedInput?.sessionRouterEpoch,
       sessionRouterTransitionId: wrappedInput?.sessionRouterTransitionId,
       systemTime: Date.now(),  // Keep system time separately if needed
       volume: Number.isFinite(_parsedVolume) ? _parsedVolume : null,
-      open: parseFloat(open),
-      high: parseFloat(high),
-      low: parseFloat(low)
+      open: latestCandle.o,
+      high: latestCandle.h,
+      low: latestCandle.l
     };
     if (normalizeCandleSymbol(candle.symbol) === normalizeCandleSymbol(this.ctx.tradingPair)
         && candle.timeframe === this.ctx.candleTimeframe) {

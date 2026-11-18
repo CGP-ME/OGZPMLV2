@@ -9,7 +9,10 @@ const SCOPE_FIELDS = [
   'timeframe',
 ];
 
-function confirmedClosedCandleAtBoundary({ candleClosed, priorCandle, lastDecisionCandle, incomingCandle, incomingScope, symbol }) {
+function confirmedClosedCandleAtBoundary({ candleClosed, candleRevision, priorCandle, lastDecisionCandle, incomingCandle, incomingScope, symbol }) {
+  // A broker correction updates history; it is not a newly closed entry bar,
+  // including when it is the first message after hydration or reconnection.
+  if (candleRevision === true) return null;
   if (!incomingCandle || !incomingScope) return null;
   // Completed-bar feeds deliver the decision bar itself. Forming-bar feeds
   // confirm the previous bar only when the next interval begins.

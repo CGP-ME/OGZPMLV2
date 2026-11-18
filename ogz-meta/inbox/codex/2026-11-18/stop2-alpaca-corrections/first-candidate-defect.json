@@ -1,0 +1,16 @@
+{
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-alpaca-corrections/fixtures/corrections.cjs",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-alpaca-corrections/fixtures/corrections.cjs"
+  ],
+  "candidateTree": "bfbb856530da10438308dec115ee52e16ce3f852",
+  "exitCode": 1,
+  "elapsedSeconds": 2.194,
+  "logSha256": "a161b62c27c1244b7d6e33724596346957d2b942deef746eecda5beb56ce22dc",
+  "fixtureSha256": "c0cd26a4afec25ec63dec2f8116d936cd1dcc4f20ecbdd4f23cc19f924e14002"
+}

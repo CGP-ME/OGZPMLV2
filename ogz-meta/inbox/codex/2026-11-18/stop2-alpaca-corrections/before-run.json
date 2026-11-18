@@ -1,0 +1,31 @@
+{
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-alpaca-corrections/fixtures/corrections.cjs",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-alpaca-corrections/fixtures/before-source.json",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-alpaca-corrections/fixtures/corrections.cjs",
+    "--baseline"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 2.288,
+  "logSha256": "49eadc92a77d57848ed332980a589eb4dc0f157ceb9329fe66c638c4ff787d6c",
+  "fixtureSha256": "c0cd26a4afec25ec63dec2f8116d936cd1dcc4f20ecbdd4f23cc19f924e14002",
+  "sourceBaseCommit": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+  "sourceOverrideProvenance": {
+    "fileLocalOnly": "ogz-meta/inbox/codex/2026-11-18/stop2-alpaca-corrections/fixtures/before-source.json",
+    "gitRef": "ba5ee0bf430866e5c4e4dba3c1c4e0c6fbaefc8b",
+    "paths": [
+      "brokers/AlpacaAdapter.js",
+      "core/CandleProcessor.js",
+      "core/ReplayClosedCandleBoundary.js",
+      "run-empire-v2.js"
+    ],
+    "format": "JSON object mapping each path to the UTF-8 contents from git show <gitRef>:<path>; supplied only to the isolated helper.",
+    "sha256": "27bde2b222fc78fa490fa82fd76bf6fd27b9e572ad5d805f5e84bd13706b22e9"
+  }
+}

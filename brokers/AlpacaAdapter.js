@@ -742,14 +742,16 @@ class AlpacaAdapter extends IBrokerAdapter {
         if (!barSubscription.requestedFrames.has(timeframe)) {
             barSubscription.requestedFrames.set(timeframe, {
                 timeframe,
-                lastRequestedBarStartMs: null,
+                lastCloseEventStartMs: null,
+                emittedBars: new Map(),
                 requestedBarFetch: null,
+                pendingRefresh: null,
             });
         }
         if (typeof callback === 'function') barSubscription.nativeCallbacks.set(timeframe, callback);
         this._ensureDataStream(() => {
             if (this.barSubscriptions.get(sym) !== barSubscription || barSubscription.streamSubscribed) return;
-            const payload = { action: 'subscribe', bars: [sym] };
+            const payload = { action: 'subscribe', bars: [sym], updatedBars: [sym] };
             console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
             this.rws.send(payload);
             barSubscription.streamSubscribed = true;
@@ -869,7 +871,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
         this._pendingSubscribeCallbacks = [];
         if (this.rws && this.rws.isReady() && (trades.length || quotes.length || bars.length)) {
-            this.rws.send({ action: 'unsubscribe', trades, quotes, bars });
+            this.rws.send({ action: 'unsubscribe', trades, quotes, bars, updatedBars: bars });
         }
         this.subscriptions.clear();
         this.barSubscriptions.clear();
@@ -1131,7 +1133,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             });
             return;
         }
-        if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
+        if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b' && msg.T !== 'u') {
             console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, ConfigLoader.getInternalsFileValue('broker.alpacaDiagnostics.controlMessageMaxChars')));
         }
         if (msg.T === 'success' && msg.msg === 'authenticated') return;
@@ -1161,7 +1163,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             if (cb) cb({ bid: msg.bp, ask: msg.ap, bidSize: msg.bs, askSize: msg.as, symbol: msg.S });
             return;
         }
-        if (msg.T === 'b') {
+        if (msg.T === 'b' || msg.T === 'u') {
             const barSubscription = this.barSubscriptions.get(msg.S);
             if (!barSubscription?.streamSubscribed) {
                 console.error(`[Alpaca] Received bar for unsubscribed symbol ${msg.S || '(missing)'}`);
@@ -1190,27 +1192,46 @@ class AlpacaAdapter extends IBrokerAdapter {
                 this._firstBarLogged.add(msg.S);
                 console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
             }
-            this.emit('ohlc', { candleClosed: true, timeframe: barSubscription.streamTimeframe, data: bar, priceTimestamp: bar.etime, symbol: bar.symbol });
+            const candleRevision = msg.T === 'u';
+            this.emit('ohlc', { candleClosed: true, candleRevision, timeframe: barSubscription.streamTimeframe, data: bar, priceTimestamp: bar.etime, symbol: bar.symbol });
             for (const frameState of barSubscription.requestedFrames.values()) {
-                this._emitRequestedClosedBar(msg.S, bar, barSubscription, frameState);
+                this._emitRequestedClosedBar(msg.S, {
+                    closedThroughMs: bar.etime,
+                    newCloseThroughMs: candleRevision ? null : bar.etime,
+                }, barSubscription, frameState);
             }
             const cb = this.subscriptions.get(`bars-${msg.S}`);
             if (cb) cb(bar);
         }
     }
 
-    _emitRequestedClosedBar(symbol, nativeBar, barSubscription, frameState) {
+    _emitRequestedClosedBar(symbol, refresh, barSubscription, frameState) {
         if (frameState.timeframe === barSubscription.streamTimeframe) return;
+        // A message arriving during REST must cause a fetch started after it.
+        // Keep the new-close boundary separate from the revision's data window.
+        frameState.pendingRefresh = frameState.pendingRefresh === null ? refresh : {
+            closedThroughMs: Math.max(frameState.pendingRefresh.closedThroughMs, refresh.closedThroughMs),
+            newCloseThroughMs: frameState.pendingRefresh.newCloseThroughMs === null ? refresh.newCloseThroughMs
+                : refresh.newCloseThroughMs === null ? frameState.pendingRefresh.newCloseThroughMs
+                    : Math.max(frameState.pendingRefresh.newCloseThroughMs, refresh.newCloseThroughMs),
+        };
         if (frameState.requestedBarFetch) return;
+        const requestedRefresh = frameState.pendingRefresh;
+        frameState.pendingRefresh = null;
 
         const requestedIntervalMs = this._timeframeIntervalMs(frameState.timeframe);
-        frameState.requestedBarFetch = this.getCandles(symbol, frameState.timeframe, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.requestedBarFetchCount'))
+        const fetchCount = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.requestedBarFetchCount');
+        frameState.requestedBarFetch = this.getCandles(symbol, frameState.timeframe, fetchCount)
             .then((candles) => {
                 if (this.barSubscriptions.get(symbol) !== barSubscription || barSubscription.requestedFrames.get(frameState.timeframe) !== frameState) return;
                 for (const candle of candles) {
                     const startMs = Number(candle.t);
-                    if (startMs <= frameState.lastRequestedBarStartMs) continue;
-                    if (startMs + requestedIntervalMs > nativeBar.etime) continue;
+                    if (startMs + requestedIntervalMs > requestedRefresh.closedThroughMs) continue;
+                    const newClose = requestedRefresh.newCloseThroughMs !== null
+                        && startMs + requestedIntervalMs <= requestedRefresh.newCloseThroughMs
+                        && (frameState.lastCloseEventStartMs === null || startMs > frameState.lastCloseEventStartMs);
+                    const previous = frameState.emittedBars.get(startMs);
+                    if (!newClose && previous && ['o', 'h', 'l', 'c', 'v'].every(field => previous[field] === candle[field])) continue;
                     const requestedBar = {
                         ...candle,
                         etime: startMs + requestedIntervalMs,
@@ -1218,12 +1239,19 @@ class AlpacaAdapter extends IBrokerAdapter {
                     };
                     this.emit('ohlc', {
                         candleClosed: true,
+                        candleRevision: !newClose,
                         timeframe: frameState.timeframe,
                         data: requestedBar,
                         priceTimestamp: requestedBar.etime,
                         symbol,
                     });
-                    frameState.lastRequestedBarStartMs = startMs;
+                    frameState.emittedBars.set(startMs, { ...candle });
+                    // Recording a revision must not consume a future close event.
+                    if (newClose) frameState.lastCloseEventStartMs = startMs;
+                    // Retain only the broker REST window, not an unbounded history.
+                    while (frameState.emittedBars.size > fetchCount) {
+                        frameState.emittedBars.delete(Math.min(...frameState.emittedBars.keys()));
+                    }
                 }
             })
             .catch((error) => {
@@ -1238,6 +1266,9 @@ class AlpacaAdapter extends IBrokerAdapter {
             .finally(() => {
                 if (this.barSubscriptions.get(symbol) === barSubscription && barSubscription.requestedFrames.get(frameState.timeframe) === frameState) {
                     frameState.requestedBarFetch = null;
+                    if (frameState.pendingRefresh !== null) {
+                        this._emitRequestedClosedBar(symbol, frameState.pendingRefresh, barSubscription, frameState);
+                    }
                 }
             });
     }
@@ -1257,7 +1288,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             console.log('[Alpaca] _replaySubscriptions: nothing to replay');
             return;
         }
-        const payload = { action: 'subscribe', trades, quotes, bars };
+        const payload = { action: 'subscribe', trades, quotes, bars, updatedBars: bars };
         console.log('[Alpaca] TX replay-subscribe:', JSON.stringify(payload));
         this.rws.send(payload);
     }
