@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=fb8ebbe25f3f4f13d7e9c17880b09af1170b3b91",
+    "--review-base=70b98f9c843770c478065a5e488bb519d6f26a50",
+    "--change-path=core/CandleProcessor.js",
+    "When a candle for a non-primary symbol or timeframe is revised, where do the numeric RSI, ATR, MACD and volume fields in its dashboard message come from? Trace the actual snapshot producer and formatting consumer in this source snapshot, cite current file:line evidence, and name any source-identity mismatch or unread gap."
+  ],
+  "startedAtUtc": "2026-11-18T20:31:29.991154+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 68.502,
+  "logSha256": "66cb0c54b67e7d404b43d2b87db667e4605c3a31625f4598ebb9b1df1c4b017e"
+}

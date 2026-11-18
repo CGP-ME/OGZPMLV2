@@ -1,0 +1,355 @@
+{
+  "run_id": "2026-11-18T20-32-29-620Z-1a014dcc1942",
+  "started_at": "2026-11-18T20:31:30.875Z",
+  "head_sha": "70b98f9c843770c478065a5e488bb519d6f26a50",
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "review_scope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "core/CandleProcessor.js"
+    ],
+    "tree": "fb8ebbe25f3f4f13d7e9c17880b09af1170b3b91",
+    "baseTree": "4c1d50d3641728389c1ad23855f5ad0310bf9d2f",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T20-31-30-875Z-4137476-2905a473b89a/source-zppaIt.json",
+    "manifestSha256": "1797fc7fadf7abd57f4b1c676c219a942b752380911bcea0252b17ac4f52062d"
+  },
+  "files_opened": [
+    "core/CandleProcessor.js:1-120",
+    "core/CandleProcessor.js:1060-1180",
+    "core/CandleProcessor.js:160-260",
+    "core/CandleProcessor.js:435-600",
+    "core/CandleProcessor.js:880-940",
+    "core/CandleProcessor.js:940-1065",
+    "core/DashboardBroadcaster.js:400-460",
+    "core/SymbolTradingContext.js:1-120",
+    "core/indicators/IndicatorEngine.js:200-420",
+    "core/indicators/IndicatorEngine.js:420-430",
+    "core/indicators/IndicatorEngine.js:431-520",
+    "run-empire-v2.js:3060-3140",
+    "run-empire-v2.js:3120-3260"
+  ],
+  "file_reads": [
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1,
+      "endLine": 120,
+      "totalLines": 1223,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 160,
+      "endLine": 260,
+      "totalLines": 1223,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1060,
+      "endLine": 1180,
+      "totalLines": 1223,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 940,
+      "endLine": 1065,
+      "totalLines": 1223,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 3120,
+      "endLine": 3260,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 3060,
+      "endLine": 3140,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 880,
+      "endLine": 940,
+      "totalLines": 1223,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/indicators/IndicatorEngine.js",
+      "startLine": 200,
+      "endLine": 420,
+      "totalLines": 1674,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/SymbolTradingContext.js",
+      "startLine": 1,
+      "endLine": 120,
+      "totalLines": 133,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/indicators/IndicatorEngine.js",
+      "startLine": 431,
+      "endLine": 520,
+      "totalLines": 1674,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 435,
+      "endLine": 600,
+      "totalLines": 1223,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/DashboardBroadcaster.js",
+      "startLine": 400,
+      "endLine": 460,
+      "totalLines": 461,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/indicators/IndicatorEngine.js",
+      "startLine": 420,
+      "endLine": 430,
+      "totalLines": 1674,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    }
+  ],
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 5,
+      "total": 5
+    },
+    "candidateCoverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 1,
+    "changedJsCount": 1,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "termination": "answer_given",
+  "iterations": 13,
+  "verdict": "no_break_found",
+  "error": null,
+  "run_tokens": {
+    "input": 390267,
+    "uncached_input": 282952,
+    "cached_input": 107315,
+    "output": 15201,
+    "total": 405468,
+    "complete": true,
+    "attempts_with_usage": 14,
+    "total_attempts": 14
+  },
+  "run_cost": {
+    "amount": 0.03433416,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 14,
+    "total_attempts": 14,
+    "cost_absences": []
+  },
+  "tools_invoked": [
+    {
+      "name": "find_definition",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "git_diff",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 7,
+      "succeeded": 7,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 13,
+      "succeeded": 13,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    }
+  ],
+  "reviewer_panel": {
+    "requested": [
+      "mercury"
+    ],
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit",
+    "reviewIntent": "adversarial",
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "reported_decision": {
+      "verdict": "no_break_found",
+      "majorityOutcome": "no_break_found",
+      "majorityRequired": 1,
+      "selectedCount": 1,
+      "tally": {
+        "found_break": 0,
+        "no_break_found": 1,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "no_break_found",
+          "rawVerdict": "no_break_found",
+          "answerSha256": "de6bd7cf79f5252f18ef5bb51a52a06716aab0b76254b4e8c2a60e2850b84e98",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    },
+    "seats": [
+      {
+        "id": "mercury",
+        "status": "succeeded",
+        "verdict": "no_break_found",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "failed": false,
+        "unavailable": false,
+        "identityConflict": false,
+        "evidenceBasis": [
+          "successful_repo_tool",
+          "verified_current_diff"
+        ],
+        "evidenceChecksPassed": true,
+        "qualifying": true,
+        "self_report_complete": true,
+        "self_report_missing_fields": [],
+        "named_absences": [],
+        "doctrineReview": {
+          "namedAbsences": [
+            "coverage_insufficient",
+            "coverage_unresolved",
+            "whole_file_read_absent"
+          ],
+          "namedBreaks": [],
+          "candidateSet": {
+            "examined": 5,
+            "total": 5
+          },
+          "candidateCoverage": {
+            "expectedTotal": 1,
+            "unresolved": [],
+            "complete": false,
+            "authorityReady": false,
+            "fourthShapeAdditions": [],
+            "fourthShapeAdditionCount": 0
+          },
+          "changedFileCount": 1,
+          "changedJsCount": 1,
+          "fourthShapeAdditionCount": 0,
+          "executionProvenance": {
+            "runChecks": []
+          }
+        },
+        "seat_tokens": {
+          "input": 385844,
+          "uncached_input": 278529,
+          "cached_input": 107315,
+          "output": 15199,
+          "total": 401043,
+          "complete": true,
+          "attempts_with_usage": 13,
+          "total_attempts": 13
+        },
+        "seat_cost": {
+          "amount": 0.0342457,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 13,
+          "total_attempts": 13,
+          "cost_absences": []
+        }
+      }
+    ]
+  }
+}

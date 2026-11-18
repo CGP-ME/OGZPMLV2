@@ -1,0 +1,23 @@
+{
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=27f04847862e4600465f49cf43921074c324d3a6",
+    "--review-base=70b98f9c843770c478065a5e488bb519d6f26a50",
+    "--change-path=run-empire-v2.js",
+    "--change-path=core/CandleProcessor.js",
+    "--change-path=core/DashboardBroadcaster.js",
+    "--change-path=core/BacktestRunner.js",
+    "--change-path=core/WebSocketManager.js",
+    "--change-path=config/internals.json",
+    "When an older broker candle is corrected, which symbol/timeframe values reach the candle store, entry decision boundary, and dashboard candle/history/indicator fields in this snapshot? Trace the relevant producers and consumers, cite current file:line evidence, and identify concrete inconsistencies or unread gaps."
+  ],
+  "startedAtUtc": "2026-11-18T20:24:58.100207+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 148.734,
+  "logSha256": "60bd36223915d6923dff352c31ae5a34bd294a889b5e1da26f17352cc5b844a4"
+}

@@ -1,0 +1,20 @@
+{
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-canonical-display-source/fixtures/canonical-display.cjs",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-canonical-display-source/fixtures/initial-source.local.json",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-canonical-display-source/fixtures/canonical-display.cjs",
+    "--source-overrides=ogz-meta/inbox/codex/2026-11-18/stop2-canonical-display-source/fixtures/initial-source.local.json",
+    "--unfixed-indicators"
+  ],
+  "startedAtUtc": "2026-11-18T20:30:51.690094+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 4.774,
+  "fixtureSha256": "fad3f957a3b94e5efa4016b7552f5620770498ce54ab5d359c83ce4cbdc6b2e9",
+  "logSha256": "f3008f00b125b6696a418b41332bc29c6d9cf2f8d1c88c943e4d397ddd5d254c"
+}

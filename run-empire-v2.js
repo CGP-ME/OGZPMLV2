@@ -604,24 +604,6 @@ function normalizeOhlcForProcessor(ohlcData) {
   return normalized;
 }
 
-function candleToProcessorOhlc(candle, timeframeMs) {
-  const timeMs = ohlcTimestampMs(candle?.t);
-  if (!Number.isFinite(timeMs) || !Number.isFinite(timeframeMs) || timeframeMs <= 0) {
-    return null;
-  }
-  return [
-    timeMs / 1000,
-    (timeMs + timeframeMs) / 1000,
-    candle.o,
-    candle.h,
-    candle.l,
-    candle.c,
-    null,
-    candle.v ?? 0,
-    null
-  ];
-}
-
 /**
  * Main Trading Bot Orchestrator
  * Coordinates all modules for production trading
@@ -985,15 +967,18 @@ class OGZPrimeV14Bot {
         }
         const candleContext = this.getSymbolTimeframeContext(sym, tf);
         const priorSymbolCandle = candleContext?.priceHistory?.at(-1);
-        this.storeTimeframeCandle(tf, ohlcData, sym);
-        const storedCandle = this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (observationFrame) {
           const closedCandle = evaluationFrame ? confirmedClosedCandleAtBoundary({
             candleClosed: eventData.candleClosed,
             candleRevision: eventData.candleRevision,
             priorCandle: priorSymbolCandle,
             lastDecisionCandle: candleContext.lastDecisionCandle,
-            incomingCandle: { ...storedCandle?.candle, ...scopeEnvelope, symbol: sym },
+            incomingCandle: {
+              t: ohlcTimestampMs(ohlcData[0]),
+              etime: ohlcTimestampMs(ohlcData[1]),
+              ...scopeEnvelope,
+              symbol: sym,
+            },
             incomingScope: scopeEnvelope,
             symbol: sym,
           }) : null;
@@ -1004,7 +989,7 @@ class OGZPrimeV14Bot {
             : null;
           if (tf === activeTf) this._markActiveTimeframeData(sym, tf);
           if (tf === activeTf) this.syncDashboardRuntimeScope(sym, scopeEnvelope);
-          this.handleMarketData({
+          const candleResult = this.handleMarketData({
             data: ohlcData,
             symbol: sym,
             timeframe: tf,
@@ -1029,12 +1014,12 @@ class OGZPrimeV14Bot {
               timeframe: tf,
               reason: 'configured_for_observation_not_entry',
             });
-          } else if (storedCandle && !storedCandle.isNewCandle) {
+          } else if (candleResult && !candleResult.acceptedAsNew) {
             const skipKey = `session:${sym}:${tf}`;
             this._visActiveTfUpdateSkipped ??= new Set();
             if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
               this._visActiveTfUpdateSkipped.add(skipKey);
-              console.log(`[VIS][TradingCycle] waiting for new ${tf} candle boundary before analysis | symbol=${sym} etime=${storedCandle.candle?.etime || '(missing)'}`);
+              console.log(`[VIS][TradingCycle] waiting for new ${tf} candle boundary before analysis | symbol=${sym} etime=${candleResult.candle.etime}`);
             }
           }
         } else {
@@ -1208,20 +1193,6 @@ class OGZPrimeV14Bot {
       console.log(`Signal modules synced (EMA states: ${Object.values(emaSnap.crossoverState).filter(s => s.side !== 'none').length}, SR swings: ${srSnap.swings?.length || 0})`);
     }
 
-    // CHANGE 2026-01-29: Multi-timeframe candle storage for dashboard
-    // Each timeframe has its own history from native Kraken data
-    this.timeframeHistories = {
-      '1m': [],   // same as priceHistory
-      '5m': [],
-      '15m': [],
-      '30m': [],
-      '1h': [],
-      '4h': [],   // CHANGE 2026-01-29: Added missing 4H timeframe
-      '1d': []
-    };
-    this.symbolTimeframeHistories = new Map();
-    this.dashboardTimeframe = ConfigLoader.get('internals.runner.dashboard.initialTimeframe');  // Track what timeframe dashboard wants
-
     // Stale data tracking
     // CHANGE 2026-01-16: Liveness watchdog - tracks last data arrival
     this.lastDataReceived = null;  // Set when handleMarketData receives data
@@ -1359,7 +1330,7 @@ class OGZPrimeV14Bot {
       });
     this.evalRuleEngine = new EvalRuleEngine({
       config: resolvedConfig.config.evalRules,
-      getCandles: (symbol, timeframe) => this.getSymbolTimeframeCandles(symbol, timeframe),
+      getCandles: (symbol, timeframe) => this._candleStore.getCandles(normalizeRuntimeSymbol(symbol), timeframe),
       marketCalendar: this.marketCalendar,
     });
 
@@ -1484,7 +1455,8 @@ class OGZPrimeV14Bot {
     // PIPELINE: Skip dashboard in backtest mode for faster runs
     if (resolvedConfig.config.services.dashboard.enabled !== false) {
       this.dashboardBroadcaster = new DashboardBroadcaster({
-        indicatorEngine: indicatorEngine,
+        candleStore: this._candleStore,
+        getSymbolTimeframeContext: this.getSymbolTimeframeContext.bind(this),
         edgeAnalyticsMaxScopes: resolvedConfig.config.dashboard.edgeAnalyticsMaxScopes
       });
     } else {
@@ -1929,11 +1901,6 @@ class OGZPrimeV14Bot {
             scopeKey: candle.scopeKey,
             acceptedAsNew,
           });
-          const ohlc = candleToProcessorOhlc(candle, timeframeMs);
-          if (ohlc) {
-            this.storeTimeframeCandle(timeframe, ohlc, symbol);
-            this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
-          }
         }
 
         const latest = candles[candles.length - 1];
@@ -2266,60 +2233,6 @@ class OGZPrimeV14Bot {
   }
 
 
-  storeSymbolTimeframeCandle(symbol, timeframe, ohlcData) {
-    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
-    if (!canonicalSymbol) return { isNewCandle: false, candle: null };
-
-    if (!this.symbolTimeframeHistories) {
-      this.symbolTimeframeHistories = new Map();
-    }
-    if (!this.symbolTimeframeHistories.has(canonicalSymbol)) {
-      this.symbolTimeframeHistories.set(canonicalSymbol, new Map());
-    }
-
-    const byTimeframe = this.symbolTimeframeHistories.get(canonicalSymbol);
-    if (!byTimeframe.has(timeframe)) {
-      byTimeframe.set(timeframe, []);
-    }
-
-    if (!Array.isArray(ohlcData) || ohlcData.length < 8) {
-      return { isNewCandle: false, candle: null };
-    }
-
-    const [time, etime, open, high, low, close, vwap, volume] = ohlcData;
-    const candle = {
-      t: parseFloat(time) * 1000,
-      etime: parseFloat(etime) * 1000,
-      o: parseFloat(open),
-      h: parseFloat(high),
-      l: parseFloat(low),
-      c: parseFloat(close),
-      v: parseFloat(volume)
-    };
-
-    const history = byTimeframe.get(timeframe);
-    const lastCandle = history[history.length - 1];
-    let isNewCandle = false;
-
-    if (lastCandle && lastCandle.etime === candle.etime) {
-      history[history.length - 1] = candle;
-    } else {
-      isNewCandle = true;
-      history.push(candle);
-      if (history.length > ConfigLoader.get('internals.runner.dashboard.symbolHistoryLimit')) {
-        byTimeframe.set(timeframe, history.slice(-ConfigLoader.get('internals.runner.dashboard.symbolHistoryLimit')));
-      }
-    }
-
-    return { isNewCandle, candle };
-  }
-
-  getSymbolTimeframeCandles(symbol, timeframe) {
-    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
-    if (!canonicalSymbol || !this.symbolTimeframeHistories) return [];
-    return this.symbolTimeframeHistories.get(canonicalSymbol)?.get(timeframe) || [];
-  }
-
   isSessionRoutingActive() {
     return Boolean(this.sessionRouterConfig);
   }
@@ -2488,62 +2401,6 @@ class OGZPrimeV14Bot {
     return this.candleProcessor.handleMarketData(ohlcData, traceContext);
   }
 
-  /**
-   * CHANGE 2026-01-29: Store candle in timeframe-specific history for dashboard
-   * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '1d'
-   * @param {Array} ohlcData - Kraken OHLC array [time, etime, o, h, l, c, vwap, vol, count]
-   */
-  storeTimeframeCandle(timeframe, ohlcData, symbol = null) {
-    if (!this.timeframeHistories[timeframe]) {
-      this.timeframeHistories[timeframe] = [];
-    }
-
-    if (!Array.isArray(ohlcData) || ohlcData.length < 8) {
-      return { isNewCandle: false, candle: null };
-    }
-
-    const [time, etime, open, high, low, close, vwap, volume] = ohlcData;
-    const candle = {
-      symbol: normalizeRuntimeSymbol(symbol),
-      timeframe,
-      t: parseFloat(time) * 1000,
-      etime: parseFloat(etime) * 1000,
-      o: parseFloat(open),
-      h: parseFloat(high),
-      l: parseFloat(low),
-      c: parseFloat(close),
-      v: parseFloat(volume)
-    };
-
-    const history = this.timeframeHistories[timeframe];
-    const lastCandle = history[history.length - 1];
-
-    let isNewCandle = false;
-
-    // Update existing candle or add new one based on etime
-    if (lastCandle && lastCandle.etime === candle.etime) {
-      history[history.length - 1] = candle;
-    } else {
-      isNewCandle = true;
-      history.push(candle);
-      // Keep max 200 candles per timeframe
-      if (history.length > ConfigLoader.get('internals.runner.dashboard.timeframeHistoryLimit')) {
-        this.timeframeHistories[timeframe] = history.slice(-ConfigLoader.get('internals.runner.dashboard.timeframeHistoryLimit'));
-      }
-    }
-
-    return { isNewCandle, candle };
-  }
-
-  /**
-   * CHANGE 2026-01-29: Get candles for a specific timeframe (for dashboard)
-   */
-  getCandlesForTimeframe(timeframe) {
-    // Default to 1m if invalid timeframe
-    const tf = this.timeframeHistories[timeframe] ? timeframe : ConfigLoader.get('internals.runner.dashboard.initialTimeframe');
-    return this.timeframeHistories[tf] || this.priceHistory;
-  }
-
   _stampDashboardHistoricalCandles(candles, symbol, timeframe) {
     const canonicalSymbol = normalizeRuntimeSymbol(symbol);
     if (!Array.isArray(candles) || !canonicalSymbol) return [];
@@ -2563,17 +2420,6 @@ class OGZPrimeV14Bot {
       }
       return candle;
     });
-  }
-
-  _getSymbolMatchedCachedCandles(symbol, timeframe) {
-    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
-    if (!canonicalSymbol) return [];
-
-    const symbolScoped = this.getSymbolTimeframeCandles(canonicalSymbol, timeframe);
-    if (symbolScoped.length > 0) return symbolScoped;
-
-    const globalCached = this.getCandlesForTimeframe(timeframe) || [];
-    return globalCached.filter(candle => normalizeRuntimeSymbol(candle?.symbol) === canonicalSymbol);
   }
 
   /**
@@ -2651,13 +2497,6 @@ class OGZPrimeV14Bot {
       );
 
       if (candles && candles.length > 0) {
-        // Update the active-symbol legacy cache only when the request is for
-        // the runtime-active asset. Non-active dashboard lookups must not
-        // poison price-frame candle payloads for the active trading symbol.
-        if (dashboardSymbol === fallbackDashboardSymbol) {
-          this.timeframeHistories[timeframe] = candles.slice(-ConfigLoader.get('internals.runner.dashboard.historicalCacheLimit'));
-        }
-
         // Send to dashboard
         this.dashboardWs.send(JSON.stringify({
           type: 'historical_candles',
@@ -2669,28 +2508,23 @@ class OGZPrimeV14Bot {
         console.log(`Sent ${candles.length} historical ${timeframe} candles to dashboard`);
       } else {
         console.warn(`[WARNING] No historical candles returned for ${timeframe}`);
-        // Fall back to cached WebSocket data if available
-        const cached = this._getSymbolMatchedCachedCandles(dashboardSymbol, timeframe);
-        if (cached.length > 0) {
-          this.dashboardWs.send(JSON.stringify({
-            type: 'historical_candles',
-            symbol: dashboardSymbol,
-            timeframe: timeframe,
-            candles: cached
-          }));
-          console.log(`Sent ${cached.length} cached ${dashboardSymbol} ${timeframe} candles as fallback`);
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to fetch historical ${timeframe} candles:`, error.message);
-      // Fall back to cached data
-      const cached = this._getSymbolMatchedCachedCandles(dashboardSymbol, timeframe);
-      if (cached.length > 0 && this.dashboardWs) {
         this.dashboardWs.send(JSON.stringify({
           type: 'historical_candles',
           symbol: dashboardSymbol,
-          timeframe: timeframe,
-          candles: cached
+          timeframe,
+          candles: [],
+          error: 'Broker returned no historical candles',
+        }));
+      }
+    } catch (error) {
+      console.error(`Failed to fetch historical ${timeframe} candles:`, error.message);
+      if (this.dashboardWs) {
+        this.dashboardWs.send(JSON.stringify({
+          type: 'historical_candles',
+          symbol: dashboardSymbol,
+          timeframe,
+          candles: [],
+          error: error.message,
         }));
       }
     }
@@ -2964,7 +2798,7 @@ class OGZPrimeV14Bot {
       return marketPrice;
     }
 
-    const candles = this.getSymbolTimeframeCandles(normalized, this.candleTimeframe);
+    const candles = this._candleStore.getCandles(normalized, this.candleTimeframe);
     const latest = Array.isArray(candles) && candles.length > 0 ? candles[candles.length - 1] : null;
     const candlePrice = Number(latest?.close ?? latest?.c);
     if (Number.isFinite(candlePrice) && candlePrice > 0) return candlePrice;
@@ -3118,8 +2952,6 @@ class OGZPrimeV14Bot {
         ...scopeEnvelope,
         traceId,
       };
-      const ohlc = candleToProcessorOhlc(candle, timeframeMs);
-      if (!ohlc) continue;
       const acceptedAsNew = this.candleProcessor.processNewCandle(candle, {
         persist: false,
         traceId,
@@ -3141,8 +2973,6 @@ class OGZPrimeV14Bot {
         scopeKey: candle.scopeKey,
         acceptedAsNew,
       });
-      this.storeTimeframeCandle(timeframe, ohlc, symbol);
-      this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
       applied++;
     }
 
@@ -3691,7 +3521,6 @@ class OGZPrimeV14Bot {
   async loadHistoricalDataAndBacktest() {
     // Update context with current instance state before delegating
     this.backtestRunner.ctx.priceHistory = this.priceHistory;
-    this.backtestRunner.ctx.storeTimeframeCandle = this.storeTimeframeCandle.bind(this);
     this.backtestRunner.ctx.handleMarketData = this.handleMarketData.bind(this);
     // CC-C Commit 5/6: bind the single-symbol tradingPair into the closure
     // so BacktestRunner stays symbol-agnostic (it's a candle-pump loop, owns
@@ -4054,30 +3883,7 @@ class OGZPrimeV14Bot {
    */
   broadcastEdgeAnalytics(price, volume, candle) {
     this.dashboardBroadcaster.ctx.dashboardWs = this.dashboardWs;
-    this.dashboardBroadcaster.ctx.priceHistory = this.priceHistory;
-    this.dashboardBroadcaster.ctx.symbolContexts = this.symbolContexts;
-    this.dashboardBroadcaster.ctx.symbolTimeframeHistories = this.symbolTimeframeHistories;
-    this.dashboardBroadcaster.ctx.dashboardTimeframe = this.dashboardTimeframe;
-    this.dashboardBroadcaster.ctx.activeTimeframe = this.activeTimeframe;
     return this.dashboardBroadcaster.broadcastEdgeAnalytics(price, volume, candle);
-  }
-
-  /**
-   * Calculate price volatility for Fear & Greed
-   * REFACTOR Phase 17: Thin dispatcher
-   */
-  calculateVolatility() {
-    this.dashboardBroadcaster.ctx.priceHistory = this.priceHistory;
-    return this.dashboardBroadcaster.calculateVolatility();
-  }
-
-  /**
-   * Detect price/indicator divergences
-   * REFACTOR Phase 17: Thin dispatcher
-   */
-  detectDivergences() {
-    this.dashboardBroadcaster.ctx.priceHistory = this.priceHistory;
-    return this.dashboardBroadcaster.detectDivergences();
   }
 
 }

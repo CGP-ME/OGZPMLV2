@@ -174,14 +174,8 @@ class CandleProcessor {
     return null;
   }
 
-  _buildDashboardIndicators(renderPacket, marketData) {
-    let snapshotIndicators = null;
-    if (this.ctx.indicatorEngine && typeof this.ctx.indicatorEngine.getSnapshot === 'function') {
-      const snapshot = this.ctx.indicatorEngine.getSnapshot();
-      if (snapshot && typeof snapshot === 'object' && snapshot.indicators && typeof snapshot.indicators === 'object') {
-        snapshotIndicators = snapshot.indicators;
-      }
-    }
+  _buildDashboardIndicators(renderPacket, marketData, indicatorSnapshot) {
+    const snapshotIndicators = indicatorSnapshot.indicators;
 
     const renderIndicators = renderPacket
       && typeof renderPacket === 'object'
@@ -1101,7 +1095,7 @@ class CandleProcessor {
     if (!getConfigValue('backtest.fast') && this.ctx.dashboardWsConnected && this.ctx.dashboardWs) {
       try {
         // CHANGE 2025-12-23: Use IndicatorEngine render packet for dashboard
-        const renderPacket = this.ctx.indicatorEngine.getRenderPacket({ maxPoints: ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.renderRequestMaxPoints') });
+        const renderPacket = frameCtx.indicatorEngine.getRenderPacket({ maxPoints: ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.renderRequestMaxPoints') });
 
         // CHANGE 2026-01-23: Calculate performance stats for dashboard
         // BUGFIX 2026-01-23: Include position value in P&L calculation!
@@ -1125,10 +1119,10 @@ class CandleProcessor {
         const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0;
 
         const dashboardSymbol = candle.symbol;
-        const dashboardTimeframe = this.ctx.dashboardTimeframe || candle.timeframe;
+        const dashboardTimeframe = candle.timeframe;
 
         const dashboardTimestamp = candle.t;
-        const dashboardIndicators = this._buildDashboardIndicators(renderPacket, marketData);
+        const dashboardIndicators = this._buildDashboardIndicators(renderPacket, marketData, frameCtx.indicatorEngine.getSnapshot());
         const dashboardCandle = {
           symbol: dashboardSymbol,
           timeframe: candle.timeframe,
@@ -1137,9 +1131,10 @@ class CandleProcessor {
           low: parseFloat(low),
           close: price,
           volume: parseFloat(volume),
-          timestamp: dashboardTimestamp
+          timestamp: dashboardTimestamp,
+          etime: candle.etime
         };
-        const dashboardCandles = this.ctx.getCandlesForTimeframe(dashboardTimeframe).slice(ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.dashboardCandleSliceStart'));
+        const dashboardCandles = frameCtx.priceHistory.slice(ConfigLoader.getInternalsFileValue('indicators.candleProcessorPolicy.dashboardCandleSliceStart'));
         const dashboardPricePayload = {
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           symbol: dashboardSymbol,
@@ -1167,9 +1162,9 @@ class CandleProcessor {
             timestamp: dashboardTimestamp,
             candle: dashboardCandle,
             indicators: dashboardIndicators,
-            // CHANGE 2026-01-29: Send candles for dashboard's selected timeframe
+            // History and indicators belong to the incoming native candle's frame.
             candles: dashboardCandles,
-            timeframe: dashboardTimeframe,  // Tell dashboard what timeframe this is
+            timeframe: dashboardTimeframe,
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
             equity: currentEquity,
             position: stateManager.get('position'),

@@ -197,9 +197,6 @@ class BacktestRunner {
       };
       if (!symbol) throw new Error('BacktestRunner: ctx.symbol required to mirror runtime candle scope');
       if (!timeframe) throw new Error('BacktestRunner: ctx.timeframe required to mirror runtime candle scope');
-      if (typeof this.ctx.storeTimeframeCandle !== 'function') {
-        throw new Error('BacktestRunner: ctx.storeTimeframeCandle required to mirror runtime candle boundary checks');
-      }
       if (typeof this.ctx.handleMarketData !== 'function') {
         throw new Error('BacktestRunner: ctx.handleMarketData required to mirror runtime candle ingestion');
       }
@@ -243,7 +240,6 @@ class BacktestRunner {
             ohlcvCandle.v,
             null
           ];
-          const storedCandle = this.ctx.storeTimeframeCandle(timeframe, processorOhlcData, symbol);
           const candleResult = this.ctx.handleMarketData({
             data: processorOhlcData,
             symbol,
@@ -252,7 +248,7 @@ class BacktestRunner {
             ...candleScope,
           }, traceContext);
 
-          if (storedCandle?.isNewCandle && candleResult?.acceptedAsNew) {
+          if (candleResult?.acceptedAsNew) {
             await this.ctx.runTradingCycle(symbol, traceId);
           }
 

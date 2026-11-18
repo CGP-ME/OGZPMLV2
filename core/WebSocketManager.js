@@ -302,8 +302,6 @@ class WebSocketManager {
           if (msg.type === 'timeframe_change') {
             const newTimeframe = msg.timeframe || ConfigLoader.getInternalsFileValue('runner.dashboard.initialTimeframe');
             console.log(`[WebSocketManager] Dashboard timeframe changed to: ${newTimeframe}`);
-            this.ctx.dashboardTimeframe = newTimeframe;
-
             // Fetch historical candles from Kraken REST API
             this.ctx.fetchAndSendHistoricalCandles(newTimeframe, ConfigLoader.getInternalsFileValue('runner.dashboard.historicalRequestDefaultLimit'), msg.asset);
             return;

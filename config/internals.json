@@ -2880,10 +2880,7 @@
     },
     "dashboard": {
       "initialTimeframe": "1m",
-      "symbolHistoryLimit": 200,
-      "timeframeHistoryLimit": 200,
       "historicalRequestDefaultLimit": 200,
-      "historicalCacheLimit": 200,
       "learningActiveCountThreshold": 100,
       "bullishSentimentThreshold": 60,
       "bearishSentimentThreshold": 60

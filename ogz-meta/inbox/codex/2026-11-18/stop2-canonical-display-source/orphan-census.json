@@ -1,0 +1,26 @@
+{
+  "command": [
+    "rg",
+    "-n",
+    "storeTimeframeCandle|storeSymbolTimeframeCandle|getSymbolTimeframeCandles|getCandlesForTimeframe|timeframeHistories|symbolTimeframeHistories|candleToProcessorOhlc|symbolHistoryLimit|timeframeHistoryLimit|historicalCacheLimit",
+    "--glob",
+    "*.js",
+    "--glob",
+    "*.json",
+    "--glob",
+    "*.py",
+    "--glob",
+    "!node_modules/**",
+    "--glob",
+    "!ogz-meta/**",
+    "--glob",
+    "!test/**",
+    "--glob",
+    "!backups/**",
+    "--glob",
+    "!**/archive/**"
+  ],
+  "exitCode": 1,
+  "matches": [],
+  "meaning": "No remaining production source/config callers of removed mirrored histories and their keys; historical receipts and tests excluded."
+}

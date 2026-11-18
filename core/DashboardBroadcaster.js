@@ -77,49 +77,6 @@ class DashboardBroadcaster {
     return this.edgeAnalyticsByScope.get(key);
   }
 
-  _getPriceHistory(symbol, timeframe = null) {
-    const canonicalSymbol = this._normalizeSymbol(symbol);
-    if (!canonicalSymbol) return [];
-
-    const histories = this.ctx.symbolTimeframeHistories;
-    if (histories instanceof Map) {
-      const byTimeframe = histories.get(canonicalSymbol);
-      if (byTimeframe instanceof Map) {
-        const timeframeHistory = timeframe ? byTimeframe.get(timeframe) : null;
-        if (Array.isArray(timeframeHistory) && timeframeHistory.length > 0) return timeframeHistory;
-        return [];
-      }
-    }
-
-    const symbolCtx = this.ctx.symbolContexts instanceof Map
-      ? this.ctx.symbolContexts.get(canonicalSymbol)
-      : null;
-    if (Array.isArray(symbolCtx?.priceHistory) && symbolCtx.priceHistory.length > 0) {
-      return symbolCtx.priceHistory;
-    }
-
-    const history = Array.isArray(this.ctx.priceHistory) ? this.ctx.priceHistory : [];
-    return history.filter(candle => this._normalizeSymbol(candle?.symbol) === canonicalSymbol);
-  }
-
-  _getIndicatorSnapshot(symbol) {
-    const canonicalSymbol = this._normalizeSymbol(symbol);
-    const symbolCtx = this.ctx.symbolContexts instanceof Map
-      ? this.ctx.symbolContexts.get(canonicalSymbol)
-      : null;
-    if (symbolCtx?.indicatorEngine?.getSnapshot) {
-      return symbolCtx.indicatorEngine.getSnapshot();
-    }
-
-    const globalEngine = this.ctx.indicatorEngine;
-    const globalSymbol = this._normalizeSymbol(globalEngine?.config?.symbol);
-    if (globalEngine?.getSnapshot && globalSymbol === canonicalSymbol) {
-      return globalEngine.getSnapshot();
-    }
-
-    return null;
-  }
-
   _cvdTrend(cvd) {
     if (cvd > 0) return 'BUYERS';
     if (cvd < 0) return 'SELLERS';
@@ -206,14 +163,7 @@ class DashboardBroadcaster {
         console.error(`[DashboardBroadcaster] Missing analytics state for ${canonicalSymbol} ${timeframe}; refusing edge analytics broadcast`);
         return false;
       }
-      const priceHistory = this._getPriceHistory(canonicalSymbol, timeframe);
-
-      // God Mode: Delta tick emission for zero-lag chart updates
-      this.ctx.dashboardWs.send(JSON.stringify({
-        type: 'delta',
-        ...scopeFields,
-        tick: { symbol: canonicalSymbol, asset: canonicalSymbol, timeframe, price, volume, timestamp: Date.now() }
-      }));
+      const priceHistory = this.ctx.candleStore.getCandles(canonicalSymbol, timeframe);
 
       // Calculate CVD (Cumulative Volume Delta)
       const isBuy = _c(candle) >= _o(candle);  // Simple: close >= open = buy pressure
@@ -473,7 +423,7 @@ class DashboardBroadcaster {
     const priceLow = Math.min(...recentPrices.map(candle => _l(candle)));
     const currentPrice = _c(recentPrices[recentPrices.length - 1]);
 
-    const indicators = this._getIndicatorSnapshot(symbol);
+    const indicators = this.ctx.getSymbolTimeframeContext(symbol, timeframe).indicatorEngine.getSnapshot();
     const rsi = indicators?.indicators?.rsi;
 
     if (rsi) {

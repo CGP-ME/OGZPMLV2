@@ -1,0 +1,101 @@
+{
+  "kind": "relevant-source-manifest-excerpt",
+  "fullManifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T20-24-58-833Z-4132522-953d5cbfab75/source-IdHf0m.json",
+  "fullManifestSha256": "ad3d6dba0230000adc3e125ea827fb44cc4db671b9a79d572b47a7fbe49cdbbb",
+  "tree": "27f04847862e4600465f49cf43921074c324d3a6",
+  "baseTree": "4c1d50d3641728389c1ad23855f5ad0310bf9d2f",
+  "capturedFileCount": 730,
+  "excludedPathCount": 6691,
+  "files": [
+    {
+      "file": "brokers/AlpacaAdapter.js",
+      "object": "a153fd70cb0ff0a4098e3792d7272aa0d5697b57",
+      "sha256": "9dfe6e70b5084ad74633e13ee81b2ecc4f0ed90e29b0fce9094e76549cd4a2be",
+      "bytes": 56961
+    },
+    {
+      "file": "config/internals.json",
+      "object": "db4501689c7d8c4b424047e89cf9767a3542d5bc",
+      "sha256": "b52b1fa8f26c3e7eaa271d62cf28e2b5eec9c4914faf875e0d8edb6f80adce18",
+      "bytes": 104150
+    },
+    {
+      "file": "config/settings.json",
+      "object": "937df125f754f8372d63ae77364f76cd36c5b3df",
+      "sha256": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+      "bytes": 137022
+    },
+    {
+      "file": "core/BacktestRunner.js",
+      "object": "306b2dfbde7ed2498cc2ef2783dc906e33650039",
+      "sha256": "251a095951d2b2fe686df147461d2dcc14d52b1b0b11178e5c71f2b8d2fc9d0e",
+      "bytes": 27598
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "object": "969f1e4d03998b4e31e7b8a86b56653b3b63b374",
+      "sha256": "a1d5532955f6bffc900eedf41d5ccb9a6fe150770b58e37f47e2e137c5ad5afe",
+      "bytes": 52639
+    },
+    {
+      "file": "core/CandleStore.js",
+      "object": "a45f5734500c485b695207a2621f4821fb71782e",
+      "sha256": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "bytes": 14621
+    },
+    {
+      "file": "core/DashboardBroadcaster.js",
+      "object": "e301ab5ffccf9cd012338b8e9bc1a53ac4ee8634",
+      "sha256": "567979a7f35bd090f23576bec6594ad16bc1ff74aceb471bf969509a7b9ca4d7",
+      "bytes": 16708
+    },
+    {
+      "file": "core/ReplayClosedCandleBoundary.js",
+      "object": "3d0ae62b3ae489c61adacc20060741b3d4ddb511",
+      "sha256": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+      "bytes": 1482
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "object": "6781198a3cc394ffce0b8351f804fe36190f3418",
+      "sha256": "29df1064e9940fd191c65f00344ee2e9f8c4044902024f000feff699bbf80df8",
+      "bytes": 84532
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "object": "404df14728d77c452a22a0734fd40fdc5b2f7ce2",
+      "sha256": "3517dbea182aa895160fae51778ac150950d0f16ab7e47710ad83fe39bf4257a",
+      "bytes": 135660
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "object": "dbc62d656eb67d610d4c303bd4157a751a94efd4",
+      "sha256": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259",
+      "bytes": 101102
+    },
+    {
+      "file": "core/WebSocketManager.js",
+      "object": "7285451eba6d1cf483f4926da1d488023b43ae0b",
+      "sha256": "e12300fa4957138a0ab3c167e3dd4c25653226fbd818a77c1cd65db28ae4b077",
+      "bytes": 20601
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "object": "dbc6092dec1bb1ef06c3735b8616a51cc2cc3540",
+      "sha256": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324",
+      "bytes": 267302
+    },
+    {
+      "file": "modules/MultiTimeframeAdapter.js",
+      "object": "a1e73f0633f5e8d649c31da9a93c286d04d69a58",
+      "sha256": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+      "bytes": 21525
+    },
+    {
+      "file": "run-empire-v2.js",
+      "object": "ce8e31c5ca6df52a9115fc08b2a81605e27fc19c",
+      "sha256": "d58cce79d8e6914926a60f302d57183f0b4e5a217a0160652128764aedc70400",
+      "bytes": 182496
+    }
+  ]
+}

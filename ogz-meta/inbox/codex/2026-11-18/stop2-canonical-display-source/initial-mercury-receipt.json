@@ -1,0 +1,419 @@
+{
+  "run_id": "2026-11-18T20-27-17-694Z-e22b2285d743",
+  "started_at": "2026-11-18T20:24:58.833Z",
+  "head_sha": "70b98f9c843770c478065a5e488bb519d6f26a50",
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "review_scope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "config/internals.json",
+      "core/BacktestRunner.js",
+      "core/CandleProcessor.js",
+      "core/DashboardBroadcaster.js",
+      "core/WebSocketManager.js",
+      "run-empire-v2.js"
+    ],
+    "tree": "27f04847862e4600465f49cf43921074c324d3a6",
+    "baseTree": "4c1d50d3641728389c1ad23855f5ad0310bf9d2f",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-18T20-24-58-833Z-4132522-953d5cbfab75/source-IdHf0m.json",
+    "manifestSha256": "ad3d6dba0230000adc3e125ea827fb44cc4db671b9a79d572b47a7fbe49cdbbb"
+  },
+  "files_opened": [
+    "config/internals.json:1055-1075",
+    "core/AssetRegistry.js:35-60",
+    "core/CandleProcessor.js:1080-1228",
+    "core/CandleProcessor.js:170-260",
+    "core/CandleProcessor.js:25-60",
+    "core/CandleProcessor.js:300-544",
+    "core/CandleProcessor.js:840-980",
+    "core/CandleProcessor.js:980-1080",
+    "core/CandleStore.js:1-260",
+    "core/DashboardBroadcaster.js:1-120",
+    "core/DashboardBroadcaster.js:120-300",
+    "core/DashboardBroadcaster.js:400-461",
+    "core/ReplayClosedCandleBoundary.js:1-33",
+    "core/SymbolTradingContext.js:1-133",
+    "run-empire-v2.js:1440-1485",
+    "run-empire-v2.js:3100-3180",
+    "run-empire-v2.js:418-445",
+    "run-empire-v2.js:560-604",
+    "run-empire-v2.js:860-932",
+    "run-empire-v2.js:930-1060"
+  ],
+  "file_reads": [
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 930,
+      "endLine": 1060,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleStore.js",
+      "startLine": 1,
+      "endLine": 260,
+      "totalLines": 364,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/SymbolTradingContext.js",
+      "startLine": 1,
+      "endLine": 133,
+      "totalLines": 133,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1080,
+      "endLine": 1228,
+      "totalLines": 1229,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 980,
+      "endLine": 1080,
+      "totalLines": 1229,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/ReplayClosedCandleBoundary.js",
+      "startLine": 1,
+      "endLine": 33,
+      "totalLines": 33,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 300,
+      "endLine": 544,
+      "totalLines": 1229,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": true
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 860,
+      "endLine": 932,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 840,
+      "endLine": 980,
+      "totalLines": 1229,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/DashboardBroadcaster.js",
+      "startLine": 120,
+      "endLine": 300,
+      "totalLines": 461,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 3100,
+      "endLine": 3180,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 170,
+      "endLine": 260,
+      "totalLines": 1229,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/DashboardBroadcaster.js",
+      "startLine": 400,
+      "endLine": 461,
+      "totalLines": 461,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/DashboardBroadcaster.js",
+      "startLine": 1,
+      "endLine": 120,
+      "totalLines": 461,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 1440,
+      "endLine": 1485,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 560,
+      "endLine": 604,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 25,
+      "endLine": 60,
+      "totalLines": 1229,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/AssetRegistry.js",
+      "startLine": 35,
+      "endLine": 60,
+      "totalLines": 75,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "run-empire-v2.js",
+      "startLine": 418,
+      "endLine": 445,
+      "totalLines": 3939,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "config/internals.json",
+      "startLine": 1055,
+      "endLine": 1075,
+      "totalLines": 2952,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    }
+  ],
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 6,
+      "total": 6
+    },
+    "candidateCoverage": {
+      "expectedTotal": 6,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 6,
+    "changedJsCount": 5,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "termination": "answer_given",
+  "iterations": 20,
+  "verdict": "found_break",
+  "error": null,
+  "run_tokens": {
+    "input": 1095780,
+    "uncached_input": 869242,
+    "cached_input": 226538,
+    "output": 25191,
+    "total": 1120971,
+    "complete": true,
+    "attempts_with_usage": 21,
+    "total_attempts": 21
+  },
+  "run_cost": {
+    "amount": 0.09770549,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 21,
+    "total_attempts": 21,
+    "cost_absences": []
+  },
+  "tools_invoked": [
+    {
+      "name": "find_definition",
+      "calls": 6,
+      "succeeded": 6,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 9,
+      "succeeded": 9,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 20,
+      "succeeded": 20,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 8,
+      "succeeded": 8,
+      "failed": 0
+    }
+  ],
+  "reviewer_panel": {
+    "requested": [
+      "mercury"
+    ],
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit",
+    "reviewIntent": "adversarial",
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "reported_decision": {
+      "verdict": "found_break",
+      "majorityOutcome": "found_break",
+      "majorityRequired": 1,
+      "selectedCount": 1,
+      "tally": {
+        "found_break": 1,
+        "no_break_found": 0,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "found_break",
+          "rawVerdict": "found_break",
+          "answerSha256": "639cf3143fc58388dab75e91843329f78b0ff4b54f6d268469e076dfcfdd7571",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    },
+    "seats": [
+      {
+        "id": "mercury",
+        "status": "succeeded",
+        "verdict": "found_break",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "failed": false,
+        "unavailable": false,
+        "identityConflict": false,
+        "evidenceBasis": [
+          "successful_repo_tool",
+          "verified_current_diff"
+        ],
+        "evidenceChecksPassed": true,
+        "qualifying": true,
+        "self_report_complete": true,
+        "self_report_missing_fields": [],
+        "named_absences": [],
+        "doctrineReview": {
+          "namedAbsences": [
+            "coverage_insufficient",
+            "coverage_unresolved",
+            "whole_file_read_absent",
+            "inherited_section_incomplete"
+          ],
+          "namedBreaks": [],
+          "candidateSet": {
+            "examined": 6,
+            "total": 6
+          },
+          "candidateCoverage": {
+            "expectedTotal": 6,
+            "unresolved": [],
+            "complete": false,
+            "authorityReady": false,
+            "fourthShapeAdditions": [],
+            "fourthShapeAdditionCount": 0
+          },
+          "changedFileCount": 6,
+          "changedJsCount": 5,
+          "fourthShapeAdditionCount": 0,
+          "executionProvenance": {
+            "runChecks": []
+          }
+        },
+        "seat_tokens": {
+          "input": 1092027,
+          "uncached_input": 865489,
+          "cached_input": 226538,
+          "output": 25189,
+          "total": 1117216,
+          "complete": true,
+          "attempts_with_usage": 20,
+          "total_attempts": 20
+        },
+        "seat_cost": {
+          "amount": 0.09763043,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 20,
+          "total_attempts": 20,
+          "cost_absences": []
+        }
+      }
+    ]
+  }
+}
