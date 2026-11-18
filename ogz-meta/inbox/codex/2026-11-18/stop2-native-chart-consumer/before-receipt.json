@@ -1,0 +1,1294 @@
+{
+  "baseline": true,
+  "sourceHashes": {
+    "public/js/panels/chart-panel.js": "1771141357664b219ae1c7a26a72556162f8328c510822d76dbce640c0def5a9",
+    "public/js/chart.js": "1835e68ceda113fd223132aea68db14027fca92281a74ac4f428b55bc541a46a",
+    "public/js/core.js": "722eca749da3d708f47e369e0c6c109b8eaad207348e07427d5252e03c1eac2a",
+    "public/js/websocket.js": "66ceda68c57019af326617758788719c95114619f4a9600d3af46fdaed19ff48"
+  },
+  "cases": [
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "historyMatches": false,
+      "browserHistoryRequests": 1,
+      "quoteLeavesCandles": false,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794891660,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794891720,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794891780,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "historyMatches": false,
+      "browserHistoryRequests": 1,
+      "quoteLeavesCandles": false,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794891900,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794892200,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794892500,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "historyMatches": false,
+      "browserHistoryRequests": 1,
+      "quoteLeavesCandles": false,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794892500,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794893400,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794894300,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "historyMatches": false,
+      "browserHistoryRequests": 1,
+      "quoteLeavesCandles": false,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794893400,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794895200,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794897000,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "historyMatches": false,
+      "browserHistoryRequests": 1,
+      "quoteLeavesCandles": false,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794895200,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794898800,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794902400,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "historyMatches": false,
+      "browserHistoryRequests": 1,
+      "quoteLeavesCandles": false,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794906000,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794920400,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794931200,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "historyMatches": false,
+      "browserHistoryRequests": 1,
+      "quoteLeavesCandles": false,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1794978000,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1795064400,
+          "open": 999,
+          "high": 1002,
+          "low": 998,
+          "close": 1000
+        },
+        {
+          "time": 1795132800,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 99,
+          "high": 102,
+          "low": 98,
+          "close": 100
+        },
+        {
+          "time": 1794891660,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794891720,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794891780,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 99,
+          "high": 102,
+          "low": 98,
+          "close": 100
+        },
+        {
+          "time": 1794891900,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794892200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794892500,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 99,
+          "high": 102,
+          "low": 98,
+          "close": 100
+        },
+        {
+          "time": 1794892500,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794893400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794894300,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 99,
+          "high": 102,
+          "low": 98,
+          "close": 100
+        },
+        {
+          "time": 1794893400,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794895200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794897000,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 99,
+          "high": 102,
+          "low": 98,
+          "close": 100
+        },
+        {
+          "time": 1794895200,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794898800,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794902400,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 99,
+          "high": 102,
+          "low": 98,
+          "close": 100
+        },
+        {
+          "time": 1794906000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794920400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794931200,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 99,
+          "high": 102,
+          "low": 98,
+          "close": 100
+        },
+        {
+          "time": 1794978000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1795064400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1795132800,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891780,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794892500,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794894300,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794897000,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794902400,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794931200,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1795132800,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794891780,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794892500,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794894300,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794897000,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794902400,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1794931200,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "historyMatches": false,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": false,
+      "zeroVolumesPreserved": false,
+      "correctionLeavesQuote": false,
+      "latestIndicatorVolume": false,
+      "otherScopesIgnored": false,
+      "oldQuoteAndDeltaIgnored": false,
+      "actualFinalCandles": [
+        {
+          "time": 1795132800,
+          "open": 887,
+          "high": 890,
+          "low": 886,
+          "close": 888
+        }
+      ],
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Socket] Parse error: chart library rejects backwards update"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    }
+  ],
+  "summaries": [
+    {
+      "chart": "ChartPanel",
+      "initialHistoryRequests": 2,
+      "frameRequests": [
+        {
+          "type": "timeframe_change",
+          "timeframe": "1d",
+          "asset": "BTC-USD"
+        },
+        {
+          "type": "request_historical",
+          "timeframe": "1d",
+          "asset": "BTC-USD",
+          "limit": 500
+        }
+      ],
+      "errorsVisible": false,
+      "switchClearsOldScope": false,
+      "logs": []
+    },
+    {
+      "chart": "Chart",
+      "initialHistoryRequests": 1,
+      "frameRequests": [
+        {
+          "type": "timeframe_change",
+          "timeframe": "1d"
+        },
+        {
+          "type": "request_historical",
+          "timeframe": "1d",
+          "asset": "BTC-USD",
+          "limit": 500
+        }
+      ],
+      "errorsVisible": false,
+      "switchClearsOldScope": false,
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Timeframe: 1d"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        }
+      ]
+    }
+  ],
+  "seams": [
+    "Actual socket onmessage, core handlers, chart history/update/clearAll and timeframe change callbacks",
+    "Both served chart modules; actual native normalizers and symbol selection functions",
+    "Synthetic DOM, chart-series API capture, quote/native inputs, timers and transport"
+  ],
+  "limits": [
+    "No connected browser, canvas rendering or screenshot",
+    "No live broker, bot restart or trading operation",
+    "Chart series capture enforces backwards-update rejection but is not Lightweight Charts itself",
+    "Oscillator calculations and overlay rendering are not exercised"
+  ]
+}

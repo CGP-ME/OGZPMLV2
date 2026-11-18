@@ -15,6 +15,8 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
         tier: 'ml',
         lastPrice: 0,
         lastPriceDelta: 0,
+        lastPriceSymbol: null,
+        lastPriceTime: null,
         proximityToGolden: 0,
         isGolden: false,
         lastBotMessageAt: 0,
@@ -29,6 +31,17 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
             return trimmed !== '' && Number.isFinite(Number(trimmed));
         }
         return false;
+    }
+
+    function selectedMarketPayload(payload, requireTimeframe) {
+        const normalize = value => String(value || '').trim().toUpperCase().replace(/^XBT/, 'BTC').replace(/\//g, '-');
+        const selectedSymbol = normalize(document.getElementById('cp-assetSelector')?.value || document.getElementById('assetSelector')?.value);
+        const symbol = normalize(payload.symbol || payload.asset);
+        if (!symbol || symbol !== selectedSymbol) return false;
+        if (!requireTimeframe) return true;
+        const selectedFrame = document.getElementById('cp-timeframeSelector')?.value || document.getElementById('timeframeSelector')?.value;
+        return Boolean(payload.timeframe && payload.timeframe === selectedFrame
+            && (!payload.candle || (normalize(payload.candle.symbol) === symbol && payload.candle.timeframe === selectedFrame)));
     }
 
     function initRegisteredModule(name, mod, force) {
@@ -175,11 +188,19 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
             socket.registerHandler('price', (d) => {
                 state.lastBotMessageAt = Date.now();
                 const data = d.data || d;
-                const priceCandidate = data.price != null ? data.price : data.close;
-                const p = parseFloat(priceCandidate);
-                if (!isFinite(p) || p <= 0) return;
-                state.lastPriceDelta = p - state.lastPrice;
-                state.lastPrice = p;
+                if (!selectedMarketPayload(data, Boolean(data.candle))) return;
+                // Quotes own current price. Native candles own chart OHLC and indicators.
+                if (!data.candle) {
+                    const p = Number(data.price ?? data.close);
+                    const observedAt = Number(data.timestamp);
+                    if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(observedAt) || observedAt <= 0) return;
+                    const symbol = data.symbol || data.asset;
+                    if (state.lastPriceSymbol === symbol && observedAt < state.lastPriceTime) return;
+                    state.lastPriceDelta = state.lastPriceSymbol === symbol ? p - state.lastPrice : 0;
+                    state.lastPrice = p;
+                    state.lastPriceSymbol = symbol;
+                    state.lastPriceTime = observedAt;
+                }
                 if (this.get('Chart')) this.get('Chart').update(data);
 
                 // Update indicator bar from price message
@@ -188,7 +209,7 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
                     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
                     set('rsiCore', ind.rsi != null ? ind.rsi.toFixed(1) : '--');
                     set('macdCore', ind.macd != null ? (typeof ind.macd === 'object' ? (ind.macd.macd || 0).toFixed(2) : ind.macd.toFixed(2)) : '--');
-                    const vol = data.volume != null ? data.volume : (data.candle && data.candle.volume);
+                    const vol = ind.volume;
                     set('volumeCore', vol != null ? Number(vol).toFixed(0) : '--');
                     set('atrML', ind.atr != null ? ind.atr.toFixed(2) : '--');
                     if (isNumericValue(data.confidence)) {
@@ -295,6 +316,7 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
 
             // LIVE: Historical candle loading
             socket.registerHandler('historical_candles', (d) => {
+                if (!selectedMarketPayload(d, true)) return;
                 if (this.get('Chart')) this.get('Chart').loadHistorical(d);
             });
 

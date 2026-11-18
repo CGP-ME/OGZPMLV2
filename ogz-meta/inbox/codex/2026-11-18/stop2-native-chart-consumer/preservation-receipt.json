@@ -1,0 +1,27 @@
+{
+  "preservedInheritedDirtyFiles": {
+    "CHANGELOG.md": true,
+    "config/internals.json": true,
+    "config/settings.json": true,
+    "core/ExitContractManager.js": true,
+    "core/OrderExecutor.js": true,
+    "core/StateManager.js": true,
+    "core/StrategyOrchestrator.js": true,
+    "core/TradingLoop.js": true,
+    "core/dto/DecisionLedgerSchema.js": true,
+    "foundation/ConfigLoader.js": true,
+    "modules/DonchianBreakout.js": true,
+    "modules/EMATrendRetest.js": true,
+    "modules/PropSafeEMAPullback.js": true,
+    "modules/RSI2MeanReversion.js": true,
+    "modules/TimeSeriesMomentum.js": true,
+    "ogzprime-ssl-server.js": true,
+    "test/mercury-astra-challenger.test.js": true,
+    "test/session-router-fail-safe.test.js": true,
+    "test/trade-replay-capture-contract.test.js": true,
+    "trai_brain/mercury-bridge/react-loop.js": true
+  },
+  "sourceHashesMatchReview": true,
+  "pm2Restarted": false,
+  "staticFilesApplied": true
+}

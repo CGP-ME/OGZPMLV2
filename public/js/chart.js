@@ -68,14 +68,12 @@
     // Minimum stored candles before live-bar volume alpha uses percentile
     // capping. Below this the sample is too small to rank stably; fall back
     // to a fixed alpha.
-    const MIN_VOLUME_STATS_CANDLES = 20;
     // Volume percentile cap + alpha envelope. Shared by both the historical
     // setData path and the live per-tick update path so volume bar sizing
     // has one source of truth.
     const VOL_CAP_PCTILE = 0.98;
     const VOL_ALPHA_FLOOR = 0.25;
     const VOL_ALPHA_RANGE = 0.55;               // final alpha = FLOOR + RANGE*ratio → caps at 0.80
-    const VOL_LIVE_ALPHA_DEFAULT = 0.5;         // fallback alpha before stats sample is ready
     const VOL_LIVE_HEADROOM = 1.15;             // 15% ceiling padding so capped bars don't touch pane top
     // Candle autoscale percentile cutoffs — discards the extreme 2% of lows
     // and highs so one flash-crash wick can't squish every normal bar into
@@ -142,18 +140,23 @@
         }
     }
 
-    // Timeframe string -> seconds per bar. Used to align live ticks to the
-    // correct bucket so 5m/15m/1h charts actually build in real time instead
-    // of appearing as a single fat bar every N minutes.
-    const TF_SECONDS = {
-        '1s': 1, '5s': 5, '15s': 15, '30s': 30,
-        '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800,
-        '1h': 3600, '2h': 7200, '4h': 14400, '6h': 21600, '12h': 43200,
-        '1d': 86400
-    };
-    function currentBucketSeconds() {
-        const tf = document.getElementById('timeframeSelector')?.value || '1m';
-        return TF_SECONDS[tf] || 60;
+    function normalizeHistoricalCandle(candle) {
+        const number = value => {
+            if (value === null || value === undefined || value === '') return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const raw = Array.isArray(candle)
+            ? { time: candle[0], open: candle[1], high: candle[2], low: candle[3], close: candle[4], volume: candle[6] }
+            : { time: candle?.timestamp ?? candle?.t ?? candle?.time, open: candle?.open ?? candle?.o,
+                high: candle?.high ?? candle?.h, low: candle?.low ?? candle?.l,
+                close: candle?.close ?? candle?.c, volume: candle?.volume ?? candle?.v };
+        const row = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, number(value)]));
+        if (Object.values(row).some(value => value === null) || row.time <= 0 || row.volume < 0
+            || Math.min(row.open, row.high, row.low, row.close) <= 0
+            || row.high < Math.max(row.open, row.close) || row.low > Math.min(row.open, row.close)) return null;
+        row.time = Math.floor(row.time / (row.time > 1e12 ? 1000 : 1));
+        return row;
     }
 
     function cleanSelectorValue(value) {
@@ -433,7 +436,7 @@
                 // Header readout
                 if (priceEl) {
                     if (!param.time || !candleData) {
-                        priceEl.textContent = `$${OGZ.state.lastPrice.toLocaleString()}`;
+                        priceEl.textContent = OGZ.state.lastPriceSymbol === selectedLegacyAsset(document.getElementById('assetSelector')) ? `$${OGZ.state.lastPrice.toLocaleString()}` : '--';
                     } else {
                         priceEl.textContent = `O:${candleData.open.toFixed(2)} H:${candleData.high.toFixed(2)} L:${candleData.low.toFixed(2)} C:${candleData.close.toFixed(2)}`;
                     }
@@ -630,13 +633,12 @@
                 console.log('[Chart] Asset:', e.target.value);
             });
 
-            // Timeframe selector — sends timeframe_change + requests new historical data
+            // Timeframe selector — requests native history for the selected asset
             const tfSel = document.getElementById('timeframeSelector');
             if (tfSel) trackListener(tfSel, 'change', (e) => {
                 const socket = OGZ.get('Socket');
                 const asset = selectedLegacyAsset(document.getElementById('assetSelector'));
                 if (socketReady(socket) && asset) {
-                    socket.send({ type: 'timeframe_change', timeframe: e.target.value });
                     this.clearAll();
                     socket.send({
                         type: 'request_historical',
@@ -805,6 +807,16 @@
         },
 
         clearAll: function() {
+            for (const id of ['rsiCore', 'macdCore', 'volumeCore', 'atrML', 'confidenceML']) {
+                const element = document.getElementById(id);
+                if (element) element.textContent = '--';
+            }
+            const selectedSymbol = selectedLegacyAsset(document.getElementById('assetSelector'));
+            const quoteText = OGZ.state.lastPriceSymbol === selectedSymbol ? `$${OGZ.state.lastPrice.toLocaleString()}` : '--';
+            if (_cachedPriceEl) _cachedPriceEl.textContent = quoteText;
+            if (_cachedHudPrice) _cachedHudPrice.textContent = quoteText;
+            if (_cachedHudOhlc) _cachedHudOhlc.textContent = '--';
+            storedCandles = [];
             if (candleSeries) candleSeries.setData([]);
             if (volumeSeries) volumeSeries.setData([]);
             if (this._lineSeries) this._lineSeries.setData([]);
@@ -870,81 +882,41 @@
             console.log('[Chart] destroy() — teardown complete.');
         },
 
-        update: (d) => {
+        update: function (d) {
             if (!candleSeries) return;
-            const candle = d.candle || d;
-            const price = candle.close || candle.c;
-            const open = candle.open || candle.o;
-            const high = candle.high || candle.h;
-            const low = candle.low || candle.l;
-            const rawMs = candle.timestamp || candle.t || Date.now();
-            const t = Math.floor(rawMs / 1000);
-
-            // Align to the bucket size of the currently selected timeframe so
-            // sub-bar ticks continuously update the in-progress candle — this
-            // is what made it "feel real-time" before.
-            const bucket = currentBucketSeconds();
-            const timeAligned = Math.floor(t / bucket) * bucket;
-
-            // If bot only sent a bare `price` (no OHLC), synthesize a tick on
-            // the in-progress candle so the wick/body extends live.
-            let tickOpen = open, tickHigh = high, tickLow = low, tickClose = price;
-            if (price != null && (open == null || high == null || low == null)) {
-                const last = storedCandles[storedCandles.length - 1];
-                if (last && last.time === timeAligned) {
-                    tickOpen = last.open;
-                    tickHigh = Math.max(last.high, price);
-                    tickLow = Math.min(last.low, price);
-                    tickClose = price;
-                    // mutate stored candle so crosshair/tooltip reflects live bar
-                    last.high = tickHigh; last.low = tickLow; last.close = tickClose;
-                } else if (price != null) {
-                    tickOpen = tickHigh = tickLow = tickClose = price;
-                    storedCandles.push({ time: timeAligned, open: price, high: price, low: price, close: price, volume: 0 });
+            const candle = d.candle;
+            const price = candle ? null : Number(d.price ?? d.close);
+            if (candle) {
+                const bar = normalizeHistoricalCandle(candle);
+                if (!bar) {
+                    console.error('[Chart] Invalid native candle', { symbol: d.symbol, timeframe: d.timeframe, candle });
+                    const status = document.getElementById('statusText'); if (status) status.textContent = 'Invalid native candle received';
+                    return;
                 }
-            } else if (open != null) {
-                // Full candle provided — upsert into storedCandles
-                const last = storedCandles[storedCandles.length - 1];
-                if (last && last.time === timeAligned) {
-                    last.open = open; last.high = high; last.low = low; last.close = price;
-                } else {
-                    storedCandles.push({ time: timeAligned, open, high, low, close: price, volume: candle.volume || candle.v || 0 });
-                }
-            }
+                const index = storedCandles.findIndex(row => row.time >= bar.time);
+                if (index === -1) storedCandles.push(bar);
+                else if (storedCandles[index].time === bar.time) storedCandles[index] = bar;
+                else storedCandles.splice(index, 0, bar);
+                const older = bar.time < storedCandles[storedCandles.length - 1].time;
+                const chartBar = { time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
+                if (older) candleSeries.setData(storedCandles.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+                else candleSeries.update(chartBar);
+                if (volumeSeries) {
+                    const sortedVolumes = storedCandles.map(row => row.volume).filter(value => value > 0).sort((a, b) => a - b);
+                    const cap = sortedVolumes.length ? sortedVolumes[Math.ceil(sortedVolumes.length * VOL_CAP_PCTILE) - 1] : 1;
+                    const volumeEntry = row => {
+                        const alpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * Math.min(1, row.volume / cap);
+                        const rgb = row.close >= row.open ? '34,197,94' : '239,68,68';
+                        return { time: row.time, value: row.volume, color: `rgba(${rgb},${alpha.toFixed(3)})` };
+                    };
+                    const values = older ? storedCandles.map(volumeEntry) : volumeEntry(bar);
+                    if (older) volumeSeries.setData(values); else volumeSeries.update(values);
 
-            if (tickClose != null) {
-                candleSeries.update({
-                    time: timeAligned,
-                    open: tickOpen,
-                    high: tickHigh,
-                    low: tickLow,
-                    close: tickClose
-                });
-            }
-
-            if (candle.volume || candle.v) {
-                // Live-bar volume alpha — clamp against the stored 98th-percentile
-                // cap so the live bar doesn't leap to 100% opacity and pop.
-                const up = tickClose >= tickOpen;
-                let liveAlpha = VOL_LIVE_ALPHA_DEFAULT;
-                if (storedCandles.length > MIN_VOLUME_STATS_CANDLES) {
-                    const sortedVols = storedCandles.map(c => c.volume).filter(v => v > 0).sort((a, b) => a - b);
-                    const capVol = sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * VOL_CAP_PCTILE) - 1)] || 1;
-                    const ratio = Math.min(1, (candle.volume || candle.v) / capVol);
-                    liveAlpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * ratio;
                 }
-                const rgb = up ? '34,197,94' : '239,68,68';
-                volumeSeries.update({
-                    time: timeAligned,
-                    value: candle.volume || candle.v,
-                    color: `rgba(${rgb},${liveAlpha.toFixed(3)})`
-                });
             }
 
             // Live price readout + floating HUD + tick flash with ogzprime palette.
-            if (price != null) {
-                OGZ.state.lastPriceDelta = price - OGZ.state.lastPrice;
-                OGZ.state.lastPrice = price;
+            if (Number.isFinite(price) && price > 0) {
                 const up = OGZ.state.lastPriceDelta >= 0;
                 const flashColor = up ? '#22c55e' : '#ef4444';
                 const flashShadow = up ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)';
@@ -986,16 +958,17 @@
                     }, PRICE_FLASH_MS);
                     trackTimer(hudPrice._flashTimer);
                 }
-                const hudOhlc = _cachedHudOhlc;
-                if (hudOhlc) {
-                    if (storedCandles.length) {
-                        const lc = storedCandles[storedCandles.length - 1];
-                        hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
-                        // Reveal the parent HUD once we have real OHLC values to show
-                        const hud = hudOhlc.parentElement;
-                        if (hud && hud.style.visibility !== 'visible') {
-                            hud.style.visibility = 'visible';
-                        }
+
+            }
+            const hudOhlc = _cachedHudOhlc;
+            if (hudOhlc) {
+                if (storedCandles.length) {
+                    const lc = storedCandles[storedCandles.length - 1];
+                    hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
+                    // Reveal the parent HUD once we have real OHLC values to show
+                    const hud = hudOhlc.parentElement;
+                    if (hud && hud.style.visibility !== 'visible') {
+                        hud.style.visibility = 'visible';
                     }
                 }
             }
@@ -1045,23 +1018,22 @@
             }
         },
 
-        loadHistorical: (candles) => {
-            if (!candleSeries || !candles || candles.length === 0) return;
+        loadHistorical: function (message) {
+            if (!candleSeries) return;
+            if (message.error || !Array.isArray(message.candles) || message.candles.length === 0) {
+                const status = document.getElementById('statusText');
+                if (status) status.textContent = `${message.symbol} ${message.timeframe}: ${message.error || 'No native history received'}`;
+                console.error('[Chart] Native history unavailable', message.error || 'empty response');
+                return;
+            }
             try {
-                const formatted = candles.map(c => {
-                    const rawTime = c.time || c.t || c.timestamp || 0;
-                    const time = Math.floor(rawTime / (rawTime > 1e12 ? 1000 : 1));
-                    return {
-                        time,
-                        open: c.open || c.o || 0,
-                        high: c.high || c.h || 0,
-                        low: c.low || c.l || 0,
-                        close: c.close || c.c || 0,
-                        volume: c.volume || c.v || 0
-                    };
-                }).filter(c => c.time > 0 && c.open > 0);
-
-                if (formatted.length === 0) return;
+                const formatted = message.candles.map(normalizeHistoricalCandle);
+                if (formatted.some(candle => candle === null)) {
+                    const status = document.getElementById('statusText');
+                    if (status) status.textContent = 'Invalid native candle history received';
+                    console.error('[Chart] Invalid native candle history', { symbol: message.symbol, timeframe: message.timeframe });
+                    return;
+                }
 
                 // Set candle data
                 candleSeries.setData(formatted.map(c => ({
@@ -1098,15 +1070,15 @@
                 // mode). Re-asserting autoScale + fitContent restores the
                 // visible y-axis to the new data's range every load.
                 if (tvChart) {
-                    try {
-                        tvChart.priceScale('right').applyOptions({ autoScale: true });
-                        tvChart.timeScale().fitContent();
-                    } catch (e) { /* lightweight-charts version variance */ }
+                    tvChart.priceScale('right').applyOptions({ autoScale: true });
+                    tvChart.timeScale().fitContent();
                     tvChart.timeScale().scrollToRealTime();
                 }
 
                 console.log(`[Chart] Loaded ${formatted.length} historical candles`);
             } catch (e) {
+                const status = document.getElementById('statusText');
+                if (status) status.textContent = 'Native history could not be displayed';
                 console.error('[Chart] loadHistorical error:', e);
             }
         },

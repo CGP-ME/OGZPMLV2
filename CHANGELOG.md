@@ -1,3 +1,67 @@
+## 2026-11-18 — Stop 2: render broker-native candles in both supported dashboards
+
+**Problem and authority.** Trey authorized continuing the traced Stop 2 repair,
+with native seven-frame data, no local candle aggregation, actual behavior proof,
+changelog and atomic delivery. The browser could replace server history with a
+second Kraken fetch, rebucket native bars or construct OHLC from price ticks.
+Other-symbol/frame messages mutated shared prices and indicator readouts before
+the chart's asset guard. The older dashboard also received an envelope but tried
+`.map` on it, and its arrow-function history loader had the wrong `this`.
+
+**Changed.** `public/js/core.js` now selects symbol/timeframe before market-view
+mutations, including native candle identity; timestamped quotes own current-price
+state and older quotes cannot rewind it. `public/js/websocket.js` no longer writes
+unscoped delta prices. Both `public/js/chart.js` and
+`public/js/panels/chart-panel.js` retain broker-native candle starts and OHLCV,
+replace revisions at the original timestamp, use full-series refresh for older
+corrections, preserve zero volume, and leave candles unchanged on pure quotes.
+Their history loaders consume the server envelope and display unavailable/invalid
+history visibly. The browser Kraken fetch, ratio/spacing heuristics, bucket
+construction, delta handler, duplicate initial/timeframe requests, unused helper
+and constants are removed. Asset/frame switches clear stale view data. Current
+indicator volume comes from the latest-frame indicator snapshot, while a corrected
+bar retains its own volume. Both served HTML pages bump the changed scripts'
+versions. Two obsolete Jest cases asserting the retired fallback/spacing path are
+removed; no Jest tests are added or executed. Token/authentication logic is
+unchanged. Archived/design reference files are preserved.
+
+**Actual verification.** The isolated native fixture executes actual socket/core
+handlers and both complete chart consumers with synthetic DOM/series/transport.
+Twenty-eight combinations (2 charts x 2 symbols x 7 frames) verify exact OHLCV,
+zero-volume revisions, non-UTC-aligned native daily starts, old-bar replacement,
+quote ownership, other-scope rejection and no browser history fetch. Before:
+native series/corrections failed 28/28 combinations, 21/28 history comparisons
+failed, and V2 issued two initial requests. Candidate: every compared condition
+matches, both pages issue one initial and one timeframe history request, explicit
+errors are visible, valid native gaps survive and malformed volume is not fabricated.
+Final exact-candidate and applied-working-tree fixtures both exited 0; its four JavaScript hashes match Mercury's
+pinned source manifest. A candidate-generator quoting typo was corrected before
+any served file changed; it was tooling-only, not a bot exception. Supporting
+commands, before/after receipts, source identities and complete review are in
+[the native chart packet](ogz-meta/inbox/codex/2026-11-18/stop2-native-chart-consumer/RECEIPTS.md).
+
+**Independent review and limits.** One neutral Mercury dispatch on older native
+corrections across symbol/timeframe traffic: `no_break_found`, 53 successful tool
+calls, estimated $0.186012, no execution by Mercury. Only Mercury was selected;
+this is not panel consensus. Whole-file/coverage/inherited-section warnings and
+an unsupported-reference flag remain recorded. The answer's candidate count and
+claim that the new core filter was pre-existing are corrected in the receipt.
+The actual caller/consumer execution establishes behavior separately from that
+verdict. Existing legacy overlay-refresh limitations and V2 oscillator differences
+are surfaced, not claimed fixed. Full browser/canvas rendering, real broker
+responses and live bot-to-dashboard proof remain outstanding. The server's
+stock-history failure response and retired backend timeframe-change handlers are
+the next producer follow-up; the prior entry records the separate CVD issue.
+
+**Delivery and activation.** Scoped diff shown before commit. Seven directly
+related files plus this entry and sanitized receipts are the atomic change;
+inherited dirty work is preserved. Reviewed frontend bytes are available on the
+next request/reload when applied; static serving does not wait for PM2. Existing
+bot/server processes predate these repairs, so seven-frame live operation still
+needs separately approved activation. No PM2 restart, env reload, state/bank
+mutation, broker order or RAG rebuild occurred. Stop 2 remains open until live
+activation and receipts; `no_break_found` is not closure.
+
 ## 2026-11-18 — Remove duplicate candle histories from the native display source
 
 **Authority and root cause.** Continuing Trey's authorized Stop 2 repair after the native observation/entry split (`70b98f9c`). The runner's timeframe-only cache mixed symbols; its second symbol/frame cache appended older revisions out of order. Dashboard packets could then combine that history, the root indicator engine and a viewer-selected timeframe with a different native candle. These duplicate owners are removed, with their callers migrated together.

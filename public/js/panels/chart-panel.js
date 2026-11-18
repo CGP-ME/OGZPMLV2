@@ -79,10 +79,6 @@
 
     // Cached hot-path DOM refs (resolved once at mount)
     let _cachedPriceEl = null;
-    // Symbol whose price header was last painted by a LIVE frame (price/delta).
-    // loadHistorical() seeds the header from the last historical close ONLY
-    // when no live frame has painted the selected symbol — live always wins.
-    let _livePricePaintedFor = null;
     let _cachedHudPrice = null;
     let _cachedHudOhlc = null;
     let _cachedTooltipEl = null;
@@ -131,11 +127,9 @@
     const RESCALE_THROTTLE_MS = 80;
     const PRICE_FLASH_MS = 180;
     const MIN_INDICATOR_CANDLES = 30;
-    const MIN_VOLUME_STATS_CANDLES = 20;
     const VOL_CAP_PCTILE = 0.98;
     const VOL_ALPHA_FLOOR = 0.25;
     const VOL_ALPHA_RANGE = 0.55;
-    const VOL_LIVE_ALPHA_DEFAULT = 0.5;
     const VOL_LIVE_HEADROOM = 1.15;
     const CANDLE_PCTILE_LOW = 0.02;
     const CANDLE_PCTILE_HIGH = 0.98;
@@ -143,128 +137,27 @@
 
     const PRICE_FLASH_CLASS = 'ogz-chart-panel-price-flash';
 
-    const TF_SECONDS = {
-        '1s': 1, '5s': 5, '15s': 15, '30s': 30,
-        '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800,
-        '1h': 3600, '2h': 7200, '4h': 14400, '6h': 21600, '12h': 43200,
-        '1d': 86400
-    };
-
-    const DEFAULT_SYMBOL = 'TSLA';
-    const DEFAULT_TIMEFRAME = '15m';
-    const KRAKEN_OHLC_PAIRS = Object.freeze({
-        'BTC-USD': 'XBTUSD',
-        'ETH-USD': 'ETHUSD'
-    });
-    const KRAKEN_OHLC_INTERVALS = Object.freeze({
-        '1m': 1,
-        '5m': 5,
-        '15m': 15,
-        '30m': 30,
-        '1h': 60,
-        '4h': 240,
-        '1d': 1440
-    });
-
     function displayTimeframe(timeframe) {
         return String(timeframe || DEFAULT_TIMEFRAME).toUpperCase();
     }
 
-    function toFiniteNumber(value) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : 0;
-    }
-
-    function median(values) {
-        if (!Array.isArray(values) || values.length === 0) return null;
-        const sorted = values.slice().sort((a, b) => a - b);
-        const mid = Math.floor(sorted.length / 2);
-        return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-    }
-
-    function historicalSpacingMatchesTimeframe(candles, timeframe) {
-        const expected = TF_SECONDS[timeframe || DEFAULT_TIMEFRAME];
-        if (!expected || !Array.isArray(candles) || candles.length < 8) {
-            return { ok: true, expected, observed: null, sampleSize: 0 };
-        }
-
-        const deltas = [];
-        for (let i = 1; i < candles.length; i++) {
-            const delta = candles[i].time - candles[i - 1].time;
-            if (delta > 0 && Number.isFinite(delta)) deltas.push(delta);
-        }
-        if (deltas.length < 4) return { ok: true, expected, observed: null, sampleSize: deltas.length };
-
-        // Market-hour gaps are legitimate for stocks, so validate from the
-        // compact deltas where candle-to-candle spacing should reveal the
-        // actual interval. This catches 15m history mislabeled as 1m/5m.
-        const compact = deltas.filter(delta => delta <= expected * 3);
-        const sample = compact.length >= 4 ? compact : deltas;
-        const observed = median(sample);
-        if (!Number.isFinite(observed)) return { ok: true, expected, observed: null, sampleSize: sample.length };
-
-        const tolerance = Math.max(2, expected * 0.25);
-        return {
-            ok: Math.abs(observed - expected) <= tolerance,
-            expected,
-            observed,
-            sampleSize: sample.length
-        };
-    }
-
     function normalizeHistoricalCandle(candle) {
-        if (Array.isArray(candle)) {
-            return {
-                time: toFiniteNumber(candle[0]),
-                open: toFiniteNumber(candle[1]),
-                high: toFiniteNumber(candle[2]),
-                low: toFiniteNumber(candle[3]),
-                close: toFiniteNumber(candle[4]),
-                volume: toFiniteNumber(candle[6])
-            };
-        }
-        const rawTime = candle && (candle.time || candle.t || candle.timestamp || 0);
-        return {
-            time: toFiniteNumber(rawTime),
-            open: toFiniteNumber(candle && (candle.open || candle.o)),
-            high: toFiniteNumber(candle && (candle.high || candle.h)),
-            low: toFiniteNumber(candle && (candle.low || candle.l)),
-            close: toFiniteNumber(candle && (candle.close || candle.c)),
-            volume: toFiniteNumber(candle && (candle.volume || candle.v))
+        const number = value => {
+            if (value === null || value === undefined || value === '') return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
         };
-    }
-
-    function parseDisplayedPrice() {
-        const raw = document.getElementById('currentPrice')?.textContent || '';
-        return toFiniteNumber(raw.replace(/[^0-9.-]/g, ''));
-    }
-
-    function isPriceMismatched(symbol, candles) {
-        if (!KRAKEN_OHLC_PAIRS[symbol] || !Array.isArray(candles) || candles.length === 0) return false;
-        const displayed = parseDisplayedPrice();
-        if (displayed <= 0) return false;
-        const last = candles[candles.length - 1];
-        const close = toFiniteNumber(last && last.close);
-        if (close <= 0) return true;
-        const ratio = close / displayed;
-        return ratio < 0.2 || ratio > 5;
-    }
-
-    async function fetchKrakenHistoricalCandles(symbol, timeframe, limit) {
-        const pair = KRAKEN_OHLC_PAIRS[symbol];
-        const interval = KRAKEN_OHLC_INTERVALS[timeframe || DEFAULT_TIMEFRAME];
-        if (!pair || !interval || typeof fetch !== 'function') return [];
-        const url = `https://api.kraken.com/0/public/OHLC?pair=${encodeURIComponent(pair)}&interval=${encodeURIComponent(interval)}`;
-        const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`Kraken OHLC HTTP ${response.status}`);
-        const payload = await response.json();
-        if (Array.isArray(payload?.error) && payload.error.length > 0) {
-            throw new Error(payload.error.join('; '));
-        }
-        const result = payload && payload.result ? payload.result : {};
-        const resultKey = Object.keys(result).find(key => key !== 'last' && Array.isArray(result[key]));
-        const rows = resultKey ? result[resultKey] : [];
-        return rows.slice(-Math.max(1, limit || 500)).map(normalizeHistoricalCandle);
+        const raw = Array.isArray(candle)
+            ? { time: candle[0], open: candle[1], high: candle[2], low: candle[3], close: candle[4], volume: candle[6] }
+            : { time: candle?.timestamp ?? candle?.t ?? candle?.time, open: candle?.open ?? candle?.o,
+                high: candle?.high ?? candle?.h, low: candle?.low ?? candle?.l,
+                close: candle?.close ?? candle?.c, volume: candle?.volume ?? candle?.v };
+        const row = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, number(value)]));
+        if (Object.values(row).some(value => value === null) || row.time <= 0 || row.volume < 0
+            || Math.min(row.open, row.high, row.low, row.close) <= 0
+            || row.high < Math.max(row.open, row.close) || row.low > Math.min(row.open, row.close)) return null;
+        row.time = Math.floor(row.time / (row.time > 1e12 ? 1000 : 1));
+        return row;
     }
 
     function normalizeDashboardSymbol(symbol) {
@@ -657,12 +550,6 @@
     }
 
     // ─── Helper: Current Bucket Size ───────────────────────────────────────
-    function currentBucketSeconds() {
-        const root = document.getElementById(ROOT_ID);
-        const tf = root ? root.querySelector('#cp-timeframeSelector')?.value : DEFAULT_TIMEFRAME;
-        return TF_SECONDS[tf || DEFAULT_TIMEFRAME] || 60;
-    }
-
     // ─── Helper: Oscillator-Pane Persistence ───────────────────────────────
     // OSC_PANE_LS_KEY stores a JSON array of active pane keys. When the key is
     // absent (first-ever load / new feature) the VOLUME pane defaults ON.
@@ -1191,7 +1078,7 @@
 
             if (priceEl) {
                 if (!param.time || !candleData) {
-                    priceEl.textContent = `$${OGZ.state.lastPrice.toLocaleString()}`;
+                    priceEl.textContent = OGZ.state.lastPriceSymbol === selectedAssetSymbol() ? `$${OGZ.state.lastPrice.toLocaleString()}` : '--';
                 } else {
                     priceEl.textContent = `O:${candleData.open.toFixed(2)} H:${candleData.high.toFixed(2)} L:${candleData.low.toFixed(2)} C:${candleData.close.toFixed(2)}`;
                 }
@@ -1343,12 +1230,7 @@
     let _noDataWatchdogTimer = null;   // fix #42: timeframe-change "no data" watchdog
     let _pendingAssetHistoryTimer = null;
 
-    // Auto-bootstrap historical candles + supplemental WS subscriptions.
-    // Core.js routes price/historical_candles/pattern_analysis/depth_update to
-    // ChartPanel.update/loadHistorical/plotGhost/renderLiquidity already, but it
-    // does NOT route: (a) the initial request_historical handshake, (b) `delta`
-    // sub-tick flashes, (c) `trade` markers, (d) `state_update` position lines.
-    // Those four are wired here directly against the real socket.registerHandler.
+    // Core routes candles and quotes; these subscriptions add trades and positions.
     function bootstrapWS(rootEl) {
         if (_wsBootstrapped) return;
         const socket = OGZ.get('Socket');
@@ -1363,48 +1245,7 @@
         }
         _wsBootstrapped = true;
 
-        // (a) Initial historical load.
-        //
-        // Historical candles are requested directly by asset/timeframe. The
-        // backend must answer this contract without a client-side asset-swap
-        // kick; changing the selected asset just to provoke a response can
-        // mislabel candles while multiple symbols/brokers are visible.
-        try {
-            const sym = selectedAssetSymbol();
-            const tf  = rootEl?.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
-            if (typeof socket.send === 'function') {
-                const switched = socket.send({ type: 'asset_change', asset: sym });
-                const requested = socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
-                if (switched || requested) _loadedAsset = sym;
-            }
-        } catch (e) { /* swallow */ }
-
-        // (b) `delta` — sub-tick {price, volume, timestamp} from
-        // DashboardBroadcaster.broadcastEdgeAnalytics(). Used to keep the HUD
-        // price color/flash alive between full `price` ticks. Bot shape:
-        //   { type:'delta', tick:{ price, volume, timestamp } }
-        socket.registerHandler('delta', (d) => {
-            try {
-                if (!ChartPanel.isSelectedAssetPayload(d)) return;
-                const tick = (d && d.tick) ? d.tick : (d || {});
-                const p = Number(tick.price);
-                if (!isFinite(p) || p <= 0) return;
-                // Update only the HUD readout (chart series stays on real candle ticks)
-                const priceEl = _cachedPriceEl;
-                if (priceEl) {
-                    const prev = OGZ.state.lastPrice || p;
-                    OGZ.state.lastPriceDelta = p - prev;
-                    OGZ.state.lastPrice = p;
-                    _livePricePaintedFor = selectedAssetSymbol();
-                    const up = OGZ.state.lastPriceDelta >= 0;
-                    priceEl.textContent = `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    priceEl.style.color = up ? '#22c55e' : '#ef4444';
-                    priceEl.style.textShadow = up
-                        ? '0 0 12px rgba(34,197,94,0.75)'
-                        : '0 0 12px rgba(239,68,68,0.75)';
-                }
-            } catch (e) { /* swallow */ }
-        });
+        // The authenticated socket handshake owns the initial history request.
 
         // (c) `trade` — bot OrderExecutor broadcast. Real shape:
         //   { type:'trade', action:'BUY'|'SELL', direction:'long'|'short',
@@ -1680,7 +1521,6 @@
                 this._setFeedStatus(`Loading ${asset} ${displayTimeframe(nextTimeframe)} history...`, true);
                 const socket = OGZ.get('Socket');
                 if (socket) {
-                    socket.send({ type: 'timeframe_change', timeframe: nextTimeframe, asset });
                     socket.send({
                         type: 'request_historical',
                         timeframe: nextTimeframe,
@@ -1991,6 +1831,15 @@
          * Clear all chart data (candles, volume, indicators, markers).
          */
         clearAll: function () {
+            for (const id of ['rsiCore', 'macdCore', 'volumeCore', 'atrML', 'confidenceML']) {
+                const element = document.getElementById(id);
+                if (element) element.textContent = '--';
+            }
+            const selectedSymbol = selectedAssetSymbol();
+            const quoteText = OGZ.state.lastPriceSymbol === selectedSymbol ? `$${OGZ.state.lastPrice.toLocaleString()}` : '--';
+            if (_cachedPriceEl) _cachedPriceEl.textContent = quoteText;
+            if (_cachedHudPrice) _cachedHudPrice.textContent = quoteText;
+            if (_cachedHudOhlc) _cachedHudOhlc.textContent = '--';
             if (candleSeries) candleSeries.setData([]);
             if (volumeSeries) volumeSeries.setData([]);
             if (this._lineSeries) this._lineSeries.setData([]);
@@ -2056,7 +1905,6 @@
             _cachedHudPrice = null;
             _cachedHudOhlc = null;
             _cachedTooltipEl = null;
-            _livePricePaintedFor = null;
 
             if (this._chartResizeObserver) {
                 try { this._chartResizeObserver.disconnect(); }
@@ -2127,68 +1975,35 @@
         update: function (d) {
             if (!this.isSelectedAssetPayload(d)) return;
             if (!candleSeries) return;
-            const candle = d.candle || d;
-            const price = candle.close || candle.c;
-            const open = candle.open || candle.o;
-            const high = candle.high || candle.h;
-            const low = candle.low || candle.l;
-            const rawMs = candle.timestamp || candle.t || Date.now();
-            const t = Math.floor(rawMs / 1000);
-            const bucket = currentBucketSeconds();
-            const timeAligned = Math.floor(t / bucket) * bucket;
-
-            let tickOpen = open, tickHigh = high, tickLow = low, tickClose = price;
-            if (price != null && (open == null || high == null || low == null)) {
-                const last = storedCandles[storedCandles.length - 1];
-                if (last && last.time === timeAligned) {
-                    tickOpen = last.open;
-                    tickHigh = Math.max(last.high, price);
-                    tickLow = Math.min(last.low, price);
-                    tickClose = price;
-                    last.high = tickHigh; last.low = tickLow; last.close = tickClose;
-                } else if (price != null) {
-                    tickOpen = tickHigh = tickLow = tickClose = price;
-                    storedCandles.push({ time: timeAligned, open: price, high: price, low: price, close: price, volume: 0 });
+            const candle = d.candle;
+            const price = candle ? null : Number(d.price ?? d.close);
+            if (candle) {
+                const bar = normalizeHistoricalCandle(candle);
+                if (!bar) {
+                    console.error('[Chart] Invalid native candle', { symbol: d.symbol, timeframe: d.timeframe, candle });
+                    this._setFeedStatus('Invalid native candle received', true);
+                    return;
                 }
-            } else if (open != null) {
-                const last = storedCandles[storedCandles.length - 1];
-                if (last && last.time === timeAligned) {
-                    last.open = open; last.high = high; last.low = low; last.close = price;
-                } else {
-                    storedCandles.push({ time: timeAligned, open, high, low, close: price, volume: candle.volume || candle.v || 0 });
-                }
-            }
-
-            if (tickClose != null) {
-                candleSeries.update({
-                    time: timeAligned,
-                    open: tickOpen,
-                    high: tickHigh,
-                    low: tickLow,
-                    close: tickClose
-                });
-            }
-
-            if (candle.volume || candle.v) {
-                const up = tickClose >= tickOpen;
-                let liveAlpha = VOL_LIVE_ALPHA_DEFAULT;
-                if (storedCandles.length > MIN_VOLUME_STATS_CANDLES) {
-                    const sortedVols = storedCandles.map(c => c.volume).filter(v => v > 0).sort((a, b) => a - b);
-                    const capVol = sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * VOL_CAP_PCTILE) - 1)] || 1;
-                    const ratio = Math.min(1, (candle.volume || candle.v) / capVol);
-                    liveAlpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * ratio;
-                }
-                const rgb = up ? '34,197,94' : '239,68,68';
-                const volEntry = {
-                    time: timeAligned,
-                    value: candle.volume || candle.v,
-                    color: `rgba(${rgb},${liveAlpha.toFixed(3)})`
-                };
-                volumeSeries.update(volEntry);
-                // Mirror live volume tick into the volume pane when active.
-                const volPane = _oscPanes['volume'];
-                if (volPane && volPane.series && volPane.series.volume) {
-                    try { volPane.series.volume.update(volEntry); } catch (e) { /* swallow */ }
+                const index = storedCandles.findIndex(row => row.time >= bar.time);
+                if (index === -1) storedCandles.push(bar);
+                else if (storedCandles[index].time === bar.time) storedCandles[index] = bar;
+                else storedCandles.splice(index, 0, bar);
+                const older = bar.time < storedCandles[storedCandles.length - 1].time;
+                const chartBar = { time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
+                if (older) candleSeries.setData(storedCandles.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+                else candleSeries.update(chartBar);
+                if (volumeSeries) {
+                    const sortedVolumes = storedCandles.map(row => row.volume).filter(value => value > 0).sort((a, b) => a - b);
+                    const cap = sortedVolumes.length ? sortedVolumes[Math.ceil(sortedVolumes.length * VOL_CAP_PCTILE) - 1] : 1;
+                    const volumeEntry = row => {
+                        const alpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * Math.min(1, row.volume / cap);
+                        const rgb = row.close >= row.open ? '34,197,94' : '239,68,68';
+                        return { time: row.time, value: row.volume, color: `rgba(${rgb},${alpha.toFixed(3)})` };
+                    };
+                    const values = older ? storedCandles.map(volumeEntry) : volumeEntry(bar);
+                    if (older) volumeSeries.setData(values); else volumeSeries.update(values);
+                    const pane = _oscPanes['volume'];
+                    if (pane?.series?.volume) { if (older) pane.series.volume.setData(values); else pane.series.volume.update(values); }
                 }
             }
 
@@ -2200,10 +2015,7 @@
                 feedOscIndicatorPanes(storedCandles);
             }
 
-            if (price != null) {
-                OGZ.state.lastPriceDelta = price - OGZ.state.lastPrice;
-                OGZ.state.lastPrice = price;
-                _livePricePaintedFor = selectedAssetSymbol();
+            if (Number.isFinite(price) && price > 0) {
                 const up = OGZ.state.lastPriceDelta >= 0;
                 const flashColor = up ? '#22c55e' : '#ef4444';
                 const flashShadow = up ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)';
@@ -2242,15 +2054,16 @@
                     trackTimer(hudPrice._flashTimer);
                 }
 
-                const hudOhlc = _cachedHudOhlc;
-                if (hudOhlc) {
-                    if (storedCandles.length) {
-                        const lc = storedCandles[storedCandles.length - 1];
-                        hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
-                        const hud = hudOhlc.parentElement;
-                        if (hud && hud.style.visibility !== 'visible') {
-                            hud.style.visibility = 'visible';
-                        }
+
+            }
+            const hudOhlc = _cachedHudOhlc;
+            if (hudOhlc) {
+                if (storedCandles.length) {
+                    const lc = storedCandles[storedCandles.length - 1];
+                    hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
+                    const hud = hudOhlc.parentElement;
+                    if (hud && hud.style.visibility !== 'visible') {
+                        hud.style.visibility = 'visible';
                     }
                 }
             }
@@ -2310,76 +2123,25 @@
          * Load historical candles and recalculate indicators.
          */
         loadHistorical: async function (message) {
-            const envelope = Array.isArray(message) ? { candles: message } : (message || {});
+            const envelope = message;
             if (!this.isSelectedAssetPayload(envelope)) return;
-            const candles = envelope.candles;
-            if (!candleSeries || !candles || candles.length === 0) return;
+            const requestedSymbol = normalizeDashboardSymbol(envelope.symbol || envelope.asset);
+            const requestedTimeframe = envelope.timeframe;
+            if (requestedTimeframe !== document.getElementById('cp-timeframeSelector')?.value) return;
+            if (!candleSeries) return;
+            if (envelope.error || !Array.isArray(envelope.candles) || envelope.candles.length === 0) {
+                this._clearNoDataWatchdog();
+                this._setFeedStatus(`${requestedSymbol} ${requestedTimeframe}: ${envelope.error || 'No native history received'}`, true);
+                console.error('[ChartPanel] Native history unavailable', envelope.error || 'empty response');
+                return;
+            }
             try {
-                const requestedSymbol = normalizeDashboardSymbol(envelope.symbol || envelope.asset || selectedAssetSymbol());
-                const requestedTimeframe = envelope.timeframe || document.getElementById('cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
-                const requestedLimit = Math.max(candles.length, 500);
-                let sourceCandles = candles;
-
-                if (KRAKEN_OHLC_PAIRS[requestedSymbol]) {
-                    try {
-                        const krakenCandles = await fetchKrakenHistoricalCandles(requestedSymbol, requestedTimeframe, requestedLimit);
-                        if (krakenCandles.length > 0) sourceCandles = krakenCandles;
-                    } catch (e) {
-                        console.warn('[ChartPanel] Kraken historical fallback failed', {
-                            asset: requestedSymbol,
-                            timeframe: requestedTimeframe,
-                            error: e && e.message ? e.message : e
-                        });
-                    }
-                }
-
-                const currentSymbol = selectedAssetSymbol();
-                const currentTimeframe = document.getElementById('cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
-                if (requestedSymbol !== currentSymbol || requestedTimeframe !== currentTimeframe) return;
-
-                const formatted = sourceCandles.map(c => {
-                    const candle = normalizeHistoricalCandle(c);
-                    const time = Math.floor(candle.time / (candle.time > 1e12 ? 1000 : 1));
-                    return {
-                        time,
-                        open: candle.open,
-                        high: candle.high,
-                        low: candle.low,
-                        close: candle.close,
-                        volume: candle.volume
-                    };
-                }).filter(c => c.time > 0 && c.open > 0);
-
-                if (formatted.length === 0) {
-                    this._setFeedStatus(`No ${requestedSymbol} ${displayTimeframe(requestedTimeframe)} history received`, true);
+                const formatted = envelope.candles.map(normalizeHistoricalCandle);
+                if (formatted.some(candle => candle === null)) {
+                    this._setFeedStatus('Invalid native candle history received', true);
+                    console.error('[ChartPanel] Invalid native candle history', { requestedSymbol, requestedTimeframe });
                     return;
                 }
-                const spacing = historicalSpacingMatchesTimeframe(formatted, requestedTimeframe);
-                if (!spacing.ok) {
-                    this.clearAll();
-                    this._clearNoDataWatchdog();
-                    this._setFeedStatus(
-                        `${requestedSymbol} ${displayTimeframe(requestedTimeframe)} history spacing mismatch`,
-                        true
-                    );
-                    console.warn('[ChartPanel] rejected historical candle spacing mismatch', {
-                        symbol: requestedSymbol,
-                        timeframe: requestedTimeframe,
-                        expectedSeconds: spacing.expected,
-                        observedSeconds: spacing.observed,
-                        sampleSize: spacing.sampleSize
-                    });
-                    return;
-                }
-                if (isPriceMismatched(requestedSymbol, formatted)) {
-                    const pill = document.getElementById('feedStatusPill');
-                    if (pill) {
-                        pill.textContent = `${requestedSymbol} historical feed mismatch`;
-                        pill.style.display = 'block';
-                    }
-                    return;
-                }
-
                 candleSeries.setData(formatted.map(c => ({
                     time: c.time, open: c.open, high: c.high, low: c.low, close: c.close
                 })));
@@ -2400,43 +2162,13 @@
                     // Mirror full historical volume into the volume pane when active.
                     const volPane = _oscPanes['volume'];
                     if (volPane && volPane.series && volPane.series.volume) {
-                        try { volPane.series.volume.setData(volData); } catch (e) { /* swallow */ }
+                        volPane.series.volume.setData(volData);
                     }
                 }
 
                 storedCandles = formatted;
 
-                // Seed the price header + HUD from the last historical close.
-                // Root fix for the "$0.00 until first live frame" gap: when the
-                // bot is dormant or the market is closed, no live price frame
-                // ever arrives, so the header sat at its $0.00 initial text
-                // while the chart itself showed real candles. The last close IS
-                // real data. Live frames always win (guarded by
-                // _livePricePaintedFor); the seed paints neutral, no flash.
-                if (_livePricePaintedFor !== requestedSymbol) {
-                    const lastCandle = formatted[formatted.length - 1];
-                    const lastClose = Number(lastCandle.close);
-                    if (isFinite(lastClose) && lastClose > 0) {
-                        if (_cachedPriceEl) {
-                            _cachedPriceEl.textContent = `$${lastClose.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                            _cachedPriceEl.style.color = '';
-                            _cachedPriceEl.style.textShadow = '';
-                        }
-                        if (_cachedHudPrice) {
-                            _cachedHudPrice.textContent = `$${lastClose.toFixed(2)}`;
-                            _cachedHudPrice.style.color = '';
-                            _cachedHudPrice.style.textShadow = '';
-                        }
-                        if (_cachedHudOhlc) {
-                            _cachedHudOhlc.textContent = `O ${lastCandle.open.toFixed(2)}  H ${lastCandle.high.toFixed(2)}  L ${lastCandle.low.toFixed(2)}  C ${lastCandle.close.toFixed(2)}`;
-                            const hud = _cachedHudOhlc.parentElement;
-                            if (hud && hud.style.visibility !== 'visible') {
-                                hud.style.visibility = 'visible';
-                            }
-                        }
-                        OGZ.state.lastPrice = lastClose;
-                    }
-                }
+                _loadedAsset = requestedSymbol;
 
                 // fix #42: real data arrived — cancel the timeframe-change watchdog.
                 this._clearNoDataWatchdog();
@@ -2447,22 +2179,21 @@
                 feedOscIndicatorPanes(formatted);
 
                 if (tvChart) {
-                    try {
-                        tvChart.priceScale('right').applyOptions({ autoScale: true });
-                        // fitContent() spreads the whole loaded batch evenly
-                        // across the full chart width. The old scrollToRealTime()
-                        // call right after it FOUGHT that — it jumped the
-                        // viewport to the live edge at the default narrow bar
-                        // spacing, so the batch ended up jammed into the right
-                        // ~40% of the x-axis with dead space on the left.
-                        // fitContent() alone is correct for a one-shot
-                        // historical load; live-follow on streaming candles is
-                        // handled separately by the per-tick update path.
-                        tvChart.timeScale().fitContent();
-                    } catch (e) { /* swallow */ }
+                    tvChart.priceScale('right').applyOptions({ autoScale: true });
+                    // fitContent() spreads the whole loaded batch evenly
+                    // across the full chart width. The old scrollToRealTime()
+                    // call right after it FOUGHT that — it jumped the
+                    // viewport to the live edge at the default narrow bar
+                    // spacing, so the batch ended up jammed into the right
+                    // ~40% of the x-axis with dead space on the left.
+                    // fitContent() alone is correct for a one-shot
+                    // historical load; live-follow on streaming candles is
+                    // handled separately by the per-tick update path.
+                    tvChart.timeScale().fitContent();
                 }
             } catch (e) {
-                /* swallow */
+                this._setFeedStatus('Native history could not be displayed', true);
+                console.error('[ChartPanel] loadHistorical error:', e);
             }
         },
 
@@ -2947,9 +2678,6 @@
             return normalizeIndicatorSelection(active);
         },
 
-        _historicalSpacingMatchesTimeframe: function (candles, timeframe) {
-            return historicalSpacingMatchesTimeframe(candles, timeframe);
-        }
     };
 
     // ─── Registration ──────────────────────────────────────────────────────

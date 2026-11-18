@@ -410,12 +410,6 @@
                         lastDataAt = Date.now();
                     }
 
-                    // God Mode: Delta Merge Engine (dormant — awaits delta emitter)
-                    if (data.type === 'delta' && data.tick) {
-                        OGZ.state.lastPriceDelta = data.tick.price - OGZ.state.lastPrice;
-                        OGZ.state.lastPrice = data.tick.price;
-                    }
-
                     // Auth success -> identify + load historical candles for selected asset.
                     if (data.type === 'auth_success') {
                         authenticated = true;

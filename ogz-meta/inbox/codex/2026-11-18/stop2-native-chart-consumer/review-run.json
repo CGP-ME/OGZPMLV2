@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=813e1309caa89703a4c652e7d7e122d18011c090",
+    "--review-base=092008aad66d3b9a39abb54b1cf82b8b7829a19d",
+    "--change-path=public/js/core.js",
+    "--change-path=public/js/chart.js",
+    "--change-path=public/js/panels/chart-panel.js",
+    "How does an older broker candle correction affect the selected dashboard's OHLCV series while messages for multiple symbols and timeframes arrive? Trace the actual producer and both served chart consumers in this source snapshot, cite file:line evidence, and identify any scope, timestamp or value mismatch and any unread gap."
+  ],
+  "startedAtUtc": "2026-11-18T20:52:29.612218+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 145.617,
+  "logSha256": "d3359a0554b5fc43e57cdee5d94ddd42bed18b61e67b25a6e324a47c53619f24"
+}

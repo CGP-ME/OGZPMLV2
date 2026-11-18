@@ -1,0 +1,1418 @@
+{
+  "baseline": false,
+  "sourceHashes": {
+    "public/js/panels/chart-panel.js": "93e4e1afcb5a4307cf17e3a8680871915e3b2454423ed80c924e49b418fc2e10",
+    "public/js/chart.js": "26390414ee366a1c1b84d4affe8f12d87d9d199b98643de69b1eb9cad16dace5",
+    "public/js/core.js": "f0026061a2b558bc417b949148a70012dbdcb49a8b049e9c0741f0e6736bf296",
+    "public/js/websocket.js": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532"
+  },
+  "cases": [
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891660,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794891720,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794891780,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891900,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794892200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794892500,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794892500,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794893400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794894300,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794893400,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794895200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794897000,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794895200,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794898800,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794902400,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794906000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794920400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794934800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794978000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1795064400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1795150800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891660,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794891720,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794891780,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891900,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794892200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794892500,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794892500,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794893400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794894300,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794893400,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794895200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794897000,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794895200,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794898800,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794902400,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794906000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794920400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794934800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "ChartPanel",
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794978000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1795064400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1795150800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": []
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891660,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794891720,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794891780,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891900,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794892200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794892500,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794892500,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794893400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794894300,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794893400,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794895200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794897000,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794895200,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794898800,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794902400,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794906000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794920400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794934800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794978000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1795064400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1795150800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891660,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794891720,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794891780,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794891900,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794892200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794892500,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794892500,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794893400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794894300,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794893400,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794895200,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794897000,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794895200,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794898800,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794902400,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794906000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1794920400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1794934800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "historyMatches": true,
+      "browserHistoryRequests": 0,
+      "quoteLeavesCandles": true,
+      "nativeMatches": true,
+      "zeroVolumesPreserved": true,
+      "correctionLeavesQuote": true,
+      "latestIndicatorVolume": true,
+      "otherScopesIgnored": true,
+      "oldQuoteAndDeltaIgnored": true,
+      "actualFinalCandles": [
+        {
+          "time": 1794891600,
+          "open": 96,
+          "high": 99,
+          "low": 95,
+          "close": 97
+        },
+        {
+          "time": 1794978000,
+          "open": 109,
+          "high": 112,
+          "low": 108,
+          "close": 110
+        },
+        {
+          "time": 1795064400,
+          "open": 119,
+          "high": 122,
+          "low": 118,
+          "close": 120
+        },
+        {
+          "time": 1795150800,
+          "open": 130,
+          "high": 133,
+          "low": 129,
+          "close": 131
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    }
+  ],
+  "summaries": [
+    {
+      "chart": "ChartPanel",
+      "initialHistoryRequests": 1,
+      "frameRequests": [
+        {
+          "type": "request_historical",
+          "timeframe": "1d",
+          "asset": "BTC-USD",
+          "limit": 500
+        }
+      ],
+      "errorsVisible": true,
+      "switchClearsOldScope": true,
+      "nativeGapsPreserved": true,
+      "invalidNotFabricated": true,
+      "logs": [
+        {
+          "level": "error",
+          "message": "[ChartPanel] Native history unavailable synthetic native history unavailable"
+        },
+        {
+          "level": "error",
+          "message": "[ChartPanel] Invalid native candle history [object Object]"
+        }
+      ]
+    },
+    {
+      "chart": "Chart",
+      "initialHistoryRequests": 1,
+      "frameRequests": [
+        {
+          "type": "request_historical",
+          "timeframe": "1d",
+          "asset": "BTC-USD",
+          "limit": 500
+        }
+      ],
+      "errorsVisible": true,
+      "switchClearsOldScope": true,
+      "nativeGapsPreserved": true,
+      "invalidNotFabricated": true,
+      "logs": [
+        {
+          "level": "log",
+          "message": "[Chart] Timeframe: 1d"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] Native history unavailable synthetic native history unavailable"
+        },
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        },
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 10 historical candles"
+        },
+        {
+          "level": "error",
+          "message": "[Chart] Invalid native candle history [object Object]"
+        }
+      ]
+    }
+  ],
+  "seams": [
+    "Actual socket onmessage, core handlers, chart history/update/clearAll and timeframe change callbacks",
+    "Both served chart modules; actual native normalizers and symbol selection functions",
+    "Synthetic DOM, chart-series API capture, quote/native inputs, timers and transport"
+  ],
+  "limits": [
+    "No connected browser, canvas rendering or screenshot",
+    "No live broker, bot restart or trading operation",
+    "Chart series capture enforces backwards-update rejection but is not Lightweight Charts itself",
+    "Oscillator calculations and overlay rendering are not exercised"
+  ]
+}

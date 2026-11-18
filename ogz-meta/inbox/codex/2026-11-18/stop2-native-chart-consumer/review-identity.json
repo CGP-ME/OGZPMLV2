@@ -1,0 +1,24 @@
+{
+  "baseCommit": "092008aad66d3b9a39abb54b1cf82b8b7829a19d",
+  "candidateTree": "813e1309caa89703a4c652e7d7e122d18011c090",
+  "candidateSourceSha256": {
+    "public/js/core.js": "f0026061a2b558bc417b949148a70012dbdcb49a8b049e9c0741f0e6736bf296",
+    "public/js/websocket.js": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532",
+    "public/js/chart.js": "26390414ee366a1c1b84d4affe8f12d87d9d199b98643de69b1eb9cad16dace5",
+    "public/js/panels/chart-panel.js": "93e4e1afcb5a4307cf17e3a8680871915e3b2454423ed80c924e49b418fc2e10",
+    "test/chart-panel-symbol-filter.test.js": "2ff66a0afd407cd11d65da37e0e152c868623b6b4c878364f2044d1c691893e8",
+    "public/unified-dashboard.html": "8dda25a3b9bc72f4007f3e37be2925dbcf24b302c1a1cecbf1619cfe82d10cf6",
+    "public/unified-dashboard-v2.html": "477aa599ec569c6ebf64cb51a23072043800cbd1e82eb084a4f9af2c7eaa00a7"
+  },
+  "harnessSha256": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "trai_brain/mercury-bridge/adversarial-review.js": "e2c2111c480396c50ed7c84335816071dd6c02b819ada15230a205d625b23e8f",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c",
+    "mercury.config.json": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a"
+  },
+  "qualification": "Review source is the staged tree; inherited unstaged react-loop.js runs the harness. Public working files remain unchanged during candidate review.",
+  "reviewRunId": "2026-11-18T20-54-45-881Z-c335ba44d790",
+  "resolvedBaseTree": "df0415f540afe66e4371485e52d9126cb8c85e9b",
+  "manifestSourceHashesMatchVerifiedCandidate": true
+}
