@@ -1,0 +1,30 @@
+{
+  "recordedAtUTC": "2026-11-18T04:57:18.517521+00:00",
+  "checks": [
+    {
+      "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/fixtures/frame-routing.cjs -- node ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/fixtures/frame-routing.cjs",
+      "observedExitCode": 0,
+      "fixtureSha256": "dfd0eea5fa890adb2bb75b9ed6890f2fd3bcd799dac0339e3babff4501fa5c24",
+      "localLog": "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/frame-routing-final-ohlcv.log",
+      "localLogSha256": "aee716d1863024470633ae05905c10203b2f60cc371223205ed9c4ad28ce975f",
+      "receipt": "frame-routing-receipt.json",
+      "interpretation": "Current behavior reproduced; no repaired-behavior or live acceptance claim"
+    },
+    {
+      "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/fixtures/chart-frame-routing.cjs -- node ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/fixtures/chart-frame-routing.cjs",
+      "observedExitCode": 0,
+      "fixtureSha256": "73d5ae439573f2a5087532cd5a87640d5aecb551d54863d4d0f91cd009b89a41",
+      "localLog": "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/chart-producer-routing-complete.log",
+      "localLogSha256": "6c2780c62e78946621a016db3bae65dc0a7c103e2ca040f5aa4f565c3a6989cf",
+      "receipt": "chart-routing-receipt.json",
+      "interpretation": "Current behavior reproduced; no repaired-behavior or live acceptance claim"
+    }
+  ],
+  "earlierProbeFailure": {
+    "localLog": "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/chart-producer-routing.log",
+    "reason": "Fixture did not extract isNumericValue used by the real frontend dispatcher",
+    "resolution": "Extracted the actual helper and reran; no production change"
+  },
+  "review": "Author source/receipt consistency review; no external model review and no panel vote",
+  "runtimeActivation": false
+}

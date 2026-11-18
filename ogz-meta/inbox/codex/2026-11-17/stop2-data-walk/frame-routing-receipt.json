@@ -1,0 +1,401 @@
+{
+  "runnerSha256": "348cab3b31997eb1827af7fae5ef1215cc328746566babb13859398a38a2579b",
+  "evaluatedTimeframes": [
+    "1m",
+    "5m",
+    "15m",
+    "1h",
+    "4h"
+  ],
+  "rows": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": false,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        },
+        {
+          "type": "NON_ACTIVE_TIMEFRAME_DROPPED",
+          "reason": "timeframe_not_selected"
+        }
+      ],
+      "messages": [
+        {
+          "level": "error",
+          "text": "[OHLC][TIMEFRAME-NON-ACTIVE] dropped non-active timeframe payload count=1 symbol=BTC-USD sourceTimeframe=30m activeTimeframe=15m"
+        }
+      ]
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": false,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        },
+        {
+          "type": "NON_ACTIVE_TIMEFRAME_DROPPED",
+          "reason": "timeframe_not_selected"
+        }
+      ],
+      "messages": [
+        {
+          "level": "error",
+          "text": "[OHLC][TIMEFRAME-NON-ACTIVE] dropped non-active timeframe payload count=2 symbol=BTC-USD sourceTimeframe=1d activeTimeframe=15m"
+        }
+      ]
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "5m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "15m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "30m",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": false,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        },
+        {
+          "type": "NON_ACTIVE_TIMEFRAME_DROPPED",
+          "reason": "timeframe_not_selected"
+        }
+      ],
+      "messages": [
+        {
+          "level": "error",
+          "text": "[OHLC][TIMEFRAME-NON-ACTIVE] dropped non-active timeframe payload count=3 symbol=ETH-USD sourceTimeframe=30m activeTimeframe=15m"
+        }
+      ]
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "1h",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "4h",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": true,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        }
+      ],
+      "messages": []
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "1d",
+      "storedInSymbolHistory": true,
+      "storedInSharedDashboardMirror": true,
+      "markAttempted": true,
+      "evaluationAdmitted": false,
+      "inputUnchanged": true,
+      "emitted": [
+        {
+          "type": "CANDLE_INGRESS",
+          "reason": null
+        },
+        {
+          "type": "CANDLE_NORMALIZED",
+          "reason": null
+        },
+        {
+          "type": "LAST_PRICE_INFLUENCE",
+          "reason": null
+        },
+        {
+          "type": "NON_ACTIVE_TIMEFRAME_DROPPED",
+          "reason": "timeframe_not_selected"
+        }
+      ],
+      "messages": [
+        {
+          "level": "error",
+          "text": "[OHLC][TIMEFRAME-NON-ACTIVE] dropped non-active timeframe payload count=4 symbol=ETH-USD sourceTimeframe=1d activeTimeframe=15m"
+        }
+      ]
+    }
+  ],
+  "diagnostics": {
+    "missingSessionRouterTimeframeDrops": 0,
+    "missingScopeTimeframeDrops": 0,
+    "nonActiveTimeframeDrops": 4
+  },
+  "scope": "Actual runner admission handler and storage methods, actual normalizer and closed-candle selector; synthetic market packets in isolation.",
+  "seams": [
+    "state-manager price update",
+    "CandleProcessor admission",
+    "runtime scope identity",
+    "log/trace sinks"
+  ],
+  "limits": [
+    "No strategy execution or numerical indicator certification",
+    "No real broker calls or production writes",
+    "No full Stop 2 verdict"
+  ]
+}

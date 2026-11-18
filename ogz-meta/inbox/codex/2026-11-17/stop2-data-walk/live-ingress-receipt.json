@@ -1,0 +1,240 @@
+{
+  "observedAtUTC": "2026-11-18T04:55:26.341517+00:00",
+  "logPath": "/home/linuxuser/.pm2/logs/ogz-prime-v2-out.log",
+  "byteStart": 8354359042,
+  "byteEnd": 8356359042,
+  "sampleSha256": "ee5c929372b7e6731dd68d89550bb128df5ba9e600161dcd4bfcc4871952da7b",
+  "eventCounts": {
+    "CANDLE_INGRESS:15m": 161,
+    "CANDLE_INGRESS:30m": 161,
+    "NON_ACTIVE_TIMEFRAME_DROPPED:30m": 161,
+    "CANDLE_INGRESS:1h": 161,
+    "CANDLE_INGRESS:4h": 161,
+    "CANDLE_INGRESS:1d": 161,
+    "NON_ACTIVE_TIMEFRAME_DROPPED:1d": 161,
+    "CANDLE_INGRESS:1m": 160,
+    "CANDLE_INGRESS:5m": 160
+  },
+  "firstEvents": [
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977477761_z38tmy",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977477778_4cwzp6",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "30m"
+    },
+    {
+      "event": "NON_ACTIVE_TIMEFRAME_DROPPED",
+      "traceId": "candle_1794977477778_4cwzp6",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "sourceTimeframe": "30m",
+      "activeTimeframe": "15m",
+      "reason": "timeframe_not_selected"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977477780_lgjrr9",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1h"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977477805_0cxaso",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "4h"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977477839_mvl9ar",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1d"
+    },
+    {
+      "event": "NON_ACTIVE_TIMEFRAME_DROPPED",
+      "traceId": "candle_1794977477839_mvl9ar",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "sourceTimeframe": "1d",
+      "activeTimeframe": "15m",
+      "reason": "timeframe_not_selected"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977480267_24le2c",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1m"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977480291_h2jr5o",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "5m"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977480317_6ul3wb",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977480338_2hgmfr",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "30m"
+    },
+    {
+      "event": "NON_ACTIVE_TIMEFRAME_DROPPED",
+      "traceId": "candle_1794977480338_2hgmfr",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "sourceTimeframe": "30m",
+      "activeTimeframe": "15m",
+      "reason": "timeframe_not_selected"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977480340_rz7iuh",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1h"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977480358_0700ee",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "4h"
+    }
+  ],
+  "lastEvents": [
+    {
+      "event": "NON_ACTIVE_TIMEFRAME_DROPPED",
+      "traceId": "candle_1794977719489_9vj52y",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "sourceTimeframe": "30m",
+      "activeTimeframe": "15m",
+      "reason": "timeframe_not_selected"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977719490_r08oob",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1h"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977719502_mn89h3",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "4h"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977719511_s1vswl",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1d"
+    },
+    {
+      "event": "NON_ACTIVE_TIMEFRAME_DROPPED",
+      "traceId": "candle_1794977719511_s1vswl",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "sourceTimeframe": "1d",
+      "activeTimeframe": "15m",
+      "reason": "timeframe_not_selected"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977721935_db1i11",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1m"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977721960_4xcw50",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "5m"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977721977_uhulor",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977721993_e9nl5c",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "30m"
+    },
+    {
+      "event": "NON_ACTIVE_TIMEFRAME_DROPPED",
+      "traceId": "candle_1794977721993_e9nl5c",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "sourceTimeframe": "30m",
+      "activeTimeframe": "15m",
+      "reason": "timeframe_not_selected"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977721995_jz20i6",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1h"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977722010_w3kxk3",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "4h"
+    },
+    {
+      "event": "CANDLE_INGRESS",
+      "traceId": "candle_1794977722025_8am7yk",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "1d"
+    },
+    {
+      "event": "NON_ACTIVE_TIMEFRAME_DROPPED",
+      "traceId": "candle_1794977722025_8am7yk",
+      "source": "sessionRouter:crypto",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "sourceTimeframe": "1d",
+      "activeTimeframe": "15m",
+      "reason": "timeframe_not_selected"
+    }
+  ],
+  "claimLimit": "Bounded log sample; no completeness, broker packet equality, or rendered chart claim. Account identifiers excluded."
+}

@@ -1,0 +1,204 @@
+{
+  "sourceHashes": {
+    "public/js/core.js": "722eca749da3d708f47e369e0c6c109b8eaad207348e07427d5252e03c1eac2a",
+    "core/CandleProcessor.js": "f4b2cb1ec3954f2116417ec3a26dacf822295aa514c879ab4d9482a58b08d336",
+    "public/js/chart.js": "1835e68ceda113fd223132aea68db14027fca92281a74ac4f428b55bc541a46a",
+    "public/js/panels/chart-panel.js": "1771141357664b219ae1c7a26a72556162f8328c510822d76dbce640c0def5a9"
+  },
+  "rows": [
+    {
+      "filename": "public/js/chart.js",
+      "scenario": "matching_native_bar",
+      "selectedTimeframe": "1d",
+      "sourceCandle": {
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12,
+        "timestamp": 1794873600000
+      },
+      "producerEnvelopeTimeframe": "1d",
+      "producerCandleTimeframe": "1d",
+      "chartSeriesWrite": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105
+      },
+      "storedCandle": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12
+      }
+    },
+    {
+      "filename": "public/js/chart.js",
+      "scenario": "one_minute_bar_on_daily_chart",
+      "selectedTimeframe": "1d",
+      "sourceCandle": {
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12,
+        "timestamp": 1794873660000
+      },
+      "producerEnvelopeTimeframe": "1d",
+      "producerCandleTimeframe": "1m",
+      "chartSeriesWrite": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105
+      },
+      "storedCandle": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12
+      }
+    },
+    {
+      "filename": "public/js/chart.js",
+      "scenario": "price_without_ohlc",
+      "selectedTimeframe": "1d",
+      "sourceCandle": {
+        "symbol": "BTC-USD",
+        "close": 105,
+        "timestamp": 1794873660000
+      },
+      "producerEnvelopeTimeframe": "1d",
+      "producerCandleTimeframe": null,
+      "chartSeriesWrite": {
+        "time": 1794873600,
+        "open": 105,
+        "high": 105,
+        "low": 105,
+        "close": 105
+      },
+      "storedCandle": {
+        "time": 1794873600,
+        "open": 105,
+        "high": 105,
+        "low": 105,
+        "close": 105,
+        "volume": 0
+      }
+    },
+    {
+      "filename": "public/js/panels/chart-panel.js",
+      "scenario": "matching_native_bar",
+      "selectedTimeframe": "1d",
+      "sourceCandle": {
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12,
+        "timestamp": 1794873600000
+      },
+      "producerEnvelopeTimeframe": "1d",
+      "producerCandleTimeframe": "1d",
+      "chartSeriesWrite": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105
+      },
+      "storedCandle": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12
+      }
+    },
+    {
+      "filename": "public/js/panels/chart-panel.js",
+      "scenario": "one_minute_bar_on_daily_chart",
+      "selectedTimeframe": "1d",
+      "sourceCandle": {
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12,
+        "timestamp": 1794873660000
+      },
+      "producerEnvelopeTimeframe": "1d",
+      "producerCandleTimeframe": "1m",
+      "chartSeriesWrite": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105
+      },
+      "storedCandle": {
+        "time": 1794873600,
+        "open": 100,
+        "high": 110,
+        "low": 90,
+        "close": 105,
+        "volume": 12
+      }
+    },
+    {
+      "filename": "public/js/panels/chart-panel.js",
+      "scenario": "price_without_ohlc",
+      "selectedTimeframe": "1d",
+      "sourceCandle": {
+        "symbol": "BTC-USD",
+        "close": 105,
+        "timestamp": 1794873660000
+      },
+      "producerEnvelopeTimeframe": "1d",
+      "producerCandleTimeframe": null,
+      "chartSeriesWrite": {
+        "time": 1794873600,
+        "open": 105,
+        "high": 105,
+        "low": 105,
+        "close": 105
+      },
+      "storedCandle": {
+        "time": 1794873600,
+        "open": 105,
+        "high": 105,
+        "low": 105,
+        "close": 105,
+        "volume": 0
+      }
+    }
+  ],
+  "scope": "Actual CandleProcessor price-payload declarations, price dispatcher and complete chart update functions, actual timeframe and asset helpers; synthetic input candles.",
+  "seams": [
+    "CandleProcessor surrounding account/indicator state and cache",
+    "DOM selectors and absent HUD elements",
+    "chart-library series capture",
+    "separate synthetic price-only envelope"
+  ],
+  "limits": [
+    "No connected browser render",
+    "No live packet capture",
+    "No production changes"
+  ]
+}

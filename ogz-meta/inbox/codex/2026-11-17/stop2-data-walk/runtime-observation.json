@@ -1,0 +1,47 @@
+{
+  "observedAtUTC": "2026-11-18T04:53:12.492592+00:00",
+  "readOnlyObservation": true,
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2869657,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUTC": "2026-11-17T05:42:54.558000+00:00",
+      "profile": null,
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/scripts/supervisor-daemon.js"
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2869648,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUTC": "2026-11-17T05:42:54.363000+00:00",
+      "profile": null,
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/ogzprime-ssl-server.js"
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2869656,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUTC": "2026-11-17T05:42:54.554000+00:00",
+      "profile": null,
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/public/stripe-checkout.js"
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2869703,
+      "status": "online",
+      "restarts": 3,
+      "startedAtUTC": "2026-11-17T05:42:55.130000+00:00",
+      "profile": "paper",
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/run-empire-v2.js"
+    }
+  ],
+  "claimLimit": "Process identity and unchanged activation only; not trade or dashboard correctness."
+}
