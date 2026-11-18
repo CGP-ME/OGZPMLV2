@@ -1,0 +1,78 @@
+{
+  "capturedAtUtc": "2026-11-18T19:27:29.502474+00:00",
+  "candidateTree": "38a797d1914e4b15100b3f1a71c8099e94e11173",
+  "baseCommit": "5b11465895378ffcc2451e3a49b1a77928a565b4",
+  "baseTree": "d76e0e44848804ad7aa342e52c10e0226dc8ec2d",
+  "reviewedPaths": [
+    "core/CandleProcessor.js"
+  ],
+  "verifiedSourceSha256": {
+    "core/CandleProcessor.js": "cad9adc3ed9ae02e94eb518d6a50eabc36c688cf40904b50fd389d2a3d9633f7",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "core/SymbolTradingContext.js": "e9c6a89ec041890103d3114599968da13a0456406be7680a47d244c8b421c793",
+    "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+    "foundation/ConfigLoader.js": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324",
+    "core/StateManager.js": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1",
+    "config/settings.json": "0da4b968e2dc563fcb0fbe2f5937f79dc9147ef785f16ccb6fbabee2517e582b",
+    "config/internals.json": "437d32d543440f4b428643549bc2d7d915fad595c163a351a40554dd94f70b37"
+  },
+  "fixtureSha256": "cd3c5dc437c5ffcce0a638c66dc83f6abb6b90ca6e1e1aed3951ffe51645dc77",
+  "harnessSha256": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "trai_brain/mercury-bridge/adversarial-review.js": "e2c2111c480396c50ed7c84335816071dd6c02b819ada15230a205d625b23e8f",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c",
+    "mercury.config.json": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a"
+  },
+  "inheritedDirtyHarness": [
+    "trai_brain/mercury-bridge/react-loop.js"
+  ],
+  "sourceOverrides": {
+    "baseCommit": "5b11465895378ffcc2451e3a49b1a77928a565b4",
+    "paths": [
+      "config/internals.json",
+      "config/settings.json",
+      "core/ExitContractManager.js",
+      "core/OrderExecutor.js",
+      "core/StateManager.js",
+      "core/StrategyOrchestrator.js",
+      "core/TradingLoop.js",
+      "core/dto/DecisionLedgerSchema.js",
+      "foundation/ConfigLoader.js",
+      "modules/DonchianBreakout.js",
+      "modules/EMATrendRetest.js",
+      "modules/PropSafeEMAPullback.js",
+      "modules/RSI2MeanReversion.js",
+      "modules/TimeSeriesMomentum.js",
+      "ogzprime-ssl-server.js",
+      "test/mercury-astra-challenger.test.js",
+      "test/session-router-fail-safe.test.js",
+      "test/trade-replay-capture-contract.test.js",
+      "trai_brain/mercury-bridge/react-loop.js"
+    ],
+    "sha256": "0070ee3bacd8ec58ebf951a54e69fe4bdd3d8b4d36817fe15f23b725254cf77b",
+    "purpose": "Replace inherited tracked dirty files with HEAD bytes only in isolated helper, not on host."
+  },
+  "preservedInheritedFiles": {
+    "CHANGELOG.md": "8a338fffcd90c03f431a969c9d7e0a5f5713d57f78bbb9d3151e8157a4593b3e",
+    "config/internals.json": "eaaf939db0f73ca3b7ec3bbc344de31b14c935d51711ac2a4a42a9a7922371c8",
+    "config/settings.json": "17dc68264dfdf8cf9e666f7caa148aea1112c872f2180e026f7f632849fcde31",
+    "core/ExitContractManager.js": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf",
+    "core/OrderExecutor.js": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1",
+    "core/StateManager.js": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e",
+    "core/StrategyOrchestrator.js": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b",
+    "core/TradingLoop.js": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81",
+    "core/dto/DecisionLedgerSchema.js": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+    "foundation/ConfigLoader.js": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937",
+    "modules/DonchianBreakout.js": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2",
+    "modules/EMATrendRetest.js": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+    "modules/PropSafeEMAPullback.js": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+    "modules/RSI2MeanReversion.js": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+    "modules/TimeSeriesMomentum.js": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+    "ogzprime-ssl-server.js": "15c6d6bac683a2780c4b788fc43f149b0fe62c3847862915e82270ed5f0529a8",
+    "test/mercury-astra-challenger.test.js": "62b341ee0d26937a7f8bc3c8a860ac350271c327bebd777ea8daac49d04637c3",
+    "test/session-router-fail-safe.test.js": "f39e51dcb7b4d2811f6faa5ac9bbbed70a23ddee45c91c211b6cb255422c355e",
+    "test/trade-replay-capture-contract.test.js": "e720ab63a33db5cd253b6128b7c182d83cb8297797bbab7331904319c9577f7d",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-candle-packet-metadata/fixtures/packet-metadata.cjs",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-candle-packet-metadata/fixtures/candidate-source.local.json",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-candle-packet-metadata/fixtures/packet-metadata.cjs",
+    "--source-overrides=ogz-meta/inbox/codex/2026-11-18/stop2-candle-packet-metadata/fixtures/candidate-source.local.json"
+  ],
+  "startedAtUtc": "2026-11-18T19:26:51.439886+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 1.799,
+  "logSha256": "955d3de580868175c5531c751cde61bc770dab090fc170463f019eb53603fb0a",
+  "fixtureSha256": "cd3c5dc437c5ffcce0a638c66dc83f6abb6b90ca6e1e1aed3951ffe51645dc77"
+}

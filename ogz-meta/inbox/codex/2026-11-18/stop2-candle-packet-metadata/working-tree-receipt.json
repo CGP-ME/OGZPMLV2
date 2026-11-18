@@ -1,0 +1,396 @@
+{
+  "baseline": false,
+  "checks": [
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "step": "first",
+      "expected": {
+        "timestamp": 1795030020000,
+        "close": 100,
+        "volume": 10
+      },
+      "identities": [
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030020000,
+        "price": 100,
+        "volume": 10
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "step": "newer",
+      "expected": {
+        "timestamp": 1795030080000,
+        "close": 108,
+        "volume": 20
+      },
+      "identities": [
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 108,
+        "volume": 20
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "step": "older-correction",
+      "expected": {
+        "timestamp": 1795030020000,
+        "close": 105,
+        "volume": 12
+      },
+      "identities": [
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 108,
+        "volume": 20
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "step": "older-zero-volume-correction",
+      "expected": {
+        "timestamp": 1795030020000,
+        "close": 106,
+        "volume": 0
+      },
+      "identities": [
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 108,
+        "volume": 20
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "step": "latest-update",
+      "expected": {
+        "timestamp": 1795030080000,
+        "close": 109,
+        "volume": 21
+      },
+      "identities": [
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 109,
+        "volume": 21
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "step": "first",
+      "expected": {
+        "timestamp": 1795030020000,
+        "close": 100,
+        "volume": 10
+      },
+      "identities": [
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 100,
+          "volume": 10
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030020000,
+        "price": 100,
+        "volume": 10
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "step": "newer",
+      "expected": {
+        "timestamp": 1795030080000,
+        "close": 108,
+        "volume": 20
+      },
+      "identities": [
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 108,
+          "volume": 20
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 108,
+        "volume": 20
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "step": "older-correction",
+      "expected": {
+        "timestamp": 1795030020000,
+        "close": 105,
+        "volume": 12
+      },
+      "identities": [
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 105,
+          "volume": 12
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 108,
+        "volume": 20
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "step": "older-zero-volume-correction",
+      "expected": {
+        "timestamp": 1795030020000,
+        "close": 106,
+        "volume": 0
+      },
+      "identities": [
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        },
+        {
+          "timestamp": 1795030020000,
+          "close": 106,
+          "volume": 0
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 108,
+        "volume": 20
+      },
+      "coherent": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "step": "latest-update",
+      "expected": {
+        "timestamp": 1795030080000,
+        "close": 109,
+        "volume": 21
+      },
+      "identities": [
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        },
+        {
+          "timestamp": 1795030080000,
+          "close": 109,
+          "volume": 21
+        }
+      ],
+      "snapshot": {
+        "timestamp": 1795030080000,
+        "price": 109,
+        "volume": 21
+      },
+      "coherent": true
+    }
+  ],
+  "sourceSha256": {
+    "core/CandleProcessor.js": "cad9adc3ed9ae02e94eb518d6a50eabc36c688cf40904b50fd389d2a3d9633f7",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "core/SymbolTradingContext.js": "e9c6a89ec041890103d3114599968da13a0456406be7680a47d244c8b421c793",
+    "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+    "foundation/ConfigLoader.js": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937",
+    "core/StateManager.js": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e",
+    "config/settings.json": "17dc68264dfdf8cf9e666f7caa148aea1112c872f2180e026f7f632849fcde31",
+    "config/internals.json": "eaaf939db0f73ca3b7ec3bbc344de31b14c935d51711ac2a4a42a9a7922371c8"
+  },
+  "scope": "Isolated real processor/store and serialized outgoing message; synthetic intake/account/transport; no live broker, browser or PM2 activation proof."
+}

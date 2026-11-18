@@ -1,0 +1,17 @@
+{
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-candle-packet-metadata/fixtures/packet-metadata.cjs",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-candle-packet-metadata/fixtures/packet-metadata.cjs"
+  ],
+  "startedAtUtc": "2026-11-18T19:27:59.852305+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 1.964,
+  "logSha256": "a4826bb42ccdef67a43ba4b5fe0a0618e28c49faf0f93e51979cce20fb80916c",
+  "fixtureSha256": "cd3c5dc437c5ffcce0a638c66dc83f6abb6b90ca6e1e1aed3951ffe51645dc77",
+  "purpose": "Same behavior in the shared checkout with inherited dirty dependencies, without activating runtime."
+}

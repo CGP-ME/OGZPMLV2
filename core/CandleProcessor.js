@@ -1127,7 +1127,7 @@ class CandleProcessor {
         const dashboardSymbol = candle.symbol;
         const dashboardTimeframe = this.ctx.dashboardTimeframe || candle.timeframe;
 
-        const dashboardTimestamp = marketData.timestamp;
+        const dashboardTimestamp = candle.t;
         const dashboardIndicators = this._buildDashboardIndicators(renderPacket, marketData);
         const dashboardCandle = {
           symbol: dashboardSymbol,
@@ -1146,7 +1146,7 @@ class CandleProcessor {
           asset: dashboardSymbol,
           price,
           close: price,
-          volume: marketData.volume,
+          volume: dashboardCandle.volume,
           timestamp: dashboardTimestamp,
           timeframe: dashboardTimeframe,
           candle: dashboardCandle,
@@ -1163,7 +1163,7 @@ class CandleProcessor {
             asset: dashboardSymbol,
             price: price,
             close: price,
-            volume: marketData.volume,
+            volume: dashboardCandle.volume,
             timestamp: dashboardTimestamp,
             candle: dashboardCandle,
             indicators: dashboardIndicators,
