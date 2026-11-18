@@ -1,0 +1,124 @@
+{
+  "previous": {
+    "command": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/fixtures/config-activation.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/fixtures/previous-settings.local.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/fixtures/config-activation.cjs",
+      "ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/fixtures/previous-settings.local.json"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 0.966,
+    "stderr": "[helper isolation] disposable source snapshot; host runtime, credentials and network excluded\n",
+    "receipt": {
+      "mode": {
+        "launchProfile": "paper",
+        "execution": "paper",
+        "confirmLive": false,
+        "backtest": false,
+        "paperTrading": true,
+        "liveTrading": false,
+        "confirmLiveTrading": false,
+        "testMode": false,
+        "candleSource": "live"
+      },
+      "revisions": {
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "1db2a74953b5b8e09bf0e7703282cd268571a48839d44516256fc808b03ea4ea"
+      },
+      "observationFrames": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "sources": {
+        "orchestrator.mtfTimeframes": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.0": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.1": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.2": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.3": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.4": "config:settings.json:orchestrator",
+        "orchestrator.mtfConfluenceService.minReadyTimeframes": "config:settings.json:launchProfiles.paper.confluence.mtfService"
+      },
+      "credentials": "Synthetic isolation fixture only; no operator credentials read"
+    }
+  },
+  "current": {
+    "command": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/fixtures/config-activation.cjs",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/fixtures/config-activation.cjs"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 0.979,
+    "stderr": "[helper isolation] disposable source snapshot; host runtime, credentials and network excluded\n",
+    "receipt": {
+      "mode": {
+        "launchProfile": "paper",
+        "execution": "paper",
+        "confirmLive": false,
+        "backtest": false,
+        "paperTrading": true,
+        "liveTrading": false,
+        "confirmLiveTrading": false,
+        "testMode": false,
+        "candleSource": "live"
+      },
+      "revisions": {
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+        "internalsHash": "1db2a74953b5b8e09bf0e7703282cd268571a48839d44516256fc808b03ea4ea"
+      },
+      "observationFrames": [
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "4h",
+        "1d"
+      ],
+      "entryFrames": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "sources": {
+        "orchestrator.mtfTimeframes": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.0": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.1": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.2": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.3": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.4": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.5": "config:settings.json:orchestrator",
+        "orchestrator.mtfTimeframes.6": "config:settings.json:orchestrator",
+        "orchestrator.entryTimeframes": "config:settings.json:orchestrator",
+        "orchestrator.entryTimeframes.0": "config:settings.json:orchestrator",
+        "orchestrator.entryTimeframes.1": "config:settings.json:orchestrator",
+        "orchestrator.entryTimeframes.2": "config:settings.json:orchestrator",
+        "orchestrator.entryTimeframes.3": "config:settings.json:orchestrator",
+        "orchestrator.entryTimeframes.4": "config:settings.json:orchestrator",
+        "orchestrator.mtfConfluenceService.minReadyTimeframes": "config:settings.json:launchProfiles.paper.confluence.mtfService"
+      },
+      "credentials": "Synthetic isolation fixture only; no operator credentials read"
+    }
+  },
+  "previousSettingsMatchLastLiveRevision": true,
+  "previousLiveSettingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb"
+}

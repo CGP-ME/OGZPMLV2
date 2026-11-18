@@ -2025,9 +2025,8 @@ wss.on('connection', (ws, req) => {
         });
       }
 
-      // CHANGE 2026-01-29: RELAY Dashboard → Bot (for timeframe changes)
-      // CHANGE 2026-04-11: Stock tickers go to Alpaca, crypto goes to bot/Kraken
-      if (ws.clientType === 'dashboard' && (data.type === 'timeframe_change' || data.type === 'request_historical')) {
+      // Native history has one request path: stocks to Alpaca, crypto to the bot.
+      if (ws.clientType === 'dashboard' && data.type === 'request_historical') {
         const asset = data.asset || '';
         let handled = false;
 
@@ -2042,20 +2041,32 @@ wss.on('connection', (ws, req) => {
               const dashboardSymbol = normalizeDashboardSymbol(asset);
               console.log(`[StockAdapter] Fetching ${asset} @ ${tf} from Alpaca...`);
               fetchStockCandles(asset, tf, limit, { config: DASHBOARD_STOCK_DATA_CONFIG }).then(candles => {
-                if (candles && candles.length > 0 && ws.readyState === WebSocket.OPEN) {
+                const available = Array.isArray(candles) && candles.length > 0;
+                if (ws.readyState === WebSocket.OPEN) {
                   const frame = attachDashboardMarketScope({
                     type: 'historical_candles',
                     symbol: dashboardSymbol,
                     timeframe: tf,
-                    candles: candles
+                    candles: available ? candles : [],
+                    ...(available ? {} : { error: `Native stock history unavailable for ${dashboardSymbol} ${tf}` })
                   }, dashboardStockMarketScope(dashboardSymbol, tf));
                   ws.send(JSON.stringify(frame));
-                  console.log(`[StockAdapter] Sent ${candles.length} ${asset} candles to dashboard`);
-                } else {
+                  if (available) console.log(`[StockAdapter] Sent ${candles.length} ${asset} candles to dashboard`);
+                }
+                if (!available) {
                   console.warn(`[StockAdapter] No data for ${asset} @ ${tf}`);
                 }
               }).catch(err => {
                 console.error(`[StockAdapter] Error: ${err.message}`);
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify(attachDashboardMarketScope({
+                    type: 'historical_candles',
+                    symbol: dashboardSymbol,
+                    timeframe: tf,
+                    candles: [],
+                    error: `Native stock history unavailable for ${dashboardSymbol} ${tf}`
+                  }, dashboardStockMarketScope(dashboardSymbol, tf))));
+                }
               });
             }
           } catch (err) {
@@ -2063,7 +2074,7 @@ wss.on('connection', (ws, req) => {
           }
         }
 
-        // Crypto or timeframe_change — relay to bot as before
+        // Crypto history is fetched by the bot's broker adapter.
         if (!handled) {
           const messageStr = JSON.stringify(data);
           wss.clients.forEach((client) => {

@@ -1,0 +1,26 @@
+{
+  "baseCommit": "aec1391bd18a2aeb8bdf7269cd51068abf685777",
+  "candidateTree": "4f929a7506e46a3437ec59a5749835965b361ce5",
+  "candidateSourceSha256": {
+    "ogzprime-ssl-server.js": "a2e5d0962b62a5cbd56e134bcb287cba63ec7cd97ca18dc9ce96e7298b0699cd",
+    "run-empire-v2.js": "eb2632fa6c0774c8607d986d429f53179ac5decf7f8a202d8d64b055e5ec3ff0",
+    "core/WebSocketManager.js": "318df3b733589c19862a36edd4e19189120e780e88ae8b8b8fe1a8777df7e98b",
+    "server/stock-data-adapter.js": "44f1c52e1ebcae9eab0fba90f002fca01f1fecf902725585fbebfeddd49c8715",
+    "server/dashboard-stock-stream-config.js": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+    "server/dashboard-market-scope.js": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c",
+    "foundation/ConfigLoader.js": "1279a56a4195dd1271e572ba6453eebbae65f0d431dc4e54ccac326e7d50d324",
+    "config/settings.json": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+    "config/internals.json": "b52b1fa8f26c3e7eaa271d62cf28e2b5eec9c4914faf875e0d8edb6f80adce18"
+  },
+  "harnessSha256": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "trai_brain/mercury-bridge/adversarial-review.js": "e2c2111c480396c50ed7c84335816071dd6c02b819ada15230a205d625b23e8f",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c",
+    "mercury.config.json": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a"
+  },
+  "qualification": "Review reads staged tree; inherited dirty react-loop.js runs the harness. Exact candidate fixture replaces all listed dependencies with their staged source, separate from the inherited working-tree run.",
+  "reviewRunId": "2026-11-18T21-08-15-930Z-d84903daebfd",
+  "resolvedBaseTree": "c29f90c866f6bbed68772e8fec6267f4ca1e99fd",
+  "manifestSourceHashesMatchExecutableCandidate": true
+}

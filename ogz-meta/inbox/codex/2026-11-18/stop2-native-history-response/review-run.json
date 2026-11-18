@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=4f929a7506e46a3437ec59a5749835965b361ce5",
+    "--review-base=aec1391bd18a2aeb8bdf7269cd51068abf685777",
+    "--change-path=server/stock-data-adapter.js",
+    "--change-path=ogzprime-ssl-server.js",
+    "--change-path=run-empire-v2.js",
+    "How is a configured stock's dashboard history request answered when its native data cannot be obtained? Trace symbol classification through the server and bot response paths in this source snapshot, cite current file:line evidence, and name any incorrect routing, missing response or unread gap."
+  ],
+  "startedAtUtc": "2026-11-18T21:06:57.845098+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 86.238,
+  "logSha256": "b17bece7021621eeba7aa140b68700de467c51f4a343e4f40846f8f9246923b4"
+}

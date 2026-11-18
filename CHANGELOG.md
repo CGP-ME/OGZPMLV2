@@ -1,3 +1,66 @@
+## 2026-11-18 — Stop 2: preserve stock identity and answer unavailable native history
+
+**Problem and authority.** This completes the traced history-response producer
+follow-up to Trey's authorized native-candle repair. The dashboard stock classifier
+coupled membership in the configured stock list to credential readiness. A missing
+key made a configured stock look unsupported; server relay and bot refusal then
+left the chart waiting. For valid stock classification, null/empty fetch results
+also produced only a log on both response paths. The retired timeframe_change
+message still duplicated the supported history request at the backend.
+
+**Changed.** `server/stock-data-adapter.js` now classifies by configured stock
+membership; fetchStockCandles retains its explicit access/config checks.
+`ogzprime-ssl-server.js` and `run-empire-v2.js` answer unavailable stock history
+with an empty candles array, original symbol/timeframe and explicit error. The
+server rejection branch sends the same error envelope while the socket is open.
+The server relay and `core/WebSocketManager.js` remove timeframe_change; both
+supported dashboards already send request_historical. This fixes routing and
+response production without inventing candles, changing credentials, adding a
+bot gate/throw, or adding fallback data. Only the owned server hunk is staged;
+the inherited authentication change remains preserved and uncommitted.
+
+**Actual verification.** The isolated native capture executes the real stock
+adapter, config resolver, scope functions, server branch, runner methods and
+request dispatchers, with synthetic HTTP/WS/credentials. Seventy scenarios cover
+seven frames x two response routes x success/empty/HTTP503/network-failure/missing
+credentials. Before: 56 failure cases produce no response; 14 missing-credential
+cases misclassify the stock. After: all 56 return the scoped error, all 14 successful
+responses preserve native OHLCV including zero volume, and missing credentials
+cause no HTTP request. The canonical crypto request relays/fetches once; the
+retired message does neither. Working-tree and exact staged-candidate runs both
+exit 0; all ten captured source/dependency hashes match the staged candidate.
+No Jest was added or run. [Commands and receipts](ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/RECEIPTS.md).
+
+**Independent review.** One neutral Mercury question about configured-stock
+history unavailable: no_break_found, 36 successful tool calls, no tool failures,
+estimated $0.05130328. Mercury executed no checks; only Mercury was selected.
+The actual fixture establishes behavior independently. Whole-file/coverage and
+inherited-section warnings remain recorded. Its 'always answered' statement is
+limited to completed/rejected requests with an open connection; unresolved
+transport requests and malformed/unconfigured inputs are not claimed verified.
+The reviewer cited the old legacy HTML sender; that URL explicitly serves V2,
+and actual supported selector callbacks were already executed in the chart
+capture. Live server/bot config equality remains an activation check. No further
+paid review was used to repair metadata wording.
+
+**Activation preparation and limits.** The public hostname serves all four
+pushed chart scripts byte-for-byte. The 28 unchanged files in the prior activation
+manifest—including inherited strategy/execution/state edits—still match. The
+server baseline and internals before the three cache-limit removals match that
+activation; a fresh isolated ConfigLoader proves pre-MTF settings have exactly the
+last live settings hash. Current frame lists resolve from settings.json and the
+profile remains paper. All four PM2 processes are online with their November 17
+start; no archived trading env names, alternate dotenv path or backtest descriptor
+are present. Proposed activation is only ogz-websocket and ogz-prime-v2 through
+ecosystem.config.js with --update-env and canonical bootstrap environment. The
+[preflight](ogz-meta/inbox/codex/2026-11-18/stop2-native-history-response/activation-preflight.json)
+is preparation, not approval or restart evidence. AGENTS.md requires separate
+explicit approval. No processes, journals, banks, orders or live settings were
+mutated by this repair. Stop 2 remains open for live native-frame and browser
+receipts; CVD update-volume and legacy indicator-overlay refresh remain named
+open findings. Scoped diff shown; this logical repair, changelog and sanitized
+evidence are committed atomically and pushed.
+
 ## 2026-11-18 — Stop 2: render broker-native candles in both supported dashboards
 
 **Problem and authority.** Trey authorized continuing the traced Stop 2 repair,

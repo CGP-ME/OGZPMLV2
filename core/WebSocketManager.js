@@ -297,16 +297,6 @@ class WebSocketManager {
             return;
           }
 
-          // CHANGE 2026-01-30: Handle timeframe change from dashboard
-          // Fetch REAL historical data from Kraken REST API, not just cached WebSocket data
-          if (msg.type === 'timeframe_change') {
-            const newTimeframe = msg.timeframe || ConfigLoader.getInternalsFileValue('runner.dashboard.initialTimeframe');
-            console.log(`[WebSocketManager] Dashboard timeframe changed to: ${newTimeframe}`);
-            // Fetch historical candles from Kraken REST API
-            this.ctx.fetchAndSendHistoricalCandles(newTimeframe, ConfigLoader.getInternalsFileValue('runner.dashboard.historicalRequestDefaultLimit'), msg.asset);
-            return;
-          }
-
           // CHANGE 2026-01-30: Handle request for historical data
           if (msg.type === 'request_historical') {
             const timeframe = msg.timeframe || ConfigLoader.getInternalsFileValue('runner.dashboard.initialTimeframe');

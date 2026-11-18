@@ -1,0 +1,2627 @@
+{
+  "baseline": false,
+  "sourceHashes": {
+    "ogzprime-ssl-server.js": "b2017eec1a2cef3ca8ce65b01cf03b3576ec09e8e1d818255c8d295fb5606cbc",
+    "run-empire-v2.js": "eb2632fa6c0774c8607d986d429f53179ac5decf7f8a202d8d64b055e5ec3ff0",
+    "core/WebSocketManager.js": "318df3b733589c19862a36edd4e19189120e780e88ae8b8b8fe1a8777df7e98b",
+    "server/stock-data-adapter.js": "44f1c52e1ebcae9eab0fba90f002fca01f1fecf902725585fbebfeddd49c8715",
+    "server/dashboard-stock-stream-config.js": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+    "server/dashboard-market-scope.js": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c",
+    "foundation/ConfigLoader.js": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "85a580ccd2d2ca52783f407d31c64951d25935b844334693e76c00c9b3735f8b"
+  },
+  "cases": [
+    {
+      "route": "server",
+      "timeframe": "1m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1m from Alpaca..."
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 1m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0,
+              "symbol": "TSLA",
+              "timeframe": "1m"
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 1m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 historical 1m TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1m from Alpaca..."
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 1m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 1m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "5m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 5m from Alpaca..."
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 5m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "5m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0,
+              "symbol": "TSLA",
+              "timeframe": "5m"
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 5m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 5m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 historical 5m TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "5m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 5m from Alpaca..."
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 5m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "5m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 5m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 5m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "5m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 5m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "5m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 5m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "5m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 5m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "5m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "5Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 5m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "5m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 5m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "5m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "5m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 5m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 5m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 5m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "15m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 15m from Alpaca..."
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 15m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "15m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0,
+              "symbol": "TSLA",
+              "timeframe": "15m"
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 15m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 15m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 historical 15m TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "15m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 15m from Alpaca..."
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 15m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "15m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 15m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 15m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "15m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 15m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "15m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 15m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "15m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 15m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "15m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "15Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 15m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "15m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 15m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "15m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "15m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 15m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 15m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 15m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "30m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 30m from Alpaca..."
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 30m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "30m",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0,
+              "symbol": "TSLA",
+              "timeframe": "30m"
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 30m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 30m"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 historical 30m TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "30m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 30m from Alpaca..."
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 30m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "30m",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 30m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 30m"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "30m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 30m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "30m",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 30m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "30m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 30m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "30m",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "30Min"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 30m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "30m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 30m from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "30m",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "30m",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 30m"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 30m TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 30m"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1h",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1h from Alpaca..."
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 1h"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1h",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0,
+              "symbol": "TSLA",
+              "timeframe": "1h"
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 1h"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 historical 1h TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1h",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1h from Alpaca..."
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 1h"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1h",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 1h"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1h",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1h from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1h",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1h",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1h from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1h",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1h",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1h from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1h",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1h"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "4h",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 4h from Alpaca..."
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 4h"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "4h",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0,
+              "symbol": "TSLA",
+              "timeframe": "4h"
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 4h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 4h"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 historical 4h TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "4h",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 4h from Alpaca..."
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 4h"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "4h",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 4h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 4h"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "4h",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 4h from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "4h",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 4h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "4h",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 4h from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "4h",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "4Hour"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 4h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "4h",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 4h from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "4h",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "4h",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 4h"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 4h TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 4h"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1d",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1d from Alpaca..."
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 1d"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1d",
+      "mode": "success",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [
+            {
+              "time": 1794891600,
+              "open": 100,
+              "high": 104,
+              "low": 99,
+              "close": 103,
+              "volume": 0,
+              "symbol": "TSLA",
+              "timeframe": "1d"
+            }
+          ]
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1d TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] 1 candles for TSLA @ 1d"
+        },
+        {
+          "level": "log",
+          "message": "[StockAdapter] Sent 1 historical 1d TSLA candles to dashboard"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1d",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1d from Alpaca..."
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 1d"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1d"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1d",
+      "mode": "empty",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1d TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No bars returned for TSLA @ 1d"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1d"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1d",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1d from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1d"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1d",
+      "mode": "http_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1d TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] HTTP 503 for TSLA: synthetic provider unavailable"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1d"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1d",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1d from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1d"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1d",
+      "mode": "network_failure",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [
+        {
+          "path": "/v2/stocks/TSLA/bars",
+          "timeframe": "1Day"
+        }
+      ],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1d TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Fetch error for TSLA: synthetic provider disconnected"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1d"
+        }
+      ]
+    },
+    {
+      "route": "server",
+      "timeframe": "1d",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching TSLA @ 1d from Alpaca..."
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No data for TSLA @ 1d"
+        }
+      ]
+    },
+    {
+      "route": "runner",
+      "timeframe": "1d",
+      "mode": "missing_credentials",
+      "classifiedAsStock": true,
+      "sent": [
+        {
+          "type": "historical_candles",
+          "symbol": "TSLA",
+          "timeframe": "1d",
+          "candles": [],
+          "error": "Native stock history unavailable for TSLA 1d"
+        }
+      ],
+      "relayed": [],
+      "requests": [],
+      "logs": [
+        {
+          "level": "log",
+          "message": "[StockAdapter] Fetching 2 historical 1d TSLA candles from Alpaca for dashboard"
+        },
+        {
+          "level": "error",
+          "message": "[StockAdapter] Missing required Alpaca stock data config for TSLA: ALPACA_API_KEY"
+        },
+        {
+          "level": "warn",
+          "message": "[StockAdapter] No historical candles returned for TSLA @ 1d"
+        }
+      ]
+    }
+  ],
+  "routeCases": [
+    {
+      "type": "request_historical",
+      "relayed": [
+        {
+          "type": "request_historical",
+          "asset": "BTC-USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "botFetches": [
+        [
+          "4h",
+          2,
+          "BTC-USD"
+        ]
+      ]
+    },
+    {
+      "type": "timeframe_change",
+      "relayed": [],
+      "botFetches": []
+    }
+  ],
+  "seams": [
+    "Actual stock data adapter, config resolver and market-scope functions",
+    "Actual server history branch and runner history methods; surrounding live process excluded",
+    "Actual bot request handlers; synthetic WS connections, broker HTTP replies and isolated credentials"
+  ],
+  "limits": [
+    "No real broker request, authentication/session lifecycle, PM2 restart or connected browser",
+    "No orders, broker state, real journals or banks accessed",
+    "The generic unexpected-rejection catch is inspected, while actual HTTP/network/config failures execute through fetchStockCandles"
+  ]
+}

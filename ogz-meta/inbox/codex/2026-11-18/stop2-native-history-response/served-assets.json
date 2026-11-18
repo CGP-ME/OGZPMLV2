@@ -1,0 +1,26 @@
+[
+  {
+    "path": "public/js/core.js",
+    "status": 200,
+    "sha256": "f0026061a2b558bc417b949148a70012dbdcb49a8b049e9c0741f0e6736bf296",
+    "sourceMatches": true
+  },
+  {
+    "path": "public/js/chart.js",
+    "status": 200,
+    "sha256": "26390414ee366a1c1b84d4affe8f12d87d9d199b98643de69b1eb9cad16dace5",
+    "sourceMatches": true
+  },
+  {
+    "path": "public/js/panels/chart-panel.js",
+    "status": 200,
+    "sha256": "93e4e1afcb5a4307cf17e3a8680871915e3b2454423ed80c924e49b418fc2e10",
+    "sourceMatches": true
+  },
+  {
+    "path": "public/js/websocket.js",
+    "status": 200,
+    "sha256": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532",
+    "sourceMatches": true
+  }
+]

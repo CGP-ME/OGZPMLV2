@@ -40,9 +40,9 @@ function stockDataConfigReject(symbol, config) {
 
 function isStock(ticker, options = {}) {
     const config = resolveRequestConfig(options);
-    if (missingRequestConfigKeys(config).length > 0) return false;
+    // Symbol ownership is independent of whether its data credentials are available.
     const clean = ticker.replace('-USD', '').replace('/', '').toUpperCase();
-    return Array.isArray(config.stockSymbols) && config.stockSymbols.includes(clean);
+    return Array.isArray(config?.stockSymbols) && config.stockSymbols.includes(clean);
 }
 
 function cleanTicker(ticker) {

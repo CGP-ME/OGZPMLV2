@@ -2480,6 +2480,10 @@ class OGZPrimeV14Bot {
           console.log(`[StockAdapter] Sent ${stockCandles.length} historical ${timeframe} ${dashboardSymbol} candles to dashboard`);
         } else {
           console.warn(`[StockAdapter] No historical candles returned for ${dashboardSymbol} @ ${timeframe}`);
+          this.dashboardWs.send(JSON.stringify({
+            type: 'historical_candles', symbol: dashboardSymbol, timeframe,
+            candles: [], error: `Native stock history unavailable for ${dashboardSymbol} ${timeframe}`
+          }));
         }
         return;
       }
