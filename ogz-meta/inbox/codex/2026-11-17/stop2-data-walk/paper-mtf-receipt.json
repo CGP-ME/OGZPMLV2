@@ -1,0 +1,369 @@
+{
+  "observedAtUTC": "2026-11-18T05:11:59.600580+00:00",
+  "sourceFiles": [
+    {
+      "path": "logs/decisions/autopsy_2026-11-17.jsonl",
+      "bytesRead": 36188384,
+      "sha256": "ac021f45574ddfd1df2e34220cd5974bab0364572aeb6ce02e21c2526c0f4dab",
+      "parsedRows": 10037,
+      "postActivationPaperMtfRows": 3031
+    },
+    {
+      "path": "logs/decisions/autopsy_2026-11-18.jsonl",
+      "bytesRead": 4636366,
+      "sha256": "b7227c05710f86733b877290d49eb05872307b289865a74dd88504173231e1b3",
+      "parsedRows": 1421,
+      "postActivationPaperMtfRows": 404
+    }
+  ],
+  "malformedOrPartialLines": 0,
+  "selection": "Persisted paper MTF snapshots at or after 2026-11-17T05:42:55.130Z; raw account identifiers excluded",
+  "mtfGroups": [
+    {
+      "broker": "kraken",
+      "symbol": "BTC-USD",
+      "readyTimeframes": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "totalTimeframes": 5,
+      "available": true,
+      "count": 1264
+    },
+    {
+      "broker": "alpaca",
+      "symbol": "NVDA",
+      "readyTimeframes": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "totalTimeframes": 5,
+      "available": true,
+      "count": 466
+    },
+    {
+      "broker": "alpaca",
+      "symbol": "MARA",
+      "readyTimeframes": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "totalTimeframes": 5,
+      "available": true,
+      "count": 417
+    },
+    {
+      "broker": "alpaca",
+      "symbol": "RIOT",
+      "readyTimeframes": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "totalTimeframes": 5,
+      "available": true,
+      "count": 467
+    },
+    {
+      "broker": "alpaca",
+      "symbol": "TSLA",
+      "readyTimeframes": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "totalTimeframes": 5,
+      "available": true,
+      "count": 464
+    },
+    {
+      "broker": "alpaca",
+      "symbol": "COIN",
+      "readyTimeframes": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "totalTimeframes": 5,
+      "available": true,
+      "count": 357
+    }
+  ],
+  "decisionFrameCounts": [
+    {
+      "broker": "kraken",
+      "timeframe": "1m",
+      "count": 980
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "5m",
+      "count": 197
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "15m",
+      "count": 66
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "1h",
+      "count": 17
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "4h",
+      "count": 4
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "1m",
+      "count": 1641
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "15m",
+      "count": 124
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "5m",
+      "count": 364
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "1h",
+      "count": 31
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "4h",
+      "count": 11
+    }
+  ],
+  "latestBySymbol": [
+    {
+      "traceId": "candle_1794978660161_0fr1pv",
+      "timestamp": "2026-11-18T05:11:00.367Z",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "executionMode": "paper",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "mtfConfluenceSnapshot": {
+        "source": "StrategyOrchestrator.mtfConfluence",
+        "available": true,
+        "unavailableReason": null,
+        "direction": "neutral",
+        "confluenceScore": -0.3001777824713562,
+        "confidence": 0.26666666666666666,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "shouldTrade": false,
+        "overallBias": "bearish"
+      }
+    },
+    {
+      "traceId": "candle_1794947402268_w50s3b",
+      "timestamp": "2026-11-17T20:30:02.434Z",
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "brokerId": "alpaca",
+      "executionMode": "paper",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "mtfConfluenceSnapshot": {
+        "source": "StrategyOrchestrator.mtfConfluence",
+        "available": true,
+        "unavailableReason": null,
+        "direction": "sell",
+        "confluenceScore": -0.1756203618143022,
+        "confidence": 0.8,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "shouldTrade": true,
+        "overallBias": "bearish"
+      }
+    },
+    {
+      "traceId": "candle_1794947280534_9c4hd6",
+      "timestamp": "2026-11-17T20:28:00.760Z",
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "executionMode": "paper",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "mtfConfluenceSnapshot": {
+        "source": "StrategyOrchestrator.mtfConfluence",
+        "available": true,
+        "unavailableReason": null,
+        "direction": "sell",
+        "confluenceScore": -0.2133999938078386,
+        "confidence": 0.6,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "shouldTrade": true,
+        "overallBias": "bearish"
+      }
+    },
+    {
+      "traceId": "candle_1794947401978_akekac",
+      "timestamp": "2026-11-17T20:30:02.232Z",
+      "symbol": "RIOT",
+      "timeframe": "15m",
+      "brokerId": "alpaca",
+      "executionMode": "paper",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "mtfConfluenceSnapshot": {
+        "source": "StrategyOrchestrator.mtfConfluence",
+        "available": true,
+        "unavailableReason": null,
+        "direction": "neutral",
+        "confluenceScore": 0.15493384299773508,
+        "confidence": 0.2,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "shouldTrade": false,
+        "overallBias": "bullish"
+      }
+    },
+    {
+      "traceId": "candle_1794947402820_3lrsok",
+      "timestamp": "2026-11-17T20:30:03.036Z",
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "brokerId": "alpaca",
+      "executionMode": "paper",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "mtfConfluenceSnapshot": {
+        "source": "StrategyOrchestrator.mtfConfluence",
+        "available": true,
+        "unavailableReason": null,
+        "direction": "sell",
+        "confluenceScore": -0.16735134674204274,
+        "confidence": 0.6,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "shouldTrade": true,
+        "overallBias": "bearish"
+      }
+    },
+    {
+      "traceId": "candle_1794947401693_wbgfn5",
+      "timestamp": "2026-11-17T20:30:01.949Z",
+      "symbol": "COIN",
+      "timeframe": "15m",
+      "brokerId": "alpaca",
+      "executionMode": "paper",
+      "configuration": {
+        "fingerprint": "bcacdeeab6eaf09df8d7dedd053478eec82d8c071a31fd730939c8f905804697",
+        "role": "bot",
+        "settings": 24,
+        "internals": 13,
+        "settingsHash": "70330c8d63e18bc3d30da52584fd9698586d82979e9e6c4a67907c9f925426fb",
+        "internalsHash": "0268f9ef76aa5013e4a4c2611b2350bce315adab2e029d0dc26c1a8aba6abb61"
+      },
+      "mtfConfluenceSnapshot": {
+        "source": "StrategyOrchestrator.mtfConfluence",
+        "available": true,
+        "unavailableReason": null,
+        "direction": "neutral",
+        "confluenceScore": 0.05781193793560219,
+        "confidence": 0.4,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "shouldTrade": false,
+        "overallBias": "neutral"
+      }
+    }
+  ],
+  "limits": [
+    "Recorded inputs and metadata only; not independent indicator-math or winning-strategy correctness",
+    "No broker, browser or fault-injection operation performed"
+  ]
+}

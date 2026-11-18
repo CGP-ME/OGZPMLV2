@@ -1,0 +1,55 @@
+{
+  "observedAtUTC": "2026-11-18T05:15:40.057405+00:00",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2869657,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUTC": "2026-11-17T05:42:54.558000+00:00",
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/scripts/supervisor-daemon.js"
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2869648,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUTC": "2026-11-17T05:42:54.363000+00:00",
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/ogzprime-ssl-server.js"
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2869656,
+      "status": "online",
+      "restarts": 1,
+      "startedAtUTC": "2026-11-17T05:42:54.554000+00:00",
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/public/stripe-checkout.js"
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2869703,
+      "status": "online",
+      "restarts": 3,
+      "startedAtUTC": "2026-11-17T05:42:55.130000+00:00",
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "script": "/opt/ogzprime/OGZPMLV2/run-empire-v2.js",
+      "profile": "paper"
+    }
+  ],
+  "boundedServerLog": {
+    "path": "/home/linuxuser/.pm2/logs/ogz-websocket-out.log",
+    "startByte": 160087094,
+    "endByte": 161587094,
+    "bytesRead": 1500000,
+    "sha256": "0e500b441d91ca3e2dee4f705887bf520b535cce899934c4be899445bb7bb7b6",
+    "counts": {
+      "[WS] Relayed price": 32954,
+      "[CryptoFeed] TICK": 110
+    },
+    "limits": "Markers confirm both price-producing routes are active; sample does not capture payload equality or a rendered browser."
+  },
+  "productionOperations": "Read PM2 metadata and existing log bytes only; no settings change, new WebSocket client or restart."
+}

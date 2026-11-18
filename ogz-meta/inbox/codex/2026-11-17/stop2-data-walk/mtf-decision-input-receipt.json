@@ -1,0 +1,229 @@
+{
+  "sourceHashes": {
+    "core/StrategyOrchestrator.js": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b",
+    "modules/MultiTimeframeAdapter.js": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+    "core/TradingLoop.js": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81",
+    "core/CandleProcessor.js": "f4b2cb1ec3954f2116417ec3a26dacf822295aa514c879ab4d9482a58b08d336",
+    "foundation/ConfigLoader.js": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937",
+    "config/settings.json": "17dc68264dfdf8cf9e666f7caa148aea1112c872f2180e026f7f632849fcde31",
+    "config/internals.json": "eaaf939db0f73ca3b7ec3bbc344de31b14c935d51711ac2a4a42a9a7922371c8"
+  },
+  "resolvedFrames": [
+    "1m",
+    "5m",
+    "15m",
+    "1h",
+    "4h"
+  ],
+  "configuredWeights": {
+    "1m": 0.05,
+    "5m": 0.08,
+    "15m": 0.1,
+    "30m": 0.1,
+    "1h": 0.15,
+    "4h": 0.17,
+    "1d": 0.15
+  },
+  "symbolInstancesSeparate": true,
+  "snapshots": [
+    {
+      "symbol": "BTC-USD",
+      "activeFrames": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "closedCandleCounts": {
+        "1m": 64,
+        "5m": 64,
+        "15m": 64,
+        "1h": 64,
+        "4h": 64
+      },
+      "latestIndicatorPrices": {
+        "1m": 64064,
+        "5m": 64064,
+        "15m": 64064,
+        "1h": 64064,
+        "4h": 64064
+      },
+      "formingBarsExcluded": true,
+      "confluence": {
+        "module": "MultiTimeframe",
+        "source": "MultiTimeframeAdapter.crossFrameScore",
+        "timestamp": 1794978695665,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "minReadyTimeframes": 2,
+        "available": true,
+        "unavailableReason": null,
+        "bullishCount": 5,
+        "bearishCount": 0,
+        "neutralCount": 0,
+        "overallBias": "bearish",
+        "confluenceScore": -0.2906307825638864,
+        "confidence": 1,
+        "rsiAverage": 100,
+        "rsiExtreme": true,
+        "trendAlignment": 1,
+        "timeframeSignals": {
+          "1m": {
+            "signal": "bearish",
+            "strength": 0.2906307825638864,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.05
+          },
+          "5m": {
+            "signal": "bearish",
+            "strength": 0.2906307825638864,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.08
+          },
+          "15m": {
+            "signal": "bearish",
+            "strength": 0.2906307825638864,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.1
+          },
+          "1h": {
+            "signal": "bearish",
+            "strength": 0.2906307825638864,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.15
+          },
+          "4h": {
+            "signal": "bearish",
+            "strength": 0.2906307825638864,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.17
+          }
+        },
+        "shouldTrade": true,
+        "direction": "sell",
+        "reasoning": []
+      }
+    },
+    {
+      "symbol": "ETH-USD",
+      "activeFrames": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "closedCandleCounts": {
+        "1m": 64,
+        "5m": 64,
+        "15m": 64,
+        "1h": 64,
+        "4h": 64
+      },
+      "latestIndicatorPrices": {
+        "1m": 3064,
+        "5m": 3064,
+        "15m": 3064,
+        "1h": 3064,
+        "4h": 3064
+      },
+      "formingBarsExcluded": true,
+      "confluence": {
+        "module": "MultiTimeframe",
+        "source": "MultiTimeframeAdapter.crossFrameScore",
+        "timestamp": 1794978695688,
+        "readyTimeframes": [
+          "1m",
+          "5m",
+          "15m",
+          "1h",
+          "4h"
+        ],
+        "totalTimeframes": 5,
+        "minReadyTimeframes": 2,
+        "available": true,
+        "unavailableReason": null,
+        "bullishCount": 5,
+        "bearishCount": 0,
+        "neutralCount": 0,
+        "overallBias": "neutral",
+        "confluenceScore": -0.10259911169600265,
+        "confidence": 1,
+        "rsiAverage": 100,
+        "rsiExtreme": true,
+        "trendAlignment": 1,
+        "timeframeSignals": {
+          "1m": {
+            "signal": "neutral",
+            "strength": 0.10259911169600267,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.05
+          },
+          "5m": {
+            "signal": "neutral",
+            "strength": 0.10259911169600267,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.08
+          },
+          "15m": {
+            "signal": "neutral",
+            "strength": 0.10259911169600267,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.1
+          },
+          "1h": {
+            "signal": "neutral",
+            "strength": 0.10259911169600267,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.15
+          },
+          "4h": {
+            "signal": "neutral",
+            "strength": 0.10259911169600267,
+            "rsi": 100,
+            "trend": "bullish",
+            "weight": 0.17
+          }
+        },
+        "shouldTrade": false,
+        "direction": "neutral",
+        "reasoning": []
+      }
+    }
+  ],
+  "directDeliveryResults": [
+    {
+      "timeframe": "30m",
+      "existingError": "[MultiTimeframeAdapter] sourceTimeframe '30m' is not configured as a TFE-delivered timeframe",
+      "scope": "Counterfactual direct delivery bypassing current runner admission; not a reported live crash"
+    },
+    {
+      "timeframe": "1d",
+      "existingError": "[MultiTimeframeAdapter] sourceTimeframe '1d' is not configured as a TFE-delivered timeframe",
+      "scope": "Counterfactual direct delivery bypassing current runner admission; not a reported live crash"
+    }
+  ],
+  "scope": "Actual orchestrator MTF ownership methods, actual MTF module and real isolated ConfigLoader paper profile; synthetic candles.",
+  "limits": [
+    "No order or strategy ranking execution",
+    "No real broker or browser connection",
+    "No assertion that other indicator modules are isolated",
+    "No production changes"
+  ]
+}
