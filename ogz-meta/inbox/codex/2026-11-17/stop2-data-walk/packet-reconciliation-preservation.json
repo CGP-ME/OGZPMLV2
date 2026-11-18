@@ -1,0 +1,40 @@
+{
+  "headBefore": "caa7e9f7cb2166c125d4f05279277332f925f092",
+  "workingChangelogBeforeSha256": "11397001dd22e54de686c41bfbf1b360ef71eacf9835e526565de0cc651fa918",
+  "workingChangelogBeforeBytes": 1748805,
+  "trackedStatusBefore": [
+    " M CHANGELOG.md",
+    " M config/internals.json",
+    " M config/settings.json",
+    " M core/ExitContractManager.js",
+    " M core/OrderExecutor.js",
+    " M core/StateManager.js",
+    " M core/StrategyOrchestrator.js",
+    " M core/TradingLoop.js",
+    " M core/dto/DecisionLedgerSchema.js",
+    " M foundation/ConfigLoader.js",
+    " M modules/DonchianBreakout.js",
+    " M modules/EMATrendRetest.js",
+    " M modules/PropSafeEMAPullback.js",
+    " M modules/RSI2MeanReversion.js",
+    " M modules/TimeSeriesMomentum.js",
+    " M ogzprime-ssl-server.js",
+    " M test/mercury-astra-challenger.test.js",
+    " M test/session-router-fail-safe.test.js",
+    " M test/trade-replay-capture-contract.test.js",
+    " M trai_brain/mercury-bridge/react-loop.js"
+  ],
+  "indexBefore": [],
+  "verifiedAtUTC": "2026-11-18T05:33:55.350481+00:00",
+  "inheritedChangelogSuffixUnchanged": true,
+  "newEntryLines": 10,
+  "scope": [
+    "CHANGELOG.md",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/PACKET-RECONCILIATION.md",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/fixtures/htf-close-and-macd.cjs",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/htf-close-and-macd-receipt.json",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/htf-close-and-macd-run.json",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/packet-reconciliation-verification.json",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/packet-reconciliation-preservation.json"
+  ]
+}

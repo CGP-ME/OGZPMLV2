@@ -1,0 +1,70 @@
+{
+  "sourceHashes": {
+    "modules/MultiTimeframeAdapter.js": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+    "core/ReplayClosedCandleBoundary.js": "93693ec638b43a8a33389d029a73e7019d8dab13081244c1e6a3db1944f7b282",
+    "core/OptimizedIndicators.js": "4d267fd3fc955b05e42732e02f679bb34cbfe91627b0078dcf784c5058df7c76",
+    "core/EnhancedPatternRecognition.js": "750cbb3a7b40056a949d70ead9249af65d5566c1b0751179eeccbd940e2c862e",
+    "core/TradingLoop.js": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81",
+    "core/indicators/IndicatorEngine.js": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3",
+    "core/SymbolTradingContext.js": "e9c6a89ec041890103d3114599968da13a0456406be7680a47d244c8b421c793",
+    "run-empire-v2.js": "348cab3b31997eb1827af7fae5ef1215cc328746566babb13859398a38a2579b",
+    "foundation/ConfigLoader.js": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937",
+    "config/settings.json": "17dc68264dfdf8cf9e666f7caa148aea1112c872f2180e026f7f632849fcde31",
+    "config/internals.json": "eaaf939db0f73ca3b7ec3bbc344de31b14c935d51711ac2a4a42a9a7922371c8"
+  },
+  "closeOrdering": {
+    "decisionEnd": 1794916800000,
+    "higherFrameEnd": 1794916800000,
+    "minuteBoundaryBeforeHourRevision": 101,
+    "hourRevisionBeforeMinuteBoundary": 140,
+    "laterRecapture": 140,
+    "earlierSnapshotRemainsUnchanged": 101,
+    "conclusion": "Equal end times allow the currently stored higher-frame revision into the captured input; no independent final-update confirmation is checked."
+  },
+  "optimizedMacd": {
+    "isolatedA": {
+      "macdLine": 5.96497564328763,
+      "signalLine": 5.961446820506485,
+      "histogram": 0.003528822781145635,
+      "macd": 5.96497564328763,
+      "signal": 5.961446820506485
+    },
+    "interleavedA": {
+      "macdLine": 5.96497564328763,
+      "signalLine": -0.6551916632556194,
+      "histogram": 6.62016730654325,
+      "macd": 5.96497564328763,
+      "signal": -0.6551916632556194
+    },
+    "isolatedB": {
+      "macdLine": -11.921679756154163,
+      "signalLine": -11.925208578935234,
+      "histogram": 0.003528822781071028,
+      "macd": -11.921679756154163,
+      "signal": -11.925208578935234
+    },
+    "interleavedB": {
+      "macdLine": -11.921679756154163,
+      "signalLine": -5.3111163014314275,
+      "histogram": -6.610563454722735,
+      "macd": -11.921679756154163,
+      "signal": -5.3111163014314275
+    },
+    "cachedAReturnsEarlierValueWithoutAdvancingHistory": true,
+    "normalProvidedFeatureMacdCalls": 0,
+    "normalProvidedFeatureDelta": 0.5,
+    "missingInputFeatureMacdCalls": 1,
+    "missingInputFeatureDelta": 6.62016730654325,
+    "isolatedADelta": 0.003528822781145635
+  },
+  "seams": [
+    "Actual closure selector and MTF ingest/capture methods; full runner scheduling not instantiated",
+    "Actual optimized calculators and feature extractor; method wrapper only counts calls and delegates unchanged"
+  ],
+  "limits": [
+    "Synthetic delivery order and prices, not an observed broker incident",
+    "No live decision or order corruption established",
+    "No numerical-parity claim across distinct MACD algorithms",
+    "No production changes, provider calls or real learned-state access"
+  ]
+}

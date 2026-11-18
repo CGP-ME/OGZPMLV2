@@ -1,0 +1,17 @@
+{
+  "observedAtUTC": "2026-11-18T05:31:22.768738+00:00",
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/fixtures/htf-close-and-macd.cjs",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/fixtures/htf-close-and-macd.cjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.612,
+  "fixtureSha256": "d5853700299d76346291574d8ed6242705d37c877e951657a24b6c529590ad12",
+  "log": "ogz-meta/inbox/codex/2026-11-17/stop2-data-walk/htf-close-and-macd.log",
+  "logSha256": "d4a4eada1ce6501b8bdf96f58760c440b3599df5f29b25f7a23543e31f24fbde"
+}
