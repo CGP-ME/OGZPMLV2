@@ -1,0 +1,16 @@
+{
+  "startedUtc": "2026-11-18T17:20:39.467080+00:00",
+  "completedUtc": "2026-11-18T17:20:40.725307+00:00",
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-mtf-contract/fixtures/client-ownership.cjs",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-18/stop2-mtf-contract/fixtures/client-ownership.cjs"
+  ],
+  "exitCode": 0,
+  "fixtureSha256": "80a50f4223df65b2187b23775c90377edfc154b384397fa48d48f25cd47b6713",
+  "logSha256": "c15e662677ac76421801bdd313fc101d885a963e777320626e3632b7ce4b8eb1"
+}

@@ -1,0 +1,116 @@
+{
+  "sourceHashes": {
+    "public/js/panels/chart-panel.js": "1771141357664b219ae1c7a26a72556162f8328c510822d76dbce640c0def5a9",
+    "public/js/chart.js": "1835e68ceda113fd223132aea68db14027fca92281a74ac4f428b55bc541a46a",
+    "public/js/core.js": "722eca749da3d708f47e369e0c6c109b8eaad207348e07427d5252e03c1eac2a",
+    "public/js/websocket.js": "66ceda68c57019af326617758788719c95114619f4a9600d3af46fdaed19ff48",
+    "core/DashboardBroadcaster.js": "6e1657c711a65772ddcc31f3b7a79f8784950be22f70b324b70030e6ddfbdcd6",
+    "core/CandleProcessor.js": "4cc8413cfea806b2047be3521998506914b57591e6008c9c3db7d533532cee40",
+    "ogzprime-ssl-server.js": "15c6d6bac683a2780c4b788fc43f149b0fe62c3847862915e82270ed5f0529a8"
+  },
+  "cases": {
+    "browserReplacesServerHistory": {
+      "suppliedLastClose": 120,
+      "browserLastClose": 1020,
+      "chartLastClose": 1020,
+      "requests": [
+        "https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=1"
+      ],
+      "logs": []
+    },
+    "serverHistoryAfterBrowserFetchFailure": {
+      "suppliedLastClose": 120,
+      "browserLastClose": null,
+      "chartLastClose": 120,
+      "requests": [
+        "https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=1"
+      ],
+      "logs": [
+        {
+          "level": "warn",
+          "message": "[ChartPanel] Kraken historical fallback failed [object Object]"
+        }
+      ]
+    },
+    "legacyHistoryEnvelope": {
+      "writesViaActualDispatcher": 0,
+      "writesViaArrayPositiveControl": 1,
+      "logs": [
+        {
+          "level": "error",
+          "message": "[Chart] loadHistorical error: candles.map is not a function"
+        },
+        {
+          "level": "log",
+          "message": "[Chart] Loaded 3 historical candles"
+        }
+      ]
+    },
+    "otherAssetPrice": {
+      "selectedSymbol": "BTC-USD",
+      "receivedSymbol": "TSLA",
+      "beforeLastPrice": 108,
+      "afterLastPrice": 500,
+      "chartWrites": 0,
+      "header": "$108.00",
+      "indicatorRsi": "22.0"
+    },
+    "otherAssetDelta": {
+      "selectedSymbol": "BTC-USD",
+      "receivedSymbol": "TSLA",
+      "inputCandleTime": 1794873600000,
+      "emittedPacket": {
+        "type": "delta",
+        "symbol": "TSLA",
+        "asset": "TSLA",
+        "timeframe": "1m",
+        "tick": {
+          "symbol": "TSLA",
+          "asset": "TSLA",
+          "timeframe": "1m",
+          "price": 105,
+          "volume": 12,
+          "timestamp": 1794873690000
+        }
+      },
+      "beforeLastPrice": 108,
+      "afterLastPrice": 105,
+      "displayedHeader": "$108.00"
+    },
+    "olderCorrectionAsCurrentDelta": {
+      "selectedSymbol": "BTC-USD",
+      "receivedSymbol": "BTC-USD",
+      "inputCandleTime": 1794873600000,
+      "emittedPacket": {
+        "type": "delta",
+        "symbol": "BTC-USD",
+        "asset": "BTC-USD",
+        "timeframe": "1m",
+        "tick": {
+          "symbol": "BTC-USD",
+          "asset": "BTC-USD",
+          "timeframe": "1m",
+          "price": 105,
+          "volume": 12,
+          "timestamp": 1794873690000
+        }
+      },
+      "beforeLastPrice": 108,
+      "afterLastPrice": 105,
+      "displayedHeader": "$105.00"
+    }
+  },
+  "seams": [
+    "Complete actual chart history/update functions, actual core handlers and socket onmessage",
+    "Actual delta-send expression; surrounding broadcaster admission inspected separately",
+    "Actual frontend normalization, selection and Kraken fetch helper with synthetic fetch responses",
+    "Synthetic DOM, chart-series capture, shared state, fixed clock and transport; oscillator rendering stubbed"
+  ],
+  "limits": [
+    "No live broker requests or connected browser",
+    "No renderer or screenshot proof",
+    "No actual server relay execution; its fanout inspected in source",
+    "No trading decision or order executed",
+    "Investigation only; no repair applied"
+  ]
+}

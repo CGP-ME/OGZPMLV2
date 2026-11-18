@@ -6,6 +6,11 @@ Trey's broader MTF instruction remains **Keep investigating before editing**.
 Hermes owns a separate read-only Stop 3 winner trace. This document is a proposed
 implementation boundary, not an approval or a Stop 2 completion certificate.
 
+The subsequent [client follow-up](CLIENT-FOLLOWUP.md) records Trey's renewed
+investigation-only instruction, adds the previously missed `public/js/websocket.js`
+state writer, and corrects the activation boundary: served frontend edits can take
+effect without a PM2 restart. Read it with this proposal before authoring changes.
+
 ## Newly reproduced defects
 
 [Native receipt](ownership-receipt.json), [execution identity](ownership-run.json),
