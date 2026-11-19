@@ -1,0 +1,14 @@
+{
+  "baseCommit": "926c5c62001548bc4df9db63760197d3221c698f",
+  "baseTree": "749fc6f78cb1850a7fbae8cce601b99cfdfc1548",
+  "candidateTree": "25bc8545996cbaafa62098e86fa5e6b47953502d",
+  "stagedSourceHash": "17db39d7768c517bcabc66a88c2375994824f5ea9c84e870dc1ff12bc9e62bd2",
+  "workingCandidateHash": "0589e47ab9239a90e396a0764794ff1590e33ab6dbbbe146ebaacf7083874159",
+  "inheritedHarnessSHA256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "finalCandidateTree": "7231de16b72b77dddd8445c59382d311192e3437",
+  "workingSourceHashes": {
+    "ogzprime-ssl-server.js": "0589e47ab9239a90e396a0764794ff1590e33ab6dbbbe146ebaacf7083874159",
+    "core/CryptoMarketFeed.js": "62cf9a4840c9ea8519c752ac09bd6854aba0b4887c5bb336cec50194dd74b489"
+  },
+  "stagedFeedSHA256": "62cf9a4840c9ea8519c752ac09bd6854aba0b4887c5bb336cec50194dd74b489"
+}

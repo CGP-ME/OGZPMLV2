@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=7231de16b72b77dddd8445c59382d311192e3437",
+    "--review-base=926c5c62001548bc4df9db63760197d3221c698f",
+    "--change-path=core/CryptoMarketFeed.js",
+    "How does stopping the dashboard public market-data feed affect its socket, reconnection, and reporting of a socket-close failure in the pinned candidate? Cite current file:line evidence and name verification gaps."
+  ]
+}

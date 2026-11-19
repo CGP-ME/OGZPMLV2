@@ -1,3 +1,19 @@
+## 2026-11-19 — Fixed orphan Kraken socket lifecycle in the dashboard server
+
+**Problem:** The server retained a disabled no-op Kraken socket, dead hardcoded subscriptions/ticker/reconnect handlers and false startup logs. Its existing SIGINT handler addressed that stub while the real `CryptoMarketFeed` connection remained unmanaged by that handler. The real feed's close-error catch also hid synchronous failures.
+
+**Changes:** Removed the stub and every reference (217 net orphan lines). The existing WebSocket server shutdown handler now invokes the actual public feed's stop method, which already suppresses reconnect and clears its watchdog. Existing synchronous close failures are now logged instead of hidden. No new signal handler, trading control, fallback data, throw or gate. The active REST ticker poll is separate and remains unchanged.
+
+**Verification:** Actual server startup/shutdown expressions and actual public-feed code executed under the isolation launcher with synthetic transport/process boundaries. Baseline reproduces eight dead references and the still-connected real feed. Working and pinned candidates retain ticker/trade/book subscriptions, remove all ghost references, close the feed, clear its watchdog, schedule no reconnect and preserve HTTP/client/process shutdown. Forced transport-close failure is reported. No host signal or PM2 action; no Jest added/run.
+
+**Review:** Independent Mercury lifecycle question on tree `25bc8545996cbaafa62098e86fa5e6b47953502d` (22 tools, $0.029953), then independent stop/error-reporting question on the final tree recorded in the receipt (11 tools, $0.008516). Both no_break_found/nonblocking; complete answers, tree identities, inherited harness hash, metadata warnings and execution limits retained. The second review's catch classification refers to an existing shutdown catch whose previously hidden error is now logged, outside trading execution. No full-panel or fresh-RAG claim.
+
+**Activation preflight:** 53 source files match the prior approved activation plus reviewed repairs; no unexpected drift. All four current PM2 processes have unchanged PIDs and canonical bootstrap/environment-key sets. Current saved paper state has two positions, no pause reason and no symbol halt. Settings revision 24 / internals revision 14 are on disk. Separate approval is still required to reload all four role snapshots with `ecosystem.config.js --update-env`, preserve positions/journals and prove the new live behavior. Preflight identifies its pre-commit base plus exact candidate/source hashes; it must be refreshed immediately before activation.
+
+**Delivery / remaining:** Preserved the inherited server authentication changes and all other unrelated work. No PM2 restart. Stop 2 live closeout still requires post-activation native history, observed CVD, config provenance and ongoing paper receipts.
+
+**Receipts:** `ogz-meta/inbox/codex/2026-11-19/stop2-retire-disabled-feed/RECEIPTS.md` and `preflight.json`.
+
 ## 2026-11-19 — Fixed fabricated dashboard analytics and competing CVD ownership
 
 **Problem:** Candle color and cumulative candle volume were being presented as trade-side CVD, repeatedly counted across revisions and frames. The same broadcaster manufactured funding, liquidations, whale events, book imbalance and participant labels. The original dashboard also started seven random-data timers, competing with the real public Kraken feed.

@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=25bc8545996cbaafa62098e86fa5e6b47953502d",
+    "--review-base=926c5c62001548bc4df9db63760197d3221c698f",
+    "--change-path=ogzprime-ssl-server.js",
+    "Which Kraken public-data connection does the server manage from startup through its existing SIGINT handler in this candidate? Trace the lifecycle with current file:line evidence and name any verification gaps."
+  ]
+}

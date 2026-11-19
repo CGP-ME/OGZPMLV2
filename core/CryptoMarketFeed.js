@@ -314,7 +314,7 @@ function createCryptoMarketFeed({
     stop: () => {
       stopped = true;
       if (watchdogTimer) clearInterval(watchdogTimer);
-      try { if (ws) ws.close(); } catch (_) { /* shutdown */ }
+      try { if (ws) ws.close(); } catch (error) { log.error(`[CryptoFeed] Failed to close public feed: ${error.message}`); }
     },
   };
 }

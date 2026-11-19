@@ -1,0 +1,79 @@
+{
+  "baseline": true,
+  "sourceHash": "2fd84234f5ab7ad144f296b670f2a9172ef73ed12d8e7d068de508d59e158b27",
+  "feedHash": "7724f99ef170eb4305c97610f01adc7a57d3cff69efd4a3b845577cb1e705c24",
+  "ghostSocketReferences": 8,
+  "subscriptions": [
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "ticker"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "trade"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "book",
+        "depth": 25
+      }
+    }
+  ],
+  "feedConnectedAfterServerSignal": true,
+  "reconnectsScheduled": 0,
+  "sequence": [
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "ticker"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "trade"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "book",
+        "depth": 25
+      }
+    },
+    "dashboard client closed",
+    "HTTP closed",
+    {
+      "exit": 0
+    },
+    "watchdog cleared"
+  ],
+  "closeErrors": [],
+  "limits": [
+    "Actual feed and actual server startup/shutdown expressions; synthetic transport and process exit",
+    "No host signals, PM2 changes or bot orders"
+  ]
+}

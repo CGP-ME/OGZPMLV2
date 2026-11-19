@@ -1,0 +1,50 @@
+{
+  "reviews": [
+    {
+      "answer": "mercury-answer.md",
+      "verdict": "no_break_found",
+      "blocking": false,
+      "costUSD": 0.029953,
+      "tools": 22,
+      "iterations": 14,
+      "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-19.jsonl:5",
+      "selected": [
+        "mercury"
+      ],
+      "unselected": [
+        "astra",
+        "fable"
+      ],
+      "metadataWarnings": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "inherited_section_incomplete",
+        "whole_file_read_absent"
+      ],
+      "executionPerformedByReviewer": false
+    },
+    {
+      "answer": "mercury-close-answer.md",
+      "verdict": "no_break_found",
+      "blocking": false,
+      "costUSD": 0.008516,
+      "tools": 11,
+      "iterations": 7,
+      "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-19.jsonl:6",
+      "selected": [
+        "mercury"
+      ],
+      "unselected": [
+        "astra",
+        "fable"
+      ],
+      "metadataWarnings": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "inherited_section_incomplete"
+      ],
+      "executionPerformedByReviewer": false
+    }
+  ],
+  "indexFreshness": "Not claimed; pinned source trees reviewed"
+}

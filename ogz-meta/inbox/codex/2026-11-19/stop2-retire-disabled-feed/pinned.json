@@ -1,0 +1,90 @@
+{
+  "baseline": false,
+  "sourceHash": "17db39d7768c517bcabc66a88c2375994824f5ea9c84e870dc1ff12bc9e62bd2",
+  "feedHash": "62cf9a4840c9ea8519c752ac09bd6854aba0b4887c5bb336cec50194dd74b489",
+  "ghostSocketReferences": 0,
+  "subscriptions": [
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "ticker"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "trade"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "book",
+        "depth": 25
+      }
+    }
+  ],
+  "feedConnectedAfterServerSignal": false,
+  "reconnectsScheduled": 0,
+  "sequence": [
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "ticker"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "trade"
+      }
+    },
+    {
+      "event": "subscribe",
+      "pair": [
+        "XBT/USD"
+      ],
+      "subscription": {
+        "name": "book",
+        "depth": 25
+      }
+    },
+    "dashboard client closed",
+    "watchdog cleared",
+    {
+      "type": "cvd_update",
+      "status": "unavailable"
+    },
+    {
+      "type": "market_internals",
+      "status": "unavailable"
+    },
+    "HTTP closed",
+    {
+      "exit": 0
+    },
+    "watchdog cleared"
+  ],
+  "closeErrors": [
+    "[CryptoFeed] Failed to close public feed: fixture transport close error"
+  ],
+  "limits": [
+    "Actual feed and actual server startup/shutdown expressions; synthetic transport and process exit",
+    "No host signals, PM2 changes or bot orders"
+  ]
+}
