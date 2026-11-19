@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=cae04628b22ea1fa29d1ff04ff5bf16dff031d0c",
+    "--review-base=ddf62a140798cad2885a86cd76cde4b0338f49ff",
+    "--change-path=public/js/panels/edge-analytics-panel.js",
+    "--change-path=public/unified-dashboard.html",
+    "--change-path=public/unified-dashboard-v2.html",
+    "--change-path=public/js/panels/chart-panel.js",
+    "When the operator changes the displayed asset using the chart dropdown or watchlist, which asset owns the analytics values shown after the transition? Trace that behavior in the pinned source with current file:line evidence and named verification gaps."
+  ]
+}

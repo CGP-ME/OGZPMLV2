@@ -1603,6 +1603,8 @@
                 return;
             }
             this.clearAll();
+            const analytics = OGZ.get('EdgeAnalyticsPanel');
+            if (analytics) analytics.setSymbol(sym);
             if (_pendingAssetHistoryTimer) {
                 clearTimeout(_pendingAssetHistoryTimer);
                 _trackedTimers.delete(_pendingAssetHistoryTimer);

@@ -1,0 +1,88 @@
+{
+  "reviews": [
+    {
+      "ledgerLine": 7,
+      "runId": "2026-11-19T16-17-00-958Z-ee55d395a3e1",
+      "verdict": "found_break",
+      "cost": {
+        "amount": 0.08532724,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 25,
+        "total_attempts": 25,
+        "cost_absences": []
+      },
+      "iterations": 24,
+      "tree": "4d8ebf4f64283d14be48faeabf4dcf3676cb2265",
+      "baseTree": "cef444d45481d506060c609092402b77ab50fb41",
+      "sourceManifest": "ogz-meta/cognition-history/mercury-runs/2026-11-19T16-15-21-789Z-580793-9d6851b4869f/source-LxKdyh.json",
+      "sourceManifestSHA256": "714ae3bd8ddf949e3d6889ec9cdd9051ceb5dfb82460187c4d552de87dcc4f1e",
+      "selected": [
+        "mercury"
+      ],
+      "unselected": [
+        "astra",
+        "fable"
+      ],
+      "namedAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "whole_file_read_absent",
+        "inherited_section_incomplete",
+        "substantive_resolution_absent"
+      ],
+      "executionPerformedByReviewer": false,
+      "toolCallCount": 6,
+      "toolNames": [
+        "find_definition",
+        "grep",
+        "list_files",
+        "open_file",
+        "read_review_receipt",
+        "regex_grep"
+      ]
+    },
+    {
+      "ledgerLine": 8,
+      "runId": "2026-11-19T16-22-44-230Z-c246aebba5f2",
+      "verdict": "no_break_found",
+      "cost": {
+        "amount": 0.12225133,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 30,
+        "total_attempts": 30,
+        "cost_absences": []
+      },
+      "iterations": 29,
+      "tree": "cae04628b22ea1fa29d1ff04ff5bf16dff031d0c",
+      "baseTree": "cef444d45481d506060c609092402b77ab50fb41",
+      "sourceManifest": "ogz-meta/cognition-history/mercury-runs/2026-11-19T16-20-57-210Z-585896-fb7ab931595e/source-h38Hmk.json",
+      "sourceManifestSHA256": "5303aba560fd94e00a88d09788ae1f7b5fddd266901bc5c8344cf9f874c86292",
+      "selected": [
+        "mercury"
+      ],
+      "unselected": [
+        "astra",
+        "fable"
+      ],
+      "namedAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "whole_file_read_absent",
+        "inherited_section_incomplete"
+      ],
+      "executionPerformedByReviewer": false,
+      "toolCallCount": 5,
+      "toolNames": [
+        "find_references",
+        "grep",
+        "list_files",
+        "open_file",
+        "read_review_receipt"
+      ]
+    }
+  ],
+  "resolution": "First candidate watchlist ordering defect accepted, reproduced in the public browser and repaired at chart switchAsset. Final source independently reviewed; live dropdown and mixed dropdown/watchlist behavior verified.",
+  "indexFreshness": "Not claimed; pinned source trees reviewed"
+}

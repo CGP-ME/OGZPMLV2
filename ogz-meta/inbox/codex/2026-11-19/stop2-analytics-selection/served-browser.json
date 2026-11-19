@@ -1,0 +1,647 @@
+{
+  "startedAt": "2026-11-19T16:22:48.200Z",
+  "activation": "All four processes restarted from ddf62a14 with canonical environment",
+  "pages": [
+    {
+      "page": "unified-dashboard-v2.html",
+      "pageErrors": [],
+      "observations": [
+        {
+          "selected": "BTC-USD",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "BTC-USD",
+            "cvdHistoryLength": 1,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "-33721",
+            "cvdTrend": "falling",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "0.57",
+            "bookImbalance": "20.9%"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        },
+        {
+          "selected": "TSLA",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "TSLA",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "--",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "--",
+            "bookImbalance": "--"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        },
+        {
+          "selected": "ETH-USD",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "ETH-USD",
+            "cvdHistoryLength": 1,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "167529",
+            "cvdTrend": "falling",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "--",
+            "bookImbalance": "--"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        },
+        {
+          "selected": "TSLA",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "TSLA",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "--",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "--",
+            "bookImbalance": "--"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        }
+      ],
+      "status": 200,
+      "wire": {
+        "cvd": [
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -33721.10649699792,
+            "buyVolume": 1084102.9120242079,
+            "sellVolume": 1117824.0185212027,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105371117
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -33718.18716090792,
+            "buyVolume": 1084105.831360298,
+            "sellVolume": 1117824.0185212027,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105372138
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 167509.284230007,
+            "buyVolume": 264144.1908226911,
+            "sellVolume": 96634.90659268433,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105372669
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 144469.81067118372,
+            "buyVolume": 217009.3742441081,
+            "sellVolume": 72539.56357292469,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105373198
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -33299.99589075791,
+            "buyVolume": 1084524.022630448,
+            "sellVolume": 1117824.0185212027,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105373511
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 144435.80207598372,
+            "buyVolume": 217009.3742441081,
+            "sellVolume": 72573.57216812468,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105374949
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 167539.2474951114,
+            "buyVolume": 264174.15408779547,
+            "sellVolume": 96634.90659268433,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105375213
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 167529.2456509322,
+            "buyVolume": 264174.15408779547,
+            "sellVolume": 96644.90843686354,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105376303
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 159140.84948045123,
+            "buyVolume": 231714.4216485756,
+            "sellVolume": 72573.57216812468,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105377194
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -33642.91210250791,
+            "buyVolume": 1084527.820368698,
+            "sellVolume": 1118170.7324712027,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105378542
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -32939.8338693929,
+            "buyVolume": 1085230.898601813,
+            "sellVolume": 1118170.7324712027,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105379838
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 159141.93628001364,
+            "buyVolume": 231715.50844813802,
+            "sellVolume": 72573.57216812468,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105380180
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 167313.6399093885,
+            "buyVolume": 264184.04573625175,
+            "sellVolume": 96870.40582686354,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105380460
+          }
+        ],
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "BTC-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "15m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "15m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "ETH-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "ETH-USD",
+            "timeframe": "15m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "15m"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "page": "unified-dashboard.html",
+      "pageErrors": [],
+      "observations": [
+        {
+          "selected": "BTC-USD",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "BTC-USD",
+            "cvdHistoryLength": 1,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "-34181",
+            "cvdTrend": "falling",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "0.57",
+            "bookImbalance": "24.0%"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        },
+        {
+          "selected": "TSLA",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "TSLA",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "--",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "--",
+            "bookImbalance": "--"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        },
+        {
+          "selected": "ETH-USD",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "ETH-USD",
+            "cvdHistoryLength": 1,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "168630",
+            "cvdTrend": "rising",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "--",
+            "bookImbalance": "--"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        },
+        {
+          "selected": "TSLA",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "TSLA",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "--",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "--",
+            "bookImbalance": "--"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2"
+          ]
+        }
+      ],
+      "status": 200,
+      "wire": {
+        "cvd": [
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -34181.23677701891,
+            "buyVolume": 1086809.5004516712,
+            "sellVolume": 1120990.737228687,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105384920
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 168380.24610157835,
+            "buyVolume": 265925.5463844142,
+            "sellVolume": 97545.30028283605,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105386319
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -34220.38060883191,
+            "buyVolume": 1086809.5004516712,
+            "sellVolume": 1121029.8810605,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105387452
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 161562.01032681504,
+            "buyVolume": 234135.58249493942,
+            "sellVolume": 72573.57216812468,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105387607
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 163968.99748575492,
+            "buyVolume": 236569.9900085543,
+            "sellVolume": 72600.99252279969,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105389278
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -34173.83129348391,
+            "buyVolume": 1086860.7021051012,
+            "sellVolume": 1121034.533398582,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105389774
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 168630.36155791534,
+            "buyVolume": 266175.6618407512,
+            "sellVolume": 97545.30028283605,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105390589
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 165119.53908560233,
+            "buyVolume": 237720.5316084017,
+            "sellVolume": 72600.99252279969,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105390836
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -34093.8978862349,
+            "buyVolume": 1086940.6355123506,
+            "sellVolume": 1121034.533398582,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105391857
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 166710.76593662333,
+            "buyVolume": 266203.3077301692,
+            "sellVolume": 99492.54179354604,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105392359
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 166468.99748559494,
+            "buyVolume": 239069.99000839432,
+            "sellVolume": 72600.99252279969,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105392469
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -34125.4262984579,
+            "buyVolume": 1086940.6355123506,
+            "sellVolume": 1121066.061810805,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105393096
+          },
+          {
+            "asset": "SOL-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 180810.69270766625,
+            "buyVolume": 253796.44440346563,
+            "sellVolume": 72985.75169579968,
+            "windowStartedAt": 1795104447994,
+            "timestamp": 1795105393758
+          },
+          {
+            "asset": "ETH-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": 166600.46797220534,
+            "buyVolume": 266204.0866407512,
+            "sellVolume": 99603.61866854604,
+            "windowStartedAt": 1795104450186,
+            "timestamp": 1795105395255
+          },
+          {
+            "asset": "BTC-USD",
+            "source": "kraken_trade",
+            "unit": "USD",
+            "status": "ok",
+            "value": -36253.747069957906,
+            "buyVolume": 1086940.6355123506,
+            "sellVolume": 1123194.382582305,
+            "windowStartedAt": 1795104448009,
+            "timestamp": 1795105395341
+          }
+        ],
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "BTC-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "ETH-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "ETH-USD",
+            "timeframe": "1m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ],
+  "finishedAt": "2026-11-19T16:23:16.579Z"
+}

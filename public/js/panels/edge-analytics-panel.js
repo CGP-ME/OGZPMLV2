@@ -375,7 +375,6 @@
             console.error('[EdgeAnalyticsPanel] watchlist:select without recognizable broker:', data);
             return;
         }
-        if (data && data.symbol) EdgeAnalyticsPanel.setSymbol(String(data.symbol));
         applyAssetClassVisibility(assetClass);
     }
 
@@ -391,6 +390,9 @@
                 if (!renderScaffold() && !document.getElementById('edgePanel')) return;
                 this.clearAll();
                 state.mounted = true;
+                const selected = document.getElementById('cp-assetSelector')
+                    || document.getElementById('assetSelector');
+                if (selected) this.setSymbol(selected.value);
                 const selector = document.getElementById('assetSelector');
                 if (selector) selector.addEventListener('change', onLegacyAssetChange);
 

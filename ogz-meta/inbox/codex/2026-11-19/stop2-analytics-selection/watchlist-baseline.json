@@ -1,0 +1,167 @@
+{
+  "startedAt": "2026-11-19T16:19:49.672Z",
+  "mode": "served",
+  "pageErrors": [],
+  "steps": [
+    {
+      "request": {
+        "symbol": "TSLA",
+        "broker": "ALP"
+      },
+      "immediate": {
+        "selected": "TSLA",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "BTC-USD",
+          "cvdHistoryLength": 1,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "-17989"
+      },
+      "observed": {
+        "selected": "TSLA",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "BTC-USD",
+          "cvdHistoryLength": 1,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "-17989"
+      }
+    },
+    {
+      "request": {
+        "symbol": "ETH",
+        "broker": "KRA"
+      },
+      "immediate": {
+        "selected": "ETH-USD",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "TSLA",
+          "cvdHistoryLength": 0,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "--"
+      },
+      "observed": {
+        "selected": "ETH-USD",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "TSLA",
+          "cvdHistoryLength": 1,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "118356"
+      }
+    },
+    {
+      "request": {
+        "symbol": "TSLA",
+        "broker": "ALP"
+      },
+      "immediate": {
+        "selected": "TSLA",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "ETH-USD",
+          "cvdHistoryLength": 0,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "--"
+      },
+      "observed": {
+        "selected": "TSLA",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "ETH-USD",
+          "cvdHistoryLength": 0,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "--"
+      }
+    },
+    {
+      "request": {
+        "symbol": "BTC",
+        "broker": "KRA"
+      },
+      "immediate": {
+        "selected": "BTC-USD",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "TSLA",
+          "cvdHistoryLength": 0,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "--"
+      },
+      "observed": {
+        "selected": "BTC-USD",
+        "panel": {
+          "mounted": true,
+          "currentSymbol": "TSLA",
+          "cvdHistoryLength": 1,
+          "registeredHandlers": [
+            "cvd_update",
+            "whale_trade",
+            "market_internals",
+            "divergence"
+          ]
+        },
+        "cvd": "-17984"
+      }
+    }
+  ],
+  "beforeWatchlist": {
+    "selected": "BTC-USD",
+    "panel": {
+      "mounted": true,
+      "currentSymbol": "BTC-USD",
+      "cvdHistoryLength": 1,
+      "registeredHandlers": [
+        "cvd_update",
+        "whale_trade",
+        "market_internals",
+        "divergence"
+      ]
+    },
+    "cvd": "-17989"
+  },
+  "finishedAt": "2026-11-19T16:19:56.637Z"
+}

@@ -1,0 +1,10 @@
+{
+  "baseCommit": "ddf62a140798cad2885a86cd76cde4b0338f49ff",
+  "candidateTree": "4d8ebf4f64283d14be48faeabf4dcf3676cb2265",
+  "sourceHashes": {
+    "public/js/panels/edge-analytics-panel.js": "8615cb13d650065cda65712ff4447feb839f20654b82f09e0b44fdbe2e04a9ec",
+    "public/unified-dashboard.html": "c1c1ba9cca27e07be5238cfd2f0e5907d835da8bdcb87e926caf82e54bcd1523",
+    "public/unified-dashboard-v2.html": "ec61fa6c7c1f28130389536b41bdf29649d68d549c989ad8dd095ac82e3e8a84"
+  },
+  "inheritedHarnessSHA256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+}
