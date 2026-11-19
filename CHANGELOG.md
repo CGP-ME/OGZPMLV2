@@ -1,3 +1,17 @@
+## 2026-11-19 — Fixed chart indicator sample alignment and unavailable values
+
+**Problem:** Real browser observation exposed RSI plotted 14 candles early. Its producer returned a shortened array while both chart consumers map by array index. The same browser library used a prior-only Bollinger window and substituted typical price for zero-volume VWAP.
+
+**Changes:** `public/js/indicators.js` now emits one RSI slot per input candle, seeds Wilder RSI at the correct candle, retains valid 0/100 readings and leaves flat/no-movement readings unavailable. Bollinger includes the current candle; VWAP stays null until observed cumulative volume is positive. Both supported HTML pages request the new indicator asset version. Trading indicator modules are untouched.
+
+**Verification:** Hand-calculated baseline/candidate examples executed through `scripts/test-isolated.py`, then actual chart/socket/core paths exercised against the candidate math. Actual public V2 and original dashboard pages rendered TSLA native candles and advanced RSI to the identical latest candle timestamp, with no JavaScript exceptions. Chart-only screenshots and exact values are retained. The browser received three unrelated portal-session HTTP 401 responses per page, so all dashboard endpoints are not certified. Verification harness corrections (explicit fixture arguments and screenshot selector) are documented.
+
+**Review:** Independent Mercury on pinned tree `a5aecb230024e480bbdad61a0d2006fa3094aa8e`, base `cfff7b164b80756353b7dab982a77f5664db14d6`: no_break_found, nonblocking, 16 tools, $0.022746. Full answer, metadata warnings and actual inherited harness hash retained. Review was source-only; execution evidence is separate. No panel consensus or fresh RAG claim. The separate inline legacy page flagged by Mercury is outside the two supported pages verified here and remains an explicit limitation.
+
+**Activation / remaining:** Static assets are served on fresh page loads. No PM2 action. Pushed crypto-history broker repair still awaits explicit backend activation; observed-order-flow cleanup remains open. Unrelated inherited changes preserved and excluded from this commit. No Jest added/run.
+
+**Receipts:** `ogz-meta/inbox/codex/2026-11-19/stop2-indicator-samples/RECEIPTS.md`.
+
 ## 2026-11-19 — Stop 2: bind crypto dashboard history to its broker owner
 
 **Observed problem and cause.** Trey's remaining Stop 2 cleanup includes truthful

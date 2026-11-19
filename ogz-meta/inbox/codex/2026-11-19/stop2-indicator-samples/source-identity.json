@@ -1,0 +1,13 @@
+{
+  "baseCommit": "cfff7b164b80756353b7dab982a77f5664db14d6",
+  "baseTree": "7ad023918270f8010cc4878ae4d0d7451bccd1de",
+  "candidateTree": "a5aecb230024e480bbdad61a0d2006fa3094aa8e",
+  "sourceHashes": {
+    "public/js/indicators.js": "0a6fbda2e5597ea36c35c61a58e9f10a35a25dddf43e93cf3a007dc45c357e1f",
+    "public/unified-dashboard.html": "f7d7f131f446786ef8752abcc3ee109100b5b455533cb522fddc7116c7bb900d",
+    "public/unified-dashboard-v2.html": "f297eb181caf4dbb892f5a951dbd63074498ae24a346061ef294e4c13522f532"
+  },
+  "harnessInheritedDirty": {
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "baseline": false,
+  "sourceHashes": {
+    "public/js/panels/chart-panel.js": "dddc20ce547c1782c9e2649e16d3ae63b7fa80f6bc577774b437ebcf88367782",
+    "public/js/chart.js": "f0a46f78908ebc9596f150a4756ea69ba815477b04f16b2c680427aeaa1b0c5a",
+    "public/js/core.js": "f0026061a2b558bc417b949148a70012dbdcb49a8b049e9c0741f0e6736bf296",
+    "public/js/websocket.js": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532"
+  },
+  "output": [
+    {
+      "chart": "Chart",
+      "cases": [
+        {
+          "stage": "history",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "new_candle",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794906000,
+            "value": 146.66231493130732
+          }
+        },
+        {
+          "stage": "current_revision",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794906000,
+            "value": 146.37660064559304
+          }
+        },
+        {
+          "stage": "older_revision",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794906000,
+            "value": 146.3894996315184
+          }
+        }
+      ],
+      "quoteDoesNotRecalculate": true,
+      "vanishedTrendsRemoved": true,
+      "shortHistoryClearsOldIndicators": true,
+      "volumeHistoryPreserved": true,
+      "scopeSwitchClearsIndicators": true,
+      "errors": []
+    },
+    {
+      "chart": "ChartPanel",
+      "cases": [
+        {
+          "stage": "history",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "new_candle",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794906000,
+            "value": 146.66231493130732
+          }
+        },
+        {
+          "stage": "current_revision",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794906000,
+            "value": 146.37660064559304
+          }
+        },
+        {
+          "stage": "older_revision",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794906000,
+            "value": 146.3894996315184
+          }
+        }
+      ],
+      "quoteDoesNotRecalculate": true,
+      "vanishedTrendsRemoved": true,
+      "shortHistoryClearsOldIndicators": true,
+      "volumeHistoryPreserved": true,
+      "scopeSwitchClearsIndicators": true,
+      "errors": []
+    }
+  ],
+  "evidence": "Actual chart history/update/clear methods, core/socket routing and production indicator math; synthetic series boundary",
+  "limitations": [
+    "Synthetic chart-series boundary; actual browser proof recorded separately",
+    "Fixture exercises chart update/routing; hand-calculated indicator mathematics recorded in candidate.json"
+  ]
+}

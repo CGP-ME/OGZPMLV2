@@ -28,11 +28,11 @@
         calculateBollinger: (data, period = 20, stdDev = 2) => {
             const bands = { upper: [], middle: [], lower: [] };
             for (let i = 0; i < data.length; i++) {
-                if (i < period) {
+                if (i < period - 1) {
                     bands.upper.push(null); bands.middle.push(null); bands.lower.push(null);
                     continue;
                 }
-                const slice = data.slice(i - period, i);
+                const slice = data.slice(i - period + 1, i + 1);
                 const mean = slice.reduce((a, b) => a + b) / period;
                 const sd = Math.sqrt(slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period);
                 bands.middle.push(mean);
@@ -43,18 +43,22 @@
         },
 
         calculateRSI: (data, period = 14) => {
+            const rsi = Array(data.length).fill(null);
+            if (data.length <= period) return rsi;
             let gains = 0, losses = 0;
             for (let i = 1; i <= period; i++) {
                 const diff = data[i] - data[i - 1];
                 if (diff >= 0) gains += diff; else losses -= diff;
             }
             let avgG = gains / period, avgL = losses / period;
-            const rsi = [null];
+            const initialMovement = avgG + avgL;
+            if (initialMovement > 0) rsi[period] = 100 * avgG / initialMovement;
             for (let i = period + 1; i < data.length; i++) {
                 const diff = data[i] - data[i - 1];
                 avgG = (avgG * (period - 1) + (diff > 0 ? diff : 0)) / period;
                 avgL = (avgL * (period - 1) + (diff < 0 ? -diff : 0)) / period;
-                rsi.push(100 - (100 / (1 + (avgG / avgL))));
+                const movement = avgG + avgL;
+                if (movement > 0) rsi[i] = 100 * avgG / movement;
             }
             return rsi;
         },
@@ -65,7 +69,7 @@
                 const tp = (c.high + c.low + c.close) / 3;
                 cumVol += c.volume;
                 cumTP += tp * c.volume;
-                return cumVol > 0 ? cumTP / cumVol : tp;
+                return cumVol > 0 ? cumTP / cumVol : null;
             });
         },
 

@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=a5aecb230024e480bbdad61a0d2006fa3094aa8e",
+    "--review-base=cfff7b164b80756353b7dab982a77f5664db14d6",
+    "--change-path=public/js/indicators.js",
+    "How does each plotted chart-indicator sample retain the timestamp and observation availability of its input candle? Trace the producer-to-series mapping in the pinned browser indicator source, citing current file:line evidence and any verification gaps."
+  ]
+}

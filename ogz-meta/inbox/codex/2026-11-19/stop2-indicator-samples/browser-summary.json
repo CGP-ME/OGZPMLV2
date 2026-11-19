@@ -1,0 +1,40 @@
+[
+  {
+    "page": "unified-dashboard-v2.html",
+    "lastCandle": {
+      "open": 385.35,
+      "high": 385.69,
+      "low": 385.32,
+      "close": 385.48,
+      "time": 1795101240
+    },
+    "rsi": [
+      {
+        "time": 1795101240,
+        "value": 39.30017132423305
+      }
+    ],
+    "javascriptExceptions": [],
+    "blockedCommands": [],
+    "httpSessionLimit": "Three 401 responses per page from missing portal session; market WebSocket authenticated separately"
+  },
+  {
+    "page": "unified-dashboard.html",
+    "lastCandle": {
+      "open": 384.41,
+      "high": 384.81,
+      "low": 384.19,
+      "close": 384.28,
+      "time": 1795101360
+    },
+    "rsi": [
+      {
+        "time": 1795101360,
+        "value": 32.14471578306056
+      }
+    ],
+    "javascriptExceptions": [],
+    "blockedCommands": [],
+    "httpSessionLimit": "Three 401 responses per page from missing portal session; market WebSocket authenticated separately"
+  }
+]

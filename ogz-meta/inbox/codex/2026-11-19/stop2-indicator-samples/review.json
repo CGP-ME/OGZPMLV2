@@ -1,0 +1,24 @@
+{
+  "verdict": "no_break_found",
+  "blocking": false,
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "tools": 16,
+  "iterations": 9,
+  "costUSD": 0.022746,
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-19.jsonl:3",
+  "metadataWarnings": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "inherited_section_incomplete"
+  ],
+  "executionPerformedByReviewer": false,
+  "answer": "mercury-answer.md",
+  "identity": "source-identity.json",
+  "indexFreshness": "not claimed; pinned source snapshot used"
+}

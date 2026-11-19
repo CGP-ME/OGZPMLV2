@@ -1,0 +1,60 @@
+{
+  "baseline": true,
+  "sourceHash": "86bb2d5665a0751043407a83867b74e18364d82f776255faf090ee298abbfac6",
+  "observed": {
+    "rsi": [
+      null,
+      83.33333333333333,
+      60.6060606060606
+    ],
+    "bands": {
+      "upper": [
+        null,
+        null,
+        null,
+        3.632993161855452
+      ],
+      "middle": [
+        null,
+        null,
+        null,
+        2
+      ],
+      "lower": [
+        null,
+        null,
+        null,
+        0.36700683814454793
+      ]
+    },
+    "vwap": [
+      9,
+      12,
+      14
+    ],
+    "flat": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "short": [
+      null
+    ],
+    "upward": [
+      null,
+      100
+    ],
+    "downward": [
+      null,
+      0
+    ]
+  },
+  "evidence": "Executed production browser indicator library; hand-computed rolling windows and Wilder seed/smoothing examples",
+  "limits": [
+    "Front-end math only; trading indicator modules unchanged",
+    "Flat RSI and zero-volume VWAP stay unavailable rather than inventing values"
+  ]
+}
