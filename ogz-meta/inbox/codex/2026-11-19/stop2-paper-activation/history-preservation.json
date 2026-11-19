@@ -1,0 +1,10 @@
+{
+  "observedAt": "2026-11-19T04:52:22.546276+00:00",
+  "filesChecked": 620,
+  "missing": 0,
+  "priorByteRangesPreserved": 620,
+  "tradeLedgerFilesChecked": 17,
+  "allTradeLedgerPriorBytesPreserved": true,
+  "privateBaselineSha256": "18c7a5ce0be957119c45097363b37f6051b707543fd8d742b7981dd7310881f7",
+  "limit": "This covers the enumerated pre-activation paths, not every file on the VPS. JSONL journals can append after the recorded byte range; raw paths and trading state are retained privately."
+}

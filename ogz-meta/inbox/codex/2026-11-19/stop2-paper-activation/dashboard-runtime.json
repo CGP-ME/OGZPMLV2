@@ -1,0 +1,665 @@
+{
+  "startedAt": "2026-11-19T04:44:47.653Z",
+  "endpoint": "wss://www.ogzprime.com/ws",
+  "operation": "read-only get_settings and request_historical; no settings saves, orders or asset_change",
+  "messages": {
+    "auth_success": 1,
+    "state_update": 4,
+    "funding_rate": 8,
+    "fear_greed": 15,
+    "liquidation_data": 50,
+    "market_internals": 326,
+    "smart_money": 29,
+    "cvd_update": 880,
+    "bot_thinking": 9,
+    "broker_status": 58,
+    "depth_update": 966,
+    "settings_result": 1,
+    "price": 1039,
+    "ticker_price": 215,
+    "historical_candles": 14,
+    "trace_event": 4392,
+    "journal_snapshot": 3,
+    "pattern_analysis": 4,
+    "narrator_event": 5,
+    "signal_analysis": 4,
+    "golden_setup_state": 4,
+    "divergence": 25,
+    "bot_state": 1
+  },
+  "nativeFrames": {
+    "BTC-USD:1m": {
+      "count": 118,
+      "scopeMismatches": 0,
+      "envelopeMismatches": 0,
+      "historyScopeMismatches": 0,
+      "first": {
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "timestamp": 1795063440000,
+        "etime": 1795063500000,
+        "open": 63444.1,
+        "high": 63471.2,
+        "low": 63443.1,
+        "close": 63469.3,
+        "volume": 0.16440423
+      },
+      "last": {
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "timestamp": 1795063560000,
+        "etime": 1795063620000,
+        "open": 63536,
+        "high": 63565.6,
+        "low": 63536,
+        "close": 63565.6,
+        "volume": 0.87566839
+      },
+      "lastReceivedAt": "2026-11-19T04:46:12.654Z"
+    },
+    "BTC-USD:5m": {
+      "count": 118,
+      "scopeMismatches": 0,
+      "envelopeMismatches": 0,
+      "historyScopeMismatches": 0,
+      "first": {
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "timestamp": 1795063200000,
+        "etime": 1795063500000,
+        "open": 63434.5,
+        "high": 63473.3,
+        "low": 63387.7,
+        "close": 63469.3,
+        "volume": 5.50932497
+      },
+      "last": {
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "timestamp": 1795063500000,
+        "etime": 1795063800000,
+        "open": 63448.3,
+        "high": 63565.6,
+        "low": 63445.2,
+        "close": 63565.6,
+        "volume": 10.3464721
+      },
+      "lastReceivedAt": "2026-11-19T04:46:12.665Z"
+    },
+    "BTC-USD:15m": {
+      "count": 118,
+      "scopeMismatches": 0,
+      "envelopeMismatches": 0,
+      "historyScopeMismatches": 0,
+      "first": {
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "timestamp": 1795062600000,
+        "etime": 1795063500000,
+        "open": 63274.7,
+        "high": 63473.3,
+        "low": 63274.7,
+        "close": 63469.3,
+        "volume": 21.6247162
+      },
+      "last": {
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "timestamp": 1795063500000,
+        "etime": 1795064400000,
+        "open": 63448.3,
+        "high": 63565.6,
+        "low": 63445.2,
+        "close": 63565.6,
+        "volume": 10.3464721
+      },
+      "lastReceivedAt": "2026-11-19T04:46:12.675Z"
+    },
+    "BTC-USD:30m": {
+      "count": 118,
+      "scopeMismatches": 0,
+      "envelopeMismatches": 0,
+      "historyScopeMismatches": 0,
+      "first": {
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "timestamp": 1795062600000,
+        "etime": 1795064400000,
+        "open": 63274.7,
+        "high": 63473.3,
+        "low": 63274.7,
+        "close": 63469.3,
+        "volume": 21.6247162
+      },
+      "last": {
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "timestamp": 1795062600000,
+        "etime": 1795064400000,
+        "open": 63274.7,
+        "high": 63565.6,
+        "low": 63274.7,
+        "close": 63565.6,
+        "volume": 32.03311518
+      },
+      "lastReceivedAt": "2026-11-19T04:46:12.684Z"
+    },
+    "BTC-USD:1h": {
+      "count": 118,
+      "scopeMismatches": 0,
+      "envelopeMismatches": 0,
+      "historyScopeMismatches": 0,
+      "first": {
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "timestamp": 1795060800000,
+        "etime": 1795064400000,
+        "open": 63135.2,
+        "high": 63498,
+        "low": 63135.2,
+        "close": 63469.3,
+        "volume": 106.20768917
+      },
+      "last": {
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "timestamp": 1795060800000,
+        "etime": 1795064400000,
+        "open": 63135.2,
+        "high": 63565.6,
+        "low": 63135.2,
+        "close": 63565.6,
+        "volume": 116.61608815
+      },
+      "lastReceivedAt": "2026-11-19T04:46:12.694Z"
+    },
+    "BTC-USD:4h": {
+      "count": 117,
+      "scopeMismatches": 0,
+      "envelopeMismatches": 0,
+      "historyScopeMismatches": 0,
+      "first": {
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "timestamp": 1795060800000,
+        "etime": 1795075200000,
+        "open": 63135.2,
+        "high": 63498,
+        "low": 63135.2,
+        "close": 63469.3,
+        "volume": 106.20768917
+      },
+      "last": {
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "timestamp": 1795060800000,
+        "etime": 1795075200000,
+        "open": 63135.2,
+        "high": 63563,
+        "low": 63135.2,
+        "close": 63563,
+        "volume": 116.59263884
+      },
+      "lastReceivedAt": "2026-11-19T04:46:12.635Z"
+    },
+    "BTC-USD:1d": {
+      "count": 117,
+      "scopeMismatches": 0,
+      "envelopeMismatches": 0,
+      "historyScopeMismatches": 0,
+      "first": {
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "timestamp": 1795046400000,
+        "etime": 1795132800000,
+        "open": 62984.5,
+        "high": 63498,
+        "low": 62328.4,
+        "close": 63469.3,
+        "volume": 784.53457643
+      },
+      "last": {
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "timestamp": 1795046400000,
+        "etime": 1795132800000,
+        "open": 62984.5,
+        "high": 63563,
+        "low": 62328.4,
+        "close": 63563,
+        "volume": 794.9195261
+      },
+      "lastReceivedAt": "2026-11-19T04:46:12.643Z"
+    }
+  },
+  "history": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795059900,
+        "open": 62940.5,
+        "high": 62985.9,
+        "low": 62931.6,
+        "close": 62985.9,
+        "volume": 0.24918872
+      },
+      "last": {
+        "time": 1795063440,
+        "open": 63444.1,
+        "high": 63471.2,
+        "low": 63443.1,
+        "close": 63469.3,
+        "volume": 0.16423494
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "ef68391c2697b1e57503930601c430170908a09343d3ec1f81ef9a3158589eaf"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795045500,
+        "open": 62980.2,
+        "high": 63155.4,
+        "low": 62924.2,
+        "close": 63141.1,
+        "volume": 28.98419289
+      },
+      "last": {
+        "time": 1795063200,
+        "open": 63434.5,
+        "high": 63473.3,
+        "low": 63387.7,
+        "close": 63469.3,
+        "volume": 5.50915568
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "5d897bd72aa4948b739e77d754a3ad92ac0fbbec52f1c7df0e5e529c3c93121b"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795009500,
+        "open": 63942.6,
+        "high": 63972.2,
+        "low": 63847.9,
+        "close": 63864.8,
+        "volume": 40.21270081
+      },
+      "last": {
+        "time": 1795062600,
+        "open": 63274.7,
+        "high": 63473.3,
+        "low": 63274.7,
+        "close": 63469.3,
+        "volume": 21.6247162
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "4f85f3409de192803862fdc599b6d9fb3f5a7e25e9cdbc0d845b95a42e783153"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794956400,
+        "open": 64660.5,
+        "high": 65184.1,
+        "low": 64660,
+        "close": 64912.5,
+        "volume": 195.70883578
+      },
+      "last": {
+        "time": 1795062600,
+        "open": 63274.7,
+        "high": 63473.3,
+        "low": 63274.7,
+        "close": 63469.3,
+        "volume": 21.6247162
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "de751f27773ddcf1dbcf9e862eb4593537066c01caf976dd1fc844a82335bf6f"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794848400,
+        "open": 64865.1,
+        "high": 65083.4,
+        "low": 64733.2,
+        "close": 64839,
+        "volume": 177.40627571
+      },
+      "last": {
+        "time": 1795060800,
+        "open": 63135.2,
+        "high": 63498,
+        "low": 63135.2,
+        "close": 63469.3,
+        "volume": 106.20768917
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "b28d8b71faf5c5f76446f50fcf361d6d71b35f533c60b200a0391e68335f1800"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794211200,
+        "open": 73777.1,
+        "high": 74718.2,
+        "low": 73601.8,
+        "close": 74271.4,
+        "volume": 258.73853308
+      },
+      "last": {
+        "time": 1795060800,
+        "open": 63135.2,
+        "high": 63498,
+        "low": 63135.2,
+        "close": 63469.3,
+        "volume": 106.20768917
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "49a5cdb0793d808bfc5eccba20a34bfda716f76fbd440a69bc0f1a55e0273fbc"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1789948800,
+        "open": 81164,
+        "high": 87446.7,
+        "low": 80839.5,
+        "close": 86593.8,
+        "volume": 5026.76127235
+      },
+      "last": {
+        "time": 1795046400,
+        "open": 62984.5,
+        "high": 63498,
+        "low": 62328.4,
+        "close": 63469.3,
+        "volume": 784.53457643
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "55940b42db7d690ba009610402c02d09da54c0427d3c5cffc7dfb6bdfeddffc9"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "count": 0,
+      "error": "Native stock history unavailable for TSLA 1m",
+      "first": null,
+      "last": null,
+      "barsWithoutRepeatedEnvelopeIdentity": 0,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795017900,
+        "open": 381.43,
+        "high": 382.09,
+        "low": 381.01,
+        "close": 381.51,
+        "volume": 2904
+      },
+      "last": {
+        "time": 1795036200,
+        "open": 382.53,
+        "high": 382.53,
+        "low": 382.53,
+        "close": 382.53,
+        "volume": 100
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 60,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "0e04782cc6ab288698e496a7454393b9a31ebac3dd8a553d0f3c55ba68e21d50"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794925800,
+        "open": 382.1,
+        "high": 382.47,
+        "low": 378.96,
+        "close": 380.98,
+        "volume": 59366
+      },
+      "last": {
+        "time": 1795035600,
+        "open": 382.53,
+        "high": 382.53,
+        "low": 382.53,
+        "close": 382.53,
+        "volume": 100
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 60,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "7b806097837e11ffd8a2c6f88e043545aca85809ef76719982f06327a25423bd"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "count": 51,
+      "error": null,
+      "first": {
+        "time": 1794834000,
+        "open": 385,
+        "high": 385,
+        "low": 384.96,
+        "close": 384.96,
+        "volume": 160
+      },
+      "last": {
+        "time": 1795035600,
+        "open": 382.53,
+        "high": 382.53,
+        "low": 382.53,
+        "close": 382.53,
+        "volume": 100
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 51,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "dfd1ec70ce7258fae15bc713ba4c95f1b818c75d2c51403d289842867f5918b0"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "count": 47,
+      "error": null,
+      "first": {
+        "time": 1794416400,
+        "open": 392.9,
+        "high": 394.075,
+        "low": 391.36,
+        "close": 392.91,
+        "volume": 66735
+      },
+      "last": {
+        "time": 1795035600,
+        "open": 382.53,
+        "high": 382.53,
+        "low": 382.53,
+        "close": 382.53,
+        "volume": 100
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 47,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "644246761503bd9add89a1df934b0ad0ea6755554b522ee07db4ebb4bfb42980"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1792584000,
+        "open": 379.83,
+        "high": 388.825,
+        "low": 378.88,
+        "close": 386.97,
+        "volume": 434611
+      },
+      "last": {
+        "time": 1795032000,
+        "open": 383.23,
+        "high": 385.715,
+        "low": 382.53,
+        "close": 382.53,
+        "volume": 103125
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 60,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "1b50b15f84ef2ef1ea5edd1e492a5ad9044bfb371419a899391fc83f152c5b6b"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1787716800,
+        "open": 345.26,
+        "high": 351.86,
+        "low": 342.59,
+        "close": 345.81,
+        "volume": 686755
+      },
+      "last": {
+        "time": 1794978000,
+        "open": 385.215,
+        "high": 389.25,
+        "low": 378.41,
+        "close": 383.61,
+        "volume": 571309
+      },
+      "barsWithoutRepeatedEnvelopeIdentity": 60,
+      "scopeConflicts": 0,
+      "normalizedOhlcvSha256": "35fca9cb6b4b9a903552fd615a913190e601a27ce46923550b0bb274d8d3e3c3"
+    }
+  ],
+  "quotes": {
+    "BTC-USD": {
+      "count": 144,
+      "timestamp": 1795063572611,
+      "receivedAt": 1795063572612,
+      "price": 63580
+    },
+    "ETH-USD": {
+      "count": 40,
+      "timestamp": 1795063571098,
+      "receivedAt": 1795063571098,
+      "price": 1800.55
+    },
+    "SOL-USD": {
+      "count": 31,
+      "timestamp": 1795063571003,
+      "receivedAt": 1795063571003,
+      "price": 74.65
+    }
+  },
+  "stateFrames": [
+    {
+      "type": "state_update",
+      "timestamp": 1795063482206,
+      "runtimeScopeStatus": "complete"
+    },
+    {
+      "type": "broker_status",
+      "timestamp": 1795063487752,
+      "ok": false,
+      "reason": "disabled_bot_owns_stream"
+    },
+    {
+      "type": "broker_status",
+      "timestamp": 1795063487985,
+      "ok": true,
+      "reason": "rest_ok"
+    },
+    {
+      "type": "broker_status",
+      "timestamp": 1795063488069,
+      "ok": false,
+      "reason": "stale_snapshot"
+    },
+    {
+      "type": "state_update",
+      "timestamp": 1795063512205,
+      "runtimeScopeStatus": "complete"
+    },
+    {
+      "type": "state_update",
+      "timestamp": 1795063542209,
+      "runtimeScopeStatus": "complete"
+    },
+    {
+      "type": "bot_state",
+      "mode": "eval_active",
+      "timestamp": 1795063542213,
+      "reason": "paper_trading_enabled"
+    }
+  ],
+  "errors": [],
+  "settings": {
+    "success": true,
+    "profile": "paper",
+    "configuration": {
+      "fingerprint": "69e67556eb9f1cbbdff53ebc3ea021b3e72b2cb3d9382107c8ceb7b3682905eb",
+      "role": "bot",
+      "settings": 24,
+      "internals": 13,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "1db2a74953b5b8e09bf0e7703282cd268571a48839d44516256fc808b03ea4ea"
+    },
+    "fieldCount": 1397,
+    "nonCanonicalFieldSources": [],
+    "unavailableInputs": []
+  },
+  "completedAt": "2026-11-19T04:46:12.702Z",
+  "finishReason": "observation_window_complete",
+  "pending": null,
+  "unrequested": [],
+  "allNativeFramesSeen": true,
+  "settingsSeen": true,
+  "analysisCorrection": {
+    "initialObserverSha256": "2dd986a1b4f43f94ce2720d558c6187d7c2d12a134f73c63c7f2cc6dd33c09e8",
+    "explanation": "The first observer required symbol/timeframe on every history bar. The stock contract supplies these on the response envelope and consumers scope that envelope before mapping OHLCV; missing repeated bar fields are not contradictory scope. Native live price candles do carry per-bar identity. History hashes now include both short-form Kraken OHLCV and long-form stock OHLCV, matching the actual consumer aliases.",
+    "sourceEvidence": [
+      "server/stock-data-adapter.js:119",
+      "public/js/core.js:318",
+      "public/js/panels/chart-panel.js:2125"
+    ]
+  }
+}

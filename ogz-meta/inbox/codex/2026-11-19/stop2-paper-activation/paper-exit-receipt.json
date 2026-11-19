@@ -1,0 +1,61 @@
+{
+  "observedAt": "2026-11-19T04:51:37.610783+00:00",
+  "restoredAtStartup": [
+    {
+      "symbol": "BTC-USD",
+      "stillOpen": true,
+      "entryFactsPreserved": true,
+      "frozenExitPolicyPreserved": true,
+      "operatorStopPreserved": true
+    }
+  ],
+  "subsequentAutomaticPaperExits": [
+    {
+      "timestamp": 1795063583672,
+      "symbol": "BTC-USD",
+      "executionMode": "paper",
+      "timeframe": "15m",
+      "reason": "stop_loss",
+      "stateDirection": "short",
+      "journalDirection": "SELL_SHORT",
+      "sameTradeAsPreRestart": true,
+      "fullClose": true,
+      "entryPriceAndSymbolMatchBaseline": true,
+      "feesEqualAllocatedEntryPlusExit": true,
+      "netEqualsGrossMinusFees": true,
+      "journalRowSha256": "ca3e834255d13ed29bfde067a107ec2c94fe068555e9831e89ddb45dae40c71d",
+      "closedTradeAbsentFromActiveState": true
+    }
+  ],
+  "currentPositionCount": 0,
+  "pauseReason": null,
+  "symbolHalts": {},
+  "feeConfiguration": {
+    "fees.slippage": {
+      "value": 0.0005,
+      "source": "config:settings.json:fees"
+    },
+    "fees.model": {
+      "value": "percent",
+      "source": "config:settings.json:fees"
+    },
+    "fees.makerFee": {
+      "value": 0,
+      "source": "config:settings.json:fees"
+    },
+    "fees.takerFee": {
+      "value": 0,
+      "source": "config:settings.json:fees"
+    },
+    "fees.perShare": {
+      "value": 0,
+      "source": "config:settings.json:fees"
+    },
+    "fees.minOrderFee": {
+      "value": 0,
+      "source": "config:settings.json:fees"
+    }
+  },
+  "verificationCorrection": "The initial observer compared state short with journal SELL_SHORT as literal strings. These representations are recorded separately here; the initial failed helper assertion did not indicate a runtime failure.",
+  "limit": "Observed arithmetic and state/journal correlation for this exit. Configured paper fees are zero; this is not actual venue-cost, profitability or full exit-pipeline certification."
+}

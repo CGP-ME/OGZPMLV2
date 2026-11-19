@@ -1,3 +1,78 @@
+## 2026-11-19 — Stop 2: activate the reviewed native-candle repairs in paper runtime
+
+**Authority and action.** Trey answered "Approve paper activation" for only
+`ogz-websocket` and `ogz-prime-v2`, with `--update-env` and the canonical ecosystem
+environment. The local branch and GitHub both resolved to `2e944ce7` before
+activation. The five recent Stop 2 repair commits, including the timestamp/volume
+correction, already contain their changelog and verification records. Forty-seven
+source hashes matched the prior verified working-source receipts, including
+preserved inherited edits. The twenty inherited dirty tracked files were not
+swept into this delivery. This entry records activation and observations; no
+production source or configuration was edited during activation.
+
+At 04:43:36–04:43:38 UTC, the authorized command restarted the two processes
+through `ecosystem.config.js`. Its bootstrap environment came exclusively from
+`internals.json:deployment.pm2.launchEnvironment` and
+`services.supervisor.pm2Home`; ecosystem role configuration supplied NODE_ENV and
+the bot's paper PROFILE. Both targets restarted once. Supervisor and Stripe kept
+their original PIDs and restart counts. All four were online at the subsequent
+observation, with canonical bootstrap values, correct scripts/cwd, no archived
+trading overrides, and no alternate dotenv or backtest descriptor path.
+
+**Observed behavior.** An authenticated, read-only connection through the public
+`wss://www.ogzprime.com/ws` received the actual bot settings: paper profile,
+settings revision 24, internals revision 13, and both hashes matching preflight.
+All 1,397 returned editable field sources belong to `settings.json`; no
+unavailable inputs were reported. The relay logged the same configuration, and
+all 21 decision rows observed through 04:51:38 UTC carry that identity. Each
+native frame hydrated 60 BTC candles: 1m, 5m, 15m, 30m, 1h, 4h, 1d. Hydration
+reported ready, without unavailable or recovery-pending scopes. The public socket
+then delivered 824 native price-candle frames across those seven intervals, with
+zero symbol/frame, nested-envelope or attached-history scope contradictions.
+The 30m/day observations continued without becoming additional entry frames.
+
+Seven BTC history requests returned 60 candles each. A separate direct Kraken
+REST comparison found exact native start/OHLCV agreement for 413 closed bars,
+59 per frame; the seven originally forming bars were excluded from that equality
+claim. Stock history returned all seven frames over the observation: the small
+60-bar TSLA 1m request covered three closed-market hours and returned an explicit
+unavailable envelope; the dashboard's normal 500-bar request returned 401 bars.
+The six other stock frames returned 47–60 bars. The stock envelope owns its
+symbol/timeframe; the bars themselves contain time/OHLCV, as the consumers expect.
+The observer's initial requirement for repeated per-bar stock identity was
+corrected and its original output preserved privately. Both dashboard documents
+and the public health endpoint returned HTTP 200 with no-store.
+
+**State and recording.** The saved BTC position was restored with unchanged entry
+facts, frozen exit policy and operator stop. It subsequently closed through its
+existing stop-loss path at 04:46:23.672 UTC. The journal contains one matching full
+paper EXIT, zero remaining exposure, and consistent recorded fee/P&L arithmetic;
+the position is absent from active state afterward. The configured paper maker
+and taker fees are zero, so this is not venue-cost or profitability certification.
+All 620 enumerated pre-activation history files, including 17 trade ledgers,
+retain their prior byte ranges. No journal, position or learned bank was cleared.
+The helper's literal comparison of state `short` with journal `SELL_SHORT` failed;
+the receipt now records both representations explicitly. That was an observer
+assertion error, not a bot failure.
+
+**Warnings, review and limits.** The startup journal reconciliation refusal is
+traced to the existing bridge submitting open IDs and the journal preserving an
+ID that still has authoritative exposure (`TradeJournalBridge.js:979`,
+`TradeJournal.js:1033`). It did not halt the bot or erase the trade. The later
+observation contains one ntfy HTTP 429 trace-push failure; notification delivery
+is not certified. Telegram remains disabled for missing configured credentials.
+The old non-active-frame messages occurred in the baseline-to-restart window;
+none appeared in the later observation. Existing CVD cumulative-volume handling
+and indicator-refresh findings remain open. Actual browser/canvas rendering,
+stock-session streaming and a session transition were not exercised. Stop 2 is
+therefore not declared wholly closed. The source has its prior focused Mercury
+reviews; this activation adds real runtime evidence, no new paid review, no Jest
+and no claim of a fresh RAG rebuild. Supporting sanitized receipts and their
+scope are indexed [here](ogz-meta/inbox/codex/2026-11-19/stop2-paper-activation/RECEIPTS.md).
+This activation record is delivered as its own atomic documentation commit;
+runtime source remains the reviewed `2e944ce7` tree plus the explicitly preserved
+inherited source manifest.
+
 ## 2026-11-18 — Stop 2: preserve stock identity and answer unavailable native history
 
 **Problem and authority.** This completes the traced history-response producer

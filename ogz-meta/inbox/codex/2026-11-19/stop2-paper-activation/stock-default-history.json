@@ -1,0 +1,39 @@
+{
+  "observedAt": "2026-11-19T04:47:44.206Z",
+  "request": {
+    "type": "request_historical",
+    "asset": "TSLA",
+    "timeframe": "1m",
+    "limit": 500
+  },
+  "success": true,
+  "symbol": "TSLA",
+  "timeframe": "1m",
+  "count": 401,
+  "error": null,
+  "first": {
+    "time": 1795007340,
+    "open": 382.26,
+    "high": 382.26,
+    "low": 382.26,
+    "close": 382.26,
+    "volume": 40
+  },
+  "last": {
+    "time": 1795036200,
+    "open": 382.53,
+    "high": 382.53,
+    "low": 382.53,
+    "close": 382.53,
+    "volume": 100
+  },
+  "barFields": [
+    "time",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "barsSha256": "20fb1c96a57f396c526ebf70b5ba7f9eb2116510cf9a5c2076cc2fbde4380cbb"
+}

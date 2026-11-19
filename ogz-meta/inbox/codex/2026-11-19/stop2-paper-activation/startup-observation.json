@@ -1,0 +1,178 @@
+{
+  "observedAt": "2026-11-19T04:46:07.689952+00:00",
+  "configurationReceipts": [
+    {
+      "fingerprint": "69e67556eb9f1cbbdff53ebc3ea021b3e72b2cb3d9382107c8ceb7b3682905eb",
+      "role": "bot",
+      "settings": 24,
+      "internals": 13,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "1db2a74953b5b8e09bf0e7703282cd268571a48839d44516256fc808b03ea4ea"
+    },
+    {
+      "fingerprint": "69e67556eb9f1cbbdff53ebc3ea021b3e72b2cb3d9382107c8ceb7b3682905eb",
+      "role": "bot",
+      "settings": 24,
+      "internals": 13,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "1db2a74953b5b8e09bf0e7703282cd268571a48839d44516256fc808b03ea4ea"
+    }
+  ],
+  "positions": [
+    {
+      "symbol": "BTC-USD",
+      "stillOpen": true,
+      "entryFactsPreserved": true,
+      "frozenExitPolicyPreserved": true,
+      "operatorStopPreserved": true
+    }
+  ],
+  "activePositionCount": 1,
+  "pauseReason": null,
+  "symbolHalts": {},
+  "logs": {
+    "ogz-supervisor": {
+      "pm_out_log_path": {
+        "lineCount": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pm_err_log_path": {
+        "lineCount": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "classifications": {}
+      }
+    },
+    "ogz-websocket": {
+      "pm_out_log_path": {
+        "lineCount": 1095,
+        "sha256": "dcfb961eb2e3b13c6f2a8de821e7c49566a34ca20ea04fadd5daadd0d7a2799a"
+      },
+      "pm_err_log_path": {
+        "lineCount": 2,
+        "sha256": "f65469dbf39f0bf7a97e85723fc7b6f9b2daa89c2aacbb47a654b3eb99279a26",
+        "classifications": {
+          "requested_stock_history_empty": 2
+        }
+      }
+    },
+    "ogz-stripe": {
+      "pm_out_log_path": {
+        "lineCount": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pm_err_log_path": {
+        "lineCount": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "classifications": {}
+      }
+    },
+    "ogz-prime-v2": {
+      "pm_out_log_path": {
+        "lineCount": 7669,
+        "sha256": "20532aed58ff0f3d6f55ed3a9e5055d6791025be16f9eadf673aa4ec8ef679d0"
+      },
+      "hydrationPerFrame": {
+        "15m": 60,
+        "1m": 60,
+        "5m": 60,
+        "30m": 60,
+        "1h": 60,
+        "4h": 60,
+        "1d": 60
+      },
+      "observationOnlyPerFrame": {
+        "30m": 136,
+        "1d": 136
+      },
+      "hydrationComplete": [
+        "[EVAL-TRACE][REST_HYDRATION_COMPLETE] traceId=\"rest_hydration_1795063431801_y5qr1i\" source=\"boot_rest_hydration\" hydrated=[{\"symbol\":\"BTC-USD\",\"timeframe\":\"15m\",\"candles\":60,\"latestEndTime\":1795063500000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"1m\",\"candles\":60,\"latestEndTime\":1795063440000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"5m\",\"candles\":60,\"latestEndTime\":1795063500000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"30m\",\"candles\":60,\"latestEndTime\":1795064400000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"1h\",\"candles\":60,\"latestEndTime\":1795064400000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"4h\",\"candles\":60,\"latestEndTime\":1795075200000},{\"symbol\":\"BTC-USD\",\"timeframe\":\"1d\",\"candles\":60,\"latestEndTime\":1795132800000}] unavailable=[] recovered=[] recoveryPending=[] status=\"ready\" symbol=\"BTC-USD\" timeframe=\"15m\" brokerId=\"kraken\" accountId=\"[redacted]\" assetClass=\"crypto\" executionMode=\"paper\""
+      ],
+      "subscriptions": [
+        "[KrakenIBroker] Subscribed to BTC-USD 15m via single source"
+      ],
+      "pm_err_log_path": {
+        "lineCount": 27,
+        "sha256": "f673b9208ab7c892f082b3e9a3ce75a8d6fb70ab07dc59315973b1a494afbe49",
+        "classifications": {
+          "old_non_active_timeframe_between_preflight_and_restart": 25,
+          "planned_restart_socket_close": 1,
+          "journal_refused_to_reconcile_open_exposure": 1
+        }
+      }
+    }
+  },
+  "subsequentObservation": {
+    "startedAt": "2026-11-19T04:46:07.689952+00:00",
+    "endedAt": "2026-11-19T04:52:22.448161+00:00",
+    "logs": {
+      "ogz-supervisor": {
+        "pm_out_log_path": {
+          "lineCount": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "classifications": {}
+        },
+        "pm_err_log_path": {
+          "lineCount": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "classifications": {}
+        }
+      },
+      "ogz-websocket": {
+        "pm_out_log_path": {
+          "lineCount": 2837,
+          "sha256": "afc68c7a2992dd46ab89f84d0e4146b50438da0c0cae22f623cbbd0c0e67ee79",
+          "classifications": {}
+        },
+        "pm_err_log_path": {
+          "lineCount": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "classifications": {}
+        }
+      },
+      "ogz-stripe": {
+        "pm_out_log_path": {
+          "lineCount": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "classifications": {}
+        },
+        "pm_err_log_path": {
+          "lineCount": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "classifications": {}
+        }
+      },
+      "ogz-prime-v2": {
+        "pm_out_log_path": {
+          "lineCount": 15160,
+          "sha256": "c1af29105a84b77a01a4685a42522685dfdb71a7edad64c5ec90c7b28056f5a3",
+          "classifications": {}
+        },
+        "pm_err_log_path": {
+          "lineCount": 1,
+          "sha256": "d6534ebea1bf58a29927984db1d704dcd29fe2bcd12dd302e57dcb21bcae38d3",
+          "classifications": {
+            "ntfy_http_429": 1
+          }
+        }
+      }
+    }
+  },
+  "knownWarnings": [
+    {
+      "kind": "journal_refused_to_reconcile_open_exposure",
+      "meaning": "The startup bridge submits each open journal ID for reconciliation; TradeJournal refuses to remove an ID with state or broker exposure. The saved position was retained. This warning is not a process or symbol halt.",
+      "source": [
+        "core/TradeJournalBridge.js:979",
+        "core/TradeJournal.js:1033"
+      ]
+    },
+    {
+      "kind": "ntfy_http_429",
+      "meaning": "A trace notification push was rejected with HTTP 429 after startup; notification delivery is not certified. No suppression or notification configuration change was made."
+    },
+    {
+      "kind": "telegram_credentials_missing",
+      "meaning": "Startup says Telegram notifier disabled because configured credentials are absent. This pre-existing absence was not changed."
+    }
+  ]
+}

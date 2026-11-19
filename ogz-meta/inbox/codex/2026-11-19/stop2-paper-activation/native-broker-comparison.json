@@ -1,0 +1,83 @@
+{
+  "observedAt": "2026-11-19T04:48:51.968466+00:00",
+  "method": "Captured public dashboard historical bars compared against a new public Kraken OHLC response for the same symbol, native interval and candle start; original forming bars excluded. Direct numeric OHLCV equality; no aggregation.",
+  "rows": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "nativeIntervalMinutes": 1,
+      "httpStatus": 200,
+      "closedBarsCompared": 59,
+      "exactOhlcvMatches": 59,
+      "mismatches": [],
+      "formingBarsExcluded": 1,
+      "brokerResponseSha256": "17d2eab97a5376bc06a9d5d79d264c70553561ce41a12338fdfe43ce9ad953df"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "nativeIntervalMinutes": 5,
+      "httpStatus": 200,
+      "closedBarsCompared": 59,
+      "exactOhlcvMatches": 59,
+      "mismatches": [],
+      "formingBarsExcluded": 1,
+      "brokerResponseSha256": "36e05993841366a355f8a8596d9134e82784181d588318e8831cdfe41253ee71"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "nativeIntervalMinutes": 15,
+      "httpStatus": 200,
+      "closedBarsCompared": 59,
+      "exactOhlcvMatches": 59,
+      "mismatches": [],
+      "formingBarsExcluded": 1,
+      "brokerResponseSha256": "7ce367c0cb019dbed556dcc531f188a71be1351e964afc58a3fab34572953c83"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "nativeIntervalMinutes": 30,
+      "httpStatus": 200,
+      "closedBarsCompared": 59,
+      "exactOhlcvMatches": 59,
+      "mismatches": [],
+      "formingBarsExcluded": 1,
+      "brokerResponseSha256": "739d2c402d2ba82cda4bc9dd98a96758c6ac6b24fa9168b3b263c15df4050ef2"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "nativeIntervalMinutes": 60,
+      "httpStatus": 200,
+      "closedBarsCompared": 59,
+      "exactOhlcvMatches": 59,
+      "mismatches": [],
+      "formingBarsExcluded": 1,
+      "brokerResponseSha256": "93740c69f4b0dc4773e6bdcd667942fe9a888053c2b1bb755e3efc86b4b0d093"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "nativeIntervalMinutes": 240,
+      "httpStatus": 200,
+      "closedBarsCompared": 59,
+      "exactOhlcvMatches": 59,
+      "mismatches": [],
+      "formingBarsExcluded": 1,
+      "brokerResponseSha256": "ac490f32e43b54f37bbe2e0a77c9b19d2ef5010578512af21d04f9d68fee36f9"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "nativeIntervalMinutes": 1440,
+      "httpStatus": 200,
+      "closedBarsCompared": 59,
+      "exactOhlcvMatches": 59,
+      "mismatches": [],
+      "formingBarsExcluded": 1,
+      "brokerResponseSha256": "87567a9457847deb7ed40be0f0b54400998a9818264c6f373d48d0013adbab83"
+    }
+  ]
+}

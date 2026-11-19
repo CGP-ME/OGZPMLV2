@@ -1,0 +1,22 @@
+{
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-websocket,ogz-prime-v2",
+    "--update-env"
+  ],
+  "startedAt": "2026-11-19T04:43:36.849635+00:00",
+  "environmentSource": "config/internals.json:deployment.pm2.launchEnvironment and services.supervisor.pm2Home; ecosystem per-role env",
+  "environmentKeys": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PM2_HOME"
+  ],
+  "authorization": "Trey: Approve paper activation; only ogz-websocket and ogz-prime-v2",
+  "completedAt": "2026-11-19T04:43:38.283175+00:00",
+  "exitCode": 0
+}
