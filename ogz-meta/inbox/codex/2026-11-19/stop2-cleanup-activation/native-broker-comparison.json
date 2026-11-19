@@ -1,0 +1,72 @@
+{
+  "observedAt": "2026-11-19T16:16:00.565726+00:00",
+  "activeTradingSession": "alpaca stocks paper",
+  "symbol": "BTC-USD",
+  "method": "Original wire history compared to independent Kraken public OHLC; forming bars excluded. Exact numeric OHLCV comparison.",
+  "frames": [
+    {
+      "timeframe": "1m",
+      "received": 60,
+      "exactOHLCVMatches": 59,
+      "mismatches": [],
+      "unavailableClosedTimes": [],
+      "restSHA256": "759bde863d726f8ed196fa332577865aea64b9c0fa21f0456e212a7a91e847fa",
+      "lastWireClose": 63077.5
+    },
+    {
+      "timeframe": "5m",
+      "received": 60,
+      "exactOHLCVMatches": 59,
+      "mismatches": [],
+      "unavailableClosedTimes": [],
+      "restSHA256": "7082f7e8220ee25716f6d5e615d1c2b7d218e8fe0fa3d124c9add6e50972a7a3",
+      "lastWireClose": 63077.5
+    },
+    {
+      "timeframe": "15m",
+      "received": 60,
+      "exactOHLCVMatches": 59,
+      "mismatches": [],
+      "unavailableClosedTimes": [],
+      "restSHA256": "c4fd4782b29986326c64f286c218f95d8c98da963a45fb2be70f0eefa71e2b68",
+      "lastWireClose": 63077.5
+    },
+    {
+      "timeframe": "30m",
+      "received": 60,
+      "exactOHLCVMatches": 59,
+      "mismatches": [],
+      "unavailableClosedTimes": [],
+      "restSHA256": "5227ccaaf21c55cdae8fce96cb4631c3a9c50866f1bc1d4f881fc0dc89a65637",
+      "lastWireClose": 63077.5
+    },
+    {
+      "timeframe": "1h",
+      "received": 60,
+      "exactOHLCVMatches": 59,
+      "mismatches": [],
+      "unavailableClosedTimes": [],
+      "restSHA256": "0012727049c713e2e0048a1f800bd740eb9fb8b45b5345a2abad3876a089ce49",
+      "lastWireClose": 63070.9
+    },
+    {
+      "timeframe": "4h",
+      "received": 60,
+      "exactOHLCVMatches": 59,
+      "mismatches": [],
+      "unavailableClosedTimes": [],
+      "restSHA256": "ee1b5ea9768c353a0cc353f64ceb8a7340c4aa17b2a68b4a233ba8a3b2011672",
+      "lastWireClose": 63070.9
+    },
+    {
+      "timeframe": "1d",
+      "received": 60,
+      "exactOHLCVMatches": 59,
+      "mismatches": [],
+      "unavailableClosedTimes": [],
+      "restSHA256": "071b294f84f28a957629b8d021f8ceff2fe8967d5bbbd3644a3497044e05e784",
+      "lastWireClose": 63070.9
+    }
+  ],
+  "exactMatches": 413
+}

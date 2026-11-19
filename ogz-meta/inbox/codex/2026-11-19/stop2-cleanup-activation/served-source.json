@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-11-19T16:26:41.889022+00:00",
+  "staticRepairCommit": "fefe0488ab673e1f2cb08fef7ee7a06100e6cb97",
+  "files": [
+    {
+      "path": "public/js/panels/chart-panel.js",
+      "url": "https://www.ogzprime.com/js/panels/chart-panel.js?v=20261119-analytics-selection2",
+      "status": 200,
+      "sha256": "f8972419b708bbcd8b83a8ee8bb82ad897080bed6fb373e164ec6bad63e34dec",
+      "matchesServingSource": true
+    },
+    {
+      "path": "public/js/panels/edge-analytics-panel.js",
+      "url": "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2",
+      "status": 200,
+      "sha256": "5a72ee8a817539fbeace18eb61d480f4b494352beaff58d495951b3b6e2e9ee2",
+      "matchesServingSource": true
+    }
+  ]
+}

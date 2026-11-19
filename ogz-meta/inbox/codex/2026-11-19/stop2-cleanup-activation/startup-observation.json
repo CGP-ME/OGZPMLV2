@@ -1,0 +1,64 @@
+{
+  "observedAt": "2026-11-19T16:26:10.179087+00:00",
+  "stderrCategories": {
+    "ogz-supervisor": {},
+    "ogz-websocket": {},
+    "ogz-stripe": {},
+    "ogz-prime-v2": {
+      "[StateManager]": 3,
+      "[TradeJournal]": 3,
+      "[TradeJournalBridge]": 1,
+      "[STALE DATA]": 60,
+      "[ENTRY-PLAN]": 15,
+      "[NTFY]": 2,
+      "[FeatureExtractor]": 1,
+      "[GAP-RECOVERY]": 3
+    }
+  },
+  "findings": [
+    {
+      "finding": "supervisor startup HTTP 502 recovered",
+      "evidence": "Supervisor recorded HEALTHY -> UNHEALTHY -> HEALTHY during simultaneous service activation; PM2 restart deltas remain exactly one.",
+      "status": "recovered"
+    },
+    {
+      "finding": "higher-frame candle age diagnostic",
+      "evidence": "core/CandleProcessor.js:966-977 compares every frame end against internals.dataFeed.staleDataMaxAgeMs=120000. Initial latest completed 5m bars were about 182 seconds old, 15m/30m/1h/4h bars about 482 seconds old, and daily bars about 40082 seconds old. Observed 1m ingress was 0.106-2.099 seconds after close. The diagnostic expressly does not pause trading.",
+      "status": "open Stop 2 freshness diagnostic; do not equate the warning with a dead native feed"
+    },
+    {
+      "finding": "stock entry budget below whole-share bounds",
+      "evidence": "Order traces named stock_share_range_impossible:min=2:max=0 for TSLA, NVDA and COIN. Live settings source positionSizing.basePositionSize=0.01 and entryLogic.sizing.stockShareRange.minShares=2, both config/settings.json. Current inputs cannot fund the requested stock share minimum.",
+      "status": "open sizing/policy reconciliation; no risk limits changed during activation"
+    },
+    {
+      "finding": "notification delivery",
+      "evidence": "Telegram logs disabled because configured credentials are missing. Two NTFY trace push failures were observed in this window.",
+      "status": "delivery not certified"
+    },
+    {
+      "finding": "StateManager aggregate position warning",
+      "evidence": "core/StateManager.js:1333-1334 emits Already in position from aggregate state.position. State recorded different symbols RIOT long and MARA short; this message alone does not prove same-symbol stacking.",
+      "status": "source/log distinction recorded; position bookkeeping belongs to later walk validation"
+    },
+    {
+      "finding": "journal startup reconciliation",
+      "evidence": "Two authoritative open exposures were retained; one stale journal-open record was reconciled using state and broker position proof.",
+      "status": "runtime evidence, not a global pause"
+    },
+    {
+      "finding": "browser portal authorization",
+      "evidence": "Read-only observation authenticated the market socket, not a portal session. Three HTTP 401 messages per chart page remained for portal-protected requests; zero JavaScript page exceptions.",
+      "status": "market display verified; portal authentication not exercised"
+    },
+    {
+      "finding": "remote repository security notification",
+      "evidence": "GitHub push response reports 110 default-branch dependency alerts: 1 critical, 37 high, 62 moderate, 10 low. This is remote default-branch metadata, not an audit of the activated branch.",
+      "status": "not investigated in this activation; no dependencies changed"
+    }
+  ],
+  "observerCorrections": [
+    "The first standalone observer used clientType instead of the existing identify.source field. Its overlapped raw capture was preserved privately and excluded from verification. The corrected single-observer capture was parsed successfully and used for direct broker comparisons.",
+    "The final analytics check waits for an actual matching trade event. A fixed 12-second sample once showed correctly unavailable ETH CVD before a new event; that observation is retained privately."
+  ]
+}
