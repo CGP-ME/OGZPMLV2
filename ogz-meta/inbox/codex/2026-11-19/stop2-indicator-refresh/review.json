@@ -1,0 +1,31 @@
+{
+  "outcome": "no_break_found",
+  "blocking": false,
+  "selected": [
+    "mercury"
+  ],
+  "model": "mercury-3",
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "toolCalls": 31,
+  "toolFailures": 0,
+  "iterations": 22,
+  "runCostUsd": 0.074224,
+  "candidateTree": "3e1f228f223fdae81a80ea60c59e80eb6373ec62",
+  "baseTree": "0c12f435c0e0a1ec31e6752d921cf6c8b2736389",
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-19.jsonl:1",
+  "evidenceManifest": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-19/2026-11-19t14-53-04-076z-521930-dd2bb60ab29f/manifest.json",
+  "namedMetadataGaps": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "limits": [
+    "One focused source review, not an all-model panel or whole-file audit",
+    "Mercury executed no runtime checks; separate isolated and browser receipts supply behavior evidence",
+    "RAG was not rebuilt or used for this pinned source review"
+  ]
+}

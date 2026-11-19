@@ -1,0 +1,2912 @@
+{
+  "startedAt": "2026-11-19T14:57:35.707Z",
+  "mode": "served production files",
+  "pages": [
+    {
+      "page": "unified-dashboard-v2.html",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "pageErrors": [],
+      "frames": [
+        {
+          "frame": "1m",
+          "selected": "1m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "1m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 28.735,
+            "high": 28.735,
+            "low": 28.735,
+            "close": 28.735,
+            "time": 1794858900
+          },
+          "last": {
+            "open": 28.06,
+            "high": 28.07,
+            "low": 28.05,
+            "close": 28.07,
+            "time": 1795100160
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "5m",
+          "selected": "5m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "5m",
+            "count": 355,
+            "error": null
+          },
+          "renderedCandles": 355,
+          "first": {
+            "open": 31.605,
+            "high": 31.625,
+            "low": 31.45,
+            "close": 31.515,
+            "time": 1794495600
+          },
+          "last": {
+            "open": 28.07,
+            "high": 28.07,
+            "low": 28.05,
+            "close": 28.07,
+            "time": 1795100100
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "15m",
+          "selected": "15m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "15m",
+            "count": 293,
+            "error": null
+          },
+          "renderedCandles": 293,
+          "first": {
+            "open": 34.665,
+            "high": 35.09,
+            "low": 34.665,
+            "close": 35.08,
+            "time": 1793802600
+          },
+          "last": {
+            "open": 28.23,
+            "high": 28.265,
+            "low": 28.05,
+            "close": 28.07,
+            "time": 1795099500
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "30m",
+          "selected": "30m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "30m",
+            "count": 306,
+            "error": null
+          },
+          "renderedCandles": 306,
+          "first": {
+            "open": 36.43,
+            "high": 36.43,
+            "low": 36.27,
+            "close": 36.285,
+            "time": 1792416600
+          },
+          "last": {
+            "open": 28.22,
+            "high": 28.265,
+            "low": 28.05,
+            "close": 28.07,
+            "time": 1795098600
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "1h",
+          "selected": "1h",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "1h",
+            "count": 311,
+            "error": null
+          },
+          "renderedCandles": 311,
+          "first": {
+            "open": 34.525,
+            "high": 35.53,
+            "low": 34.525,
+            "close": 35.405,
+            "time": 1789736400
+          },
+          "last": {
+            "open": 28.23,
+            "high": 28.265,
+            "low": 28.05,
+            "close": 28.07,
+            "time": 1795096800
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "4h",
+          "selected": "4h",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "4h",
+            "count": 196,
+            "error": null
+          },
+          "renderedCandles": 196,
+          "first": {
+            "open": 28.245,
+            "high": 28.705,
+            "low": 28.09,
+            "close": 28.62,
+            "time": 1784030400
+          },
+          "last": {
+            "open": 28.23,
+            "high": 28.265,
+            "low": 28.05,
+            "close": 28.07,
+            "time": 1795089600
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "1d",
+          "selected": "1d",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "1d",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 43.1,
+            "high": 43.93,
+            "low": 42.45,
+            "close": 43.57,
+            "time": 1732165200
+          },
+          "last": {
+            "open": 28.22,
+            "high": 28.265,
+            "low": 28.05,
+            "close": 28.07,
+            "time": 1795064400
+          },
+          "visibleCanvases": 12
+        }
+      ],
+      "scripts": [
+        "https://www.ogzprime.com/js/posthog-init.js",
+        "https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js",
+        "https://us-assets.i.posthog.com/static/array.js",
+        "https://us-assets.i.posthog.com/static/1.453.0/surveys.js",
+        "https://www.ogzprime.com/js/core.js?v=20261118-native-mtf",
+        "https://www.ogzprime.com/js/indicators.js?v=1776116744941",
+        "https://www.ogzprime.com/js/websocket.js?v=20261118-native-mtf",
+        "https://www.ogzprime.com/js/drawing-tools.js?v=1776116744941",
+        "https://www.ogzprime.com/js/theme-customizer.js?v=1776116744941",
+        "https://www.ogzprime.com/js/command-palette.js?v=1777005166748",
+        "https://www.ogzprime.com/js/operator/trade-manager.js?v=1776116744941",
+        "https://www.ogzprime.com/js/panels/rail-resize.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/system-snapshot.js?v=1778705869178",
+        "https://www.ogzprime.com/js/panels/asset-tf-card.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/pattern-sparkline.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/confidence-heatbar.js?v=20261107-winner",
+        "https://www.ogzprime.com/js/panels/risk-gauge.js?v=1782700000000",
+        "https://www.ogzprime.com/js/panels/candle-countdown.js?v=1777005601913",
+        "https://www.ogzprime.com/js/panels/session-phase.js?v=1777945312788",
+        "https://www.ogzprime.com/js/panels/size-preview.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/strategy-leaderboard.js?v=1782860200000",
+        "https://www.ogzprime.com/js/panels/trade-log.js?v=1782670000000",
+        "https://www.ogzprime.com/js/panels/watchlist-strip.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/news-ticker.js?v=1780041905373",
+        "https://www.ogzprime.com/js/panels/pattern-card.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/header-strip.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/trai-brain.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/open-positions.js?v=1780008102308",
+        "https://www.ogzprime.com/js/panels/chain-of-thought.js?v=20261107-reasons",
+        "https://www.ogzprime.com/js/panels/gate-meter.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/live-report.js?v=1782680000000",
+        "https://www.ogzprime.com/js/panels/equity-curve.js?v=1782670000000",
+        "https://www.ogzprime.com/js/panels/system-health.js?v=1778257698025",
+        "https://www.ogzprime.com/js/panels/live-readouts.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/celebration.js?v=1778309878156",
+        "https://www.ogzprime.com/js/panels/custom-alerts.js?v=1779478645349",
+        "https://www.ogzprime.com/js/panels/victory-animations.js?v=1779478645349",
+        "https://www.ogzprime.com/js/panels/loss-recovery.js?v=1779478645349",
+        "https://www.ogzprime.com/js/panels/milestone-effects.js?v=1782680000000",
+        "https://www.ogzprime.com/js/panels/voice-manager.js?v=1779478645353",
+        "https://www.ogzprime.com/js/panels/voice-fx.js?v=1779478645353",
+        "https://www.ogzprime.com/js/panels/ambient-fx.js?v=1779548927395",
+        "https://www.ogzprime.com/js/panels/layout-switcher.js?v=1779478645357",
+        "https://www.ogzprime.com/js/panels/chart-panel.js?v=20261119-native-indicators",
+        "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/trade-replay.js?v=1778310055065",
+        "https://www.ogzprime.com/js/run-frontend-empire-v2.js?v=1782680000000",
+        "https://www.ogzprime.com/trai-widget.js?v=1782860100000",
+        "https://www.ogzprime.com/js/panels/supervisor-recovery.js"
+      ],
+      "httpStatus": 200,
+      "beforeLive": [
+        {
+          "options": {
+            "color": "rgba(0, 255, 255, 0.4)",
+            "lineWidth": 2,
+            "lineStyle": 3,
+            "priceLineVisible": false
+          },
+          "writes": 10,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 388.1903478031663
+          }
+        },
+        {
+          "options": {
+            "color": "#22d3ee",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 387.87496039255296
+          }
+        },
+        {
+          "options": {
+            "color": "#a78bfa",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "EMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 385.4346747892268
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 392.3544495384202
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.55)",
+            "lineWidth": 1,
+            "visible": false,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 389.00725000000006
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 385.6600504615799
+          }
+        },
+        {
+          "options": {
+            "color": "#e879f9",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "VWAP",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 383.93097543392474
+          }
+        },
+        {
+          "options": {
+            "color": "#60a5fa",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 388.74325000000005
+          }
+        },
+        {
+          "options": {
+            "color": "#3b82f6",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 388.1522
+          }
+        },
+        {
+          "options": {
+            "color": "#1d4ed8",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "SMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 385.0916999999999
+          }
+        },
+        {
+          "options": {
+            "color": "#ec4899",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "RSI",
+            "priceScaleId": "rsi",
+            "priceFormat": {
+              "type": "custom"
+            },
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#8b5cf6",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "MACD",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Signal",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "ATR",
+            "priceScaleId": "atr",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#06b6d4",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Tenkan",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 387.3025
+          }
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Kijun",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 389.35749999999996
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(34,197,94,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou A",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 388.33
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(239,68,68,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou B",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100160,
+            "value": 387.93499999999995
+          }
+        },
+        {
+          "options": {
+            "color": "#ef4444",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#22c55e",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        }
+      ],
+      "afterLive": [
+        {
+          "options": {
+            "color": "rgba(0, 255, 255, 0.4)",
+            "lineWidth": 2,
+            "lineStyle": 3,
+            "priceLineVisible": false
+          },
+          "writes": 10,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 388.0493622981028
+          }
+        },
+        {
+          "options": {
+            "color": "#22d3ee",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 387.82927567127643
+          }
+        },
+        {
+          "options": {
+            "color": "#a78bfa",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "EMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 385.44736459231905
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 391.94376757533064
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.55)",
+            "lineWidth": 1,
+            "visible": false,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 388.74325000000005
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 385.54273242466945
+          }
+        },
+        {
+          "options": {
+            "color": "#e879f9",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "VWAP",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 383.93480614385203
+          }
+        },
+        {
+          "options": {
+            "color": "#60a5fa",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 388.51025000000004
+          }
+        },
+        {
+          "options": {
+            "color": "#3b82f6",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 388.21139999999997
+          }
+        },
+        {
+          "options": {
+            "color": "#1d4ed8",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "SMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 385.10949999999997
+          }
+        },
+        {
+          "options": {
+            "color": "#ec4899",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "RSI",
+            "priceScaleId": "rsi",
+            "priceFormat": {
+              "type": "custom"
+            },
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#8b5cf6",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "MACD",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Signal",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "ATR",
+            "priceScaleId": "atr",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#06b6d4",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Tenkan",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 387.3025
+          }
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Kijun",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 389.35749999999996
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(34,197,94,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou A",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 388.33
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(239,68,68,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou B",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100220,
+            "value": 387.93499999999995
+          }
+        },
+        {
+          "options": {
+            "color": "#ef4444",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#22c55e",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        }
+      ],
+      "wire": {
+        "counts": {
+          "auth_success": 1,
+          "state_update": 6,
+          "funding_rate": 2,
+          "fear_greed": 5,
+          "liquidation_data": 5,
+          "market_internals": 233,
+          "smart_money": 5,
+          "cvd_update": 85,
+          "bot_thinking": 9,
+          "broker_status": 55,
+          "price": 325,
+          "ticker_price": 321,
+          "depth_update": 228,
+          "historical_candles": 11,
+          "bot_state": 2,
+          "pong": 5,
+          "trace_event": 64,
+          "divergence": 4,
+          "pattern_analysis": 4,
+          "narrator_event": 10,
+          "signal_analysis": 4,
+          "golden_setup_state": 4,
+          "gate_event": 2,
+          "trade": 2,
+          "journal_snapshot": 2
+        },
+        "histories": [
+          {
+            "symbol": "TSLA",
+            "timeframe": "15m",
+            "count": 342,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "15m",
+            "count": 293,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "1m",
+            "count": 500,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "5m",
+            "count": 355,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "15m",
+            "count": 293,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "30m",
+            "count": 306,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "1h",
+            "count": 311,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "4h",
+            "count": 196,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "1d",
+            "count": 500,
+            "error": null
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "count": 428,
+            "error": null
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "count": 428,
+            "error": null
+          }
+        ],
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "15m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "BTC-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "15m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "5m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "15m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "30m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "4h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1d"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          }
+        ],
+        "blocked": [],
+        "cvd": [
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": 182300
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -698952.8509696054
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 318534.75202011224
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 315798.1563224422
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167874.04591857814
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699506.6523377518
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 309929.2681381822
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699510.7781355154
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167892.42260705013
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 309844.3505442202
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 309930.01812087116
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 309548.89760481514
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167935.10639970453
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 278095.19072636316
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 229894.73689389316
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167824.40978717012
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 210311.99899190117
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168077.02009072574
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 210372.23038404118
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168107.02008562034
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699521.302663285
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 210435.75108404117
+          },
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": 214054
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168135.78008562035
+          },
+          {
+            "asset": "TSLA",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": -27559
+          },
+          {
+            "asset": "MARA",
+            "symbol": "MARA",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": 17390
+          },
+          {
+            "asset": "RIOT",
+            "symbol": "RIOT",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": -43833
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 210432.54508327818
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 159833.54568332035
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 198239.06271393018
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 162333.54566671033
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699490.225086596
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 198216.0060123402
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 166554.32634696283
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 230186.8946294672
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 232852.33563758217
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 166554.32587968043
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 169139.90653876585
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 232834.23346777417
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699513.694105746
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233159.34853849417
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 169109.90654087983
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 171971.91530527532
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 234024.25703629415
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699409.016105746
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233834.04227916416
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233389.19224156617
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233594.57874599416
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 171608.7661307753
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233106.60350767817
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699513.694105746
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233294.86862430317
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 171574.6647407753
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233213.37632115514
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699473.3300629816
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 165131.3148420753
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 233224.04570320316
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699491.0869497795
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 206082.47709275316
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 199161.87706660613
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 198473.53762036614
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 167378.33869475915
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 165107.99024207532
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699498.9139810557
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 132168.37664582915
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 165045.21033207534
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699506.7627230338
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 111305.25917028113
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 83471.70633543712
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699697.2325437246
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 76831.25107204712
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -699701.7057537755
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 165288.65705378694
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 76851.97010313113
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696917.4541577755
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 77556.88375983613
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 74934.89918504213
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 73998.33744404213
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696011.572408959
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 163872.95593396694
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 71923.34269743811
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 198806.0988230461
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696022.3935392291
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 163946.58308866573
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 198869.5397230461
+          }
+        ],
+        "nativeCount": 4
+      },
+      "screenshot": "served-v2.png"
+    },
+    {
+      "page": "unified-dashboard.html",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "pageErrors": [],
+      "frames": [
+        {
+          "frame": "1m",
+          "selected": "1m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "1m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 28.72,
+            "high": 28.72,
+            "low": 28.72,
+            "close": 28.72,
+            "time": 1794858960
+          },
+          "last": {
+            "open": 28.03,
+            "high": 28.03,
+            "low": 28.03,
+            "close": 28.03,
+            "time": 1795100220
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "5m",
+          "selected": "5m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "5m",
+            "count": 355,
+            "error": null
+          },
+          "renderedCandles": 355,
+          "first": {
+            "open": 31.605,
+            "high": 31.625,
+            "low": 31.45,
+            "close": 31.515,
+            "time": 1794495600
+          },
+          "last": {
+            "open": 28.07,
+            "high": 28.07,
+            "low": 28.03,
+            "close": 28.03,
+            "time": 1795100100
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "15m",
+          "selected": "15m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "15m",
+            "count": 293,
+            "error": null
+          },
+          "renderedCandles": 293,
+          "first": {
+            "open": 34.665,
+            "high": 35.09,
+            "low": 34.665,
+            "close": 35.08,
+            "time": 1793802600
+          },
+          "last": {
+            "open": 28.23,
+            "high": 28.265,
+            "low": 28.03,
+            "close": 28.03,
+            "time": 1795099500
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "30m",
+          "selected": "30m",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "30m",
+            "count": 306,
+            "error": null
+          },
+          "renderedCandles": 306,
+          "first": {
+            "open": 36.43,
+            "high": 36.43,
+            "low": 36.27,
+            "close": 36.285,
+            "time": 1792416600
+          },
+          "last": {
+            "open": 28.22,
+            "high": 28.265,
+            "low": 28.03,
+            "close": 28.03,
+            "time": 1795098600
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "1h",
+          "selected": "1h",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "1h",
+            "count": 311,
+            "error": null
+          },
+          "renderedCandles": 311,
+          "first": {
+            "open": 34.525,
+            "high": 35.53,
+            "low": 34.525,
+            "close": 35.405,
+            "time": 1789736400
+          },
+          "last": {
+            "open": 28.23,
+            "high": 28.265,
+            "low": 28.03,
+            "close": 28.03,
+            "time": 1795096800
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "4h",
+          "selected": "4h",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "4h",
+            "count": 196,
+            "error": null
+          },
+          "renderedCandles": 196,
+          "first": {
+            "open": 28.245,
+            "high": 28.705,
+            "low": 28.09,
+            "close": 28.62,
+            "time": 1784030400
+          },
+          "last": {
+            "open": 28.23,
+            "high": 28.265,
+            "low": 28.03,
+            "close": 28.03,
+            "time": 1795089600
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "1d",
+          "selected": "1d",
+          "history": {
+            "symbol": "BTC-USD",
+            "timeframe": "1d",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 43.1,
+            "high": 43.93,
+            "low": 42.45,
+            "close": 43.57,
+            "time": 1732165200
+          },
+          "last": {
+            "open": 28.22,
+            "high": 28.265,
+            "low": 28.02,
+            "close": 28.04,
+            "time": 1795064400
+          },
+          "visibleCanvases": 9
+        }
+      ],
+      "scripts": [
+        "https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js",
+        "https://www.ogzprime.com/js/core.js?v=20261118-native-mtf",
+        "https://www.ogzprime.com/js/indicators.js?v=1776116744941",
+        "https://www.ogzprime.com/js/websocket.js?v=20261118-native-mtf",
+        "https://www.ogzprime.com/js/chart.js?v=20261119-native-indicators",
+        "https://www.ogzprime.com/js/panels/rail-resize.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/system-snapshot.js?v=1778705869178",
+        "https://www.ogzprime.com/js/panels/trade-log.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/edge-analytics.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/asset-tf-card.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/pattern-sparkline.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/bot-intelligence.js?v=1776116744941",
+        "https://www.ogzprime.com/js/drawing-tools.js?v=1776116744941",
+        "https://www.ogzprime.com/js/theme-customizer.js?v=1776116744941",
+        "https://www.ogzprime.com/js/panels/confidence-heatbar.js?v=20261107-winner",
+        "https://www.ogzprime.com/js/panels/risk-gauge.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/candle-countdown.js?v=1777005601913",
+        "https://www.ogzprime.com/js/panels/session-phase.js?v=1777945312788",
+        "https://www.ogzprime.com/js/panels/size-preview.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/strategy-leaderboard.js?v=1780008152632",
+        "https://www.ogzprime.com/js/operator/trade-manager.js?v=1776116744941",
+        "https://www.ogzprime.com/js/command-palette.js?v=1777005166748",
+        "https://www.ogzprime.com/trai-widget.js?v=1781269500000",
+        "https://www.ogzprime.com/js/panels/supervisor-recovery.js"
+      ],
+      "httpStatus": 200,
+      "beforeLive": [
+        {
+          "options": {
+            "color": "rgba(0, 255, 255, 0.4)",
+            "lineWidth": 2,
+            "lineStyle": 3,
+            "priceLineVisible": false
+          },
+          "writes": 10,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 387.87323255542634
+          }
+        },
+        {
+          "options": {
+            "color": "#22d3ee",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 387.7653825122726
+          }
+        },
+        {
+          "options": {
+            "color": "#a78bfa",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "EMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 385.4566350784435
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 391.58807630276635
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.55)",
+            "lineWidth": 1,
+            "visible": false,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 388.51025000000004
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 385.43242369723373
+          }
+        },
+        {
+          "options": {
+            "color": "#e879f9",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "VWAP",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 383.9392995319401
+          }
+        },
+        {
+          "options": {
+            "color": "#60a5fa",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 388.32025
+          }
+        },
+        {
+          "options": {
+            "color": "#3b82f6",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 388.2576
+          }
+        },
+        {
+          "options": {
+            "color": "#1d4ed8",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "SMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 385.12139999999994
+          }
+        },
+        {
+          "options": {
+            "color": "#ec4899",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "RSI",
+            "priceScaleId": "rsi",
+            "priceFormat": {
+              "type": "custom"
+            },
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795099440,
+            "value": 38.36127961566396
+          }
+        },
+        {
+          "options": {
+            "color": "#8b5cf6",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "MACD",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": -0.7738867198456774
+          }
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Signal",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": -0.42593774627656134
+          }
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "ATR",
+            "priceScaleId": "atr",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 1.0322526839373765
+          }
+        },
+        {
+          "options": {
+            "color": "#06b6d4",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Tenkan",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 387.2875
+          }
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Kijun",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 389.35749999999996
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(34,197,94,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou A",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 388.3225
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(239,68,68,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou B",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 27,
+          "last": {
+            "time": 1795100280,
+            "value": 387.93499999999995
+          }
+        },
+        {
+          "options": {
+            "color": "#ef4444",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#22c55e",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 19,
+          "last": null
+        }
+      ],
+      "afterLive": [
+        {
+          "options": {
+            "color": "rgba(0, 255, 255, 0.4)",
+            "lineWidth": 2,
+            "lineStyle": 3,
+            "priceLineVisible": false
+          },
+          "writes": 10,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 387.70244850252857
+          }
+        },
+        {
+          "options": {
+            "color": "#22d3ee",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "EMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 387.69928908041874
+          }
+        },
+        {
+          "options": {
+            "color": "#a78bfa",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "EMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 385.46283771447895
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 391.4749599311981
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.55)",
+            "lineWidth": 1,
+            "visible": false,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 388.32025
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(255,255,255,0.35)",
+            "lineWidth": 1,
+            "visible": false,
+            "lineStyle": 2,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 385.1655400688019
+          }
+        },
+        {
+          "options": {
+            "color": "#e879f9",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "VWAP",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 383.94120541475405
+          }
+        },
+        {
+          "options": {
+            "color": "#60a5fa",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA20",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 388.09925
+          }
+        },
+        {
+          "options": {
+            "color": "#3b82f6",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "SMA50",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 388.3002
+          }
+        },
+        {
+          "options": {
+            "color": "#1d4ed8",
+            "lineWidth": 2,
+            "visible": false,
+            "title": "SMA200",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 385.1321
+          }
+        },
+        {
+          "options": {
+            "color": "#ec4899",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "RSI",
+            "priceScaleId": "rsi",
+            "priceFormat": {
+              "type": "custom"
+            },
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795099500,
+            "value": 37.79546638287969
+          }
+        },
+        {
+          "options": {
+            "color": "#8b5cf6",
+            "lineWidth": 1.5,
+            "visible": false,
+            "title": "MACD",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": -0.8121930836661022
+          }
+        },
+        {
+          "options": {
+            "color": "#fbbf24",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Signal",
+            "priceScaleId": "macd",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": -0.5031888137544696
+          }
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "ATR",
+            "priceScaleId": "atr",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 0.9845917779418503
+          }
+        },
+        {
+          "options": {
+            "color": "#06b6d4",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Tenkan",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 387.2875
+          }
+        },
+        {
+          "options": {
+            "color": "#f59e0b",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Kijun",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 389.35749999999996
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(34,197,94,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou A",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 388.3225
+          }
+        },
+        {
+          "options": {
+            "color": "rgba(239,68,68,0.45)",
+            "lineWidth": 1,
+            "visible": false,
+            "title": "Senkou B",
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 30,
+          "last": {
+            "time": 1795100340,
+            "value": 387.93499999999995
+          }
+        },
+        {
+          "options": {
+            "color": "#ef4444",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        },
+        {
+          "options": {
+            "color": "#22c55e",
+            "lineWidth": 2,
+            "visible": false,
+            "lineStyle": 0,
+            "lastValueVisible": false,
+            "priceLineVisible": false
+          },
+          "writes": 20,
+          "last": null
+        }
+      ],
+      "wire": {
+        "counts": {
+          "auth_success": 1,
+          "state_update": 6,
+          "funding_rate": 28,
+          "fear_greed": 30,
+          "liquidation_data": 30,
+          "market_internals": 259,
+          "smart_money": 30,
+          "cvd_update": 123,
+          "bot_thinking": 49,
+          "broker_status": 80,
+          "price": 340,
+          "ticker_price": 311,
+          "historical_candles": 11,
+          "trace_event": 341,
+          "depth_update": 229,
+          "divergence": 18,
+          "pattern_analysis": 24,
+          "narrator_event": 54,
+          "signal_analysis": 24,
+          "golden_setup_state": 24,
+          "journal_snapshot": 4,
+          "pong": 5,
+          "bot_state": 1,
+          "trade_closed_replay": 1,
+          "trade": 2,
+          "gate_event": 10
+        },
+        "histories": [
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "count": 428,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "1m",
+            "count": 500,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "1m",
+            "count": 500,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "5m",
+            "count": 355,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "15m",
+            "count": 293,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "30m",
+            "count": 306,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "1h",
+            "count": 311,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "4h",
+            "count": 196,
+            "error": null
+          },
+          {
+            "symbol": "BTC-USD",
+            "timeframe": "1d",
+            "count": 500,
+            "error": null
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "count": 429,
+            "error": null
+          },
+          {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "count": 429,
+            "error": null
+          }
+        ],
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "BTC-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "5m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "15m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "30m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "4h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1d"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          }
+        ],
+        "blocked": [],
+        "cvd": [
+          {
+            "asset": "SOL-USD",
+            "value": -696609.2322312946
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 180897.16955660205
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 185483.67422179505
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696557.102336482
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 175092.09973969668
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 200176.37271679507
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168485.59173213667
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 200223.23558032507
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168515.59172496246
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696604.149788812
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 201964.56184574508
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168637.85724861256
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696582.8538933006
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 202023.60157172507
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168729.14599931205
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696550.3648937382
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 202023.65761298905
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696472.7503193382
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 202165.97014208906
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168927.59022485444
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696468.4798374266
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 202165.98885847806
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167644.13264289443
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 202292.01117032405
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167667.47804289442
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 202598.53389995304
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167709.59196433923
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 162476.68833873922
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 198956.23094748904
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696411.7484888063
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 161936.1846462338
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696408.3212467891
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194929.13477548904
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 164436.9850554153
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194703.88794143504
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 165237.72575500142
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194713.69137234503
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696341.2543817394
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194788.01849838204
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 165266.47583500142
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 165317.17734355142
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167629.44865305483
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194554.86990534305
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167617.06030887444
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167587.06031324883
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696382.4163773194
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167117.13036274884
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696352.713477741
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194755.24986781305
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167597.73779437883
+          },
+          {
+            "asset": "TSLA",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": -28176
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -696351.6359779002
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 195172.11336142305
+          },
+          {
+            "asset": "MARA",
+            "symbol": "MARA",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": 17299
+          },
+          {
+            "asset": "RIOT",
+            "symbol": "RIOT",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": -37830
+          },
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": 150111
+          },
+          {
+            "asset": "COIN",
+            "symbol": "COIN",
+            "timeframe": "1m",
+            "source": "candle_processor",
+            "value": -3670
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167188.11365033523
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -705650.9373222517
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194331.96544813507
+          },
+          {
+            "asset": "TSLA",
+            "symbol": "TSLA",
+            "timeframe": "30m",
+            "source": "candle_processor",
+            "value": -96613
+          },
+          {
+            "asset": "TSLA",
+            "symbol": "TSLA",
+            "timeframe": "5m",
+            "source": "candle_processor",
+            "value": 2973
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194305.16130613504
+          },
+          {
+            "asset": "TSLA",
+            "symbol": "TSLA",
+            "timeframe": "1h",
+            "source": "candle_processor",
+            "value": -96693
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167179.75823806293
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -725772.4573218877
+          },
+          {
+            "asset": "MARA",
+            "symbol": "MARA",
+            "timeframe": "5m",
+            "source": "candle_processor",
+            "value": -49823
+          },
+          {
+            "asset": "MARA",
+            "symbol": "MARA",
+            "timeframe": "30m",
+            "source": "candle_processor",
+            "value": -107623
+          },
+          {
+            "asset": "MARA",
+            "symbol": "MARA",
+            "timeframe": "15m",
+            "source": "candle_processor",
+            "value": -7101
+          },
+          {
+            "asset": "RIOT",
+            "symbol": "RIOT",
+            "timeframe": "15m",
+            "source": "candle_processor",
+            "value": -70405
+          },
+          {
+            "asset": "RIOT",
+            "symbol": "RIOT",
+            "timeframe": "1h",
+            "source": "candle_processor",
+            "value": -289477
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194178.20815577504
+          },
+          {
+            "asset": "MARA",
+            "symbol": "MARA",
+            "timeframe": "1h",
+            "source": "candle_processor",
+            "value": -108123
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 166947.41113427473
+          },
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "timeframe": "30m",
+            "source": "candle_processor",
+            "value": 1832638
+          },
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "timeframe": "5m",
+            "source": "candle_processor",
+            "value": 139228
+          },
+          {
+            "asset": "TSLA",
+            "symbol": "TSLA",
+            "timeframe": "15m",
+            "source": "candle_processor",
+            "value": -96613
+          },
+          {
+            "asset": "RIOT",
+            "symbol": "RIOT",
+            "timeframe": "5m",
+            "source": "candle_processor",
+            "value": -57977
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -726218.0724796552
+          },
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "timeframe": "15m",
+            "source": "candle_processor",
+            "value": 761080
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167122.37708622863
+          },
+          {
+            "asset": "COIN",
+            "symbol": "COIN",
+            "timeframe": "5m",
+            "source": "candle_processor",
+            "value": 25098
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 194426.91273608204
+          },
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "timeframe": "1h",
+            "source": "candle_processor",
+            "value": 1846076
+          },
+          {
+            "asset": "RIOT",
+            "symbol": "RIOT",
+            "timeframe": "30m",
+            "source": "candle_processor",
+            "value": -289087
+          },
+          {
+            "asset": "COIN",
+            "symbol": "COIN",
+            "timeframe": "15m",
+            "source": "candle_processor",
+            "value": 25098
+          },
+          {
+            "asset": "COIN",
+            "symbol": "COIN",
+            "timeframe": "1h",
+            "source": "candle_processor",
+            "value": -39894
+          },
+          {
+            "asset": "COIN",
+            "symbol": "COIN",
+            "timeframe": "30m",
+            "source": "candle_processor",
+            "value": -39640
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 166818.01139828464
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 419194.504372361
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -726182.5143873435
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 419445.606555778
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -725314.3703873436
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 419518.96785842
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 168422.13363487922
+          },
+          {
+            "asset": "BTC-USD",
+            "value": 419529.742701941
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167739.38970937923
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -725205.0184177635
+          },
+          {
+            "asset": "SOL-USD",
+            "value": -725908.3975651853
+          },
+          {
+            "asset": "ETH-USD",
+            "value": 167301.19597087923
+          }
+        ],
+        "nativeCount": 29
+      },
+      "screenshot": "served-legacy.png"
+    }
+  ],
+  "browserVersion": "156.0.8078.4",
+  "finishedAt": "2026-11-19T15:00:17.782Z"
+}

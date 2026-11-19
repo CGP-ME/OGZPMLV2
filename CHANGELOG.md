@@ -1,3 +1,53 @@
+## 2026-11-19 — Stop 2: refresh displayed indicators from native candle revisions
+
+**Problem and authority.** Trey requested completion and cleanup of the remaining
+Stop 2 work. Both dashboards accepted new/revised native candles but left price
+overlays at their previous history/toggle calculation. The legacy chart also
+retained obsolete generated lines and previous-scope indicator data. V2 repeated
+its oscillator math in separate refresh paths. This change concerns dashboard
+calculation timing and stale rendering, not trading indicators or entry timing.
+
+**Changed.** `public/js/chart.js` and `public/js/panels/chart-panel.js` recalculate
+from the post-update stored native candles. Generated Fibonacci/S-R lines are
+removed before replacement, obsolete trend lines are cleared, and history/scope
+replacement clears indicator data. V2 uses its existing oscillator helper once;
+quote-only messages do not recalculate candle indicators. Existing calculation
+catches now report a visible failure instead of swallowing it. Both HTML script
+versions were updated. No indicator formula, trading parameter, bot gate, throw,
+config value, dependency, journal or position was changed.
+
+**Verified behavior.** Isolated execution of the actual chart/socket/core methods
+and existing indicator math reproduced the baseline failure and verified new-bar,
+current-revision and older-revision EMA/VWAP values, generated-line replacement,
+short-history cleanup, scope cleanup and quote-only behavior in both charts.
+Two initial fixture mistakes (missing browser global and invalid synthetic OHLC)
+were corrected before the retained baseline/candidate receipts. No Jest was used.
+Chromium then loaded both actual public dashboards after source application:
+native stock candles arrived and EMA series advanced; no browser exception or
+blocked outgoing command occurred. The observer's existing WebSocket credential
+did not provide an HTTP dashboard session, producing three HTTP 401 resource
+messages per page; that authentication scope is not certified by this run.
+
+**Independent review and delivery.** Mercury 3 independently reviewed the pinned
+candidate tree `3e1f228f223fdae81a80ea60c59e80eb6373ec62` against base tree
+`0c12f435c0e0a1ec31e6752d921cf6c8b2736389`: one neutral refresh question,
+`no_break_found`, no blocking finding, 31 successful tool calls, USD 0.074224.
+Only Mercury was selected. Its partial-file/coverage metadata and no-execution
+limitation remain recorded; independent behavior receipts supply execution proof.
+The inherited dirty Mercury harness hash is pinned. No RAG rebuild is claimed.
+The scoped source diff was shown before delivery. Twenty unrelated inherited
+tracked edits remain preserved and excluded. Public static files are active on
+new page load; no PM2 process was restarted.
+
+**Open findings, not hidden by this completion.** The browser exposed Bitcoin
+history incorrectly fetched through the active stock adapter and labeled
+BTC-USD, plus a pre-existing 14-bar RSI plot timestamp offset. Those require
+separate source repairs; the Bitcoin chart is not accepted as correct. CVD and
+simulated analytics cleanup also remain open. Full screenshots contain operator
+account details and stay private. All receipts, the complete review and precise
+limits are indexed in
+[the indicator packet](ogz-meta/inbox/codex/2026-11-19/stop2-indicator-refresh/RECEIPTS.md).
+
 ## 2026-11-19 — Stop 2: activate the reviewed native-candle repairs in paper runtime
 
 **Authority and action.** Trey answered "Approve paper activation" for only

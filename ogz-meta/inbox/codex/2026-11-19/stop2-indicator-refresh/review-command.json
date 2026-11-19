@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=3e1f228f223fdae81a80ea60c59e80eb6373ec62",
+    "--review-base=fa3fa072cc00449e1c7fe54b0e9ff09cd3a96dac",
+    "--change-path=public/js/chart.js",
+    "--change-path=public/js/panels/chart-panel.js",
+    "When a selected native candle is added or revised, what data do the visible chart indicators use in the two served dashboards? Trace the refresh producers and consumers in the pinned source and cite current file:line evidence and any verification gaps."
+  ]
+}

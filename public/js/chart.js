@@ -695,12 +695,7 @@
             // Trend lines
             this._trendResistance.applyOptions({ visible: active.includes('trendlines') });
             this._trendSupport.applyOptions({ visible: active.includes('trendlines') });
-            // Fibonacci — show/hide price lines
-            this._fibLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
-            this._fibLines = [];
-            // S/R — show/hide price lines
-            this._srLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
-            this._srLines = [];
+            this._clearGeneratedOverlayLines();
 
             // Rebalance layout based on whether any oscillator strip is needed.
             const hasOsc = active.includes('rsi') || active.includes('macd') || active.includes('atr');
@@ -717,6 +712,7 @@
             const mapSeries = (values) => values.map((v, i) => v != null ? { time: times[i], value: v } : null).filter(Boolean);
 
             try {
+                this._clearGeneratedOverlayLines();
                 // EMAs
                 const ema20 = Ind.calculateEMA(closes, 20);
                 const ema50 = Ind.calculateEMA(closes, 50);
@@ -753,6 +749,8 @@
 
                 // Trend Lines (auto-detected from swing highs/lows)
                 if (activeOverlays.includes('trendlines')) {
+                    this._trendResistance.setData([]);
+                    this._trendSupport.setData([]);
                     const trendLines = Ind.calculateTrendLines(candles);
                     trendLines.forEach(tl => {
                         if (tl.type === 'resistance') this._trendResistance.setData(tl.points);
@@ -800,13 +798,37 @@
                     });
                 }
 
-                console.log('[Chart] Indicators calculated for', candles.length, 'candles');
             } catch (e) {
                 console.error('[Chart] Indicator calc error:', e);
+                const status = document.getElementById('statusText');
+                if (status) status.textContent = 'Indicator calculation failed';
             }
         },
 
+        _clearGeneratedOverlayLines: function () {
+            if (Array.isArray(this._fibLines)) {
+                for (const line of this._fibLines) candleSeries.removePriceLine(line);
+            }
+            if (Array.isArray(this._srLines)) {
+                for (const line of this._srLines) candleSeries.removePriceLine(line);
+            }
+            this._fibLines = [];
+            this._srLines = [];
+        },
+
+        _clearIndicatorData: function () {
+            [ema20Series, ema50Series, ema200Series, sma20Series, sma50Series, sma200Series,
+                bbUpperSeries, bbMiddleSeries, bbLowerSeries, vwapSeries,
+                rsiOverlaySeries, macdLineSeries, macdSignalSeries, atrSeries,
+                this._ichiTenkan, this._ichiKijun, this._ichiSenkouA, this._ichiSenkouB,
+                this._trendResistance, this._trendSupport].forEach(series => {
+                if (series) series.setData([]);
+            });
+            this._clearGeneratedOverlayLines();
+        },
+
         clearAll: function() {
+            this._clearIndicatorData();
             for (const id of ['rsiCore', 'macdCore', 'volumeCore', 'atrML', 'confidenceML']) {
                 const element = document.getElementById(id);
                 if (element) element.textContent = '--';
@@ -913,6 +935,7 @@
                     if (older) volumeSeries.setData(values); else volumeSeries.update(values);
 
                 }
+                if (activeOverlays.length > 0) this.calculateIndicators(storedCandles);
             }
 
             // Live price readout + floating HUD + tick flash with ogzprime palette.
@@ -1058,6 +1081,7 @@
                 }
 
                 // Store for indicator recalculation
+                this._clearIndicatorData();
                 storedCandles = formatted;
 
                 // Auto-calculate indicators if any are active

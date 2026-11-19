@@ -697,7 +697,10 @@
                 if (_oscPanes['macd'].series.macd) _oscPanes['macd'].series.macd.setData(mapSeries(macd.macd));
                 if (_oscPanes['macd'].series.signal) _oscPanes['macd'].series.signal.setData(mapSeries(macd.signal));
             }
-        } catch (e) { /* swallow */ }
+        } catch (e) {
+            console.error('[Chart] Oscillator calculation failed:', e);
+            ChartPanel._setFeedStatus('Oscillator calculation failed', true);
+        }
     }
 
     // ─── Helper: Render Scaffold HTML ─────────────────────────────────────
@@ -1749,33 +1752,16 @@
                 const vwap = Ind.calculateVWAP(candles);
                 vwapSeries.setData(mapSeries(vwap));
 
-                // ─── Oscillator panes (fix #42) ─────────────────────────
-                // RSI / ATR computed data is routed into their aux panes
-                // when active. The legacy main-chart series stay unfed.
-                if (_oscPanes['rsi'] && _oscPanes['rsi'].series && _oscPanes['rsi'].series.rsi) {
-                    const rsi = Ind.calculateRSI(closes, 14);
-                    try { _oscPanes['rsi'].series.rsi.setData(mapSeries(rsi)); } catch (e) { /* swallow */ }
-                }
-
-                if (_oscPanes['atr'] && _oscPanes['atr'].series && _oscPanes['atr'].series.atr) {
-                    const atr = Ind.calculateATR(candles, 14);
-                    try { _oscPanes['atr'].series.atr.setData(mapSeries(atr)); } catch (e) { /* swallow */ }
-                }
+                feedOscIndicatorPanes(candles);
 
                 if (activeOverlays.includes('trendlines')) {
+                    this._trendResistance.setData([]);
+                    this._trendSupport.setData([]);
                     const trendLines = Ind.calculateTrendLines(candles);
                     trendLines.forEach(tl => {
                         if (tl.type === 'resistance') this._trendResistance.setData(tl.points);
                         if (tl.type === 'support') this._trendSupport.setData(tl.points);
                     });
-                }
-
-                if (_oscPanes['macd'] && _oscPanes['macd'].series) {
-                    const macd = Ind.calculateMACD(closes);
-                    try {
-                        if (_oscPanes['macd'].series.macd) _oscPanes['macd'].series.macd.setData(mapSeries(macd.macd));
-                        if (_oscPanes['macd'].series.signal) _oscPanes['macd'].series.signal.setData(mapSeries(macd.signal));
-                    } catch (e) { /* swallow */ }
                 }
 
                 const ichi = Ind.calculateIchimoku(candles);
@@ -1811,26 +1797,43 @@
                 }
                 return true;
             } catch (e) {
-                /* swallow */
+                console.error('[Chart] Indicator calculation failed:', e);
+                this._setFeedStatus('Indicator calculation failed', true);
             }
             return false;
         },
 
         _clearGeneratedOverlayLines: function () {
             if (Array.isArray(this._fibLines)) {
-                this._fibLines.forEach(l => { try { if (candleSeries) candleSeries.removePriceLine(l); } catch (e) { } });
+                for (const line of this._fibLines) candleSeries.removePriceLine(line);
+            }
+            if (Array.isArray(this._srLines)) {
+                for (const line of this._srLines) candleSeries.removePriceLine(line);
             }
             this._fibLines = [];
-            if (Array.isArray(this._srLines)) {
-                this._srLines.forEach(l => { try { if (candleSeries) candleSeries.removePriceLine(l); } catch (e) { } });
-            }
             this._srLines = [];
         },
 
         /**
          * Clear all chart data (candles, volume, indicators, markers).
          */
+        _clearIndicatorData: function () {
+            [ema20Series, ema50Series, ema200Series, sma20Series, sma50Series, sma200Series,
+                bbUpperSeries, bbMiddleSeries, bbLowerSeries, vwapSeries,
+                rsiOverlaySeries, macdLineSeries, macdSignalSeries, atrSeries,
+                this._ichiTenkan, this._ichiKijun, this._ichiSenkouA, this._ichiSenkouB,
+                this._trendResistance, this._trendSupport].forEach(series => {
+                if (series) series.setData([]);
+            });
+            ['rsi', 'macd', 'atr'].forEach(name => {
+                const entry = _oscPanes[name];
+                if (entry) Object.values(entry.series).forEach(series => series.setData([]));
+            });
+            this._clearGeneratedOverlayLines();
+        },
+
         clearAll: function () {
+            this._clearIndicatorData();
             for (const id of ['rsiCore', 'macdCore', 'volumeCore', 'atrML', 'confidenceML']) {
                 const element = document.getElementById(id);
                 if (element) element.textContent = '--';
@@ -1846,12 +1849,6 @@
             if (this._areaSeries) this._areaSeries.setData([]);
             if (this._barSeries) this._barSeries.setData([]);
             if (ghostSeries) ghostSeries.setData([]);
-            Object.values(_oscPanes).forEach(entry => {
-                Object.values(entry?.series || {}).forEach(series => {
-                    try { if (series && typeof series.setData === 'function') series.setData([]); }
-                    catch (e) { /* swallow */ }
-                });
-            });
             storedCandles = [];
 
             wallLines.forEach(l => {
@@ -1865,7 +1862,6 @@
             wallLines = []; tpoLines = [];
 
             removeRsiBands(this);
-            this._clearGeneratedOverlayLines();
         },
 
         /**
@@ -2005,14 +2001,8 @@
                     const pane = _oscPanes['volume'];
                     if (pane?.series?.volume) { if (older) pane.series.volume.setData(values); else pane.series.volume.update(values); }
                 }
-            }
-
-            // Feed live RSI/MACD/ATR into their panes (recomputed from the
-            // updated storedCandles window). Cheap enough at tick cadence —
-            // the same indicator math the panel already runs on every toggle.
-            if ((_oscPanes['rsi'] || _oscPanes['macd'] || _oscPanes['atr'])
-                && storedCandles.length >= MIN_INDICATOR_CANDLES) {
-                feedOscIndicatorPanes(storedCandles);
+                if (activeOverlays.length > 0) this.calculateIndicators(storedCandles);
+                else feedOscIndicatorPanes(storedCandles);
             }
 
             if (Number.isFinite(price) && price > 0) {
@@ -2166,6 +2156,7 @@
                     }
                 }
 
+                this._clearIndicatorData();
                 storedCandles = formatted;
 
                 _loadedAsset = requestedSymbol;
@@ -2174,9 +2165,7 @@
                 this._clearNoDataWatchdog();
 
                 if (activeOverlays.length > 0) this.calculateIndicators(formatted);
-
-                // Feed any active RSI/MACD/ATR panes with the fresh history.
-                feedOscIndicatorPanes(formatted);
+                else feedOscIndicatorPanes(formatted);
 
                 if (tvChart) {
                     tvChart.priceScale('right').applyOptions({ autoScale: true });

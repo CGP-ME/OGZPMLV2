@@ -1,0 +1,18 @@
+{
+  "baseCommit": "fa3fa072cc00449e1c7fe54b0e9ff09cd3a96dac",
+  "baseTree": "0c12f435c0e0a1ec31e6752d921cf6c8b2736389",
+  "candidateTree": "3e1f228f223fdae81a80ea60c59e80eb6373ec62",
+  "sourceHashes": {
+    "public/js/chart.js": "f0a46f78908ebc9596f150a4756ea69ba815477b04f16b2c680427aeaa1b0c5a",
+    "public/js/panels/chart-panel.js": "dddc20ce547c1782c9e2649e16d3ae63b7fa80f6bc577774b437ebcf88367782",
+    "public/unified-dashboard.html": "b158ea8b7cb3a92908349b58fab503c03bb5e44c5c58202acc83ca541977b695",
+    "public/unified-dashboard-v2.html": "f395cd445866ff816e9d85057966b461d4f164e7ac51e8b50a4e9bea379e8592"
+  },
+  "harness": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "harnessInheritedDirty": [
+    "trai_brain/mercury-bridge/react-loop.js"
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "baseline": true,
+  "sourceHashes": {
+    "public/js/panels/chart-panel.js": "93e4e1afcb5a4307cf17e3a8680871915e3b2454423ed80c924e49b418fc2e10",
+    "public/js/chart.js": "26390414ee366a1c1b84d4affe8f12d87d9d199b98643de69b1eb9cad16dace5",
+    "public/js/core.js": "f0026061a2b558bc417b949148a70012dbdcb49a8b049e9c0741f0e6736bf296",
+    "public/js/websocket.js": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532"
+  },
+  "output": [
+    {
+      "chart": "Chart",
+      "cases": [
+        {
+          "stage": "history",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "new_candle",
+          "emaMatches": false,
+          "vwapMatches": false,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "current_revision",
+          "emaMatches": false,
+          "vwapMatches": false,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "older_revision",
+          "emaMatches": false,
+          "vwapMatches": false,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        }
+      ],
+      "quoteDoesNotRecalculate": true,
+      "vanishedTrendsRemoved": false,
+      "shortHistoryClearsOldIndicators": false,
+      "volumeHistoryPreserved": true,
+      "scopeSwitchClearsIndicators": false,
+      "errors": []
+    },
+    {
+      "chart": "ChartPanel",
+      "cases": [
+        {
+          "stage": "history",
+          "emaMatches": true,
+          "vwapMatches": true,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "new_candle",
+          "emaMatches": false,
+          "vwapMatches": false,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "current_revision",
+          "emaMatches": false,
+          "vwapMatches": false,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        },
+        {
+          "stage": "older_revision",
+          "emaMatches": false,
+          "vwapMatches": false,
+          "generatedLines": 12,
+          "expectedLines": 12,
+          "noDuplicateLines": true,
+          "lastEma": {
+            "time": 1794905940,
+            "value": 145.88992702933967
+          }
+        }
+      ],
+      "quoteDoesNotRecalculate": false,
+      "vanishedTrendsRemoved": false,
+      "shortHistoryClearsOldIndicators": false,
+      "volumeHistoryPreserved": true,
+      "scopeSwitchClearsIndicators": false,
+      "errors": []
+    }
+  ],
+  "evidence": "Actual chart history/update/clear methods, core/socket routing and production indicator math; synthetic series boundary",
+  "limitations": [
+    "No browser rendering in this isolated probe",
+    "No change to indicator formulas or entry decisions"
+  ]
+}
