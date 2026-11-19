@@ -1,0 +1,4326 @@
+{
+  "baseline": true,
+  "sourceHashes": {
+    "ogzprime-ssl-server.js": "b2017eec1a2cef3ca8ce65b01cf03b3576ec09e8e1d818255c8d295fb5606cbc",
+    "run-empire-v2.js": "eb2632fa6c0774c8607d986d429f53179ac5decf7f8a202d8d64b055e5ec3ff0",
+    "core/WebSocketManager.js": "318df3b733589c19862a36edd4e19189120e780e88ae8b8b8fe1a8777df7e98b",
+    "server/stock-data-adapter.js": "44f1c52e1ebcae9eab0fba90f002fca01f1fecf902725585fbebfeddd49c8715",
+    "server/dashboard-stock-stream-config.js": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+    "server/dashboard-market-scope.js": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c",
+    "foundation/ConfigLoader.js": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "85a580ccd2d2ca52783f407d31c64951d25935b844334693e76c00c9b3735f8b"
+  },
+  "cases": [
+    {
+      "mode": "stock_session",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "ETH-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "ETH-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "ETH-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "ETH-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "ETH-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "ETH-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "SOL-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "SOL-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "SOL-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "SOL-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "SOL-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "SOL-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_session",
+      "symbol": "SOL-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "ETH-USD",
+      "timeframe": "5m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "ETH-USD",
+      "timeframe": "15m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "ETH-USD",
+      "timeframe": "30m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "ETH-USD",
+      "timeframe": "1h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "ETH-USD",
+      "timeframe": "4h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "ETH-USD",
+      "timeframe": "1d",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "SOL-USD",
+      "timeframe": "1m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "SOL-USD",
+      "timeframe": "5m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "SOL-USD",
+      "timeframe": "15m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "SOL-USD",
+      "timeframe": "30m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "SOL-USD",
+      "timeframe": "1h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "SOL-USD",
+      "timeframe": "4h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "crypto_session",
+      "symbol": "SOL-USD",
+      "timeframe": "1d",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "ETH-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "ETH-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "ETH-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "ETH-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "ETH-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "ETH-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "SOL-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "SOL-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "SOL-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "SOL-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "SOL-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "SOL-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "stock_only",
+      "symbol": "SOL-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "ETH-USD",
+      "timeframe": "5m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "ETH-USD",
+      "timeframe": "15m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "ETH-USD",
+      "timeframe": "30m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "ETH-USD",
+      "timeframe": "1h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "ETH-USD",
+      "timeframe": "4h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "ETH-USD",
+      "timeframe": "1d",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "ETH/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "SOL-USD",
+      "timeframe": "1m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "SOL-USD",
+      "timeframe": "5m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "SOL-USD",
+      "timeframe": "15m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "SOL-USD",
+      "timeframe": "30m",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "SOL-USD",
+      "timeframe": "1h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "SOL-USD",
+      "timeframe": "4h",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_kraken",
+      "symbol": "SOL-USD",
+      "timeframe": "1d",
+      "correct": true,
+      "calls": [
+        {
+          "broker": "kraken",
+          "symbol": "SOL/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 63500,
+            "h": 63600,
+            "l": 63400,
+            "c": 63550,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "BTC/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "BTC-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d BTC-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "ETH-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "ETH-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "ETH-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "ETH-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "ETH-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "ETH-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "ETH/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "ETH-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "ETH-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d ETH-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "SOL-USD",
+      "timeframe": "1m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "SOL-USD",
+      "timeframe": "5m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "5m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "5m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "5m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 5m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 5m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "SOL-USD",
+      "timeframe": "15m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "15m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "15m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "15m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 15m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 15m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "SOL-USD",
+      "timeframe": "30m",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "30m",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "30m",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "30m"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 30m SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 30m candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "SOL-USD",
+      "timeframe": "1h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "SOL-USD",
+      "timeframe": "4h",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "4h",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "4h",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "4h"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 4h SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 4h candles to dashboard"
+        }
+      ]
+    },
+    {
+      "mode": "standalone_alpaca",
+      "symbol": "SOL-USD",
+      "timeframe": "1d",
+      "correct": false,
+      "calls": [
+        {
+          "broker": "alpaca",
+          "symbol": "SOL/USD",
+          "timeframe": "1d",
+          "limit": 2
+        }
+      ],
+      "response": {
+        "type": "historical_candles",
+        "symbol": "SOL-USD",
+        "timeframe": "1d",
+        "candles": [
+          {
+            "t": 1795098600000,
+            "o": 28,
+            "h": 29,
+            "l": 27,
+            "c": 28.1,
+            "v": 2,
+            "symbol": "SOL-USD",
+            "timeframe": "1d"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "level": "log",
+          "message": "Fetching 2 historical 1d SOL-USD candles from Kraken REST API..."
+        },
+        {
+          "level": "log",
+          "message": "Sent 1 historical 1d candles to dashboard"
+        }
+      ]
+    }
+  ],
+  "evidence": "Actual runner request method and symbol normalizer with distinct instrument responses from two synthetic broker boundaries",
+  "limitations": [
+    "No live broker call or PM2 activation in isolated probe",
+    "Stock symbol handling is unchanged and covered by existing native-history fixture"
+  ]
+}

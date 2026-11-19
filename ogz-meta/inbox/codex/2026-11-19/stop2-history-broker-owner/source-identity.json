@@ -1,0 +1,9 @@
+{
+  "baseCommit": "d156c8ce36bbb1abdeabf7213b789de13d07b887",
+  "baseTree": "42fd4646aeed71c748a1db780c7489a0c00906cf",
+  "candidateTree": "b708d2f28a1f6f4e82f9d7c52d67783ebce5818d",
+  "sourceHash": "5b1adcdd528da321e555bcfcf294acbba0aff876c0de7b0ba5263b6d57a0ca85",
+  "harnessInheritedDirty": {
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  }
+}

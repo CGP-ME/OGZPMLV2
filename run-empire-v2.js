@@ -2455,8 +2455,18 @@ class OGZPrimeV14Bot {
         return;
       }
 
-      if (!isStockDashboardSymbol && !this.kraken) {
-        console.warn('[WARNING] Cannot fetch crypto historical candles - Kraken broker not connected');
+      // this.kraken follows the active trading session and can be Alpaca.
+      // Crypto display history belongs to the dedicated Kraken adapter.
+      const cryptoHistoryBroker = this.sessionRouter
+        ? this.sessionRouter.krakenAdapter
+        : (this.kraken?.getBrokerName() === 'kraken' ? this.kraken : null);
+      if (!isStockDashboardSymbol && !cryptoHistoryBroker) {
+        const error = `Native crypto history unavailable for ${dashboardSymbol} ${timeframe}: Kraken adapter is not configured`;
+        console.error(`[HISTORICAL] ${error}`);
+        this.dashboardWs.send(JSON.stringify({
+          type: 'historical_candles', symbol: dashboardSymbol, timeframe,
+          candles: [], error
+        }));
         return;
       }
 
@@ -2495,7 +2505,7 @@ class OGZPrimeV14Bot {
         ? this.assetManager.toSlashFormat(dashboardSymbol)
         : dashboardSymbol;
       const candles = this._stampDashboardHistoricalCandles(
-        await this.kraken.getCandles(symbol, timeframe, limit),
+        await cryptoHistoryBroker.getCandles(symbol, timeframe, limit),
         dashboardSymbol,
         timeframe
       );

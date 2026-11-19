@@ -1,0 +1,30 @@
+{
+  "outcome": "no_break_found",
+  "blocking": false,
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "model": "mercury-3",
+  "candidateTree": "b708d2f28a1f6f4e82f9d7c52d67783ebce5818d",
+  "baseTree": "42fd4646aeed71c748a1db780c7489a0c00906cf",
+  "runCostUsd": 0.05539,
+  "toolCalls": 34,
+  "toolFailures": 0,
+  "iterations": 20,
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-19.jsonl:2",
+  "evidenceManifest": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-19/2026-11-19t15-02-56-170z-529823-0cd6b65f9b9c/manifest.json",
+  "metadataGaps": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "limits": [
+    "Source routing review; no execution by Mercury",
+    "Live Kraken REST success through the running bot pending activation"
+  ]
+}

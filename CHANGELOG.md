@@ -1,3 +1,43 @@
+## 2026-11-19 — Stop 2: bind crypto dashboard history to its broker owner
+
+**Observed problem and cause.** Trey's remaining Stop 2 cleanup includes truthful
+native data. The real browser observation during the stock session displayed
+BTC-USD candles around $28 while its live Bitcoin quote was around $63,000.
+The runner requested crypto history through `this.kraken`, but SessionRouter
+reassigns that field to the active broker, including Alpaca. Alpaca converted
+BTC/USD to stock ticker BTC, fetched stock bars and the runner stamped BTC-USD
+on them. Earlier crypto-session receipts did not exercise this later state.
+This defect predates this repair; the browser observation caught it instead of
+accepting successful rendering as market correctness.
+
+**Source fix.** Crypto dashboard history now uses the existing dedicated
+`sessionRouter.krakenAdapter`. In a runtime without SessionRouter, only the
+existing adapter identified as Kraken can serve that path. An unavailable
+Kraken adapter produces an explicit, attributed empty/error history response;
+it cannot select Alpaca. Stock history keeps its existing Alpaca path. No broker
+was added, trading session changed, threshold introduced, exception added,
+credentials changed or frontend price plausibility heuristic introduced.
+
+**Verification and review.** The actual runner method and normalizer reproduced
+the misrouting with distinct synthetic broker responses, then selected Kraken
+for BTC/ETH/SOL across all seven frames during crypto and stock sessions.
+Stock-only and standalone-Alpaca cases now return scoped unavailability without
+calling a stock adapter for crypto. Existing native stock handling is unchanged.
+The helper ran through the required isolation launcher; no Jest or live orders.
+Mercury 3 independently traced broker ownership and BTC/USD -> XXBTZUSD against
+candidate tree `b708d2f28a1f6f4e82f9d7c52d67783ebce5818d`:
+`no_break_found`, no blocking finding, 34 successful tools, USD 0.055390.
+Only Mercury was selected. Partial-file/coverage metadata and its lack of
+network execution remain explicit. Complete answer and behavior receipts are in
+[the broker-owner packet](ogz-meta/inbox/codex/2026-11-19/stop2-history-broker-owner/RECEIPTS.md).
+
+**Delivery and activation.** The scoped runner diff was shown before commit.
+Only this repair and its receipts are delivered; unrelated inherited changes are
+preserved. The running process still has its prior source: no PM2 restart has
+been performed. A separately approved activation and fresh live crypto-history
+comparison during the stock session are still required before marking this
+runtime defect closed. No RAG rebuild is claimed.
+
 ## 2026-11-19 — Stop 2: refresh displayed indicators from native candle revisions
 
 **Problem and authority.** Trey requested completion and cleanup of the remaining
