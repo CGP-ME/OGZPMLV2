@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 13,
+  "revision": 14,
   "confidenceSizing": {
     "minMultiplier": 0.5,
     "maxMultiplier": 2.5,
@@ -1148,8 +1148,7 @@
       "maxDensityLevels": 10,
       "densityWeightCap": 15,
       "densityWeightDivisorUsd": 250000,
-      "cvdTrendDeltaThresholdUsd": 1,
-      "buySellRatioWhenNoSells": 99
+      "cvdTrendDeltaThresholdUsd": 1
     },
     "stockHistorical": {
       "timeframeDefault": "15m",

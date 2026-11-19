@@ -1,0 +1,428 @@
+{
+  "startedAt": "2026-11-19T15:32:21.833Z",
+  "activation": "Backend remains on prior activation; new-format live CVD still pending",
+  "pages": [
+    {
+      "page": "unified-dashboard-v2.html",
+      "pageErrors": [],
+      "observations": [
+        {
+          "selected": "BTC-USD",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "TSLA",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "Observed trade feed unavailable",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "Unavailable",
+            "bookImbalance": "Unavailable"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-observed-analytics"
+          ]
+        },
+        {
+          "selected": "TSLA",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "TSLA",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "Observed trade feed unavailable",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "Unavailable",
+            "bookImbalance": "Unavailable"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-observed-analytics"
+          ]
+        }
+      ],
+      "status": 200,
+      "wire": {
+        "cvd": [
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "source": "candle_processor"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          }
+        ],
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "BTC-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "15m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "15m"
+          },
+          {
+            "type": "ping"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "page": "unified-dashboard.html",
+      "pageErrors": [],
+      "observations": [
+        {
+          "selected": "BTC-USD",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "BTC-USD",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "Observed trade feed unavailable",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "Unavailable",
+            "bookImbalance": "Unavailable"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-observed-analytics"
+          ]
+        },
+        {
+          "selected": "TSLA",
+          "panel": {
+            "mounted": true,
+            "currentSymbol": "TSLA",
+            "cvdHistoryLength": 0,
+            "registeredHandlers": [
+              "cvd_update",
+              "whale_trade",
+              "market_internals",
+              "divergence"
+            ]
+          },
+          "fields": {
+            "cvdValue": "--",
+            "cvdTrend": "--",
+            "currentFunding": "Unavailable",
+            "smartFlow": "Unavailable",
+            "fgLabel": "No data source",
+            "buySellRatio": "--",
+            "bookImbalance": "--"
+          },
+          "scripts": [
+            "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics.js?v=20261119-observed-analytics",
+            "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-observed-analytics"
+          ]
+        }
+      ],
+      "status": 200,
+      "wire": {
+        "cvd": [
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "source": "candle_processor"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "TSLA",
+            "symbol": "TSLA",
+            "source": "candle_processor"
+          },
+          {
+            "asset": "COIN",
+            "symbol": "COIN",
+            "source": "candle_processor"
+          },
+          {
+            "asset": "RIOT",
+            "symbol": "RIOT",
+            "source": "candle_processor"
+          },
+          {
+            "asset": "MARA",
+            "symbol": "MARA",
+            "source": "candle_processor"
+          },
+          {
+            "asset": "NVDA",
+            "symbol": "NVDA",
+            "source": "candle_processor"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "BTC-USD"
+          },
+          {
+            "asset": "SOL-USD"
+          },
+          {
+            "asset": "ETH-USD"
+          }
+        ],
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "BTC-USD"
+          },
+          {
+            "type": "request_historical",
+            "asset": "BTC-USD",
+            "timeframe": "1m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "ping"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

@@ -3895,9 +3895,9 @@ class OGZPrimeV14Bot {
    * Broadcast Edge Analytics data to dashboard
    * REFACTOR Phase 17: Thin dispatcher - delegates to DashboardBroadcaster
    */
-  broadcastEdgeAnalytics(price, volume, candle) {
+  broadcastEdgeAnalytics(candle) {
     this.dashboardBroadcaster.ctx.dashboardWs = this.dashboardWs;
-    return this.dashboardBroadcaster.broadcastEdgeAnalytics(price, volume, candle);
+    return this.dashboardBroadcaster.broadcastEdgeAnalytics(candle);
   }
 
 }

@@ -296,11 +296,6 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
                 // value back from textContent (broken if first event).
             });
 
-            // LIVE: Market Internals (Whale Absorption)
-            socket.registerHandler('market_internals', (d) => {
-                if (this.get('Edge')) this.get('Edge').updateMarketInternals(d);
-            });
-
             // LIVE 2026-07-30: Whale Walls & Depth (direct Kraken L2 feed via
             // CryptoMarketFeed). Frames are per-asset; only render on the
             // chart currently showing that asset — depth for BTC-USD must
@@ -310,8 +305,6 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
                     || document.getElementById('assetSelector')?.value || '';
                 if (d && d.asset && selected && d.asset !== selected) return;
                 if (this.get('Chart')) this.get('Chart').renderLiquidity(d);
-                const edge = this.get('Edge');
-                if (edge && typeof edge.updateWallRadar === 'function') edge.updateWallRadar(d);
             });
 
             // LIVE: Historical candle loading

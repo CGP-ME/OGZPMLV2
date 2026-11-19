@@ -1,0 +1,28 @@
+{
+  "verdict": "no_break_found",
+  "blocking": false,
+  "question": "What evidence owns the CVD value displayed for the selected asset, from receipt of market data through dashboard rendering?",
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "tools": 29,
+  "iterations": 18,
+  "costUSD": 0.060224,
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-19.jsonl:4",
+  "metadataWarnings": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "executionByReviewer": false,
+  "answer": "mercury-answer.md",
+  "sourceIdentity": "source-identity.json",
+  "sourceManifest": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-19/2026-11-19t15-29-36-000z-548732-a9a28533b92a/manifest.json",
+  "sourceManifestSHA256": "d84e485b94519a23b008fa6329a5fc3185e65d47a1b80ee4caa0eb37de8bb898",
+  "indexFreshness": "not claimed; exact source snapshot reviewed"
+}

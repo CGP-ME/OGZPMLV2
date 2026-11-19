@@ -1,0 +1,213 @@
+{
+  "baseline": true,
+  "hashes": {
+    "foundation/ConfigLoader.js": "cf0a4f396c264d7371131005855f91fb03360fbfe3b23a1d77e4425844715937",
+    "config/internals.json": "85a580ccd2d2ca52783f407d31c64951d25935b844334693e76c00c9b3735f8b",
+    "core/CryptoMarketFeed.js": "418dced3dbad4c204c7a68c7ef32ec16ba44f8eaa12c64850f4328944949ed68",
+    "core/DashboardBroadcaster.js": "567979a7f35bd090f23576bec6594ad16bc1ff74aceb471bf969509a7b9ca4d7",
+    "run-empire-v2.js": "5b1adcdd528da321e555bcfcf294acbba0aff876c0de7b0ba5263b6d57a0ca85",
+    "core/CandleProcessor.js": "862e8d7172ac2b32b98fbf711e83d8fb8d93f25470e6a55121065856937f67a4",
+    "public/js/panels/edge-analytics.js": "34573e54a6f0015ac55b6472fade8a6f3a4ebcdaeafda9b2a1fb73985d927975",
+    "public/js/panels/edge-analytics-panel.js": "f80902f8cd74af82b2fc30d1818e84f5015b864d492598fd352803a89e22912c",
+    "ogzprime-ssl-server.js": "b2017eec1a2cef3ca8ce65b01cf03b3576ec09e8e1d818255c8d295fb5606cbc",
+    "public/js/core.js": "f0026061a2b558bc417b949148a70012dbdcb49a8b049e9c0741f0e6736bf296"
+  },
+  "limits": [
+    "Transport/DOM boundaries are synthetic; production feed, broadcaster, caller expressions and browser handlers execute",
+    "No broker orders, host state, live credentials or network inside this helper"
+  ],
+  "configuration": {
+    "role": "dashboard",
+    "obsoleteRatioPresent": true,
+    "feedSource": "config:internals.json:dashboard"
+  },
+  "feed": {
+    "first": {
+      "asset": "BTC-USD",
+      "cvdValue": 100,
+      "cvdTrend": "rising",
+      "buyVolume": 200,
+      "sellVolume": 100
+    },
+    "buyOnly": {
+      "asset": "ETH-USD",
+      "bookImbalance": -0.005,
+      "buySellRatio": 99
+    },
+    "actualTrade": {
+      "symbol": "BTC-USD",
+      "side": "BUY",
+      "amount": 30,
+      "price": 10000
+    },
+    "invalid": {
+      "asset": "BTC-USD",
+      "cvdValue": 300000,
+      "cvdTrend": "falling",
+      "buyVolume": 300200,
+      "sellVolume": 200
+    },
+    "recovered": {
+      "asset": "BTC-USD",
+      "cvdValue": 299800,
+      "cvdTrend": "falling",
+      "buyVolume": 300200,
+      "sellVolume": 400
+    },
+    "reconnect": {
+      "asset": "BTC-USD",
+      "cvdValue": 300000,
+      "cvdTrend": "rising",
+      "buyVolume": 300400,
+      "sellVolume": 400
+    },
+    "expired": {
+      "asset": "ETH-USD",
+      "bookImbalance": -0.005,
+      "buySellRatio": 99
+    },
+    "subscriptions": [
+      [
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "ticker"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "trade"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "book",
+            "depth": 25
+          }
+        }
+      ],
+      [
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "ticker"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "trade"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "book",
+            "depth": 25
+          }
+        }
+      ]
+    ],
+    "invalidDataReported": []
+  },
+  "candles": {
+    "calls": 21,
+    "emittedTypes": [
+      "cvd_update",
+      "liquidation_data",
+      "market_internals",
+      "funding_rate",
+      "fear_greed",
+      "divergence",
+      "smart_money"
+    ],
+    "candleCvd": [
+      5,
+      12,
+      21,
+      5,
+      12,
+      21,
+      5,
+      12,
+      21,
+      5,
+      12,
+      21,
+      5,
+      12,
+      21,
+      5,
+      12,
+      21,
+      5,
+      12,
+      21
+    ]
+  },
+  "browser": {
+    "simulationTimers": 7,
+    "handlers": [
+      "liquidation_data",
+      "cvd_update",
+      "whale_trade",
+      "funding_rate",
+      "market_internals",
+      "smart_money",
+      "fear_greed",
+      "divergence"
+    ],
+    "state": {
+      "mounted": true,
+      "currentSymbol": null,
+      "cvdHistoryLength": 2,
+      "registeredHandlers": [
+        "liquidation_data",
+        "cvd_update",
+        "whale_trade",
+        "funding_rate",
+        "market_internals",
+        "smart_money",
+        "fear_greed",
+        "divergence"
+      ]
+    },
+    "errors": []
+  },
+  "cacheKeys": [
+    "state_update",
+    "funding_rate",
+    "fear_greed",
+    "liquidation_data",
+    "market_internals",
+    "smart_money",
+    "cvd_update",
+    "bot_thinking"
+  ]
+}

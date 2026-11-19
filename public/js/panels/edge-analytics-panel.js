@@ -1,26 +1,15 @@
 /**
  * edge-analytics-panel.js — Self-Rendering Edge Analytics Panel
  *
- * Self-creates the 8-section edge analytics scaffold at mount time.
- * NO synthetic data. NO Math.random. NO simulated feeds. NO setDemoMode.
- * Every value rendered originates from a real WS event from the bot.
- *
- * Sections (each is empty/placeholder until a real event populates it):
- *   1. Liquidation Levels   — fed by WS 'liquidation_data'
- *   2. CVD (Order Flow)     — fed by WS 'cvd_update' (history accumulated locally from real events)
- *   3. Funding Rates        — fed by WS 'funding_rate'
- *   4. Whale Activity       — fed by WS 'whale_trade'
- *   5. Market Internals     — fed by WS 'market_internals' (includes absorption detection)
- *   6. Smart Money          — fed by WS 'smart_money'
- *   7. Fear & Greed         — fed by WS 'fear_greed'
- *   8. Hidden Divergences   — fed by WS 'divergence'
- *
- * If a backend emitter is not yet wired for a given event type, that section
- * stays in its empty/honest placeholder state forever. We never fabricate.
+ * Renders observed trade/book data on both dashboard layouts.
+ * CVD and whale prints come from Kraken trades, internals from its book/trades,
+ * and candle-derived divergence observations from the bot. Funding, liquidation,
+ * sentiment and participant identity have no connected source and stay unavailable.
+ * CVD is observed USD notional within one feed connection window, not daily volume.
  *
  * Public API:
  *   init()       — render scaffold, subscribe to real WS events
- *   setSymbol()  — record current symbol context (for future symbol-scoped events)
+ *   setSymbol()  — clear observations when the selected symbol changes
  *   clearAll()   — reset all sections to empty/placeholder state
  *   teardown()   — disconnect WS handlers, clear DOM
  *   _compute()   — debug helper
@@ -37,12 +26,12 @@
 
     const CVD_HISTORY_MAX = 60;        // accumulated from real cvd_update events only
     const WHALE_ALERTS_MAX = 5;        // most-recent N real whale_trade events kept on screen
-    const ABSORPTION_DELTA_MIN = 0;    // lastPriceDelta > 0 + sellers aggressing = absorbed
 
     // Module state — accumulated only from real events
     const state = {
         mounted: false,
         currentSymbol: null,
+        cvdWindowStartedAt: null,
         cvdHistory: []   // populated only by real cvd_update payloads
     };
 
@@ -82,7 +71,7 @@
         const cvdSection = document.createElement('div');
         cvdSection.className = 'eap-section edge-section';
         cvdSection.innerHTML = `
-            <h4>📊 CVD (Order Flow)</h4>
+            <h4>Observed CVD (USD)</h4>
             <div class="cvd-display">
                 <div class="cvd-value" id="cvdValue">--</div>
                 <div class="cvd-trend" id="cvdTrend">--</div>
@@ -203,27 +192,15 @@
     // ─── Real-event handlers ──────────────────────────────────────────────
     // Each handler renders ONLY when a real WS event arrives. No fallback.
 
-    function onLiquidationData(d) {
-        try {
-            const data = (d && d.data) ? d.data : d;
-            const longP = document.getElementById('longLiqPrice');
-            const longV = document.getElementById('longLiqVol');
-            const shortP = document.getElementById('shortLiqPrice');
-            const shortV = document.getElementById('shortLiqVol');
-            if (longP && data.longLiqPrice != null)  longP.textContent = '$' + Number(data.longLiqPrice).toFixed(0);
-            if (longV && data.longLiqVol != null)    longV.textContent = '$' + (Number(data.longLiqVol) / 1e6).toFixed(1) + 'M';
-            if (shortP && data.shortLiqPrice != null) shortP.textContent = '$' + Number(data.shortLiqPrice).toFixed(0);
-            if (shortV && data.shortLiqVol != null)   shortV.textContent = '$' + (Number(data.shortLiqVol) / 1e6).toFixed(1) + 'M';
-        } catch (_) { /* swallow */ }
-    }
-
-    // Per-asset frames (direct Kraken feed) only apply when their asset is
-    // the one on screen; assetless frames (bot broadcaster) pass through.
+    // Analytics must belong to the selected asset and, when candle-derived, frame.
     function frameMatchesSelectedAsset(data) {
-        if (!data || !data.asset) return true;
+        const asset = data?.asset || data?.symbol;
         const selected = document.getElementById('cp-assetSelector')?.value
-            || document.getElementById('assetSelector')?.value || '';
-        return !selected || data.asset === selected;
+            || document.getElementById('assetSelector')?.value;
+        const timeframe = document.getElementById('cp-timeframeSelector')?.value
+            || document.getElementById('timeframeSelector')?.value;
+        return Boolean(asset && selected && asset === selected
+            && (!data.timeframe || data.timeframe === timeframe));
     }
 
     function onCVDUpdate(d) {
@@ -232,6 +209,22 @@
             if (!frameMatchesSelectedAsset(data)) return;
             const valEl = document.getElementById('cvdValue');
             const trEl = document.getElementById('cvdTrend');
+            if (data.source !== 'kraken_trade' || data.unit !== 'USD' || data.status !== 'ok'
+                || !Number.isFinite(data.cvdValue)) {
+                state.cvdHistory.length = 0;
+                if (valEl) valEl.textContent = '--';
+                if (trEl) trEl.textContent = data.reason || 'Observed trade feed unavailable';
+                const canvas = document.getElementById('cvdChart');
+                if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+            if (state.cvdWindowStartedAt !== data.windowStartedAt) {
+                state.cvdHistory.length = 0;
+                const canvas = document.getElementById('cvdChart');
+                if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            }
+            state.cvdWindowStartedAt = data.windowStartedAt;
+            if (valEl) valEl.title = 'Observed trade notional in the current window, including the feed connection initial trade snapshot; resets on reconnect or invalid trade data';
 
             if (data.cvdValue != null) {
                 state.cvdHistory.push(Number(data.cvdValue));
@@ -275,22 +268,22 @@
                 ctx.fillStyle = last > 0 ? 'rgba(0,255,136,0.1)' : 'rgba(255,51,102,0.1)';
                 ctx.fill();
             }
-        } catch (_) { /* swallow */ }
+        } catch (error) { console.error('[EdgeAnalyticsPanel] CVD failed:', error); }
     }
 
     function onWhaleTrade(d) {
         try {
             const data = (d && d.data) ? d.data : d;
             const container = document.getElementById('whaleAlerts');
-            if (!container) return;
+            if (!container || !frameMatchesSelectedAsset(data) || data.source !== 'kraken_trade') return;
 
             // Drop the empty placeholder on first real event
             const empty = container.querySelector('.eap-empty');
             if (empty) empty.remove();
 
             const side = (data.side || '').toString().toUpperCase();
-            const amount = Number(data.amount || 0);
-            const price = Number(data.price || 0);
+            const amount = data.amount;
+            const price = data.price;
             const sym = data.symbol || data.ticker || '';
 
             const item = document.createElement('div');
@@ -299,19 +292,7 @@
             item.innerHTML = `<span style="color:${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}; font-weight:800;">${side || '—'}</span> ${amount.toFixed(2)}${sym ? ' ' + sym : ''} @ $${price.toLocaleString()}`;
             container.prepend(item);
             while (container.children.length > WHALE_ALERTS_MAX) container.lastChild.remove();
-        } catch (_) { /* swallow */ }
-    }
-
-    function onFundingRate(d) {
-        try {
-            const data = (d && d.data) ? d.data : d;
-            const cur = document.getElementById('currentFunding');
-            const pred = document.getElementById('predictedFunding');
-            const sig = document.getElementById('fundingSignal');
-            if (cur && data.currentFunding != null)   cur.textContent = (Number(data.currentFunding) * 100).toFixed(2) + '%';
-            if (pred && data.predictedFunding != null) pred.textContent = (Number(data.predictedFunding) * 100).toFixed(2) + '%';
-            if (sig && data.fundingSignal)             sig.textContent = data.fundingSignal;
-        } catch (_) { /* swallow */ }
+        } catch (error) { console.error('[EdgeAnalyticsPanel] whale trade failed:', error); }
     }
 
     function onMarketInternals(d) {
@@ -319,62 +300,33 @@
             const data = (d && d.data) ? d.data : d;
             if (!frameMatchesSelectedAsset(data)) return;
             const aggEl = document.getElementById('aggressorSide');
-
-            // Absorption detection: SELLERS aggressing BUT price moves up = absorbed
-            const lastDelta = (OGZ.state && typeof OGZ.state.lastPriceDelta === 'number') ? OGZ.state.lastPriceDelta : 0;
-            const isAbsorption = (data.aggressor === 'SELLERS' && lastDelta > ABSORPTION_DELTA_MIN);
-
-            if (aggEl) {
-                if (isAbsorption) {
-                    aggEl.innerHTML = 'SELLERS <span class="absorbed-glow" style="color:var(--profit-color); text-shadow:0 0 10px var(--profit-color);">[ABSORBED]</span>';
-                } else if (data.aggressor) {
-                    aggEl.textContent = data.aggressor;
-                    aggEl.style.color = data.aggressor === 'BUYERS' ? 'var(--profit-color)' : 'var(--loss-color)';
-                }
+            if (data.source !== 'kraken_book_and_trades' || data.status !== 'ok') {
+                ['aggressorSide', 'buySellRatio', 'bookImbalance', 'spreadValue'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = 'Unavailable';
+                });
+                return;
             }
+
+            if (aggEl) aggEl.textContent = data.aggressor || '--';
 
             const bsr = document.getElementById('buySellRatio');
-            if (bsr && data.buySellRatio != null) bsr.textContent = Number(data.buySellRatio).toFixed(2);
+            if (bsr) bsr.textContent = data.buySellRatio != null ? Number(data.buySellRatio).toFixed(2)
+                : (data.buyVolume > 0 && data.sellVolume === 0 ? 'BUY ONLY' : '--');
 
             const bi = document.getElementById('bookImbalance');
-            if (bi && data.bookImbalance != null) bi.textContent = (Number(data.bookImbalance) * 100).toFixed(1) + '%';
+            if (bi) bi.textContent = data.bookImbalance != null ? (Number(data.bookImbalance) * 100).toFixed(1) + '%' : '--';
 
             const sp = document.getElementById('spreadValue');
-            if (sp && data.spread != null) sp.textContent = Number(data.spread).toFixed(3) + '%';
-        } catch (_) { /* swallow */ }
-    }
-
-    function onSmartMoney(d) {
-        try {
-            const data = (d && d.data) ? d.data : d;
-            const sf = document.getElementById('smartFlow');
-            const ia = document.getElementById('instActivity');
-            const dm = document.getElementById('dormancy');
-            if (sf && data.smartFlow)     sf.textContent = data.smartFlow;
-            if (ia && data.instActivity)  ia.textContent = data.instActivity;
-            if (dm && data.dormancy)      dm.textContent = data.dormancy;
-        } catch (_) { /* swallow */ }
-    }
-
-    function onFearGreed(d) {
-        try {
-            const data = (d && d.data) ? d.data : d;
-            const el = document.getElementById('fgValue');
-            const fill = document.getElementById('fgFill');
-            const label = document.getElementById('fgLabel');
-            if (data.fgValue != null) {
-                if (el) el.textContent = data.fgValue;
-                if (fill) fill.style.width = data.fgValue + '%';
-            }
-            if (label && data.fgLabel) label.textContent = data.fgLabel;
-        } catch (_) { /* swallow */ }
+            if (sp) sp.textContent = data.spread != null ? Number(data.spread).toFixed(3) + '%' : '--';
+        } catch (error) { console.error('[EdgeAnalyticsPanel] market internals failed:', error); }
     }
 
     function onDivergence(d) {
         try {
             const data = (d && d.data) ? d.data : d;
             const container = document.getElementById('divergences');
-            if (!container || !Array.isArray(data.divergences)) return;
+            if (!container || !frameMatchesSelectedAsset(data) || !Array.isArray(data.divergences)) return;
             container.innerHTML = '';
             data.divergences.forEach(div => {
                 const item = document.createElement('div');
@@ -382,7 +334,7 @@
                 item.textContent = div;
                 container.appendChild(item);
             });
-        } catch (_) { /* swallow */ }
+        } catch (error) { console.error('[EdgeAnalyticsPanel] divergence failed:', error); }
     }
 
     // ─── Subscription helper — uses the REAL OGZ.Socket pattern ─────────────
@@ -423,8 +375,12 @@
             console.error('[EdgeAnalyticsPanel] watchlist:select without recognizable broker:', data);
             return;
         }
-        if (data && data.symbol) state.currentSymbol = String(data.symbol);
+        if (data && data.symbol) EdgeAnalyticsPanel.setSymbol(String(data.symbol));
         applyAssetClassVisibility(assetClass);
+    }
+
+    function onLegacyAssetChange(event) {
+        EdgeAnalyticsPanel.setSymbol(event.target.value);
     }
 
     // ─── Public API ──────────────────────────────────────────────────────
@@ -432,18 +388,17 @@
         init: function () {
             try {
                 if (state.mounted) return;
-                if (!renderScaffold()) return;
+                if (!renderScaffold() && !document.getElementById('edgePanel')) return;
+                this.clearAll();
                 state.mounted = true;
+                const selector = document.getElementById('assetSelector');
+                if (selector) selector.addEventListener('change', onLegacyAssetChange);
 
                 const socket = OGZ.get && OGZ.get('Socket');
                 if (socket) {
-                    subscribe(socket, 'liquidation_data', onLiquidationData);
                     subscribe(socket, 'cvd_update',       onCVDUpdate);
                     subscribe(socket, 'whale_trade',      onWhaleTrade);
-                    subscribe(socket, 'funding_rate',     onFundingRate);
                     subscribe(socket, 'market_internals', onMarketInternals);
-                    subscribe(socket, 'smart_money',      onSmartMoney);
-                    subscribe(socket, 'fear_greed',       onFearGreed);
                     subscribe(socket, 'divergence',       onDivergence);
                 }
 
@@ -457,16 +412,18 @@
                     const selected = watchlist.getSelected();
                     if (selected) onWatchlistSelect(selected);
                 }
-            } catch (_) { /* swallow */ }
+            } catch (error) { console.error('[EdgeAnalyticsPanel] initialization failed:', error); }
         },
 
         setSymbol: function (symbol) {
-            try { state.currentSymbol = symbol || null; } catch (_) { /* swallow */ }
+            if (state.currentSymbol !== symbol) this.clearAll();
+            state.currentSymbol = symbol;
         },
 
         clearAll: function () {
             try {
                 state.cvdHistory.length = 0;
+                state.cvdWindowStartedAt = null;
                 ['longLiqPrice','longLiqVol','shortLiqPrice','shortLiqVol',
                  'cvdValue','cvdTrend','currentFunding','predictedFunding','fundingSignal',
                  'buySellRatio','aggressorSide','bookImbalance','spreadValue',
@@ -474,6 +431,14 @@
                 ].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.textContent = '--';
+                });
+                ['currentFunding', 'predictedFunding', 'smartFlow', 'instActivity', 'dormancy'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = 'Unavailable';
+                });
+                ['fundingSignal', 'fgLabel'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = 'No data source';
                 });
                 const fgFill = document.getElementById('fgFill');
                 if (fgFill) fgFill.style.width = '0%';
@@ -486,18 +451,22 @@
                     const ctx = cvdCanvas.getContext('2d');
                     if (ctx) ctx.clearRect(0, 0, cvdCanvas.width, cvdCanvas.height);
                 }
-            } catch (_) { /* swallow */ }
+            } catch (error) { console.error('[EdgeAnalyticsPanel] clear failed:', error); }
         },
 
         teardown: function () {
             try {
-                _registeredHandlers.length = 0; // OGZ.Socket has no unregister; we drop refs
+                const socket = OGZ.get && OGZ.get('Socket');
+                if (socket) _registeredHandlers.forEach(({ type, fn }) => socket.unregisterHandler(type, fn));
+                _registeredHandlers.length = 0;
+                const selector = document.getElementById('assetSelector');
+                if (selector) selector.removeEventListener('change', onLegacyAssetChange);
                 if (OGZ.bus && typeof OGZ.bus.off === 'function') {
                     OGZ.bus.off('watchlist:select', onWatchlistSelect);
                 }
                 state.mounted = false;
                 state.cvdHistory.length = 0;
-            } catch (_) { /* swallow */ }
+            } catch (error) { console.error('[EdgeAnalyticsPanel] teardown failed:', error); }
         },
 
         _compute: function () {
@@ -520,5 +489,5 @@
         });
     }
 
-    try { window.OGZEdgeAnalyticsPanel = EdgeAnalyticsPanel; } catch (_) { }
+    window.OGZEdgeAnalyticsPanel = EdgeAnalyticsPanel;
 })(window.OGZ = window.OGZ || {});

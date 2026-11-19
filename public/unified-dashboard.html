@@ -2728,12 +2728,12 @@
                 <div class="liq-level long-liq">
                     <span>Long Liq Zone:</span>
                     <span class="liq-price" id="longLiqPrice">--</span>
-                    <span class="liq-volume" id="longLiqVol">$0</span>
+                    <span class="liq-volume" id="longLiqVol">--</span>
                 </div>
                 <div class="liq-level short-liq">
                     <span>Short Liq Zone:</span>
                     <span class="liq-price" id="shortLiqPrice">--</span>
-                    <span class="liq-volume" id="shortLiqVol">$0</span>
+                    <span class="liq-volume" id="shortLiqVol">--</span>
                 </div>
             </div>
             <canvas id="liqHeatmap" width="300" height="150"></canvas>
@@ -2741,10 +2741,10 @@
 
         <!-- CVD - Cumulative Volume Delta -->
         <div class="edge-section">
-            <h4>📊 CVD (Order Flow)</h4>
+            <h4>Observed CVD (USD)</h4>
             <div class="cvd-display">
-                <div class="cvd-value" id="cvdValue">0</div>
-                <div class="cvd-trend" id="cvdTrend">NEUTRAL</div>
+                <div class="cvd-value" id="cvdValue">--</div>
+                <div class="cvd-trend" id="cvdTrend">Awaiting trades</div>
                 <canvas id="cvdChart" width="300" height="100"></canvas>
             </div>
         </div>
@@ -2755,13 +2755,13 @@
             <div class="funding-display">
                 <div class="funding-current">
                     <span>Current:</span>
-                    <span class="funding-rate" id="currentFunding">0.01%</span>
+                    <span class="funding-rate" id="currentFunding">Unavailable</span>
                 </div>
                 <div class="funding-predicted">
                     <span>Predicted:</span>
-                    <span class="funding-rate" id="predictedFunding">0.01%</span>
+                    <span class="funding-rate" id="predictedFunding">Unavailable</span>
                 </div>
-                <div class="funding-signal" id="fundingSignal">NEUTRAL</div>
+                <div class="funding-signal" id="fundingSignal">No data source</div>
             </div>
         </div>
 
@@ -2779,19 +2779,19 @@
             <div class="internals">
                 <div class="internal-item">
                     <span>Buy/Sell Ratio:</span>
-                    <span id="buySellRatio">1.0</span>
+                    <span id="buySellRatio">--</span>
                 </div>
                 <div class="internal-item">
                     <span>Aggressor Side:</span>
-                    <span id="aggressorSide">NEUTRAL</span>
+                    <span id="aggressorSide">--</span>
                 </div>
                 <div class="internal-item">
                     <span>Order Book Imbalance:</span>
-                    <span id="bookImbalance">0%</span>
+                    <span id="bookImbalance">--</span>
                 </div>
                 <div class="internal-item">
                     <span>Spread:</span>
-                    <span id="spreadValue">0.01%</span>
+                    <span id="spreadValue">--</span>
                 </div>
             </div>
         </div>
@@ -2804,15 +2804,15 @@
             <div class="smart-money">
                 <div class="smart-item">
                     <span>Smart Money Flow:</span>
-                    <span id="smartFlow" class="flow-value">ACCUMULATING</span>
+                    <span id="smartFlow" class="flow-value">Unavailable</span>
                 </div>
                 <div class="smart-item">
                     <span>Institutional Activity:</span>
-                    <span id="instActivity">HIGH</span>
+                    <span id="instActivity">Unavailable</span>
                 </div>
                 <div class="smart-item">
                     <span>Old Coins Moving:</span>
-                    <span id="dormancy">LOW</span>
+                    <span id="dormancy">Unavailable</span>
                 </div>
             </div>
         </div>
@@ -2822,10 +2822,10 @@
             <h4>😱 Fear & Greed</h4>
             <div class="fear-greed">
                 <div class="fg-gauge">
-                    <div class="fg-value" id="fgValue">50</div>
-                    <div class="fg-label" id="fgLabel">NEUTRAL</div>
+                    <div class="fg-value" id="fgValue">--</div>
+                    <div class="fg-label" id="fgLabel">No data source</div>
                     <div class="fg-bar">
-                        <div class="fg-fill" id="fgFill" style="width: 50%"></div>
+                        <div class="fg-fill" id="fgFill" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
@@ -3353,7 +3353,7 @@
 
     <!-- OGZPrime Modular Dashboard v2.0 -->
     <!-- Orchestrator first: provides OGZ.register() for all modules -->
-    <script src="/js/core.js?v=20261118-native-mtf"></script>
+    <script src="/js/core.js?v=20261119-observed-analytics"></script>
 
     <!-- Data layer -->
     <script src="/js/indicators.js?v=20261119-native-samples"></script>
@@ -3364,7 +3364,8 @@
     <script src="/js/panels/rail-resize.js?v=1777847456749"></script>
     <script src="/js/panels/system-snapshot.js?v=1778705869178"></script>
     <script src="/js/panels/trade-log.js?v=1777847456749"></script>
-    <script src="/js/panels/edge-analytics.js?v=1777847456749"></script>
+    <script src="/js/panels/edge-analytics.js?v=20261119-observed-analytics"></script>
+    <script src="/js/panels/edge-analytics-panel.js?v=20261119-observed-analytics"></script>
     <script src="/js/panels/asset-tf-card.js?v=1777847456749"></script>
     <script src="/js/panels/pattern-sparkline.js?v=1777847456749"></script>
     <script src="/js/panels/bot-intelligence.js?v=1776116744941"></script>

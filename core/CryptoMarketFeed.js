@@ -26,7 +26,7 @@
  *
  * Failure semantics: reconnect with capped backoff, 60s silence watchdog.
  * Callbacks are called with real observed data only; a dead upstream
- * means no frames (consumers keep their honest empty/dormant states).
+ * clears the observed CVD and internals; reconnect starts a new observation window.
  *
  * @module core/CryptoMarketFeed
  */
@@ -80,7 +80,7 @@ function createCryptoMarketFeed({
   }
 
   function cvdFor(asset) {
-    if (!cvd.has(asset)) cvd.set(asset, { value: 0, buyVolume: 0, sellVolume: 0, lastEmitValue: 0, lastEmitAt: 0 });
+    if (!cvd.has(asset)) cvd.set(asset, { value: 0, buyVolume: 0, sellVolume: 0, lastEmitValue: 0, lastEmitAt: 0, windowStartedAt: Date.now() });
     return cvd.get(asset);
   }
 
@@ -141,7 +141,7 @@ function createCryptoMarketFeed({
 
     if (onInternals) {
       const total = bidNotional + askNotional;
-      const bookImbalance = total > 0 ? (bidNotional - askNotional) / total : 0;
+      const bookImbalance = total > 0 ? (bidNotional - askNotional) / total : null;
       const windowStart = now - feedConfig.tradeWindowMs;
       let buyN = 0;
       let sellN = 0;
@@ -151,10 +151,12 @@ function createCryptoMarketFeed({
         if (t.side === 'buy') buyN += t.notional;
         else sellN += t.notional;
       }
-      const buySellRatio = sellN > 0
-        ? buyN / sellN
-        : (buyN > 0 ? feedConfig.buySellRatioWhenNoSells : 1);
-      onInternals({ asset, bookImbalance, buySellRatio });
+      const buySellRatio = sellN > 0 ? buyN / sellN : null;
+      const aggressor = buyN + sellN > 0
+        ? (buyN > sellN ? 'BUYERS' : buyN < sellN ? 'SELLERS' : 'BALANCED') : null;
+      onInternals({ asset, source: 'kraken_book_and_trades', status: 'ok', timestamp: now,
+        bookImbalance, buySellRatio, buyVolume: buyN, sellVolume: sellN, aggressor,
+        spread: (bestAsk - bestBid) / mid * 100 });
     }
   }
 
@@ -162,10 +164,20 @@ function createCryptoMarketFeed({
     const state = cvdFor(asset);
     const list = trades.get(asset) || [];
     for (const row of rows) {
-      const price = Number(row[0]);
-      const qty = Number(row[1]);
-      const side = row[3] === 'b' ? 'buy' : 'sell'; // taker (aggressor) side
-      if (!Number.isFinite(price) || !Number.isFinite(qty)) continue;
+      const price = Number(row?.[0]);
+      const qty = Number(row?.[1]);
+      const side = row?.[3] === 'b' || row?.[3] === 'buy' ? 'buy'
+        : row?.[3] === 's' || row?.[3] === 'sell' ? 'sell' : null;
+      const observedAt = Number(row?.[2]) * 1000;
+      if (!side || !Number.isFinite(price) || price <= 0 || !Number.isFinite(qty) || qty <= 0
+          || !Number.isFinite(observedAt) || observedAt <= 0) {
+        log.error(`[CryptoFeed] Invalid trade data for ${asset}; observed CVD window cleared`);
+        cvd.delete(asset);
+        trades.delete(asset);
+        if (onCvd) onCvd({ asset, source: 'kraken_trade', unit: 'USD',
+          status: 'unavailable', reason: 'Invalid trade data', timestamp: Date.now() });
+        return;
+      }
       const notional = price * qty;
       if (side === 'buy') {
         state.value += notional;
@@ -174,9 +186,9 @@ function createCryptoMarketFeed({
         state.value -= notional;
         state.sellVolume += notional;
       }
-      list.push({ at: Date.now(), side, notional });
+      list.push({ at: observedAt, side, notional });
       if (onWhaleTrade && notional >= feedConfig.whaleTradeMinUsd) {
-        onWhaleTrade({ symbol: asset, side: side === 'buy' ? 'BUY' : 'SELL', amount: qty, price });
+        onWhaleTrade({ symbol: asset, source: 'kraken_trade', side: side === 'buy' ? 'BUY' : 'SELL', amount: qty, price, timestamp: observedAt });
       }
     }
     trades.set(asset, list);
@@ -191,6 +203,8 @@ function createCryptoMarketFeed({
       state.lastEmitValue = state.value;
       onCvd({
         asset,
+        source: 'kraken_trade', unit: 'USD', status: 'ok', timestamp: now,
+        windowStartedAt: state.windowStartedAt,
         cvdValue: state.value,
         cvdTrend,
         buyVolume: state.buyVolume,
@@ -247,6 +261,8 @@ function createCryptoMarketFeed({
     }
 
     ws.on('open', () => {
+      cvd.clear();
+      trades.clear();
       backoffMs = feedConfig.backoffMinMs;
       lastMessageAt = Date.now();
       log.log(`[CryptoFeed] Connected to Kraken public feed; subscribing ${pairs.join(', ')}`);
@@ -262,6 +278,10 @@ function createCryptoMarketFeed({
     ws.on('error', (err) => log.error(`[CryptoFeed] Socket error: ${err.message}`));
     ws.on('close', () => {
       books.clear(); // stale books must not render as live walls
+      if (onCvd) for (const asset of symbols) onCvd({ asset, source: 'kraken_trade', unit: 'USD',
+        status: 'unavailable', reason: 'Trade feed disconnected', timestamp: Date.now() });
+      if (onInternals) for (const asset of symbols) onInternals({ asset,
+        source: 'kraken_book_and_trades', status: 'unavailable', timestamp: Date.now() });
       if (!stopped) scheduleReconnect();
     });
 

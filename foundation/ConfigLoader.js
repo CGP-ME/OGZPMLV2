@@ -1522,7 +1522,7 @@ function validateDashboardRole(config, errors) {
       }
       for (const pathName of [
         'nearMidBandFraction', 'wallMinUsd', 'whaleTradeMinUsd', 'densityWeightCap',
-        'cvdTrendDeltaThresholdUsd', 'buySellRatioWhenNoSells',
+        'cvdTrendDeltaThresholdUsd',
       ]) {
         requireRoleNonNegativeNumber(errors, config, `dashboard.cryptoMarketFeed.${pathName}`);
       }

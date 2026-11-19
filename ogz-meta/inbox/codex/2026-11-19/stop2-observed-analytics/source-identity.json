@@ -1,0 +1,36 @@
+{
+  "baseCommit": "edd54eb574279460fae220b11890092cb1eea1a6",
+  "baseTree": "f66534b24e8f57f49f923c9d9d31f621d6316e5a",
+  "candidateTree": "7a8f9f8c37271f6d1655401424433fe06fd7191b",
+  "stagedSourceHashes": {
+    "core/DashboardBroadcaster.js": "bb3c6543e1de4a156617e65bf86b6dcce8d23b1f3fefe5f2d642592076542b0b",
+    "core/CryptoMarketFeed.js": "7724f99ef170eb4305c97610f01adc7a57d3cff69efd4a3b845577cb1e705c24",
+    "core/CandleProcessor.js": "7de6210dac6d2f3bb666e7a5fdc731aad1f8643911492b8f1a315fbab70a8624",
+    "run-empire-v2.js": "9b69edc3bbdbe66853fad5f78738c5ec1470695132675467ddf9aa6017a42cd9",
+    "ogzprime-ssl-server.js": "1100e1d8012e181f70e7726dc2394fff13a3418d49da46918026a4a6289b9008",
+    "public/js/core.js": "0470d22842d84762d4c117d8484f817dbd9819d5a6f4e9bbe515570a66942c90",
+    "public/js/panels/edge-analytics.js": "64b92db0f958ed406a70e5926aa268261899bc9c845b64139a332145148b3837",
+    "public/js/panels/edge-analytics-panel.js": "c76db80dcfe8f9e68d230840fcdd222555e6532dab016fda19c5089dbb880271",
+    "public/unified-dashboard.html": "ccc1f661a43441ff63fbd793ae42bd5c576ce9ddbfb83e02c11e123fd4d48acd",
+    "public/unified-dashboard-v2.html": "4339230830c7a698b228504b3929d8cb81689d157a3294ff49dbc79f02d13252",
+    "config/internals.json": "6326d0b531ed5b77dc7625da956b164b964d0127d967b2f03eef06890701f827",
+    "foundation/ConfigLoader.js": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767"
+  },
+  "workingCandidateHashes": {
+    "core/DashboardBroadcaster.js": "bb3c6543e1de4a156617e65bf86b6dcce8d23b1f3fefe5f2d642592076542b0b",
+    "core/CryptoMarketFeed.js": "7724f99ef170eb4305c97610f01adc7a57d3cff69efd4a3b845577cb1e705c24",
+    "core/CandleProcessor.js": "7de6210dac6d2f3bb666e7a5fdc731aad1f8643911492b8f1a315fbab70a8624",
+    "run-empire-v2.js": "9b69edc3bbdbe66853fad5f78738c5ec1470695132675467ddf9aa6017a42cd9",
+    "ogzprime-ssl-server.js": "2fd84234f5ab7ad144f296b670f2a9172ef73ed12d8e7d068de508d59e158b27",
+    "public/js/core.js": "0470d22842d84762d4c117d8484f817dbd9819d5a6f4e9bbe515570a66942c90",
+    "public/js/panels/edge-analytics.js": "64b92db0f958ed406a70e5926aa268261899bc9c845b64139a332145148b3837",
+    "public/js/panels/edge-analytics-panel.js": "c76db80dcfe8f9e68d230840fcdd222555e6532dab016fda19c5089dbb880271",
+    "public/unified-dashboard.html": "ccc1f661a43441ff63fbd793ae42bd5c576ce9ddbfb83e02c11e123fd4d48acd",
+    "public/unified-dashboard-v2.html": "4339230830c7a698b228504b3929d8cb81689d157a3294ff49dbc79f02d13252",
+    "config/internals.json": "606e4500e645277b67b2e9203c75781bb797ed83a9d72b152c66ed4c61f9bedd",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+  },
+  "harnessInheritedDirty": {
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  }
+}

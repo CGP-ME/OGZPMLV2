@@ -1187,7 +1187,7 @@ class CandleProcessor {
         });
 
         // Broadcast edge analytics data
-        this.ctx.broadcastEdgeAnalytics(price, parseFloat(volume), candle);
+        this.ctx.broadcastEdgeAnalytics(candle);
       } catch (error) {
         const contextParts = [
           candle.symbol ? `symbol=${candle.symbol}` : null,

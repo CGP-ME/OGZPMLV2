@@ -1242,12 +1242,6 @@ const wss = new WebSocket.Server({
 // panel keeps its honest "awaiting" placeholder until real data arrives.
 const dashboardSnapshotCache = {
   state_update: null,         // StateManager: balance, position, P&L, recoveryMode
-  funding_rate: null,         // DashboardBroadcaster: current/predicted
-  fear_greed: null,           // DashboardBroadcaster: value 0-100
-  liquidation_data: null,     // DashboardBroadcaster: long/short levels
-  market_internals: null,     // DashboardBroadcaster: buySellRatio, aggressor
-  smart_money: null,          // DashboardBroadcaster: flow, activity, dormancy
-  cvd_update: null,           // DashboardBroadcaster: cvd, buyVolume, sellVolume
   bot_thinking: null          // TradingLoop: latest reasoning + strategy stack
 };
 
@@ -2271,9 +2265,8 @@ const krakenSocket = {
 // the frames those consumers already handle: price/ticker_price,
 // depth_update (walls+density for renderLiquidity), cvd_update (TRUE
 // taker-side delta, not the close>=open proxy), whale_trade, and
-// market_internals (book imbalance). If/when the bot relay comes online
-// the board decides precedence; today there is no conflict because the
-// bot sends nothing.
+// market_internals (book imbalance). These trade/book observations are owned
+// by this feed; the bot candle broadcaster does not synthesize them.
 const { createCryptoMarketFeed } = require('./core/CryptoMarketFeed');
 
 function broadcastCryptoFrame(frame, dashboardOnly = true) {

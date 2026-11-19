@@ -1,0 +1,206 @@
+{
+  "baseline": false,
+  "hashes": {
+    "foundation/ConfigLoader.js": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767",
+    "config/internals.json": "6326d0b531ed5b77dc7625da956b164b964d0127d967b2f03eef06890701f827",
+    "core/CryptoMarketFeed.js": "7724f99ef170eb4305c97610f01adc7a57d3cff69efd4a3b845577cb1e705c24",
+    "core/DashboardBroadcaster.js": "bb3c6543e1de4a156617e65bf86b6dcce8d23b1f3fefe5f2d642592076542b0b",
+    "run-empire-v2.js": "9b69edc3bbdbe66853fad5f78738c5ec1470695132675467ddf9aa6017a42cd9",
+    "core/CandleProcessor.js": "7de6210dac6d2f3bb666e7a5fdc731aad1f8643911492b8f1a315fbab70a8624",
+    "public/js/panels/edge-analytics.js": "64b92db0f958ed406a70e5926aa268261899bc9c845b64139a332145148b3837",
+    "public/js/panels/edge-analytics-panel.js": "c76db80dcfe8f9e68d230840fcdd222555e6532dab016fda19c5089dbb880271",
+    "ogzprime-ssl-server.js": "1100e1d8012e181f70e7726dc2394fff13a3418d49da46918026a4a6289b9008",
+    "public/js/core.js": "0470d22842d84762d4c117d8484f817dbd9819d5a6f4e9bbe515570a66942c90"
+  },
+  "limits": [
+    "Transport/DOM boundaries are synthetic; production feed, broadcaster, caller expressions and browser handlers execute",
+    "No broker orders, host state, live credentials or network inside this helper"
+  ],
+  "configuration": {
+    "role": "dashboard",
+    "obsoleteRatioPresent": false,
+    "feedSource": "config:internals.json:dashboard"
+  },
+  "feed": {
+    "first": {
+      "asset": "BTC-USD",
+      "source": "kraken_trade",
+      "unit": "USD",
+      "status": "ok",
+      "timestamp": 1795100001100,
+      "windowStartedAt": 1795100001100,
+      "cvdValue": 100,
+      "cvdTrend": "rising",
+      "buyVolume": 200,
+      "sellVolume": 100
+    },
+    "buyOnly": {
+      "asset": "ETH-USD",
+      "source": "kraken_book_and_trades",
+      "status": "ok",
+      "timestamp": 1795100004400,
+      "bookImbalance": -0.005,
+      "buySellRatio": null,
+      "buyVolume": 200,
+      "sellVolume": 0,
+      "aggressor": "BUYERS",
+      "spread": 1
+    },
+    "actualTrade": {
+      "symbol": "BTC-USD",
+      "source": "kraken_trade",
+      "side": "BUY",
+      "amount": 30,
+      "price": 10000,
+      "timestamp": 1795100004400
+    },
+    "invalid": {
+      "asset": "BTC-USD",
+      "source": "kraken_trade",
+      "unit": "USD",
+      "status": "unavailable",
+      "reason": "Invalid trade data",
+      "timestamp": 1795100006600
+    },
+    "recovered": {
+      "asset": "BTC-USD",
+      "source": "kraken_trade",
+      "unit": "USD",
+      "status": "ok",
+      "timestamp": 1795100007700,
+      "windowStartedAt": 1795100007700,
+      "cvdValue": 200,
+      "cvdTrend": "rising",
+      "buyVolume": 200,
+      "sellVolume": 0
+    },
+    "reconnect": {
+      "asset": "BTC-USD",
+      "source": "kraken_trade",
+      "unit": "USD",
+      "status": "ok",
+      "timestamp": 1795100009900,
+      "windowStartedAt": 1795100009900,
+      "cvdValue": 200,
+      "cvdTrend": "rising",
+      "buyVolume": 200,
+      "sellVolume": 0
+    },
+    "expired": {
+      "asset": "ETH-USD",
+      "source": "kraken_book_and_trades",
+      "status": "ok",
+      "timestamp": 1795100012100,
+      "bookImbalance": -0.005,
+      "buySellRatio": null,
+      "buyVolume": 0,
+      "sellVolume": 0,
+      "aggressor": null,
+      "spread": 1
+    },
+    "subscriptions": [
+      [
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "ticker"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "trade"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "book",
+            "depth": 25
+          }
+        }
+      ],
+      [
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "ticker"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "trade"
+          }
+        },
+        {
+          "event": "subscribe",
+          "pair": [
+            "XBT/USD",
+            "ETH/USD"
+          ],
+          "subscription": {
+            "name": "book",
+            "depth": 25
+          }
+        }
+      ]
+    ],
+    "invalidDataReported": [
+      "[CryptoFeed] Invalid trade data for BTC-USD; observed CVD window cleared",
+      "[CryptoFeed] Invalid trade data for BTC-USD; observed CVD window cleared"
+    ]
+  },
+  "candles": {
+    "calls": 21,
+    "emittedTypes": [
+      "divergence"
+    ],
+    "candleCvd": []
+  },
+  "browser": {
+    "simulationTimers": 0,
+    "handlers": [
+      "cvd_update",
+      "whale_trade",
+      "market_internals",
+      "divergence"
+    ],
+    "state": {
+      "mounted": true,
+      "currentSymbol": "ETH-USD",
+      "cvdHistoryLength": 0,
+      "registeredHandlers": [
+        "cvd_update",
+        "whale_trade",
+        "market_internals",
+        "divergence"
+      ]
+    },
+    "errors": []
+  },
+  "cacheKeys": [
+    "state_update",
+    "bot_thinking"
+  ]
+}

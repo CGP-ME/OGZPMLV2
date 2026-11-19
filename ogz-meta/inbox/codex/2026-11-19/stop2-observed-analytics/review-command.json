@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=7a8f9f8c37271f6d1655401424433fe06fd7191b",
+    "--review-base=edd54eb574279460fae220b11890092cb1eea1a6",
+    "--change-path=core/DashboardBroadcaster.js",
+    "--change-path=core/CryptoMarketFeed.js",
+    "--change-path=core/CandleProcessor.js",
+    "--change-path=run-empire-v2.js",
+    "--change-path=ogzprime-ssl-server.js",
+    "--change-path=public/js/core.js",
+    "--change-path=public/js/panels/edge-analytics.js",
+    "--change-path=public/js/panels/edge-analytics-panel.js",
+    "--change-path=public/unified-dashboard.html",
+    "--change-path=public/unified-dashboard-v2.html",
+    "--change-path=config/internals.json",
+    "--change-path=foundation/ConfigLoader.js",
+    "What evidence owns the CVD value displayed for the selected asset, from receipt of market data through dashboard rendering? Trace that behavior in the pinned source, including its observation window, with current file:line evidence and named verification gaps."
+  ]
+}

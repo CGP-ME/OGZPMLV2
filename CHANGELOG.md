@@ -1,3 +1,17 @@
+## 2026-11-19 — Fixed fabricated dashboard analytics and competing CVD ownership
+
+**Problem:** Candle color and cumulative candle volume were being presented as trade-side CVD, repeatedly counted across revisions and frames. The same broadcaster manufactured funding, liquidations, whale events, book imbalance and participant labels. The original dashboard also started seven random-data timers, competing with the real public Kraken feed.
+
+**Changes:** Removed those candle-derived fabrications, their state/helpers, legacy random generators, duplicate renderers/callers and server replay-cache entries. Retained native-candle divergence observations. The existing public Kraken feed now stamps observed USD CVD, trade/whale and book/trade internals with source/window/availability; reconnects reset the observed window and invalid external rows visibly invalidate it. Buy-only data no longer becomes the fabricated ratio 99; actual bid/ask spread and timestamp-bounded trade internals reach the shared existing panel. Both pages use that renderer, match the selected asset/frame, clear stale CVD history and show unavailable fields when no real source exists. No new trading gate, throw, order authority or config owner. Internals revision 14 removes the obsolete ratio key and its ConfigLoader requirement.
+
+**Verification:** Actual feed, ConfigLoader, candle/runner delegation, broadcaster and browser handlers executed through the isolation launcher. Baseline reproduces the defects; working and exact staged candidates produce measured notional, no candle CVD, no random timers, correct reconnect/invalid-data behavior, correct asset filtering and honest buy-only/unsupported displays. Real served browser pages selected BTC-USD and TSLA, rendered unavailable old-format analytics without page exceptions and captured panel screenshots. No live numeric CVD claim before backend activation. Fixture-context/cache-name corrections are documented. No Jest added/run.
+
+**Review:** One focused independent Mercury question on CVD ownership; pinned tree `7a8f9f8c37271f6d1655401424433fe06fd7191b`, base `edd54eb574279460fae220b11890092cb1eea1a6`. no_break_found/nonblocking, 29 tools, 18 iterations, $0.060224. Full answer/manifest and metadata warnings retained. Reviewer execution gap is covered by separate receipts; selector format verified in the browser. Existing server route sends the legacy URL to V2, resolving its source-selection concern. Exact pinned source, not a fresh-RAG or full-panel claim.
+
+**Activation / remaining:** Static bytes are served on fresh page loads; no PM2 restart. Updated bot broadcaster and feed await separate approved activation, alongside the pushed crypto-history owner repair. Funding/liquidation/sentiment/participant metrics remain unavailable because no real source is connected. Existing divergence heuristic is not newly certified. Disabled Kraken stub retirement is a separate cleanup. Preserved all unrelated inherited edits, including server/config/loader changes; only own hunks and receipts staged.
+
+**Receipts:** `ogz-meta/inbox/codex/2026-11-19/stop2-observed-analytics/RECEIPTS.md`.
+
 ## 2026-11-19 — Fixed chart indicator sample alignment and unavailable values
 
 **Problem:** Real browser observation exposed RSI plotted 14 candles early. Its producer returned a shortened array while both chart consumers map by array index. The same browser library used a prior-only Bollinger window and substituted typical price for zero-volume VWAP.
