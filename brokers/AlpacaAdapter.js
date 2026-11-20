@@ -1193,7 +1193,11 @@ class AlpacaAdapter extends IBrokerAdapter {
                 console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
             }
             const candleRevision = msg.T === 'u';
-            this.emit('ohlc', { candleClosed: true, candleRevision, timeframe: barSubscription.streamTimeframe, data: bar, priceTimestamp: bar.etime, symbol: bar.symbol });
+            this.emit('ohlc', {
+                candleClosed: true, candleRevision, timeframe: barSubscription.streamTimeframe,
+                data: bar, priceTimestamp: bar.etime, symbol: bar.symbol,
+                sourceEventTime: bar.etime, sourceEventKind: 'alpaca_minute_bar',
+            });
             for (const frameState of barSubscription.requestedFrames.values()) {
                 this._emitRequestedClosedBar(msg.S, {
                     closedThroughMs: bar.etime,
@@ -1243,6 +1247,10 @@ class AlpacaAdapter extends IBrokerAdapter {
                         timeframe: frameState.timeframe,
                         data: requestedBar,
                         priceTimestamp: requestedBar.etime,
+                        // This REST window may contain older completed bars or
+                        // corrections. Its refresh was triggered by this minute bar.
+                        sourceEventTime: requestedRefresh.closedThroughMs,
+                        sourceEventKind: 'alpaca_rest_refresh_trigger',
                         symbol,
                     });
                     frameState.emittedBars.set(startMs, { ...candle });

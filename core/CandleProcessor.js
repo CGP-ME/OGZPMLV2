@@ -944,6 +944,18 @@ class CandleProcessor {
       });
       return;
     }
+    const now = Date.now();
+    const isBacktesting = getConfigValue('mode.backtest') || this.ctx.config?.enableBacktestMode;
+    // An interval end dates the candle, not the delivery of its latest update.
+    // In particular, a REST refresh can legitimately carry old completed bars.
+    const sourceEventTimeMs = toTimestampMs(wrappedInput?.sourceEventTime);
+    const sourceEventKind = cleanScopeValue(wrappedInput?.sourceEventKind);
+    const sourceEventAgeMs = sourceEventTimeMs === null ? null : now - sourceEventTimeMs;
+    const candleEndAgeMs = now - candleEndTimeMs;
+    const sourceEventStatus = isBacktesting ? 'historical_replay'
+      : sourceEventTimeMs === null || !sourceEventKind ? 'unavailable'
+        : sourceEventAgeMs < 0 ? 'future_timestamp'
+          : sourceEventAgeMs > this.dataFeedConfig.staleDataMaxAgeMs ? 'delayed' : 'on_time';
     if (traceId) {
       emitTrace(this.ctx, 'CANDLE_PROCESSOR_RECEIVED', {
         traceId,
@@ -953,28 +965,27 @@ class CandleProcessor {
         timeframeSource,
         close: Number(close),
         etime: candleEndTimeMs,
+        sourceEventTimeMs,
+        sourceEventKind,
+        sourceEventAgeMs,
+        sourceEventStatus,
+        candleEndAgeMs,
+        receivedAt: now,
       });
     }
 
     // CHANGE 2026-01-16: Track when we last received ANY data (for liveness watchdog)
-    this.ctx.lastDataReceived = Date.now();
-
-    // STALE DATA DETECTION: Check if DATA ITSELF is old (not arrival time)
-    // FIX BACKTEST_001: Skip stale check in backtest mode - historical data is intentionally old
-    const isBacktesting = getConfigValue('mode.backtest') || this.ctx.config?.enableBacktestMode;
-    const now = Date.now();
-    const dataAge = now - candleEndTimeMs;
+    this.ctx.lastDataReceived = now;
 
     const staleAssetClass = wrappedInput?.assetClass || this.ctx.config?.assetClass;
     const staleBrokerId = wrappedInput?.brokerId || this.ctx.config?.brokerId;
-    if (
-      dataAge > this.dataFeedConfig.staleDataMaxAgeMs &&
-      !isBacktesting &&
+    if (sourceEventStatus === 'unavailable' || sourceEventStatus === 'future_timestamp') {
+      console.error(`[DATA UPDATE] ${sourceEventStatus} | symbol=${stampedSymbol} timeframe=${sourceTimeframe} source=${sourceEventKind} sourceEventTimeMs=${sourceEventTimeMs} receivedAt=${new Date(now).toISOString()}`);
+    } else if (
+      sourceEventStatus === 'delayed' &&
       !this._isExpectedStockMarketQuiet(staleAssetClass, staleBrokerId)
     ) {
-      console.error('[STALE DATA]', Math.round(dataAge / 1000), 'seconds old');
-
-      console.error('[STALE DATA] Not pausing trading; stale candle will remain visible in logs');
+      console.error(`[DATA UPDATE DELAYED] symbol=${stampedSymbol} timeframe=${sourceTimeframe} source=${sourceEventKind} sourceEventAgeMs=${sourceEventAgeMs} candleEndAgeMs=${candleEndAgeMs} limitMs=${this.dataFeedConfig.staleDataMaxAgeMs} receivedAt=${new Date(now).toISOString()}`);
     }
 
     let price = parseFloat(close);

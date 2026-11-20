@@ -1,0 +1,938 @@
+{
+  "baseline": true,
+  "hashes": {
+    "brokers/AlpacaAdapter.js": "9dfe6e70b5084ad74633e13ee81b2ecc4f0ed90e29b0fce9094e76549cd4a2be",
+    "brokers/KrakenIBrokerAdapter.js": "5e04941be6071ac9f0b8fb5dcd89ed8eba2886a51ac91a2834d853a2c3b57187",
+    "run-empire-v2.js": "9b69edc3bbdbe66853fad5f78738c5ec1470695132675467ddf9aa6017a42cd9",
+    "core/CandleProcessor.js": "7de6210dac6d2f3bb666e7a5fdc731aad1f8643911492b8f1a315fbab70a8624"
+  },
+  "normal": {
+    "at": "2026-11-19T16:08:02Z",
+    "sourceClose": 1795104480000,
+    "rows": [
+      {
+        "traceId": "fixture-1",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104480000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-2",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "5m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104300000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-3",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "15m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-4",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "30m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-5",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1h",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-6",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "4h",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-7",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1d",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795046400000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      }
+    ],
+    "warnings": [
+      {
+        "level": "error",
+        "text": "[STALE DATA] 182 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 482 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 482 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 482 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 482 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 58082 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      }
+    ],
+    "candleValues": [
+      {
+        "symbol": "TSLA",
+        "timeframe": "1m",
+        "t": 1795104420000,
+        "etime": 1795104480000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "5m",
+        "t": 1795104000000,
+        "etime": 1795104300000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "15m",
+        "t": 1795103100000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "30m",
+        "t": 1795102200000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "1h",
+        "t": 1795100400000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "4h",
+        "t": 1795089600000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "1d",
+        "t": 1794960000000,
+        "etime": 1795046400000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      }
+    ]
+  },
+  "weekend": {
+    "at": "2026-11-23T14:31:02Z",
+    "sourceClose": 1795444260000,
+    "rows": [
+      {
+        "traceId": "fixture-9",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795444260000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-10",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "5m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795444200000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-11",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "15m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795444200000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-12",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "30m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795444200000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-13",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1h",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795442400000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-14",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "4h",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795435200000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-15",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1d",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795237200000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      }
+    ],
+    "warnings": [
+      {
+        "level": "error",
+        "text": "[STALE DATA] 1862 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 9062 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 207062 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      }
+    ],
+    "candleValues": [
+      {
+        "symbol": "TSLA",
+        "timeframe": "1m",
+        "t": 1795444200000,
+        "etime": 1795444260000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "5m",
+        "t": 1795443900000,
+        "etime": 1795444200000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "15m",
+        "t": 1795443300000,
+        "etime": 1795444200000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "30m",
+        "t": 1795442400000,
+        "etime": 1795444200000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "1h",
+        "t": 1795438800000,
+        "etime": 1795442400000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "4h",
+        "t": 1795420800000,
+        "etime": 1795435200000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "1d",
+        "t": 1795150800000,
+        "etime": 1795237200000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      }
+    ]
+  },
+  "delayed": {
+    "at": "2026-11-19T16:13:02Z",
+    "sourceClose": 1795104480000,
+    "rows": [
+      {
+        "traceId": "fixture-17",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104480000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-18",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "5m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104300000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-19",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "15m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-20",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "30m",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-21",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1h",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-22",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "4h",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795104000000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      },
+      {
+        "traceId": "fixture-23",
+        "symbol": "TSLA",
+        "symbolSource": "payload",
+        "timeframe": "1d",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795046400000,
+        "brokerId": "alpaca",
+        "accountId": "fixture-account",
+        "assetClass": "stocks",
+        "executionMode": "paper"
+      }
+    ],
+    "warnings": [
+      {
+        "level": "error",
+        "text": "[STALE DATA] 302 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 482 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 782 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 782 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 782 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 782 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] 58382 seconds old"
+      },
+      {
+        "level": "error",
+        "text": "[STALE DATA] Not pausing trading; stale candle will remain visible in logs"
+      }
+    ],
+    "candleValues": [
+      {
+        "symbol": "TSLA",
+        "timeframe": "1m",
+        "t": 1795104420000,
+        "etime": 1795104480000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "5m",
+        "t": 1795104000000,
+        "etime": 1795104300000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "15m",
+        "t": 1795103100000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "30m",
+        "t": 1795102200000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "1h",
+        "t": 1795100400000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "4h",
+        "t": 1795089600000,
+        "etime": 1795104000000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      },
+      {
+        "symbol": "TSLA",
+        "timeframe": "1d",
+        "t": 1794960000000,
+        "etime": 1795046400000,
+        "o": 99,
+        "h": 101,
+        "l": 98,
+        "c": 100,
+        "v": 123
+      }
+    ]
+  },
+  "kraken": [
+    {
+      "mode": "candles",
+      "inputAgeMs": 1000,
+      "rows": [
+        {
+          "traceId": "fixture-25",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "4h",
+          "timeframeSource": "payload",
+          "close": 100,
+          "etime": 1795118400000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": 300000,
+      "rows": [
+        {
+          "traceId": "fixture-26",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "4h",
+          "timeframeSource": "payload",
+          "close": 100,
+          "etime": 1795118400000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "orderbook",
+      "inputAgeMs": 300000,
+      "rows": [
+        {
+          "traceId": "fixture-27",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "4h",
+          "timeframeSource": "payload",
+          "close": 100,
+          "etime": 1795118400000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-28",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "4h",
+          "timeframeSource": "payload",
+          "close": 100,
+          "etime": 1795118400000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": -30000,
+      "rows": [
+        {
+          "traceId": "fixture-29",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "4h",
+          "timeframeSource": "payload",
+          "close": 100,
+          "etime": 1795118400000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    }
+  ],
+  "historical": {
+    "mode": "historical",
+    "inputAgeMs": null,
+    "rows": [
+      {
+        "traceId": "fixture-30",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "4h",
+        "timeframeSource": "payload",
+        "close": 100,
+        "etime": 1795118400000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "backtest"
+      }
+    ],
+    "warnings": []
+  },
+  "publicReplay": [
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-31",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "1m",
+          "timeframeSource": "payload",
+          "close": 61682.3,
+          "etime": 1795156980000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-32",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "5m",
+          "timeframeSource": "payload",
+          "close": 61682.3,
+          "etime": 1795157100000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-33",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "15m",
+          "timeframeSource": "payload",
+          "close": 61682.3,
+          "etime": 1795157100000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-34",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "30m",
+          "timeframeSource": "payload",
+          "close": 61682.3,
+          "etime": 1795158000000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-35",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "1h",
+          "timeframeSource": "payload",
+          "close": 61682.3,
+          "etime": 1795158000000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-36",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "4h",
+          "timeframeSource": "payload",
+          "close": 61682.3,
+          "etime": 1795161600000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "mode": "candles",
+      "inputAgeMs": null,
+      "rows": [
+        {
+          "traceId": "fixture-37",
+          "symbol": "BTC-USD",
+          "symbolSource": "payload",
+          "timeframe": "1d",
+          "timeframeSource": "payload",
+          "close": 61682.3,
+          "etime": 1795219200000,
+          "brokerId": "kraken",
+          "accountId": "fixture-account",
+          "assetClass": "crypto",
+          "executionMode": "paper"
+        }
+      ],
+      "warnings": []
+    }
+  ],
+  "limits": [
+    "Synthetic protocol/REST fixtures with actual adapters, runner callback, processor, store and trace; no live activation or trading-strategy proof."
+  ]
+}

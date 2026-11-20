@@ -1,0 +1,143 @@
+{
+  "run_id": "2026-11-20T06-45-46-923Z-524cc7ed65b9",
+  "created_at": "2026-11-20T06:45:46.923Z",
+  "head_sha": "e3e8a30561d9598ae7eb0f6245aa27e76ab66022",
+  "verdict": "no_break_found",
+  "error": null,
+  "termination": "answer_given",
+  "iterations": 33,
+  "latency_ms": 84306,
+  "run_tokens": {
+    "input": 1586531,
+    "uncached_input": 1239196,
+    "cached_input": 347335,
+    "output": 26721,
+    "total": 1613252,
+    "complete": true,
+    "attempts_with_usage": 34,
+    "total_attempts": 34
+  },
+  "run_cost": {
+    "amount": 0.13628724,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 34,
+    "total_attempts": 34,
+    "cost_absences": []
+  },
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "sourceIdentity": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "brokers/AlpacaAdapter.js",
+      "brokers/KrakenIBrokerAdapter.js",
+      "core/CandleProcessor.js",
+      "run-empire-v2.js"
+    ],
+    "tree": "f975187302744d06a020af2ff86b41cd1ef67ca8",
+    "baseTree": "5ee82110e3718c0eaff06e29b945be3924e864fe",
+    "manifestSha256": "f5fc7e29757bd81b32e391340366c9e26dcd49c6e9d04a604e8030155244beb5"
+  },
+  "evidenceBundle": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-20/2026-11-20t06-44-02-004z-1052816-2b81089978bd/current-change-evidence.txt",
+    "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-20/2026-11-20t06-44-02-004z-1052816-2b81089978bd/current-change-evidence.txt:1",
+    "sha256": "93066cd5fef587275fcc9590715047ed1e64b35650a0dbe622aa03854a080cb3",
+    "bytes": 444440,
+    "lines": 7308,
+    "section_count": 15,
+    "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-20/2026-11-20t06-44-02-004z-1052816-2b81089978bd/manifest.json",
+    "manifest_sha256": "62535ce2ccc053d08bedbb61dac61cd34541d12307a8db4c150fae913c5de072",
+    "manifest_bytes": 24786
+  },
+  "reviewers": {
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit",
+    "reviewIntent": "adversarial",
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    }
+  },
+  "reportedDecision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "a777b3621d5db82bafb312cfe322767832e9247bc70c6ec520f9068cfbdc67bf",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "reviewMetadataWarnings": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "pre_answer_scan_absent",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "toolCalls": {
+    "total": 58,
+    "succeeded": 56,
+    "failed": 2,
+    "executedChecks": 0
+  },
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-20.jsonl:1",
+  "independentExecution": "pinned.json",
+  "externalProtocolEvidence": [
+    {
+      "url": "https://docs.kraken.com/exchange/api-reference/spot-websocket-v1/ohlc",
+      "verified": "epoc_last is last update time; epoc_end is interval end. Public capture replay supplies seven native frames."
+    },
+    {
+      "url": "https://docs.alpaca.markets/us/docs/real-time-stock-pricing-data",
+      "verified": "Minute bars cover prior minute and updated bars revise an earlier minute."
+    }
+  ],
+  "limitations": [
+    "Mercury did not execute code. Actual execution is recorded separately.",
+    "Mercury external tools could not fetch Kraken documentation: missing Tavily key and host allowlist. Primary docs were independently opened and public OHLC messages captured.",
+    "Whole-file coverage and review metadata warnings remain; no full repository audit or fresh RAG claim.",
+    "Astra and Opus were not selected for this one-reviewer dispatch."
+  ]
+}

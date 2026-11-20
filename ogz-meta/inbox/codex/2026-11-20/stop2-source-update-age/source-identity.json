@@ -1,0 +1,12 @@
+{
+  "base": "e3e8a30561d9598ae7eb0f6245aa27e76ab66022",
+  "reviewTree": "f975187302744d06a020af2ff86b41cd1ef67ca8",
+  "files": {
+    "brokers/AlpacaAdapter.js": "7413f59dfef9066a56c87dae5fc81efee11566b5cf6ae2b0434e1a28a0cb6b8f",
+    "brokers/KrakenIBrokerAdapter.js": "d2811446f4ed1188c1ee4c97b1974f23912bdc99972f0938555a6a48022c0cbf",
+    "run-empire-v2.js": "3d4e5b56e2d3b60e193fafe95a913d3de770883632c1952c709f8bc5f4103e89",
+    "core/CandleProcessor.js": "df2e5de16667e0ebd5a0b171f9518ce0f217d9372ab3ae737493e93d34974a8b"
+  },
+  "harnessWorkingSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "inheritedExcluded": 20
+}

@@ -399,6 +399,8 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
             candleClosed: false,
             data: ohlcData,
             priceTimestamp: data.priceTimestamp,
+            sourceEventTime: data.priceTimestamp,
+            sourceEventKind: 'kraken_candle_update',
             timeframe: timeframe,
             symbol: canonicalSymbol,
             pair,
@@ -462,6 +464,8 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
             candleClosed: false,
             data: data.data,
             priceTimestamp: data.priceTimestamp,
+            sourceEventTime: data.priceTimestamp,
+            sourceEventKind: 'kraken_candle_update',
             timeframe: data.timeframe || '1m',
             symbol: data.symbol,
             pair: data.pair

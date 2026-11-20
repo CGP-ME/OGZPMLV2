@@ -1,0 +1,79 @@
+diff --git a/brokers/AlpacaAdapter.js b/brokers/AlpacaAdapter.js
+index a153fd70..47b0c542 100644
+--- a/brokers/AlpacaAdapter.js
++++ b/brokers/AlpacaAdapter.js
+@@ -1196 +1196,5 @@ class AlpacaAdapter extends IBrokerAdapter {
+-            this.emit('ohlc', { candleClosed: true, candleRevision, timeframe: barSubscription.streamTimeframe, data: bar, priceTimestamp: bar.etime, symbol: bar.symbol });
++            this.emit('ohlc', {
++                candleClosed: true, candleRevision, timeframe: barSubscription.streamTimeframe,
++                data: bar, priceTimestamp: bar.etime, symbol: bar.symbol,
++                sourceEventTime: bar.etime, sourceEventKind: 'alpaca_minute_bar',
++            });
+@@ -1245,0 +1250,4 @@ class AlpacaAdapter extends IBrokerAdapter {
++                        // This REST window may contain older completed bars or
++                        // corrections. Its refresh was triggered by this minute bar.
++                        sourceEventTime: requestedRefresh.closedThroughMs,
++                        sourceEventKind: 'alpaca_rest_refresh_trigger',
+diff --git a/brokers/KrakenIBrokerAdapter.js b/brokers/KrakenIBrokerAdapter.js
+index 57e3b6cb..123dd6b5 100644
+--- a/brokers/KrakenIBrokerAdapter.js
++++ b/brokers/KrakenIBrokerAdapter.js
+@@ -401,0 +402,2 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
++            sourceEventTime: data.priceTimestamp,
++            sourceEventKind: 'kraken_candle_update',
+@@ -464,0 +467,2 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
++            sourceEventTime: data.priceTimestamp,
++            sourceEventKind: 'kraken_candle_update',
+diff --git a/core/CandleProcessor.js b/core/CandleProcessor.js
+index 69630086..8465aaaa 100644
+--- a/core/CandleProcessor.js
++++ b/core/CandleProcessor.js
+@@ -946,0 +947,12 @@ class CandleProcessor {
++    const now = Date.now();
++    const isBacktesting = getConfigValue('mode.backtest') || this.ctx.config?.enableBacktestMode;
++    // An interval end dates the candle, not the delivery of its latest update.
++    // In particular, a REST refresh can legitimately carry old completed bars.
++    const sourceEventTimeMs = toTimestampMs(wrappedInput?.sourceEventTime);
++    const sourceEventKind = cleanScopeValue(wrappedInput?.sourceEventKind);
++    const sourceEventAgeMs = sourceEventTimeMs === null ? null : now - sourceEventTimeMs;
++    const candleEndAgeMs = now - candleEndTimeMs;
++    const sourceEventStatus = isBacktesting ? 'historical_replay'
++      : sourceEventTimeMs === null || !sourceEventKind ? 'unavailable'
++        : sourceEventAgeMs < 0 ? 'future_timestamp'
++          : sourceEventAgeMs > this.dataFeedConfig.staleDataMaxAgeMs ? 'delayed' : 'on_time';
+@@ -955,0 +968,6 @@ class CandleProcessor {
++        sourceEventTimeMs,
++        sourceEventKind,
++        sourceEventAgeMs,
++        sourceEventStatus,
++        candleEndAgeMs,
++        receivedAt: now,
+@@ -960,7 +978 @@ class CandleProcessor {
+-    this.ctx.lastDataReceived = Date.now();
+-
+-    // STALE DATA DETECTION: Check if DATA ITSELF is old (not arrival time)
+-    // FIX BACKTEST_001: Skip stale check in backtest mode - historical data is intentionally old
+-    const isBacktesting = getConfigValue('mode.backtest') || this.ctx.config?.enableBacktestMode;
+-    const now = Date.now();
+-    const dataAge = now - candleEndTimeMs;
++    this.ctx.lastDataReceived = now;
+@@ -970,3 +982,4 @@ class CandleProcessor {
+-    if (
+-      dataAge > this.dataFeedConfig.staleDataMaxAgeMs &&
+-      !isBacktesting &&
++    if (sourceEventStatus === 'unavailable' || sourceEventStatus === 'future_timestamp') {
++      console.error(`[DATA UPDATE] ${sourceEventStatus} | symbol=${stampedSymbol} timeframe=${sourceTimeframe} source=${sourceEventKind} sourceEventTimeMs=${sourceEventTimeMs} receivedAt=${new Date(now).toISOString()}`);
++    } else if (
++      sourceEventStatus === 'delayed' &&
+@@ -975,3 +988 @@ class CandleProcessor {
+-      console.error('[STALE DATA]', Math.round(dataAge / 1000), 'seconds old');
+-
+-      console.error('[STALE DATA] Not pausing trading; stale candle will remain visible in logs');
++      console.error(`[DATA UPDATE DELAYED] symbol=${stampedSymbol} timeframe=${sourceTimeframe} source=${sourceEventKind} sourceEventAgeMs=${sourceEventAgeMs} candleEndAgeMs=${candleEndAgeMs} limitMs=${this.dataFeedConfig.staleDataMaxAgeMs} receivedAt=${new Date(now).toISOString()}`);
+diff --git a/run-empire-v2.js b/run-empire-v2.js
+index 0e06a0c1..b6cfe280 100644
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -993,0 +994,2 @@ class OGZPrimeV14Bot {
++            sourceEventTime: eventData.sourceEventTime,
++            sourceEventKind: eventData.sourceEventKind,

@@ -991,6 +991,8 @@ class OGZPrimeV14Bot {
           if (tf === activeTf) this.syncDashboardRuntimeScope(sym, scopeEnvelope);
           const candleResult = this.handleMarketData({
             data: ohlcData,
+            sourceEventTime: eventData.sourceEventTime,
+            sourceEventKind: eventData.sourceEventKind,
             symbol: sym,
             timeframe: tf,
             traceId,
