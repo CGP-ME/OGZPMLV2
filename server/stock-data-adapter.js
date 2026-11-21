@@ -77,13 +77,12 @@ async function fetchStockCandles(ticker, timeframe = ConfigLoader.getInternalsFi
         return null;
     }
 
-    // Calculate start date based on limit and timeframe
+    // Request the latest native bars across the provider's retained history.
+    // Candle count does not determine elapsed time across market closures.
     const now = new Date();
-    // Go back further than needed to account for market hours only
-    const start = new Date(now.getTime() - (timeframeConfig.intervalMs * limit * ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.lookbackMultiplier')));
 
     const params = new URLSearchParams({
-        start: start.toISOString(),
+        start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
         end: now.toISOString(),
         timeframe: timeframeConfig.alpaca,
         limit: String(limit),

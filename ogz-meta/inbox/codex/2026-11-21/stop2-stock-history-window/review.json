@@ -1,0 +1,400 @@
+{
+  "run_id": "2026-11-21T11-17-26-870Z-faa7c78d657f",
+  "created_at": "2026-11-21T11:17:26.870Z",
+  "verdict": "no_break_found",
+  "iterations": 9,
+  "termination": "answer_given",
+  "run_cost": {
+    "amount": 0.01898961,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 10,
+    "total_attempts": 10,
+    "cost_absences": []
+  },
+  "run_tokens": {
+    "input": 222879,
+    "uncached_input": 145480,
+    "cached_input": 77399,
+    "output": 11616,
+    "total": 234495,
+    "complete": true,
+    "attempts_with_usage": 10,
+    "total_attempts": 10
+  },
+  "source_refs": {
+    "current_change_evidence_bundle": {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t11-16-38-636z-1933720-b537d5bd9fc2/current-change-evidence.txt",
+      "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t11-16-38-636z-1933720-b537d5bd9fc2/current-change-evidence.txt:1",
+      "sha256": "d14f8edaa9d6980257b8f666b3c9074e9b8bc74317db1b9ac572c78fa26aec36",
+      "bytes": 250594,
+      "lines": 4661,
+      "section_count": 10,
+      "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t11-16-38-636z-1933720-b537d5bd9fc2/manifest.json",
+      "manifest_sha256": "6783c98b1f1e30dae91d9787c46f47dddf5a91a5d725a3db5b3e46eca3beac2f",
+      "manifest_bytes": 16585
+    },
+    "supplied_evidence": [],
+    "auto_blast_radius_source": "current_changes",
+    "auto_blast_radius_files": [
+      {
+        "file": "brokers/AlpacaAdapter.js",
+        "callerCount": 0,
+        "riskLevel": "isolated"
+      },
+      {
+        "file": "server/stock-data-adapter.js",
+        "callerCount": 3,
+        "riskLevel": "low"
+      }
+    ],
+    "auto_blast_radius_errors": [],
+    "changed_files": [
+      "brokers/AlpacaAdapter.js",
+      "config/internals.json",
+      "server/stock-data-adapter.js"
+    ],
+    "changed_file_count": 3,
+    "reference_names": [],
+    "reference_scans": []
+  },
+  "answer_quality": [],
+  "candidate_set": {
+    "coverage": {
+      "expectedTotal": 3,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "claim_inventory": [],
+    "content": "I now have a complete picture. Let me compile my findings.\n\n## Direct Answer\n\nWhen a candle-history request occurs while the market is closed, **both the bot and the dashboard can retrieve up to the full requested `limit` count of the most-recent candles**, because the `start` parameter is now pinned to a fixed early date rather than a computed elapsed-time window. The retrievable history is bounded by two things: the `limit` parameter (bot capped at `maxLimit=10000`, dashboard default 500), and Alpaca's provider-side data retention back to `2016-01-01` (external, unverified in-repo).\n\n### Evidence for the mechanism\n\n**Bot path \u2014 `brokers/AlpacaAdapter.js` `getCandles` (lines 663\u2013698):**\n- `start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart')` (line 675) \u2014 fixed value, no longer `now - lookback`.\n- `end: new Date().toISOString()` (line 676), `limit: Math.min(limit, maxLimit=10000)` (line 678), `sort: \"desc\"` (line 681) \u2192 returns most-recent bars; code re-sorts ascending by time (line 693).\n- The removed `_historicalLookbackMs` (old lines 1002\u20131026) computed a bounded elapsed-time window; it is gone.\n\n**Dashboard path \u2014 `server/stock-data-adapter.js` `fetchStockCandles` (lines 62\u2013148):**\n- `start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart')` (line 85), `end: now.toISOString()` (line 86), `limit: String(limit)` (line 88), `sort: \"desc\"` (line 91). Returns up to `limit` bars, sorted ascending (line 134).\n\n**Config \u2014 `config/internals.json` line 970:** `\"historyStart\": \"2016-01-01T00:00:00.000Z\"` under `broker.alpacaHistorical`.\n\n**Consumers (all now receive full counts regardless of closure):**\n- Bot streaming refresh: `AlpacaAdapter.js:1209` calls `getCandles(symbol, timeframe, fetchCount)` with `fetchCount = requestedBarFetchCount = 2` (line 1208).\n- Bot gap recovery: `core/CandleProcessor.js:746` calls `broker.getCandles(symbol, timeframe, fetchCount)` where `fetchCount = missingCount + buffer` (line 742).\n- Bot boot hydration: `run-empire-v2.js:1852` calls `broker.getCandles(symbol, timeframe, hydrationLimit)` (line 1833).\n- Dashboard: `run-empire-v2.js:2478` and `ogzprime-ssl-server.js:2037` both call `fetchStockCandles(..., limit, ...)`.\n\n### Why this answers the market-closed question\n\nThe old code derived `start` from `now - (intervalMs \u00d7 limit \u00d7 multiplier)` (old `stock-data-adapter.js` lines 80\u201381; old `AlpacaAdapter.js` `_historicalLookbackMs`). Because that window was measured in **elapsed time**, a market closure (weekend/holiday/halt) produced fewer bars than `limit` inside the window \u2014 the count was implicitly tied to elapsed time. The fix pins `start` to 2016-01-01, so the API always returns up to `limit` most-recent native bars regardless of how long the market has been closed, as long as the provider retains that history. The code comments state this intent directly: \"Market closures do not bound the number of native bars\" (`AlpacaAdapter.js:674`) and \"Candle count does not determine elapsed time across market closures\" (`stock-data-adapter.js:81`).\n\n---\n\n## VERDICT: no_break_found\n\n## ADVERSARIAL_REVIEW_BLOCKING: no\n\n## CANDIDATE SET: examined 6 of 6\n\n1. `brokers/AlpacaAdapter.js` \u2014 read current source 640\u2013730, 1190\u20131220; diff artifact read (48 lines); confirmed start\u2192historyStart at line 675, `_historicalLookbackMs` removed.\n2. `server/stock-data-adapter.js` \u2014 read full current source 1\u2013262; diff artifact read (22 lines); confirmed start\u2192historyStart at line 85.\n3. `config/internals.json` \u2014 read 955\u2013990, 1140\u20131170; diff artifact read (31 lines); confirmed historyStart at line 970, removed [REDACTED].\n4. `core/CandleProcessor.js` \u2014 read 680\u2013800; confirmed bot gap-recovery consumer at line 746.\n5. `run-empire-v2.js` \u2014 read 1820\u20131865, 2450\u20132520; confirmed hydration consumer (line 1852) and dashboard consumer (line 2478).\n6. `ogzprime-ssl-server.js` \u2014 read 2020\u20132060; confirmed dashboard consumer (line 2037).\n\n## AST EVIDENCE\n\nTools actually used this run: `read_review_receipt` (3 diff artifacts), `open_file` (current source), `find_references` (fetchStockCandles, getCandles, historyStart), `grep` (lookbackMultiplier, minimumIntradayDays, _historicalLookbackMs), `git_diff` (stock-data-adapter.js). I did not use `serena_blast_radius`/`serena_method_callers` in this run; my caller claims are grounded in `find_references` hits plus direct `open_file` reads of each call site.\n\n## INHERITED\n\n- `server/stock-data-adapter.js` swallows fetch errors and returns `null` (line 146), which the two dashboard consumers convert to an empty-candles error envelope (`run-empire-v2.js:2494-2498`, `ogzprime-ssl-server.js:2050-2060`). This is unchanged by the fix.\n- `AlpacaAdapter.getCandles` re-throws on error (line 696); gap-recovery and hydration catch/propagate accordingly.\n- The `historyStart` value is shared by both producers via the same `broker.alpacaHistorical.historyStart` key; the dashboard reads it from the broker section rather than `dashboard.stockHistorical` (which no longer carries it). This is a working cross-section read, not a defect.\n\n## FOURTH SHAPE CLASSIFIER: classified 0 of 0\n\nThis change adds no new `throw`, guard, gate, or fallback. It replaces a computed `start` value with a config constant. No new bot gates introduced.\n\n## ALLEGATIONS\n\n- **No defect found.** The change achieves its stated goal: decoupling candle count from elapsed time so market closures do not reduce the number of bars returned. I found no repo-internal path where the new code retrieves fewer bars than the old code for a normally-trading symbol.\n- **Minor robustness note (not a break, not market-closure related):** the removed `_historicalLookbackMs` normalized a non-numeric/invalid `limit` to `limitDefault` (old lines 1006\u20131010); the new code applies `Math.min(limit, maxLimit)` (line 678) without that normalization. All current callers pass numeric limits (`requestedBarFetchCount=2`; `missingCount+buffer`; `hydrationLimit` from `dataFeed.bootRestHydrationLimit`), so this is latent, not triggered by any current path.\n\n## SUBSTANTIVE RESOLUTION: none\n\nNo substantive dispute; this is an independent first-pass review with no prior reviewer findings in the collection round.\n\n## WHAT I DID\n\nRead all three diff artifacts; read current source for all three changed files (AlpacaAdapter 640\u2013730 & 1190\u20131220; stock-data-adapter 1\u2013262; internals.json 955\u2013990 & 1140\u20131170); traced all consumers of `fetchStockCandles` (2 sites) and `AlpacaAdapter.getCandles` (3 sites: streaming refresh, gap recovery, boot hydration); verified removed config keys (`lookbackMultiplier`, `minimumIntradayDays`) and removed method (`_historicalLookbackMs`) have zero remaining references; confirmed the git diff for `stock-data-adapter.js` matches the captured diff.\n\n## WHAT I DID NOT DO\n\nCould not verify Alpaca's actual server-side data retention back to `2016-01-01` or its handling of very old `start` timestamps for each timeframe/feed \u2014 this is external behavior with no repo attestation. I did not execute any API call or run tests.\n\n## WHAT I ASSUMED\n\nThat Alpaca's `/bars` API honors the `start`/`end`/`limit`/`sort` contract as documented (returns up to `limit` most-recent bars in the range, clamping `start` to the earliest retained bar). This is the standard Alpaca contract but is not proven by repo evidence.\n\n## WHY THIS VERDICT\n\nThe repository evidence shows an internally consistent change: a fixed early `start` (internals.json:970) substituted for a bounded elapsed-time window in both producers, with a clean removal of the old lookback logic and config keys (zero residual references), and all consumers passing numeric limits. There is no repo-internal break for the market-closed retrieval scenario; the only unverified factor is Alpaca's external data retention, which is a data-availability question, not a code defect. Therefore `no_break_found`.\n\n## IF INCOMPLETE, WHY\n\nNot incomplete for the repo-internal question. The residual gap is external: Alpaca's actual retention/behavior for a 2016 start date is unverified and would require a live API call or provider documentation, which is outside the read-only repo review.",
+    "captured_at_iteration": 9,
+    "revised_at_iteration": null,
+    "revisions": [],
+    "files_mechanically_opened": [
+      "CHANGELOG.md:270-290",
+      "brokers/AlpacaAdapter.js:1190-1220",
+      "brokers/AlpacaAdapter.js:640-730",
+      "config/internals.json:1140-1170",
+      "config/internals.json:955-990",
+      "core/CandleProcessor.js:680-760",
+      "core/CandleProcessor.js:760-800",
+      "ogzprime-ssl-server.js:2020-2060",
+      "run-empire-v2.js:1820-1865",
+      "run-empire-v2.js:2450-2520",
+      "server/stock-data-adapter.js:1-262"
+    ],
+    "file_read_receipts": [
+      {
+        "file": "brokers/AlpacaAdapter.js",
+        "startLine": 1190,
+        "endLine": 1220,
+        "totalLines": 1287,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "brokers/AlpacaAdapter.js",
+        "startLine": 640,
+        "endLine": 730,
+        "totalLines": 1287,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "CHANGELOG.md",
+        "startLine": 270,
+        "endLine": 290,
+        "totalLines": 11428,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "config/internals.json",
+        "startLine": 1140,
+        "endLine": 1170,
+        "totalLines": 2949,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "config/internals.json",
+        "startLine": 955,
+        "endLine": 990,
+        "totalLines": 2949,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 680,
+        "endLine": 760,
+        "totalLines": 1234,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 760,
+        "endLine": 800,
+        "totalLines": 1234,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "ogzprime-ssl-server.js",
+        "startLine": 2020,
+        "endLine": 2060,
+        "totalLines": 2390,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "startLine": 1820,
+        "endLine": 1865,
+        "totalLines": 3955,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "run-empire-v2.js",
+        "startLine": 2450,
+        "endLine": 2520,
+        "totalLines": 3955,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "server/stock-data-adapter.js",
+        "startLine": 1,
+        "endLine": 262,
+        "totalLines": 263,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      }
+    ],
+    "claimed_file_citations": [
+      "AlpacaAdapter.js:1209",
+      "AlpacaAdapter.js:674",
+      "CHANGELOG.md:270-290",
+      "brokers/AlpacaAdapter.js:1190-1220",
+      "brokers/AlpacaAdapter.js:640-730",
+      "config/internals.json:1140-1170",
+      "config/internals.json:955-990",
+      "core/CandleProcessor.js:680-760",
+      "core/CandleProcessor.js:746",
+      "core/CandleProcessor.js:760-800",
+      "internals.json:970",
+      "ogzprime-ssl-server.js:2020-2060",
+      "ogzprime-ssl-server.js:2037",
+      "ogzprime-ssl-server.js:2050-2060",
+      "run-empire-v2.js:1820-1865",
+      "run-empire-v2.js:1852",
+      "run-empire-v2.js:2450-2520",
+      "run-empire-v2.js:2478",
+      "run-empire-v2.js:2494-2498",
+      "server/stock-data-adapter.js:1-262",
+      "stock-data-adapter.js:81"
+    ],
+    "final_answer_citations": [
+      "AlpacaAdapter.js:1209",
+      "AlpacaAdapter.js:674",
+      "core/CandleProcessor.js:746",
+      "internals.json:970",
+      "ogzprime-ssl-server.js:2037",
+      "ogzprime-ssl-server.js:2050-2060",
+      "run-empire-v2.js:1852",
+      "run-empire-v2.js:2478",
+      "run-empire-v2.js:2494-2498",
+      "stock-data-adapter.js:81"
+    ],
+    "answer_citations_subset": true,
+    "citations_not_in_candidate_set": [],
+    "candidate_sources": [
+      {
+        "coverage": null,
+        "phase": "pass_1",
+        "recheck_index": null,
+        "content": "I now have a complete picture. Let me compile my findings.\n\n## Direct Answer\n\nWhen a candle-history request occurs while the market is closed, **both the bot and the dashboard can retrieve up to the full requested `limit` count of the most-recent candles**, because the `start` parameter is now pinned to a fixed early date rather than a computed elapsed-time window. The retrievable history is bounded by two things: the `limit` parameter (bot capped at `maxLimit=10000`, dashboard default 500), and Alpaca's provider-side data retention back to `2016-01-01` (external, unverified in-repo).\n\n### Evidence for the mechanism\n\n**Bot path \u2014 `brokers/AlpacaAdapter.js` `getCandles` (lines 663\u2013698):**\n- `start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart')` (line 675) \u2014 fixed value, no longer `now - lookback`.\n- `end: new Date().toISOString()` (line 676), `limit: Math.min(limit, maxLimit=10000)` (line 678), `sort: \"desc\"` (line 681) \u2192 returns most-recent bars; code re-sorts ascending by time (line 693).\n- The removed `_historicalLookbackMs` (old lines 1002\u20131026) computed a bounded elapsed-time window; it is gone.\n\n**Dashboard path \u2014 `server/stock-data-adapter.js` `fetchStockCandles` (lines 62\u2013148):**\n- `start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart')` (line 85), `end: now.toISOString()` (line 86), `limit: String(limit)` (line 88), `sort: \"desc\"` (line 91). Returns up to `limit` bars, sorted ascending (line 134).\n\n**Config \u2014 `config/internals.json` line 970:** `\"historyStart\": \"2016-01-01T00:00:00.000Z\"` under `broker.alpacaHistorical`.\n\n**Consumers (all now receive full counts regardless of closure):**\n- Bot streaming refresh: `AlpacaAdapter.js:1209` calls `getCandles(symbol, timeframe, fetchCount)` with `fetchCount = requestedBarFetchCount = 2` (line 1208).\n- Bot gap recovery: `core/CandleProcessor.js:746` calls `broker.getCandles(symbol, timeframe, fetchCount)` where `fetchCount = missingCount + buffer` (line 742).\n- Bot boot hydration: `run-empire-v2.js:1852` calls `broker.getCandles(symbol, timeframe, hydrationLimit)` (line 1833).\n- Dashboard: `run-empire-v2.js:2478` and `ogzprime-ssl-server.js:2037` both call `fetchStockCandles(..., limit, ...)`.\n\n### Why this answers the market-closed question\n\nThe old code derived `start` from `now - (intervalMs \u00d7 limit \u00d7 multiplier)` (old `stock-data-adapter.js` lines 80\u201381; old `AlpacaAdapter.js` `_historicalLookbackMs`). Because that window was measured in **elapsed time**, a market closure (weekend/holiday/halt) produced fewer bars than `limit` inside the window \u2014 the count was implicitly tied to elapsed time. The fix pins `start` to 2016-01-01, so the API always returns up to `limit` most-recent native bars regardless of how long the market has been closed, as long as the provider retains that history. The code comments state this intent directly: \"Market closures do not bound the number of native bars\" (`AlpacaAdapter.js:674`) and \"Candle count does not determine elapsed time across market closures\" (`stock-data-adapter.js:81`).\n\n---\n\n## VERDICT: no_break_found\n\n## ADVERSARIAL_REVIEW_BLOCKING: no\n\n## CANDIDATE SET: examined 6 of 6\n\n1. `brokers/AlpacaAdapter.js` \u2014 read current source 640\u2013730, 1190\u20131220; diff artifact read (48 lines); confirmed start\u2192historyStart at line 675, `_historicalLookbackMs` removed.\n2. `server/stock-data-adapter.js` \u2014 read full current source 1\u2013262; diff artifact read (22 lines); confirmed start\u2192historyStart at line 85.\n3. `config/internals.json` \u2014 read 955\u2013990, 1140\u20131170; diff artifact read (31 lines); confirmed historyStart at line 970, removed [REDACTED].\n4. `core/CandleProcessor.js` \u2014 read 680\u2013800; confirmed bot gap-recovery consumer at line 746.\n5. `run-empire-v2.js` \u2014 read 1820\u20131865, 2450\u20132520; confirmed hydration consumer (line 1852) and dashboard consumer (line 2478).\n6. `ogzprime-ssl-server.js` \u2014 read 2020\u20132060; confirmed dashboard consumer (line 2037).\n\n## AST EVIDENCE\n\nTools actually used this run: `read_review_receipt` (3 diff artifacts), `open_file` (current source), `find_references` (fetchStockCandles, getCandles, historyStart), `grep` (lookbackMultiplier, minimumIntradayDays, _historicalLookbackMs), `git_diff` (stock-data-adapter.js). I did not use `serena_blast_radius`/`serena_method_callers` in this run; my caller claims are grounded in `find_references` hits plus direct `open_file` reads of each call site.\n\n## INHERITED\n\n- `server/stock-data-adapter.js` swallows fetch errors and returns `null` (line 146), which the two dashboard consumers convert to an empty-candles error envelope (`run-empire-v2.js:2494-2498`, `ogzprime-ssl-server.js:2050-2060`). This is unchanged by the fix.\n- `AlpacaAdapter.getCandles` re-throws on error (line 696); gap-recovery and hydration catch/propagate accordingly.\n- The `historyStart` value is shared by both producers via the same `broker.alpacaHistorical.historyStart` key; the dashboard reads it from the broker section rather than `dashboard.stockHistorical` (which no longer carries it). This is a working cross-section read, not a defect.\n\n## FOURTH SHAPE CLASSIFIER: classified 0 of 0\n\nThis change adds no new `throw`, guard, gate, or fallback. It replaces a computed `start` value with a config constant. No new bot gates introduced.\n\n## ALLEGATIONS\n\n- **No defect found.** The change achieves its stated goal: decoupling candle count from elapsed time so market closures do not reduce the number of bars returned. I found no repo-internal path where the new code retrieves fewer bars than the old code for a normally-trading symbol.\n- **Minor robustness note (not a break, not market-closure related):** the removed `_historicalLookbackMs` normalized a non-numeric/invalid `limit` to `limitDefault` (old lines 1006\u20131010); the new code applies `Math.min(limit, maxLimit)` (line 678) without that normalization. All current callers pass numeric limits (`requestedBarFetchCount=2`; `missingCount+buffer`; `hydrationLimit` from `dataFeed.bootRestHydrationLimit`), so this is latent, not triggered by any current path.\n\n## SUBSTANTIVE RESOLUTION: none\n\nNo substantive dispute; this is an independent first-pass review with no prior reviewer findings in the collection round.\n\n## WHAT I DID\n\nRead all three diff artifacts; read current source for all three changed files (AlpacaAdapter 640\u2013730 & 1190\u20131220; stock-data-adapter 1\u2013262; internals.json 955\u2013990 & 1140\u20131170); traced all consumers of `fetchStockCandles` (2 sites) and `AlpacaAdapter.getCandles` (3 sites: streaming refresh, gap recovery, boot hydration); verified removed config keys (`lookbackMultiplier`, `minimumIntradayDays`) and removed method (`_historicalLookbackMs`) have zero remaining references; confirmed the git diff for `stock-data-adapter.js` matches the captured diff.\n\n## WHAT I DID NOT DO\n\nCould not verify Alpaca's actual server-side data retention back to `2016-01-01` or its handling of very old `start` timestamps for each timeframe/feed \u2014 this is external behavior with no repo attestation. I did not execute any API call or run tests.\n\n## WHAT I ASSUMED\n\nThat Alpaca's `/bars` API honors the `start`/`end`/`limit`/`sort` contract as documented (returns up to `limit` most-recent bars in the range, clamping `start` to the earliest retained bar). This is the standard Alpaca contract but is not proven by repo evidence.\n\n## WHY THIS VERDICT\n\nThe repository evidence shows an internally consistent change: a fixed early `start` (internals.json:970) substituted for a bounded elapsed-time window in both producers, with a clean removal of the old lookback logic and config keys (zero residual references), and all consumers passing numeric limits. There is no repo-internal break for the market-closed retrieval scenario; the only unverified factor is Alpaca's external data retention, which is a data-availability question, not a code defect. Therefore `no_break_found`.\n\n## IF INCOMPLETE, WHY\n\nNot incomplete for the repo-internal question. The residual gap is external: Alpaca's actual retention/behavior for a 2016 start date is unverified and would require a live API call or provider documentation, which is outside the read-only repo review.",
+        "captured_at_iteration": 9,
+        "files_mechanically_opened": [
+          "CHANGELOG.md:270-290",
+          "brokers/AlpacaAdapter.js:1190-1220",
+          "brokers/AlpacaAdapter.js:640-730",
+          "config/internals.json:1140-1170",
+          "config/internals.json:955-990",
+          "core/CandleProcessor.js:680-760",
+          "core/CandleProcessor.js:760-800",
+          "ogzprime-ssl-server.js:2020-2060",
+          "run-empire-v2.js:1820-1865",
+          "run-empire-v2.js:2450-2520",
+          "server/stock-data-adapter.js:1-262"
+        ],
+        "file_read_receipts": [
+          {
+            "file": "brokers/AlpacaAdapter.js",
+            "startLine": 1190,
+            "endLine": 1220,
+            "totalLines": 1287,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "brokers/AlpacaAdapter.js",
+            "startLine": 640,
+            "endLine": 730,
+            "totalLines": 1287,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "CHANGELOG.md",
+            "startLine": 270,
+            "endLine": 290,
+            "totalLines": 11428,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "config/internals.json",
+            "startLine": 1140,
+            "endLine": 1170,
+            "totalLines": 2949,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "config/internals.json",
+            "startLine": 955,
+            "endLine": 990,
+            "totalLines": 2949,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 680,
+            "endLine": 760,
+            "totalLines": 1234,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 760,
+            "endLine": 800,
+            "totalLines": 1234,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "ogzprime-ssl-server.js",
+            "startLine": 2020,
+            "endLine": 2060,
+            "totalLines": 2390,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "run-empire-v2.js",
+            "startLine": 1820,
+            "endLine": 1865,
+            "totalLines": 3955,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "run-empire-v2.js",
+            "startLine": 2450,
+            "endLine": 2520,
+            "totalLines": 3955,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "server/stock-data-adapter.js",
+            "startLine": 1,
+            "endLine": 262,
+            "totalLines": 263,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          }
+        ],
+        "claimed_file_citations": [
+          "AlpacaAdapter.js:1209",
+          "AlpacaAdapter.js:674",
+          "CHANGELOG.md:270-290",
+          "brokers/AlpacaAdapter.js:1190-1220",
+          "brokers/AlpacaAdapter.js:640-730",
+          "config/internals.json:1140-1170",
+          "config/internals.json:955-990",
+          "core/CandleProcessor.js:680-760",
+          "core/CandleProcessor.js:746",
+          "core/CandleProcessor.js:760-800",
+          "internals.json:970",
+          "ogzprime-ssl-server.js:2020-2060",
+          "ogzprime-ssl-server.js:2037",
+          "ogzprime-ssl-server.js:2050-2060",
+          "run-empire-v2.js:1820-1865",
+          "run-empire-v2.js:1852",
+          "run-empire-v2.js:2450-2520",
+          "run-empire-v2.js:2478",
+          "run-empire-v2.js:2494-2498",
+          "server/stock-data-adapter.js:1-262",
+          "stock-data-adapter.js:81"
+        ],
+        "final_answer_citations": [
+          "AlpacaAdapter.js:1209",
+          "AlpacaAdapter.js:674",
+          "core/CandleProcessor.js:746",
+          "internals.json:970",
+          "ogzprime-ssl-server.js:2037",
+          "ogzprime-ssl-server.js:2050-2060",
+          "run-empire-v2.js:1852",
+          "run-empire-v2.js:2478",
+          "run-empire-v2.js:2494-2498",
+          "stock-data-adapter.js:81"
+        ],
+        "answer_citations_subset": true,
+        "citations_not_in_candidate_set": [],
+        "claim_inventory": [],
+        "claim_adjudications": null,
+        "final_claim_adjudications": null,
+        "claim_decision_attempts": [],
+        "explicit_continuation": null
+      }
+    ]
+  },
+  "run_checks": [],
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "unselectedReviewers": [
+    "astra",
+    "fable"
+  ],
+  "tools": {
+    "calls": 21,
+    "succeeded": 21,
+    "failed": 0
+  },
+  "codeOutcome": "no_break_found",
+  "reviewMetadataWarnings": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete",
+    "insufficient_qualifying_seats"
+  ],
+  "resolution": {
+    "externalEvidence": "Live authenticated Alpaca GETs returned 60 bars for each of seven frames for both current feed/adjustment settings. Canonical provider docs were checked. This does not prove all symbols or history back to 2016.",
+    "limitNote": "The review describes limit normalization as newly absent. The old helper normalized only the old date calculation; the pre-existing request already used Math.min(limit, maxLimit). That request parameter did not change.",
+    "countClaim": "The review statement that all consumers now receive full counts is too strong. Both paths remain single-page requests. Provider retention, short pages and limited history can yield fewer bars; this change removes the local calendar cutoff.",
+    "callerCoverage": "Root also inspected run-empire-v2.js _attemptLivenessBackfill, omitted from Mercury caller enumeration. It consumes the same native getCandles array and applies its existing age checks."
+  },
+  "runtimeActivation": "not performed",
+  "ragFreshness": "not claimed"
+}

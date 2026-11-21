@@ -1,0 +1,18 @@
+{
+  "arguments": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=50bc2b5c388b45a76991908ccd4848dc58470f68",
+    "--review-base=cf7cafa3004ca31f6d07ab8935fe24659252cb3c",
+    "--change-path=brokers/AlpacaAdapter.js",
+    "--change-path=server/stock-data-adapter.js",
+    "--change-path=config/internals.json",
+    "What stock candle history can the bot and dashboard retrieve when a request occurs while the market is closed? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior."
+  ],
+  "question": "What stock candle history can the bot and dashboard retrieve when a request occurs while the market is closed? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior.",
+  "sourceIdentity": "source-identity.json"
+}

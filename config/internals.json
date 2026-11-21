@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 14,
+  "revision": 15,
   "confidenceSizing": {
     "minMultiplier": 0.5,
     "maxMultiplier": 2.5,
@@ -967,8 +967,7 @@
       "feed": "iex",
       "sort": "desc",
       "mappedTimeframeFallback": "1Min",
-      "lookbackMultiplier": 3,
-      "minimumIntradayDays": 7,
+      "historyStart": "2016-01-01T00:00:00.000Z",
       "requestedBarFetchCount": 2
     },
     "alpacaDiagnostics": {
@@ -1153,7 +1152,6 @@
     "stockHistorical": {
       "timeframeDefault": "15m",
       "limitDefault": 500,
-      "lookbackMultiplier": 3,
       "sort": "desc"
     },
     "marketSnapshot": {

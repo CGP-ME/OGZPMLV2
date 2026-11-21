@@ -665,14 +665,14 @@ class AlpacaAdapter extends IBrokerAdapter {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
             const end = new Date();
-            const start = new Date(end.getTime() - this._historicalLookbackMs(timeframe, limit));
 
             const response = await axios.get(
                 `${this.dataUrl}/v2/stocks/${sym}/bars`,
                 {
                     headers: this._authHeaders(),
                     params: {
-                        start: start.toISOString(),
+                        // Market closures do not bound the number of native bars.
+                        start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
                         end: end.toISOString(),
                         timeframe: tf,
                         limit: Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit')),
@@ -1000,25 +1000,6 @@ class AlpacaAdapter extends IBrokerAdapter {
             throw new Error(`[Alpaca] unsupported candle timeframe ${timeframe}`);
         }
         return intervalMs;
-    }
-
-    _historicalLookbackMs(timeframe, limit) {
-        const map = {
-            '1m': 60 * 1000,
-            '5m': 5 * 60 * 1000,
-            '15m': 15 * 60 * 1000,
-            '30m': 30 * 60 * 1000,
-            '1h': 60 * 60 * 1000,
-            '4h': 4 * 60 * 60 * 1000,
-            '1d': 24 * 60 * 60 * 1000
-        };
-        const intervalMs = map[timeframe] || map['1m'];
-        const safeLimit = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault');
-        const requestedWindowMs = intervalMs * safeLimit * ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.lookbackMultiplier');
-        const minimumIntradayWindowMs = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.minimumIntradayDays') * 24 * 60 * 60 * 1000;
-        return timeframe === '1d'
-            ? requestedWindowMs
-            : Math.max(requestedWindowMs, minimumIntradayWindowMs);
     }
 
     _ensureDataStream(callback, subscriptionKey = null) {
