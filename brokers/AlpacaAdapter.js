@@ -665,25 +665,36 @@ class AlpacaAdapter extends IBrokerAdapter {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
             const end = new Date();
-
-            const response = await axios.get(
-                `${this.dataUrl}/v2/stocks/${sym}/bars`,
-                {
-                    headers: this._authHeaders(),
-                    params: {
-                        // Market closures do not bound the number of native bars.
-                        start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
-                        end: end.toISOString(),
-                        timeframe: tf,
-                        limit: Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit')),
-                        adjustment: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.adjustment'),
-                        feed: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.feed'),
-                        sort: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.sort')
-                    }
+            const requestedLimit = Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit'));
+            const params = {
+                // Market closures do not bound the number of native bars.
+                start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
+                end: end.toISOString(),
+                timeframe: tf,
+                limit: requestedLimit,
+                adjustment: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.adjustment'),
+                feed: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.feed'),
+                sort: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.sort')
+            };
+            const bars = [];
+            let pageToken;
+            do {
+                if (pageToken) {
+                    params.page_token = pageToken;
+                    params.limit = requestedLimit - bars.length;
                 }
-            );
+                const response = await axios.get(
+                    `${this.dataUrl}/v2/stocks/${sym}/bars`,
+                    {
+                        headers: this._authHeaders(),
+                        params
+                    }
+                );
+                bars.push(...(response.data.bars || []));
+                pageToken = response.data.next_page_token;
+            } while (pageToken && bars.length < requestedLimit);
 
-            return (response.data.bars || []).map(bar => ({
+            return bars.map(bar => ({
                 t: new Date(bar.t).getTime(),
                 o: parseFloat(bar.o),
                 h: parseFloat(bar.h),

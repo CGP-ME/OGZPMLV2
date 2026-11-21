@@ -1,0 +1,301 @@
+{
+  "isolation": "test-isolated.py",
+  "source": "Actual Alpaca pages; simulated transport faults explicitly labeled",
+  "lanes": [
+    {
+      "lane": "dashboard",
+      "baseline": true,
+      "sourceHashes": {
+        "brokers/AlpacaAdapter.js": "02df585bfb5e35bb7ee0a294bc81fe8b5dc202b3967677a8aa20de3886dd6385",
+        "server/stock-data-adapter.js": "2a62262b61d9c410c23107f9d24059cb7be0ac3b465579a50eb26f46ecb19dbe",
+        "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+      },
+      "receipts": [
+        {
+          "scenario": "native_three_pages",
+          "requested": 500,
+          "received": 216,
+          "exactNativeValues": false,
+          "outputHash": "19f8b9a729748b8015cc48b813ad7f98fed9ef273d0cb31242c1987a7a96e65e",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.481Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "sixty_bar_hydration",
+          "requested": 60,
+          "received": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.482Z",
+                "timeframe": "1Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "requested": 2,
+          "received": 2,
+          "exactNativeValues": true,
+          "outputHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "expectedHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.483Z",
+                "timeframe": "1Hour",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "terminal_short_history",
+          "requested": 500,
+          "received": 3,
+          "exactNativeValues": true,
+          "outputHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "expectedHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.484Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "empty_history",
+          "requested": 500,
+          "received": 0,
+          "exactNativeValues": true,
+          "outputHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "expectedHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.485Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "later_page_http_failure",
+          "requested": 500,
+          "received": 216,
+          "exactNativeValues": false,
+          "outputHash": "19f8b9a729748b8015cc48b813ad7f98fed9ef273d0cb31242c1987a7a96e65e",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.486Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[StockAdapter] No bars returned for TSLA @ 1h"
+        }
+      ],
+      "note": "Market was closed. Captured native split/raw values match over this TSLA window; the bot request is still checked to preserve raw adjustment."
+    },
+    {
+      "lane": "bot",
+      "baseline": true,
+      "sourceHashes": {
+        "brokers/AlpacaAdapter.js": "02df585bfb5e35bb7ee0a294bc81fe8b5dc202b3967677a8aa20de3886dd6385",
+        "server/stock-data-adapter.js": "2a62262b61d9c410c23107f9d24059cb7be0ac3b465579a50eb26f46ecb19dbe",
+        "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+      },
+      "receipts": [
+        {
+          "scenario": "native_three_pages",
+          "requested": 500,
+          "received": 216,
+          "exactNativeValues": false,
+          "outputHash": "19f8b9a729748b8015cc48b813ad7f98fed9ef273d0cb31242c1987a7a96e65e",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.482Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "sixty_bar_hydration",
+          "requested": 60,
+          "received": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.483Z",
+                "timeframe": "1Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "requested": 2,
+          "received": 2,
+          "exactNativeValues": true,
+          "outputHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "expectedHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.484Z",
+                "timeframe": "1Hour",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "terminal_short_history",
+          "requested": 500,
+          "received": 3,
+          "exactNativeValues": true,
+          "outputHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "expectedHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.485Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "empty_history",
+          "requested": 500,
+          "received": 0,
+          "exactNativeValues": true,
+          "outputHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "expectedHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.486Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "later_page_http_failure",
+          "requested": 500,
+          "received": 216,
+          "exactNativeValues": false,
+          "outputHash": "19f8b9a729748b8015cc48b813ad7f98fed9ef273d0cb31242c1987a7a96e65e",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.487Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        }
+      ],
+      "warnings": [],
+      "note": "Market was closed. Captured native split/raw values match over this TSLA window; the bot request is still checked to preserve raw adjustment."
+    }
+  ]
+}

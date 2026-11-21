@@ -1,0 +1,1419 @@
+{
+  "isolation": "test-isolated.py",
+  "transport": "offline replay of real Alpaca bars; simulated request filtering",
+  "lanes": [
+    {
+      "lane": "dashboard",
+      "baseline": false,
+      "sourceHashes": {
+        "brokers/AlpacaAdapter.js": "8c3b714e3de64387534e7a9646d33430ecf8b78e021eeeb1e1f1024175d061ee",
+        "server/stock-data-adapter.js": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6",
+        "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+        "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+      },
+      "internalsRevision": 15,
+      "historyStart": "2016-01-01T00:00:00.000Z",
+      "receipts": [
+        {
+          "scenario": "captured_weekend",
+          "frame": "1m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "expectedHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "5m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "expectedHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "15m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "expectedHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "30m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "expectedHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "1h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "4h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "expectedHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "1d",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "expectedHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "1m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "expectedHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "5m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "expectedHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "15m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "expectedHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "30m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "expectedHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "1h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "4h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "expectedHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "1d",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "expectedHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "1m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "168a1b53ae3ff63baeee5df946c87471b7d35f997cc68f6b9b4ed1e3a5f1c41e",
+          "expectedHash": "168a1b53ae3ff63baeee5df946c87471b7d35f997cc68f6b9b4ed1e3a5f1c41e",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "5m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "13d523f45ada11052f2d91ecad962e3715bc680116579bd27a7ba154f94fc020",
+          "expectedHash": "13d523f45ada11052f2d91ecad962e3715bc680116579bd27a7ba154f94fc020",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "15m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "expectedHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "30m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "expectedHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "1h",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "expectedHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "4h",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "83133032118ecfff8480317943a56b7998338b5906203e867a4c366c69e201d9",
+          "expectedHash": "83133032118ecfff8480317943a56b7998338b5906203e867a4c366c69e201d9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "1d",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "d74200d4adc776d6328c603efccc071de424feeb3bcc91aed3a1be27fa180123",
+          "expectedHash": "d74200d4adc776d6328c603efccc071de424feeb3bcc91aed3a1be27fa180123",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "1m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "b872b942dedb27fd1c21199462f0ce637b3de632fffe13e630756ba2c0633cc8",
+          "expectedHash": "b872b942dedb27fd1c21199462f0ce637b3de632fffe13e630756ba2c0633cc8",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "5m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "c8a3624a1a36e2d3042a39f47d8198bd5d2afe7bce452efbb1bb35ec40f1812c",
+          "expectedHash": "c8a3624a1a36e2d3042a39f47d8198bd5d2afe7bce452efbb1bb35ec40f1812c",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "15m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "2bb6bbdbca17cff9d2959cfe4f9a95e70af24eff00b937909cc39bc28f6b2ce2",
+          "expectedHash": "2bb6bbdbca17cff9d2959cfe4f9a95e70af24eff00b937909cc39bc28f6b2ce2",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "30m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "b1c884210d16dba49126f2677d7a86e5784656399d405648558c6d444a47f57d",
+          "expectedHash": "b1c884210d16dba49126f2677d7a86e5784656399d405648558c6d444a47f57d",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "1h",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "expectedHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "4h",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "f4d5db6b3cb4faabcf8a5cf71279e6f42eb0ce16d6d16377dccf04a81062a3eb",
+          "expectedHash": "f4d5db6b3cb4faabcf8a5cf71279e6f42eb0ce16d6d16377dccf04a81062a3eb",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "1d",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "024e31860a996e6f4b66b10f2d61ccd8472bda6c15e2c512ae7058857c4ba351",
+          "expectedHash": "024e31860a996e6f4b66b10f2d61ccd8472bda6c15e2c512ae7058857c4ba351",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            },
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        }
+      ],
+      "emptyResultNotFabricated": true,
+      "providerFailureNotFabricated": true,
+      "failureOutcome": null,
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[StockAdapter] No bars returned for TSLA @ 1m"
+        },
+        {
+          "level": "error",
+          "text": "[StockAdapter] HTTP 503 for TSLA: fixture provider unavailable"
+        }
+      ]
+    },
+    {
+      "lane": "bot",
+      "baseline": false,
+      "sourceHashes": {
+        "brokers/AlpacaAdapter.js": "8c3b714e3de64387534e7a9646d33430ecf8b78e021eeeb1e1f1024175d061ee",
+        "server/stock-data-adapter.js": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6",
+        "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+        "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+      },
+      "internalsRevision": 15,
+      "historyStart": "2016-01-01T00:00:00.000Z",
+      "receipts": [
+        {
+          "scenario": "captured_weekend",
+          "frame": "1m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "expectedHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "5m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "expectedHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "15m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "expectedHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "30m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "expectedHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "1h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "4h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "expectedHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "captured_weekend",
+          "frame": "1d",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "expectedHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "1m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "expectedHash": "6c1c4a20c6c02cfcc531a8a82b82a005f08ddf42093610d65c6f44bc0ac01241",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "5m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "expectedHash": "cc1e11252857ed6cdb9ce529c22151beeedbdf756a9f27028a87f90823f4743b",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "15m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "expectedHash": "8825d873e3d5dd80f8345521eed4b1defbdc5c5854e99931a85b74aafeb4a3f0",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "30m",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "expectedHash": "3e3c51062bf1ec03ff2633bad973817190e4131f09401ee9123ad2a4b3ffea7c",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "1h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "4h",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "expectedHash": "5fb0076208b55bad3fee1d9759af63fded377bd43a6b9f9a8d5b61064e57e314",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "simulated_fourteen_day_gap",
+          "frame": "1d",
+          "requested": 60,
+          "received": 60,
+          "availableCaptured": 60,
+          "exactNativeValues": true,
+          "outputHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "expectedHash": "93e7ad4f339d5262e48a36d2a643ed25da7f100486fe886fb277ed9a24dfe575",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-12-05T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "1m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "168a1b53ae3ff63baeee5df946c87471b7d35f997cc68f6b9b4ed1e3a5f1c41e",
+          "expectedHash": "168a1b53ae3ff63baeee5df946c87471b7d35f997cc68f6b9b4ed1e3a5f1c41e",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "5m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "13d523f45ada11052f2d91ecad962e3715bc680116579bd27a7ba154f94fc020",
+          "expectedHash": "13d523f45ada11052f2d91ecad962e3715bc680116579bd27a7ba154f94fc020",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "15m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "expectedHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "30m",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "expectedHash": "814ff286f803c14fef2b48de3c3cb717c02213757a4e4cc463c5783a8abd5df9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "1h",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "expectedHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "4h",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "83133032118ecfff8480317943a56b7998338b5906203e867a4c366c69e201d9",
+          "expectedHash": "83133032118ecfff8480317943a56b7998338b5906203e867a4c366c69e201d9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "frame": "1d",
+          "requested": 2,
+          "received": 2,
+          "availableCaptured": 2,
+          "exactNativeValues": true,
+          "outputHash": "d74200d4adc776d6328c603efccc071de424feeb3bcc91aed3a1be27fa180123",
+          "expectedHash": "d74200d4adc776d6328c603efccc071de424feeb3bcc91aed3a1be27fa180123",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "1m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "b872b942dedb27fd1c21199462f0ce637b3de632fffe13e630756ba2c0633cc8",
+          "expectedHash": "b872b942dedb27fd1c21199462f0ce637b3de632fffe13e630756ba2c0633cc8",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "5m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "c8a3624a1a36e2d3042a39f47d8198bd5d2afe7bce452efbb1bb35ec40f1812c",
+          "expectedHash": "c8a3624a1a36e2d3042a39f47d8198bd5d2afe7bce452efbb1bb35ec40f1812c",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "5Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "15m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "2bb6bbdbca17cff9d2959cfe4f9a95e70af24eff00b937909cc39bc28f6b2ce2",
+          "expectedHash": "2bb6bbdbca17cff9d2959cfe4f9a95e70af24eff00b937909cc39bc28f6b2ce2",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "15Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "30m",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "b1c884210d16dba49126f2677d7a86e5784656399d405648558c6d444a47f57d",
+          "expectedHash": "b1c884210d16dba49126f2677d7a86e5784656399d405648558c6d444a47f57d",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "30Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "1h",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "expectedHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "4h",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "f4d5db6b3cb4faabcf8a5cf71279e6f42eb0ce16d6d16377dccf04a81062a3eb",
+          "expectedHash": "f4d5db6b3cb4faabcf8a5cf71279e6f42eb0ce16d6d16377dccf04a81062a3eb",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "4Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "short_history",
+          "frame": "1d",
+          "requested": 60,
+          "received": 3,
+          "availableCaptured": 3,
+          "exactNativeValues": true,
+          "outputHash": "024e31860a996e6f4b66b10f2d61ccd8472bda6c15e2c512ae7058857c4ba351",
+          "expectedHash": "024e31860a996e6f4b66b10f2d61ccd8472bda6c15e2c512ae7058857c4ba351",
+          "requests": [
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Day",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            },
+            {
+              "endpoint": "https://data.alpaca.markets/v2/stocks/TSLA/bars",
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T11:13:42.349Z",
+                "timeframe": "1Min",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        }
+      ],
+      "emptyResultNotFabricated": true,
+      "providerFailureNotFabricated": true,
+      "failureOutcome": "[Alpaca] Failed to get candles for TSLA: fixture provider unavailable",
+      "warnings": []
+    }
+  ]
+}

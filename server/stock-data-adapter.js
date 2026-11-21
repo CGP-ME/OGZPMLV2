@@ -91,24 +91,31 @@ async function fetchStockCandles(ticker, timeframe = ConfigLoader.getInternalsFi
         sort: ConfigLoader.getInternalsFileValue('dashboard.stockHistorical.sort')
     });
 
-    const url = `${config.dataUrl}/${symbol}/bars?${params}`;
-
     try {
-        const response = await fetch(url, {
-            headers: {
-                'APCA-API-KEY-ID': config.apiKey,
-                'APCA-API-SECRET-KEY': config.apiSecret
+        const bars = [];
+        let pageToken;
+        do {
+            if (pageToken) {
+                params.set('page_token', pageToken);
+                params.set('limit', String(limit - bars.length));
             }
-        });
+            const url = `${config.dataUrl}/${symbol}/bars?${params}`;
+            const response = await fetch(url, {
+                headers: {
+                    'APCA-API-KEY-ID': config.apiKey,
+                    'APCA-API-SECRET-KEY': config.apiSecret
+                }
+            });
 
-        if (!response.ok) {
-            const text = await response.text();
-            console.error(`[StockAdapter] HTTP ${response.status} for ${symbol}: ${text}`);
-            return null;
-        }
-
-        const data = await response.json();
-        const bars = data.bars || [];
+            if (!response.ok) {
+                const text = await response.text();
+                console.error(`[StockAdapter] HTTP ${response.status} for ${symbol}: ${text}`);
+                return null;
+            }
+            const data = await response.json();
+            bars.push(...(data.bars || []));
+            pageToken = data.next_page_token;
+        } while (pageToken && bars.length < limit);
 
         if (bars.length === 0) {
             console.warn(`[StockAdapter] No bars returned for ${symbol} @ ${timeframe}`);

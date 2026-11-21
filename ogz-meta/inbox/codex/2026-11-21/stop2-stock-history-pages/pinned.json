@@ -1,0 +1,377 @@
+{
+  "isolation": "test-isolated.py",
+  "source": "Actual Alpaca pages; simulated transport faults explicitly labeled",
+  "lanes": [
+    {
+      "lane": "dashboard",
+      "baseline": false,
+      "sourceHashes": {
+        "brokers/AlpacaAdapter.js": "8c3b714e3de64387534e7a9646d33430ecf8b78e021eeeb1e1f1024175d061ee",
+        "server/stock-data-adapter.js": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6",
+        "foundation/ConfigLoader.js": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767"
+      },
+      "receipts": [
+        {
+          "scenario": "native_three_pages",
+          "requested": 500,
+          "received": 500,
+          "exactNativeValues": true,
+          "outputHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.481Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            },
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.481Z",
+                "timeframe": "1Hour",
+                "limit": "284",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc",
+                "page_token": "VFNMQXxNfDE3OTIxNzcxNDAwMDAwMDAwMDA="
+              }
+            },
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.481Z",
+                "timeframe": "1Hour",
+                "limit": "81",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc",
+                "page_token": "VFNMQXxNfDE3ODkxNDIzNDAwMDAwMDAwMDA="
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "sixty_bar_hydration",
+          "requested": 60,
+          "received": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.482Z",
+                "timeframe": "1Hour",
+                "limit": "60",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "requested": 2,
+          "received": 2,
+          "exactNativeValues": true,
+          "outputHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "expectedHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.483Z",
+                "timeframe": "1Hour",
+                "limit": "2",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "terminal_short_history",
+          "requested": 500,
+          "received": 3,
+          "exactNativeValues": true,
+          "outputHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "expectedHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.484Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "empty_history",
+          "requested": 500,
+          "received": 0,
+          "exactNativeValues": true,
+          "outputHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "expectedHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.485Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "later_page_http_failure",
+          "requested": 500,
+          "received": 0,
+          "exactNativeValues": false,
+          "outputHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.486Z",
+                "timeframe": "1Hour",
+                "limit": "500",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            },
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.486Z",
+                "timeframe": "1Hour",
+                "limit": "284",
+                "adjustment": "split",
+                "feed": "iex",
+                "sort": "desc",
+                "page_token": "VFNMQXxNfDE3OTIxNzcxNDAwMDAwMDAwMDA="
+              }
+            }
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[StockAdapter] No bars returned for TSLA @ 1h"
+        },
+        {
+          "level": "error",
+          "text": "[StockAdapter] HTTP 503 for TSLA: fixture provider unavailable"
+        }
+      ],
+      "note": "Market was closed. Captured native split/raw values match over this TSLA window; the bot request is still checked to preserve raw adjustment."
+    },
+    {
+      "lane": "bot",
+      "baseline": false,
+      "sourceHashes": {
+        "brokers/AlpacaAdapter.js": "8c3b714e3de64387534e7a9646d33430ecf8b78e021eeeb1e1f1024175d061ee",
+        "server/stock-data-adapter.js": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6",
+        "foundation/ConfigLoader.js": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767"
+      },
+      "receipts": [
+        {
+          "scenario": "native_three_pages",
+          "requested": 500,
+          "received": 500,
+          "exactNativeValues": true,
+          "outputHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.482Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            },
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.482Z",
+                "timeframe": "1Hour",
+                "limit": 284,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc",
+                "page_token": "VFNMQXxNfDE3OTIxNzcxNDAwMDAwMDAwMDA="
+              }
+            },
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.482Z",
+                "timeframe": "1Hour",
+                "limit": 81,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc",
+                "page_token": "VFNMQXxNfDE3ODkxNDIzNDAwMDAwMDAwMDA="
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "sixty_bar_hydration",
+          "requested": 60,
+          "received": 60,
+          "exactNativeValues": true,
+          "outputHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "expectedHash": "096e281050ff0387c67b73f8ae3807badc09bdb88694fbfab58d72b524080bda",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.483Z",
+                "timeframe": "1Hour",
+                "limit": 60,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "two_bar_refresh",
+          "requested": 2,
+          "received": 2,
+          "exactNativeValues": true,
+          "outputHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "expectedHash": "0218341c332332395ddf261bd60f8435e38ecea5a6006ad568ba770948e62715",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.484Z",
+                "timeframe": "1Hour",
+                "limit": 2,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "terminal_short_history",
+          "requested": 500,
+          "received": 3,
+          "exactNativeValues": true,
+          "outputHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "expectedHash": "7d7d2d619e3e766db5796b979bebf46cd6dddca40d096b2bfa5cc086908254a9",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.485Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "empty_history",
+          "requested": 500,
+          "received": 0,
+          "exactNativeValues": true,
+          "outputHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "expectedHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "error": null,
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.486Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "later_page_http_failure",
+          "requested": 500,
+          "received": 0,
+          "exactNativeValues": false,
+          "outputHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "expectedHash": "b3ea142480c92b7f35f006be32fd02983f3ebf7eec05961fb534e24d9c86c74c",
+          "error": "[Alpaca] Failed to get candles for TSLA: fixture provider unavailable",
+          "requests": [
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.487Z",
+                "timeframe": "1Hour",
+                "limit": 500,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc"
+              }
+            },
+            {
+              "parameters": {
+                "start": "2016-01-01T00:00:00.000Z",
+                "end": "2026-11-21T18:43:25.487Z",
+                "timeframe": "1Hour",
+                "limit": 284,
+                "adjustment": "raw",
+                "feed": "iex",
+                "sort": "desc",
+                "page_token": "VFNMQXxNfDE3OTIxNzcxNDAwMDAwMDAwMDA="
+              }
+            }
+          ]
+        }
+      ],
+      "warnings": [],
+      "note": "Market was closed. Captured native split/raw values match over this TSLA window; the bot request is still checked to preserve raw adjustment."
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+diff --git a/brokers/AlpacaAdapter.js b/brokers/AlpacaAdapter.js
+index c70d0b3f..63303832 100644
+--- a/brokers/AlpacaAdapter.js
++++ b/brokers/AlpacaAdapter.js
+@@ -668,15 +668,17 @@ class AlpacaAdapter extends IBrokerAdapter {
+-
+-            const response = await axios.get(
+-                `${this.dataUrl}/v2/stocks/${sym}/bars`,
+-                {
+-                    headers: this._authHeaders(),
+-                    params: {
+-                        // Market closures do not bound the number of native bars.
+-                        start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
+-                        end: end.toISOString(),
+-                        timeframe: tf,
+-                        limit: Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit')),
+-                        adjustment: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.adjustment'),
+-                        feed: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.feed'),
+-                        sort: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.sort')
+-                    }
++            const requestedLimit = Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit'));
++            const params = {
++                // Market closures do not bound the number of native bars.
++                start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
++                end: end.toISOString(),
++                timeframe: tf,
++                limit: requestedLimit,
++                adjustment: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.adjustment'),
++                feed: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.feed'),
++                sort: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.sort')
++            };
++            const bars = [];
++            let pageToken;
++            do {
++                if (pageToken) {
++                    params.page_token = pageToken;
++                    params.limit = requestedLimit - bars.length;
+@@ -684 +686,10 @@ class AlpacaAdapter extends IBrokerAdapter {
+-            );
++                const response = await axios.get(
++                    `${this.dataUrl}/v2/stocks/${sym}/bars`,
++                    {
++                        headers: this._authHeaders(),
++                        params
++                    }
++                );
++                bars.push(...(response.data.bars || []));
++                pageToken = response.data.next_page_token;
++            } while (pageToken && bars.length < requestedLimit);
+@@ -686 +697 @@ class AlpacaAdapter extends IBrokerAdapter {
+-            return (response.data.bars || []).map(bar => ({
++            return bars.map(bar => ({
+diff --git a/server/stock-data-adapter.js b/server/stock-data-adapter.js
+index a03ce0f0..a1d8fc99 100644
+--- a/server/stock-data-adapter.js
++++ b/server/stock-data-adapter.js
+@@ -94,2 +93,0 @@ async function fetchStockCandles(ticker, timeframe = ConfigLoader.getInternalsFi
+-    const url = `${config.dataUrl}/${symbol}/bars?${params}`;
+-
+@@ -97,4 +95,6 @@ async function fetchStockCandles(ticker, timeframe = ConfigLoader.getInternalsFi
+-        const response = await fetch(url, {
+-            headers: {
+-                'APCA-API-KEY-ID': config.apiKey,
+-                'APCA-API-SECRET-KEY': config.apiSecret
++        const bars = [];
++        let pageToken;
++        do {
++            if (pageToken) {
++                params.set('page_token', pageToken);
++                params.set('limit', String(limit - bars.length));
+@@ -102,10 +102,17 @@ async function fetchStockCandles(ticker, timeframe = ConfigLoader.getInternalsFi
+-        });
+-
+-        if (!response.ok) {
+-            const text = await response.text();
+-            console.error(`[StockAdapter] HTTP ${response.status} for ${symbol}: ${text}`);
+-            return null;
+-        }
+-
+-        const data = await response.json();
+-        const bars = data.bars || [];
++            const url = `${config.dataUrl}/${symbol}/bars?${params}`;
++            const response = await fetch(url, {
++                headers: {
++                    'APCA-API-KEY-ID': config.apiKey,
++                    'APCA-API-SECRET-KEY': config.apiSecret
++                }
++            });
++
++            if (!response.ok) {
++                const text = await response.text();
++                console.error(`[StockAdapter] HTTP ${response.status} for ${symbol}: ${text}`);
++                return null;
++            }
++            const data = await response.json();
++            bars.push(...(data.bars || []));
++            pageToken = data.next_page_token;
++        } while (pageToken && bars.length < limit);

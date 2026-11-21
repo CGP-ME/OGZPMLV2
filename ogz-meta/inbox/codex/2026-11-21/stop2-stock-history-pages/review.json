@@ -1,0 +1,826 @@
+{
+  "schema_version": 2,
+  "run_id": "2026-11-21T18-48-34-298Z-71567dd980c0",
+  "created_at": "2026-11-21T18:48:34.298Z",
+  "branch": "codex/archive-legacy-env",
+  "head_sha": "34d31a82522ef4ac7b6a8d6de0ccdd9cad071956",
+  "review_scope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "brokers/AlpacaAdapter.js",
+      "server/stock-data-adapter.js"
+    ],
+    "tree": "0b5459c1c189ac25f869bcb6f82a4e0a214ff1e9",
+    "baseTree": "2f6212117a292e8db57f157b66d92b99cdb8204b",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-21T18-47-33-189Z-2168115-e998b23665e7/source-KCTxGv.json",
+    "manifestSha256": "785b6daff328a6431db33e53d699d020de4c518c9c9ac07a174c37dded649037"
+  },
+  "source_refs": {
+    "current_change_evidence_bundle": {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/current-change-evidence.txt",
+      "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/current-change-evidence.txt:1",
+      "sha256": "0efdc170a5f530f00b2be17cc29daddd48fb3120475ab13215c40d36f225ddd3",
+      "bytes": 296716,
+      "lines": 1748,
+      "section_count": 11,
+      "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/manifest.json",
+      "manifest_sha256": "b2cfed79ff263fdf716c121abc824ab6c08eb491e12bf7547769a92c4bc72287",
+      "manifest_bytes": 17057
+    },
+    "supplied_evidence": [],
+    "auto_blast_radius_source": "current_changes",
+    "auto_blast_radius_files": [
+      {
+        "file": "brokers/AlpacaAdapter.js",
+        "callerCount": 0,
+        "riskLevel": "isolated"
+      },
+      {
+        "file": "server/stock-data-adapter.js",
+        "callerCount": 3,
+        "riskLevel": "low"
+      }
+    ],
+    "auto_blast_radius_errors": [],
+    "changed_files": [
+      "brokers/AlpacaAdapter.js",
+      "server/stock-data-adapter.js"
+    ],
+    "changed_file_count": 2,
+    "reference_names": [
+      "dataUrl",
+      "apiKey",
+      "apiSecret"
+    ],
+    "reference_scans": [
+      {
+        "symbol": "dataUrl",
+        "source": "find_references_regex",
+        "precision": "regex",
+        "total": 13,
+        "truncated": false
+      },
+      {
+        "symbol": "apiKey",
+        "source": "find_references_regex",
+        "precision": "regex",
+        "total": 98,
+        "truncated": false
+      },
+      {
+        "symbol": "apiSecret",
+        "source": "find_references_regex",
+        "precision": "regex",
+        "total": 41,
+        "truncated": false
+      }
+    ]
+  },
+  "verdict": "no_break_found",
+  "termination": "answer_given",
+  "iterations": 10,
+  "latency_ms": 41032,
+  "run_tokens": {
+    "input": 283458,
+    "uncached_input": 197258,
+    "cached_input": 86200,
+    "output": 18301,
+    "total": 301759,
+    "complete": true,
+    "attempts_with_usage": 11,
+    "total_attempts": 11
+  },
+  "run_cost": {
+    "amount": 0.02673261,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 11,
+    "total_attempts": 11,
+    "cost_absences": []
+  },
+  "tools_invoked": [
+    {
+      "name": "find_references",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0,
+      "call_details": [
+        {
+          "iteration": 3,
+          "status": "succeeded",
+          "args": {
+            "symbol": "fetchStockCandles"
+          },
+          "result": {
+            "source": "find_references_regex",
+            "total": 7,
+            "truncated": false
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": null,
+            "endLine": null,
+            "totalLines": null
+          }
+        },
+        {
+          "iteration": 3,
+          "status": "succeeded",
+          "args": {
+            "symbol": "getCandles"
+          },
+          "result": {
+            "source": "find_references_regex",
+            "total": 66,
+            "truncated": false
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": null,
+            "endLine": null,
+            "totalLines": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "git_diff",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "call_details": [
+        {
+          "iteration": 5,
+          "status": "succeeded",
+          "args": {
+            "target": "last_commit",
+            "path": "brokers/AlpacaAdapter.js"
+          },
+          "result": {
+            "target": "last_commit",
+            "requested_target": "last_commit",
+            "file_count": 0,
+            "truncated": false
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": null,
+            "endLine": null,
+            "totalLines": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "git_show",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0,
+      "call_details": [
+        {
+          "iteration": 6,
+          "status": "succeeded",
+          "args": {
+            "ref": "2f6212117a292e8db57f157b66d92b99cdb8204b",
+            "path": "brokers/AlpacaAdapter.js",
+            "start_line": 663,
+            "end_line": 705
+          },
+          "result": {
+            "path": "brokers/AlpacaAdapter.js",
+            "ref": "2f6212117a292e8db57f157b66d92b99cdb8204b",
+            "start_line": 663,
+            "end_line": 705,
+            "total_lines": 1287,
+            "truncated": true
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 663,
+            "endLine": 705,
+            "totalLines": 1287
+          }
+        },
+        {
+          "iteration": 8,
+          "status": "succeeded",
+          "args": {
+            "ref": "2f6212117a292e8db57f157b66d92b99cdb8204b",
+            "path": "server/stock-data-adapter.js",
+            "start_line": 91,
+            "end_line": 145
+          },
+          "result": {
+            "path": "server/stock-data-adapter.js",
+            "ref": "2f6212117a292e8db57f157b66d92b99cdb8204b",
+            "start_line": 91,
+            "end_line": 145,
+            "total_lines": 263,
+            "truncated": true
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 91,
+            "endLine": 145,
+            "totalLines": 263
+          }
+        }
+      ]
+    },
+    {
+      "name": "open_file",
+      "calls": 11,
+      "succeeded": 11,
+      "failed": 0,
+      "call_details": [
+        {
+          "iteration": 2,
+          "status": "succeeded",
+          "args": {
+            "path": "brokers/AlpacaAdapter.js",
+            "start_line": 640,
+            "end_line": 730
+          },
+          "result": {
+            "file": "brokers/AlpacaAdapter.js",
+            "start_line": 640,
+            "end_line": 730,
+            "total_lines": 1298
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 640,
+            "endLine": 730,
+            "totalLines": 1298
+          }
+        },
+        {
+          "iteration": 2,
+          "status": "succeeded",
+          "args": {
+            "path": "server/stock-data-adapter.js",
+            "start_line": 70,
+            "end_line": 140
+          },
+          "result": {
+            "file": "server/stock-data-adapter.js",
+            "start_line": 70,
+            "end_line": 140,
+            "total_lines": 270
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 70,
+            "endLine": 140,
+            "totalLines": 270
+          }
+        },
+        {
+          "iteration": 3,
+          "status": "succeeded",
+          "args": {
+            "path": "server/stock-data-adapter.js",
+            "start_line": 1,
+            "end_line": 70
+          },
+          "result": {
+            "file": "server/stock-data-adapter.js",
+            "start_line": 1,
+            "end_line": 70,
+            "total_lines": 270
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 70,
+            "totalLines": 270
+          }
+        },
+        {
+          "iteration": 3,
+          "status": "succeeded",
+          "args": {
+            "path": "server/stock-data-adapter.js",
+            "start_line": 140,
+            "end_line": 180
+          },
+          "result": {
+            "file": "server/stock-data-adapter.js",
+            "start_line": 140,
+            "end_line": 180,
+            "total_lines": 270
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 140,
+            "endLine": 180,
+            "totalLines": 270
+          }
+        },
+        {
+          "iteration": 4,
+          "status": "succeeded",
+          "args": {
+            "path": "run-empire-v2.js",
+            "start_line": 2460,
+            "end_line": 2490
+          },
+          "result": {
+            "file": "run-empire-v2.js",
+            "start_line": 2460,
+            "end_line": 2490,
+            "total_lines": 3955
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 2460,
+            "endLine": 2490,
+            "totalLines": 3955
+          }
+        },
+        {
+          "iteration": 4,
+          "status": "succeeded",
+          "args": {
+            "path": "ogzprime-ssl-server.js",
+            "start_line": 2020,
+            "end_line": 2050
+          },
+          "result": {
+            "file": "ogzprime-ssl-server.js",
+            "start_line": 2020,
+            "end_line": 2050,
+            "total_lines": 2390
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 2020,
+            "endLine": 2050,
+            "totalLines": 2390
+          }
+        },
+        {
+          "iteration": 4,
+          "status": "succeeded",
+          "args": {
+            "path": "brokers/AlpacaAdapter.js",
+            "start_line": 1200,
+            "end_line": 1230
+          },
+          "result": {
+            "file": "brokers/AlpacaAdapter.js",
+            "start_line": 1200,
+            "end_line": 1230,
+            "total_lines": 1298
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1200,
+            "endLine": 1230,
+            "totalLines": 1298
+          }
+        },
+        {
+          "iteration": 4,
+          "status": "succeeded",
+          "args": {
+            "path": "core/CandleProcessor.js",
+            "start_line": 735,
+            "end_line": 760
+          },
+          "result": {
+            "file": "core/CandleProcessor.js",
+            "start_line": 735,
+            "end_line": 760,
+            "total_lines": 1234
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 735,
+            "endLine": 760,
+            "totalLines": 1234
+          }
+        },
+        {
+          "iteration": 7,
+          "status": "succeeded",
+          "args": {
+            "path": "config/internals.json",
+            "start_line": 962,
+            "end_line": 985
+          },
+          "result": {
+            "file": "config/internals.json",
+            "start_line": 962,
+            "end_line": 985,
+            "total_lines": 2949
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 962,
+            "endLine": 985,
+            "totalLines": 2949
+          }
+        },
+        {
+          "iteration": 7,
+          "status": "succeeded",
+          "args": {
+            "path": "config/internals.json",
+            "start_line": 1152,
+            "end_line": 1175
+          },
+          "result": {
+            "file": "config/internals.json",
+            "start_line": 1152,
+            "end_line": 1175,
+            "total_lines": 2949
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1152,
+            "endLine": 1175,
+            "totalLines": 2949
+          }
+        },
+        {
+          "iteration": 9,
+          "status": "succeeded",
+          "args": {
+            "path": "CHANGELOG.md",
+            "start_line": 1,
+            "end_line": 40
+          },
+          "result": {
+            "file": "CHANGELOG.md",
+            "start_line": 1,
+            "end_line": 40,
+            "total_lines": 11466
+          },
+          "delivery": {
+            "truncated": true,
+            "startLine": 1,
+            "endLine": 32,
+            "totalLines": 11466,
+            "originalEndLine": 40
+          }
+        }
+      ]
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0,
+      "call_details": [
+        {
+          "iteration": 1,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:bb13cff299529de8b1b3d9af9c78e6ef2a22c894a1177ff2299cf854218c5198",
+            "start_line": 1,
+            "end_line": 59
+          },
+          "result": {
+            "start_line": 1,
+            "end_line": 59,
+            "total_lines": 59
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 59,
+            "totalLines": 59
+          }
+        },
+        {
+          "iteration": 1,
+          "status": "succeeded",
+          "args": {
+            "receipt_id": "captured-diff:2c5f5ceb48f459fe5402d1784f587f6446bbd83e14a6422dfb6d0f3e92b4d657",
+            "start_line": 1,
+            "end_line": 52
+          },
+          "result": {
+            "start_line": 1,
+            "end_line": 52,
+            "total_lines": 52
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": 1,
+            "endLine": 52,
+            "totalLines": 52
+          }
+        }
+      ]
+    },
+    {
+      "name": "regex_grep",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0,
+      "call_details": [
+        {
+          "iteration": 5,
+          "status": "succeeded",
+          "args": {
+            "query": "alpacaHistorical\\.sort|stockHistorical\\.sort|alpacaHistorical\\.maxLimit|stockHistorical\\.limitDefault"
+          },
+          "result": {
+            "source": "direct_ripgrep_regex",
+            "total": 5,
+            "truncated": false
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": null,
+            "endLine": null,
+            "totalLines": null
+          }
+        },
+        {
+          "iteration": 6,
+          "status": "succeeded",
+          "args": {
+            "query": "alpacaHistorical|stockHistorical",
+            "file_pattern": "**/internals*"
+          },
+          "result": {
+            "source": "direct_ripgrep_regex",
+            "total": 2,
+            "truncated": false
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": null,
+            "endLine": null,
+            "totalLines": null
+          }
+        },
+        {
+          "iteration": 8,
+          "status": "succeeded",
+          "args": {
+            "query": "page_token|next_page_token|pagination|paginate",
+            "file_pattern": "CHANGELOG.md"
+          },
+          "result": {
+            "source": "direct_ripgrep_regex",
+            "total": 5,
+            "truncated": false
+          },
+          "delivery": {
+            "truncated": false,
+            "startLine": null,
+            "endLine": null,
+            "totalLines": null
+          }
+        }
+      ]
+    }
+  ],
+  "answer_quality": [],
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 6,
+      "total": 6
+    },
+    "candidateCoverage": {
+      "expectedTotal": 2,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 2,
+    "changedJsCount": 2,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "reviewerSelection": {
+    "requested": [
+      "mercury"
+    ],
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit"
+  },
+  "reviewerPanelMetadata": {
+    "independentSeats": [
+      {
+        "id": "mercury",
+        "label": "Mercury",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "status": "succeeded",
+        "verdict": "no_break_found",
+        "qualifying": true,
+        "evidenceBasis": [
+          "successful_repo_tool",
+          "verified_current_diff"
+        ],
+        "named_absences": [],
+        "self_report_complete": true,
+        "seat_tokens": {
+          "input": 280210,
+          "uncached_input": 194010,
+          "cached_input": 86200,
+          "output": 18299,
+          "total": 298509,
+          "complete": true,
+          "attempts_with_usage": 10,
+          "total_attempts": 10
+        },
+        "seat_cost": {
+          "amount": 0.02666765,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 10,
+          "total_attempts": 10,
+          "cost_absences": []
+        }
+      }
+    ],
+    "reviewIntent": "adversarial",
+    "evidenceRound": {
+      "required": false,
+      "status": "not_required",
+      "evidence": [
+        {
+          "id": "mercury",
+          "status": "succeeded",
+          "absence": null,
+          "answer": "I now have a complete picture. Let me consolidate my findings.\n\n**Candidate inventory (all examined):**\n1. `brokers/AlpacaAdapter.js` `getCandles` (bot) \u2014 lines 663-709\n2. `server/stock-data-adapter.js` `fetchStockCandles` (dashboard) \u2014 lines 62-155\n3. Config: `alpacaHistorical` (sort=desc, maxLimit=10000, limitDefault=100) and `stockHistorical` (sort=desc, limitDefault=500)\n4. Consumers: `run-empire-v2.js:1852,2938`; `AlpacaAdapter.js:1220`; `core/CandleProcessor.js:746`; `run-empire-v2.js:2478`; `ogzprime-ssl-server.js:2037`\n5. Baseline (2f6212) of both functions\n6. `CHANGELOG.md:11` (historical one-page note)\n\n---\n\nVERDICT: no_break_found\n\nADVERSARIAL_REVIEW_BLOCKING: no\n\n**Direct answer:** Both the bot and the dashboard now correctly aggregate candle history across multiple Alpaca response pages. When Alpaca returns a `next_page_token`, each implementation re-issues the request with `page_token` and a reduced `limit` (= requested limit minus bars already collected), appends the new page's bars, and repeats until either no `next_page_token` remains or the requested limit is reached. The final arrays are sorted ascending by timestamp.\n\n**Bot \u2014 `AlpacaAdapter.getCandles` (lines 663-709):**\n- `requestedLimit = Math.min(limit, maxLimit)` with `maxLimit=10000` (line 668; config `config/internals.json:965`).\n- Pagination loop at lines 681-695: `do { if (pageToken) { params.page_token = [REDACTED] params.limit = requestedLimit - bars.length; } ... bars.push(...(response.data.bars || [])); pageToken = [REDACTED] } while (pageToken && bars.length < requestedLimit);`\n- Returns `bars.map(...).sort((a,b)=>a.t-b.t)` ascending (line 704).\n\n**Dashboard \u2014 `fetchStockCandles` (lines 62-155):**\n- `limit` from caller (default 500; config `config/internals.json:1154`), not capped by maxLimit.\n- Pagination loop at lines 97-118: identical pattern using `params.set('page_token', ...)` and `params.set('limit', String(limit - bars.length))`.\n- Returns candles sorted ascending by time (line 141).\n\n**Why this is correct (trace of multi-page scenarios):**\n- The per-page `limit` is set to `requestedLimit - bars.length` on subsequent pages, so the total never exceeds the requested limit; the loop exits when `bars.length >= requestedLimit` so it never overshoots and `limit` never reaches 0 in a live iteration.\n- `start`/`end` are fixed before the loop (line 667 and line 82), so pages are consistent across requests.\n- Alpaca's `next_page_token` is cursor-based and non-overlapping; appending pages produces a contiguous set, and the final ascending sort normalizes the configured `sort=desc` wire order.\n\n**Key nuance (bot pagination is effectively inert under current config):** `maxLimit=10000` equals Alpaca's documented per-request bar maximum (10,000). Therefore `requestedLimit \u2264 10000` always, so a single request either returns all requested bars or returns exactly `requestedLimit` bars (loop exits because `bars.length >= requestedLimit`). The bot's pagination loop never actually iterates more than once under current config \u2014 it is a defensive addition that does not change bot behavior versus the baseline single request. The dashboard's pagination genuinely activates when a client requests `limit > 10000`.\n\n**Competing candidates rejected:**\n- *Possible under-return / early-exit bug:* Rejected. The loop exits only when the requested limit is reached or no further page exists; both are correct termination conditions.\n- *Possible duplicate/overlap bug:* Rejected \u2014 cursor-based pagination is non-overlapping; the code appends each page's bars without re-fetching the prior page.\n- *Possible ordering bug:* Rejected. Even though `sort=desc` is configured (config lines 968, 1155), both implementations re-sort ascending by time before returning (lines 704, 141), matching chart expectations.\n\n**Unverified behavior (named):** The actual live behavior of Alpaca's `next_page_token` (that it is non-overlapping and honors a reduced `limit` with fixed `start`/`end`) is not directly verified here \u2014 no live API calls were executed. The code's handling is internally consistent with documented Alpaca pagination, but the external API's real-world response semantics are not host-attested in this review.\n\n**Changelog reconciliation:** `CHANGELOG.md:11` (\"Stock readers still consume one provider response page\u2026 not a universal pagination guarantee\") describes an earlier state predating this diff; the current tree's diff (2f6212 \u2192 0b5459c) explicitly adds the pagination loops, so that one-page limitation no longer reflects the current source.\n\n---\n\nCANDIDATE SET: examined 6 of 6\nAST EVIDENCE: used `find_references` (fetchStockCandles, getCandles) and `regex_grep` for config keys; `open_file`/`git_show` for exact source lines. No host-provided AST scan receipts were relied upon as authority.\nINHERITED: The bot path inherits `maxLimit=10000` cap (config:965); the dashboard path inherits an uncapped `limit` from the caller (`ogzprime-ssl-server.js:2034`, `run-empire-v2.js:2476`). No swallowed errors or silent defaults in the pagination loops; both respect `next_page_token` and stop correctly.\nFOURTH SHAPE CLASSIFIER: the only added control flow is the two `do...while` pagination loops (AlpacaAdapter 681-695; stock-data-adapter 97-118), each guarded by `pageToken && bars.length < limit` \u2014 correct termination, no new bot gates.\nALLEGATIONS: none of a defect; the change is a correct pagination addition.\nSUBSTANTIVE RESOLUTION: none (no substantive dispute; single supported conclusion).\nWHAT I DID: read both captured diffs (AlpacaAdapter 59 lines, stock-data-adapter 52 lines); read current source AlpacaAdapter 640-730 & 1200-1230, stock-data-adapter 1-180; read baseline via `git_show` for both functions; read config `internals.json` 962-985 & 1152-1175; examined consumers in run-empire-v2.js (242, 2475-2490), ogzprime-ssl-server.js (2023-2050), core/CandleProcessor.js (735-760); traced `fetchStockCandles`/`getCandles` references; read CHANGELOG 1-32.\nWHAT I DID NOT DO: did not execute live Alpaca API calls (cannot verify external `next_page_token` semantics at runtime); did not read the full 1,297-line AlpacaAdapter or 270-line stock-data-adapter files beyond the cited ranges; did not run any tests.\nWHAT I ASSUMED: Alpaca's per-request bar maximum is 10,000 and `next_page_token` is cursor-based non-overlapping, per documented API behavior; the final ascending sorts are the intended output ordering.\nWHY THIS VERDICT: The pagination logic in both producers is internally consistent and terminates correctly at the requested limit or at the last page; no reachable control-flow defect was found in the pinned candidates or their consumers.\nIF INCOMPLETE, WHY: not incomplete for the code-level question; the only gap is unverified live API behavior, which does not change the verdict.",
+          "parsed": {
+            "consensus": "",
+            "contradictions": "",
+            "partial": "",
+            "unique": "",
+            "blindSpots": "",
+            "verdict": "no_break_found",
+            "blocking": false,
+            "parseWarnings": [],
+            "disagreement": "",
+            "requiredRecheck": "",
+            "recheckPrompt": "",
+            "nextCheck": "",
+            "sharedConclusion": "",
+            "mercurySupported": "",
+            "astraSupported": "",
+            "fableSupported": "",
+            "kimiSupported": "",
+            "citedReasoning": "The pagination logic in both producers is internally consistent and terminates correctly at the requested limit or at the last page; no reachable control-flow defect was found in the pinned candidates or their consumers.",
+            "candidateSet": "examined 6 of 6",
+            "astEvidence": "used `find_references` (fetchStockCandles, getCandles) and `regex_grep` for config keys; `open_file`/`git_show` for exact source lines. No host-provided AST scan receipts were relied upon as authority.",
+            "inherited": "The bot path inherits `maxLimit=10000` cap (config:965); the dashboard path inherits an uncapped `limit` from the caller (`ogzprime-ssl-server.js:2034`, `run-empire-v2.js:2476`). No swallowed errors or silent defaults in the pagination loops; both respect `next_page_token` and stop correctly.",
+            "fourthShapeClassifier": "the only added control flow is the two `do...while` pagination loops (AlpacaAdapter 681-695; stock-data-adapter 97-118), each guarded by `pageToken && bars.length < limit` \u2014 correct termination, no new bot gates.",
+            "allegationClass": "none of a defect; the change is a correct pagination addition.",
+            "substantiveResolution": "none (no substantive dispute; single supported conclusion).",
+            "whatIExamined": "",
+            "didNotExamine": "",
+            "assumed": ""
+          },
+          "answerSha256": "56bab6c77c5b8ac74237fc1ec3f72c23d901e8b5931ca0701c6dc9989399ceb2",
+          "providerRawReceipts": [
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-1.raw",
+              "sha256": "bf880c936aeff12bf3c1c2a800207a58b418d581f9be89ad7f899dfd063ea689",
+              "bytes": 1338,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-2.raw",
+              "sha256": "559f9069aa972b0d373d74f4eb72f4cc9a279c754b199de8cb7a7d46daa811d5",
+              "bytes": 1088,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-3.raw",
+              "sha256": "c351fd6dd1eae5fb8c010e208627d6fa4fc643438313a65299111e50da7a145e",
+              "bytes": 1414,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-4.raw",
+              "sha256": "c2375254e08ac45d7c6f8881922e3fb86b768dbd5b7ee80bee379fdd3a2987c0",
+              "bytes": 1455,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-5.raw",
+              "sha256": "60c49078e2015a97b30d0c78f8ac23dfeb70232ee564b7da4877546b2bda70f3",
+              "bytes": 1149,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-6.raw",
+              "sha256": "aacb99bb770661018eafd8b1e0c524a720a7cc0223f0a874ca00256692543fc4",
+              "bytes": 1146,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-7.raw",
+              "sha256": "ea5159c620fe0d0dba5278de68cd710da8a3ceca99fc073a7def536c6847c994",
+              "bytes": 1073,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-8.raw",
+              "sha256": "e8b8cd612a8e7d4b74681394dc600c89ab81368706d17451b412bf5105cce8ad",
+              "bytes": 1205,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-9.raw",
+              "sha256": "ceb187cbe29195fabda445292e60766cd667d23ca350d0ca19fe5d944222f2a2",
+              "bytes": 879,
+              "mode": "0600"
+            },
+            {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-21/2026-11-21t18-47-33-189z-2168115-e998b23665e7/mercury_independent_source-10.raw",
+              "sha256": "0fe08f51d84073de09e7d2371c14945edc65c6b7476a46fd252625707bfc1ce7",
+              "bytes": 7597,
+              "mode": "0600"
+            }
+          ],
+          "inputReceipt": null,
+          "stageReceipt": null
+        }
+      ]
+    },
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "reported_decision": {
+      "verdict": "no_break_found",
+      "majorityOutcome": "no_break_found",
+      "majorityRequired": 1,
+      "selectedCount": 1,
+      "tally": {
+        "found_break": 0,
+        "no_break_found": 1,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "no_break_found",
+          "rawVerdict": "no_break_found",
+          "answerSha256": "56bab6c77c5b8ac74237fc1ec3f72c23d901e8b5931ca0701c6dc9989399ceb2",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    }
+  },
+  "answer": "mercury-answer.md",
+  "implementerVerification": {
+    "codeOutcome": "No defect found in the pagination change; working-tree and exact-candidate native replays return all requested bars.",
+    "correctedClaim": "The answer claims pagination below 10000 bars is inert. Actual authenticated captures request 500 and return 216, 203, 81 across three pages in both raw and split adjustment lanes. The provider reference explicitly permits short pages. The claim about dashboard requests above 10000 is also unsupported: the API documents an allowed per-request limit up to 10000.",
+    "support": [
+      "fixtures/native-pages.json",
+      "fixtures/native-pages-bot.json",
+      "baseline.json",
+      "candidate.json",
+      "pinned.json",
+      "https://docs.alpaca.markets/us/reference/stockbarsingle-1"
+    ],
+    "correctionDidNotChangeSource": true,
+    "independentPeerRecheckOfCorrection": false,
+    "namedGapResolution": "The implementer executed authenticated read-only GETs and isolated native replays. Mercury itself did not execute those checks. Its reported metadata coverage warnings remain explicit.",
+    "terminology": "Joining native response pages does not build or aggregate candle OHLCV; returned candles preserve each broker-native frame.",
+    "inheritedBehavior": "The existing broker maxLimit, dashboard input handling, bars-or-empty handling, malformed-candle filtering and provider-error routes were not redesigned by this change."
+  }
+}

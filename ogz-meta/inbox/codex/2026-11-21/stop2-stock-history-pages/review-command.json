@@ -1,0 +1,17 @@
+{
+  "arguments": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=0b5459c1c189ac25f869bcb6f82a4e0a214ff1e9",
+    "--review-base=34d31a82522ef4ac7b6a8d6de0ccdd9cad071956",
+    "--change-path=brokers/AlpacaAdapter.js",
+    "--change-path=server/stock-data-adapter.js",
+    "What candle history do the bot and dashboard return when Alpaca supplies the requested history across multiple response pages? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior."
+  ],
+  "question": "What candle history do the bot and dashboard return when Alpaca supplies the requested history across multiple response pages? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior.",
+  "sourceIdentity": "source-identity.json"
+}
