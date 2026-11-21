@@ -1,0 +1,187 @@
+{
+  "observedAt": "2026-11-21T18:36:24.716509+00:00",
+  "capture": "Authenticated public dashboard WebSocket; read-only request_historical commands",
+  "independentProviderCapture": "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-window/fixtures/alpaca-native.json",
+  "providerCapturedAt": "2026-11-21T11:13:42.349Z",
+  "providerCaptureSHA256": "5d3de296e708970566726c19b499385052aa78db2e744fa68c8e8a989a728d34",
+  "scope": "TSLA history while the stock market is closed; native split-adjusted IEX bars",
+  "comparedCandles": 420,
+  "timeframes": [
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "count": 60,
+      "nativeBarsAvailable": 60,
+      "missingExpectedTimestamps": [],
+      "mismatches": [],
+      "ascendingUniqueTimestamps": true,
+      "first": {
+        "time": 1795204920,
+        "open": 347.84,
+        "high": 348.28,
+        "low": 347.47,
+        "close": 347.47,
+        "volume": 1270
+      },
+      "last": {
+        "time": 1795210920,
+        "open": 349.32,
+        "high": 349.32,
+        "low": 349.32,
+        "close": 349.32,
+        "volume": 120
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 60,
+      "nativeBarsAvailable": 60,
+      "missingExpectedTimestamps": [],
+      "mismatches": [],
+      "ascendingUniqueTimestamps": true,
+      "first": {
+        "time": 1795191000,
+        "open": 362.05,
+        "high": 363.18,
+        "low": 361.44,
+        "close": 363.01,
+        "volume": 10396
+      },
+      "last": {
+        "time": 1795210800,
+        "open": 349.32,
+        "high": 349.32,
+        "low": 349.32,
+        "close": 349.32,
+        "volume": 120
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "count": 60,
+      "nativeBarsAvailable": 60,
+      "missingExpectedTimestamps": [],
+      "mismatches": [],
+      "ascendingUniqueTimestamps": true,
+      "first": {
+        "time": 1795098600,
+        "open": 390.44,
+        "high": 393.34,
+        "low": 388.44,
+        "close": 389.915,
+        "volume": 61943
+      },
+      "last": {
+        "time": 1795210200,
+        "open": 349.32,
+        "high": 349.32,
+        "low": 349.32,
+        "close": 349.32,
+        "volume": 120
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "count": 60,
+      "nativeBarsAvailable": 60,
+      "missingExpectedTimestamps": [],
+      "mismatches": [],
+      "ascendingUniqueTimestamps": true,
+      "first": {
+        "time": 1794934800,
+        "open": 380.39,
+        "high": 382.39,
+        "low": 378.725,
+        "close": 381.115,
+        "volume": 55674
+      },
+      "last": {
+        "time": 1795210200,
+        "open": 349.32,
+        "high": 349.32,
+        "low": 349.32,
+        "close": 349.32,
+        "volume": 120
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "count": 60,
+      "nativeBarsAvailable": 60,
+      "missingExpectedTimestamps": [],
+      "mismatches": [],
+      "ascendingUniqueTimestamps": true,
+      "first": {
+        "time": 1794488400,
+        "open": 384.59,
+        "high": 385.86,
+        "low": 384.59,
+        "close": 385.37,
+        "volume": 131
+      },
+      "last": {
+        "time": 1795208400,
+        "open": 348.3,
+        "high": 349.32,
+        "low": 348.3,
+        "close": 349.32,
+        "volume": 240
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "count": 60,
+      "nativeBarsAvailable": 60,
+      "missingExpectedTimestamps": [],
+      "mismatches": [],
+      "ascendingUniqueTimestamps": true,
+      "first": {
+        "time": 1792771200,
+        "open": 373.18,
+        "high": 373.61,
+        "low": 370.33,
+        "close": 372.15,
+        "volume": 278931
+      },
+      "last": {
+        "time": 1795204800,
+        "open": 347.65,
+        "high": 349.32,
+        "low": 344.41,
+        "close": 349.32,
+        "volume": 258690
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "count": 60,
+      "nativeBarsAvailable": 60,
+      "missingExpectedTimestamps": [],
+      "mismatches": [],
+      "ascendingUniqueTimestamps": true,
+      "first": {
+        "time": 1787889600,
+        "open": 357.095,
+        "high": 358.68,
+        "low": 345.23,
+        "close": 348.75,
+        "volume": 553844
+      },
+      "last": {
+        "time": 1795150800,
+        "open": 370.325,
+        "high": 373.715,
+        "low": 344.41,
+        "close": 346.23,
+        "volume": 947368
+      }
+    }
+  ],
+  "scopeLimit": "Independent provider capture was made earlier the same Saturday; this is not a market-hours stock streaming receipt."
+}

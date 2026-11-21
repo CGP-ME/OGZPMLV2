@@ -1,0 +1,74 @@
+{
+  "observedAt": "2026-11-21T18:36:57.193900+00:00",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "samePidAsObservation": true,
+      "declaredEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "unexpectedDeclaredEnvironmentKeys": [],
+      "missingDeclaredEnvironmentKeys": [],
+      "restarts": 3
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2158695,
+      "status": "online",
+      "samePidAsObservation": true,
+      "declaredEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "unexpectedDeclaredEnvironmentKeys": [],
+      "missingDeclaredEnvironmentKeys": [],
+      "restarts": 4
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "samePidAsObservation": true,
+      "declaredEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "unexpectedDeclaredEnvironmentKeys": [],
+      "missingDeclaredEnvironmentKeys": [],
+      "restarts": 3
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2158744,
+      "status": "online",
+      "samePidAsObservation": true,
+      "declaredEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "PROFILE"
+      ],
+      "unexpectedDeclaredEnvironmentKeys": [],
+      "missingDeclaredEnvironmentKeys": [],
+      "restarts": 7
+    }
+  ]
+}

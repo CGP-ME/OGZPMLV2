@@ -1,0 +1,115 @@
+{
+  "observedAt": "2026-11-21T18:36:24.861481+00:00",
+  "restoredPositionCount": 1,
+  "savedPositions": [
+    {
+      "identitySHA256": "95b04d545f58e681df059c39cfaef6848613e9858e01f7d6b761ec1e5a2af6a0",
+      "symbol": "BTC-USD",
+      "direction": "long",
+      "stillOpenInState": true,
+      "unchangedFields": [
+        "symbol",
+        "direction",
+        "entryPrice",
+        "entryTime",
+        "size",
+        "entryOrderQuantity",
+        "remainingOrderQuantity",
+        "brokerId",
+        "accountId",
+        "executionMode",
+        "timeframe"
+      ],
+      "changedFields": [],
+      "journalEvents": [
+        {
+          "ledgerPathSHA256": "44cc0eb59a008470720ea6b434e3230caa02360df17f53eee5e1e36c1e943095",
+          "line": 157,
+          "event": "ENTRY",
+          "timestamp": 1795265100719
+        }
+      ]
+    }
+  ],
+  "startupReconciliationRefusalCount": 0,
+  "startupReconciliationMutationLogCount": 0,
+  "journalRebuildReceipts": [
+    {
+      "completed": 82,
+      "open": 1
+    },
+    {
+      "completed": 12,
+      "open": 0
+    },
+    {
+      "completed": 37,
+      "open": 0
+    },
+    {
+      "completed": 17,
+      "open": 0
+    },
+    {
+      "completed": 5,
+      "open": 0
+    },
+    {
+      "completed": 159,
+      "open": 0
+    },
+    {
+      "completed": 1,
+      "open": 0
+    },
+    {
+      "completed": 108,
+      "open": 0
+    },
+    {
+      "completed": 37,
+      "open": 0
+    },
+    {
+      "completed": 1,
+      "open": 0
+    },
+    {
+      "completed": 1,
+      "open": 0
+    },
+    {
+      "completed": 1,
+      "open": 0
+    },
+    {
+      "completed": 256,
+      "open": 0
+    },
+    {
+      "completed": 116,
+      "open": 0
+    },
+    {
+      "completed": 27,
+      "open": 0
+    },
+    {
+      "completed": 53,
+      "open": 0
+    },
+    {
+      "completed": 1,
+      "open": 0
+    },
+    {
+      "completed": 11,
+      "open": 0
+    },
+    {
+      "completed": 18,
+      "open": 0
+    }
+  ],
+  "scopeLimit": "Proves the present saved-position startup case; isolated producer/consumer evidence in the separate repair packet covers eligible stale records."
+}

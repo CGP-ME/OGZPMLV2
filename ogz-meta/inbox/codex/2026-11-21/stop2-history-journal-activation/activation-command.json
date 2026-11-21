@@ -1,0 +1,23 @@
+{
+  "startedAt": "2026-11-21T18:32:56.173526+00:00",
+  "finishedAt": "2026-11-21T18:32:59.132688+00:00",
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-supervisor,ogz-websocket,ogz-stripe,ogz-prime-v2",
+    "--update-env"
+  ],
+  "exitCode": 0,
+  "launchEnvironmentSource": "config/internals.json: deployment.pm2.launchEnvironment plus services.supervisor.pm2Home",
+  "launchEnvironmentKeys": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PM2_HOME"
+  ],
+  "sourceHead": "ace6504eea42bb31732e8d442170b9f2a53bd6a2",
+  "stateOrJournalReset": false
+}

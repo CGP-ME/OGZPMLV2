@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-11-21T18:36:24.868323+00:00",
+  "botShutdownCompletedCleanly": true,
+  "restoredPositionCount": 1,
+  "uncaughtOrUnhandledStartupErrors": 0,
+  "journalReconciliationRefusals": 0,
+  "supervisorTransientHealthFailure": {
+    "http502Count": 1,
+    "recoveredToHealthy": true,
+    "context": "During the approved simultaneous server restart"
+  },
+  "stateSocketCloseCount": 1,
+  "stateSocketCloseContext": "Recorded during shutdown of the prior process; new authenticated observation received state_update messages",
+  "newStateUpdatesObserved": 4,
+  "newWebSocketErrors": [],
+  "remainingKnownFindings": [
+    "Stock sizing policy/share-minimum reconciliation remains outside this activation.",
+    "Supervisor deadman is disabled by current configuration.",
+    "Stock readers still consume one provider page.",
+    "No new stock market-hours streaming proof while the market is closed."
+  ],
+  "omissions": "Raw logs, account identities, credential bytes and full private state excluded."
+}
