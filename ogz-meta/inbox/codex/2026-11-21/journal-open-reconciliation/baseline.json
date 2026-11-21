@@ -1,0 +1,250 @@
+{
+  "baseline": true,
+  "isolation": "test-isolated.py; synthetic state and broker snapshots; real journal ledger writes",
+  "sourceHashes": {
+    "core/TradeJournalBridge.js": "0ce989f169c5b5bb36019274137bdd282ce74e461bc3014254f3af48d8daacf0",
+    "core/TradeJournal.js": "ffc004548cb149112dce44aa6298b2c995b05fd675761e59b42cf316caeb8539",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+  },
+  "results": [
+    {
+      "scenario": "open_in_state_and_broker",
+      "consumerCalls": 1,
+      "outcome": {
+        "reconciled": 0,
+        "skipped": false
+      },
+      "openOrderRetained": true,
+      "ledgerEvents": [
+        "ENTRY"
+      ],
+      "reconciliationRecords": [],
+      "broadcasts": 0,
+      "executionStateUnchanged": true,
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[TradeJournal] Refusing open-trade reconciliation for fixture-order; target order still has authoritative exposure"
+        }
+      ],
+      "traceEvents": []
+    },
+    {
+      "scenario": "open_in_state_only",
+      "consumerCalls": 1,
+      "outcome": {
+        "reconciled": 0,
+        "skipped": false
+      },
+      "openOrderRetained": true,
+      "ledgerEvents": [
+        "ENTRY"
+      ],
+      "reconciliationRecords": [],
+      "broadcasts": 0,
+      "executionStateUnchanged": true,
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[TradeJournal] Refusing open-trade reconciliation for fixture-order; target order still has authoritative exposure"
+        }
+      ],
+      "traceEvents": []
+    },
+    {
+      "scenario": "symbol_open_at_broker_only",
+      "consumerCalls": 1,
+      "outcome": {
+        "reconciled": 0,
+        "skipped": false
+      },
+      "openOrderRetained": true,
+      "ledgerEvents": [
+        "ENTRY"
+      ],
+      "reconciliationRecords": [],
+      "broadcasts": 0,
+      "executionStateUnchanged": true,
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[TradeJournal] Refusing open-trade reconciliation for fixture-order; target order still has authoritative exposure"
+        }
+      ],
+      "traceEvents": []
+    },
+    {
+      "scenario": "target_flat",
+      "consumerCalls": 1,
+      "outcome": {
+        "reconciled": 1,
+        "skipped": false
+      },
+      "openOrderRetained": false,
+      "ledgerEvents": [
+        "ENTRY",
+        "OPEN_TRADE_RECONCILED"
+      ],
+      "reconciliationRecords": [
+        {
+          "event": "OPEN_TRADE_RECONCILED",
+          "timestamp": 1795260158680,
+          "orderId": "fixture-order",
+          "reason": "state_manager_and_broker_flat",
+          "source": "TradeJournalBridge.startup_authoritative_reconciliation",
+          "statePositionCount": 0,
+          "stateActiveTradeCount": 0,
+          "stateOpenOrderIds": [],
+          "brokerPositionCount": 0,
+          "brokerSymbolPositionCount": 0,
+          "brokerPositions": [],
+          "reconciledEntry": {
+            "timestamp": 1795260158680,
+            "direction": "BUY",
+            "entryPrice": 100,
+            "size": 500,
+            "usdValue": 500,
+            "confidence": 80,
+            "regime": null
+          },
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "accountIdSource": "fixture",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "scopeKeyVersion": 2,
+          "scopeComplete": true
+        }
+      ],
+      "broadcasts": 0,
+      "executionStateUnchanged": true,
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[TradeJournal] OPEN_TRADE_RECONCILED logged for fixture-order; journal open state removed after target-specific broker/state proof"
+        },
+        {
+          "level": "warn",
+          "text": "[TradeJournalBridge] Reconciled 1 stale journal-open trade(s) using StateManager plus broker position proof"
+        }
+      ],
+      "traceEvents": []
+    },
+    {
+      "scenario": "another_symbol_open",
+      "consumerCalls": 1,
+      "outcome": {
+        "reconciled": 1,
+        "skipped": false
+      },
+      "openOrderRetained": false,
+      "ledgerEvents": [
+        "ENTRY",
+        "OPEN_TRADE_RECONCILED"
+      ],
+      "reconciliationRecords": [
+        {
+          "event": "OPEN_TRADE_RECONCILED",
+          "timestamp": 1795260158685,
+          "orderId": "fixture-order",
+          "reason": "state_manager_and_broker_flat",
+          "source": "TradeJournalBridge.startup_authoritative_reconciliation",
+          "statePositionCount": 1,
+          "stateActiveTradeCount": 1,
+          "stateOpenOrderIds": [
+            "other-order"
+          ],
+          "brokerPositionCount": 1,
+          "brokerSymbolPositionCount": 0,
+          "brokerPositions": [
+            {
+              "symbol": "NVDA"
+            }
+          ],
+          "reconciledEntry": {
+            "timestamp": 1795260158685,
+            "direction": "BUY",
+            "entryPrice": 100,
+            "size": 500,
+            "usdValue": 500,
+            "confidence": 80,
+            "regime": null
+          },
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "accountIdSource": "fixture",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "scopeKeyVersion": 2,
+          "scopeComplete": true
+        }
+      ],
+      "broadcasts": 0,
+      "executionStateUnchanged": true,
+      "warnings": [
+        {
+          "level": "warn",
+          "text": "[TradeJournal] OPEN_TRADE_RECONCILED logged for fixture-order; journal open state removed after target-specific broker/state proof"
+        },
+        {
+          "level": "warn",
+          "text": "[TradeJournalBridge] Reconciled 1 stale journal-open trade(s) using StateManager plus broker position proof"
+        }
+      ],
+      "traceEvents": []
+    },
+    {
+      "scenario": "different_account",
+      "consumerCalls": 0,
+      "outcome": {
+        "reconciled": 0,
+        "skipped": false
+      },
+      "openOrderRetained": true,
+      "ledgerEvents": [
+        "ENTRY"
+      ],
+      "reconciliationRecords": [],
+      "broadcasts": 0,
+      "executionStateUnchanged": true,
+      "warnings": [],
+      "traceEvents": []
+    },
+    {
+      "scenario": "broker_unavailable",
+      "consumerCalls": 0,
+      "outcome": {
+        "reconciled": 0,
+        "skipped": true,
+        "reason": "broker_positions_unavailable"
+      },
+      "openOrderRetained": true,
+      "ledgerEvents": [
+        "ENTRY",
+        "OPEN_TRADE_BROKER_UNVERIFIED"
+      ],
+      "reconciliationRecords": [],
+      "broadcasts": 0,
+      "executionStateUnchanged": true,
+      "warnings": [
+        {
+          "level": "error",
+          "text": "[TradeJournalBridge] journal_broker_positions_unavailable: fixture broker unavailable"
+        },
+        {
+          "level": "warn",
+          "text": "[TradeJournal] OPEN_TRADE_BROKER_UNVERIFIED logged for fixture-order; broker truth unavailable, manual reconciliation required"
+        }
+      ],
+      "traceEvents": [
+        "TRADE_JOURNAL_RECONCILIATION_REQUIRED"
+      ]
+    }
+  ]
+}

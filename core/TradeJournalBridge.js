@@ -976,7 +976,11 @@ class TradeJournalBridge {
       const brokerSymbolPositionCount = brokerPositions
         .filter(position => position.symbol.toUpperCase() === scopeSymbol.toUpperCase())
         .length;
+      // Only offer stale records for reconciliation; authoritative open trades
+      // remain ordinary journal entries, not failed cleanup attempts.
+      if (brokerSymbolPositionCount !== 0) continue;
       for (const orderId of Array.from(journal.openTrades.keys())) {
+        if (stateProof.stateOpenOrderIds.includes(orderId)) continue;
         const record = journal.recordOpenTradeReconciliation({
           orderId,
           reason: 'state_manager_and_broker_flat',

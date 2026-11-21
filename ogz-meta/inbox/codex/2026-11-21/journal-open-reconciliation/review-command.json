@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=8ac9bb4a1e781944d5cabd31335cbe394d9b7c50",
+    "--review-base=f2408def93421a70f15a94b8d53281b65eed424c",
+    "--change-path=core/TradeJournalBridge.js",
+    "Which journal-open records can startup reconciliation change when StateManager or the broker still reports exposure? Examine the pinned source and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior."
+  ],
+  "question": "Which journal-open records can startup reconciliation change when StateManager or the broker still reports exposure? Examine the pinned source and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior.",
+  "sourceIdentity": "source-identity.json"
+}

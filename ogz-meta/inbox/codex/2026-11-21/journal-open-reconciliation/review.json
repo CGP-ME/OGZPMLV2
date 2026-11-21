@@ -1,0 +1,359 @@
+{
+  "run_id": "2026-11-21T11-24-30-334Z-39965686e4ff",
+  "created_at": "2026-11-21T11:24:30.334Z",
+  "verdict": "no_break_found",
+  "iterations": 11,
+  "termination": "answer_given",
+  "run_cost": {
+    "amount": 0.0207575,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 12,
+    "total_attempts": 12,
+    "cost_absences": []
+  },
+  "run_tokens": {
+    "input": 233951,
+    "uncached_input": 146118,
+    "cached_input": 87833,
+    "output": 15893,
+    "total": 249844,
+    "complete": true,
+    "attempts_with_usage": 12,
+    "total_attempts": 12
+  },
+  "source_refs": {
+    "current_change_evidence_bundle": {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t11-23-28-163z-1939134-a61a90630192/current-change-evidence.txt",
+      "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t11-23-28-163z-1939134-a61a90630192/current-change-evidence.txt:1",
+      "sha256": "a14ab07c02d780b9db9c53799661542975934ec4176ea221e64883080400c122",
+      "bytes": 126808,
+      "lines": 1812,
+      "section_count": 5,
+      "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-21/2026-11-21t11-23-28-163z-1939134-a61a90630192/manifest.json",
+      "manifest_sha256": "3c8d3f9ca41d11cb602ad96fec625bb65dd0b86077a98a35d23418839ce78567",
+      "manifest_bytes": 7587
+    },
+    "supplied_evidence": [],
+    "auto_blast_radius_source": "current_changes",
+    "auto_blast_radius_files": [
+      {
+        "file": "core/TradeJournalBridge.js",
+        "callerCount": 1,
+        "riskLevel": "low"
+      }
+    ],
+    "auto_blast_radius_errors": [],
+    "changed_files": [
+      "core/TradeJournalBridge.js"
+    ],
+    "changed_file_count": 1,
+    "reference_names": [],
+    "reference_scans": []
+  },
+  "answer_quality": [],
+  "candidate_set": {
+    "coverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "claim_inventory": [],
+    "content": "I have now traced the full reconciliation flow, the producers, the downstream mutation, and the baseline behavior. Let me write up my findings.\n\n---\n\n## Direct answer\n\nA journal-open record can be **changed** by startup reconciliation only when **both** of these hold:\n\n1. **the broker reports no position for that bundle's symbol** (`brokerSymbolPositionCount === 0`), **and**\n2. **the specific orderId is absent from `stateOpenOrderIds`** (`orderId \u2209 stateOpenOrderIds`).\n\nThe only startup path that actually mutates (removes) journal-open records is `_[REDACTED]` (`core/TradeJournalBridge.js:960-1002`, invoked at startup from line 474), whose mutation is `journal.recordOpenTradeReconciliation(...)` \u2192 `core/TradeJournal.js:1062-1064` (appends `OPEN_TRADE_RECONCILED` and deletes the orderId from `openTrades`).\n\n**When the broker still reports exposure** (a position for the symbol): **no** record in that bundle can be changed \u2014 the whole bundle is skipped by the new guard at `TradeJournalBridge.js:981` (`if (brokerSymbolPositionCount !== 0) continue;`), and the journal independently refuses at `TradeJournal.js:1033`.\n\n**When StateManager still reports exposure for a specific orderId**: that **exact** orderId cannot be changed (guard at `TradeJournalBridge.js:983` + journal refusal at `TradeJournal.js:1033`). But the state guard is **per-orderId**, so sibling orderIds in the same symbol bundle **can still be changed**, provided the broker reports no position for that symbol. This is the residual class: records whose own orderId is not in `stateOpenOrderIds`, in a symbol with no broker position \u2014 even while StateManager reports exposure for *other* orderIds in that same symbol.\n\n## Candidate set (examined 8 of 8)\n\n| # | Path | Role | Verdict |\n|---|------|------|---------|\n| 1 | `_[REDACTED]` (`TradeJournalBridge.js:960-1002`) | The changer | Examined; new guards at 981/983 |\n| 2 | `recordOpenTradeReconciliation` (`TradeJournal.js:986-1068`) | Downstream mutation | Examined; deletes from `openTrades` at 1064; refuses exposed at 1033 |\n| 3 | `_reconcileOpenStateTrades` (`TradeJournalBridge.js:785-865`) | Other startup reconciliation | Examined; only *adds* entries for state-active trades missing from journal, skips existing (820-826); never removes journal-open records |\n| 4 | `_[REDACTED]` / `recordOpenTradeBrokerUnverified` (`TradeJournalBridge.js:913-958`, `TradeJournal.js:1070-1126`) | Broker-unavailable path | Examined; marks `untrusted`, does **not** delete or reconcile open records |\n| 5 | `_stateOpenTradeProof` (`TradeJournalBridge.js:867-880`) | Producer of `stateOpenOrderIds` | Examined; builds from `activeTrades` orderId/id/key |\n| 6 | `_[REDACTED]` (`TradeJournalBridge.js:882-894`) | Producer of broker positions | Examined; null + marks-unverified when snapshot unavailable |\n| 7 | Startup caller (`TradeJournalBridge.js:474`) | Invocation | Examined |\n| 8 | Baseline `7ea325e` (`git_show` lines 960-998) | Before/after comparison | Examined; baseline had **no** bridge guards, relied solely on journal-level refusal |\n\n## Analysis of the guards\n\nThe change (`captured-diff` lines 9-13) adds two early-out guards:\n- `TradeJournalBridge.js:981` \u2014 skip whole bundle if `brokerSymbolPositionCount !== 0`.\n- `TradeJournalBridge.js:983` \u2014 skip a specific orderId if `stateProof.stateOpenOrderIds.includes(orderId)`.\n\nThese mirror the journal's own defense-in-depth refusal at `TradeJournal.js:1033` (`if (stateOpenOrderIds.includes(orderId) || brokerSymbolPositionCount !== 0) return null;`). Because the journal already refused exposed records in the baseline, the bridge guards do **not** change *which* records get mutated \u2014 they only avoid the call and the spurious warning logs for exposed records. So the change strictly *shrinks* the reconciled set; it cannot over-reconcile relative to the baseline.\n\nThe notable structural property: **broker exposure is checked at symbol granularity** (protects the whole bundle) while **state exposure is checked at orderId granularity** (protects only exact orderIds). Consequently the residual changeable set is exactly records satisfying both conditions (a) and (b) above.\n\n## Unverified behaviors / missing evidence\n\n- **Exact-string matching**: `stateOpenOrderIds.includes(orderId)` relies on the journal's `openTrades` key being string-identical to the state's orderId/id/key. If representations diverge (casing, prefix, numeric vs string), `includes` could miss and a record could be reconciled despite state exposure. Not verifiable from this code alone.\n- **Instrument-format matching**: `position.symbol.toUpperCase() === scopeSymbol.toUpperCase()` (line 977) requires exact symbol equivalence; format differences (e.g., `BTC/USDT` vs `BTCUSDT`, futures contract codes) could yield `brokerSymbolPositionCount === 0` despite real economic exposure. Not verifiable here.\n- **`statePositionCount` not used as a guard**: it is carried into the proof (line 878) and spread into the record, but only `stateOpenOrderIds` gates reconciliation. If state reports a nonzero position count without enumerating the orderId in `activeTrades`, the record could still be reconciled (subject to the journal consistency check at `TradeJournal.js:1023-1031`).\n\n---\n\nVERDICT: no_break_found\nADVERSARIAL_REVIEW_BLOCKING: no\n\nCANDIDATE SET: examined 8 of 8; complete inventory above (the two startup reconciliation paths, both journal mutation/marking methods, both producers, the caller, and the baseline).\n\nAST EVIDENCE: structure claims backed by `find_references` (callers of `_[REDACTED]`: only line 474) and `grep` (definitions at 867/882/960, `recordOpenTradeReconciliation` at `TradeJournal.js:986`); control-flow reads via `open_file`.\n\nINHERITED: the change inherits the journal's independent refusal at `TradeJournal.js:1033` and consistency check at 1023-1031 as a fallback; when the broker snapshot is unavailable, `_[REDACTED]` returns null and `_[REDACTED]` runs instead (marks untrusted, does not delete).\n\nFOURTH SHAPE CLASSIFIER: classified 2 of 2 added guards \u2014 `tradeJournalBridge.js:981` (broker-symbol gate) and `:983` (state-orderId gate), both with producer evidence above; no new bot gates introduced.\n\nALLEGATIONS: none asserted by prior reviewers (empty prior receipt). My own finding is an enumeration, not a defect: no record whose own exposure is reported by either source can be changed; the residual changeable set is records with no broker position for the symbol and orderId absent from `stateOpenOrderIds`. The data-format assumptions are named as unverified, not demonstrated breaks.\n\nSUBSTANTIVE RESOLUTION: none (no substantive dispute exists; independent review, no competing findings).\n\nWHAT I DID: read the captured diff receipt; inspected `_[REDACTED]` (960-1002), `_stateOpenTradeProof` (867-880), `_[REDACTED]` (882-894), `_reconcileOpenStateTrades` (785-865), `_[REDACTED]` (913-958), `recordOpenTradeReconciliation` (`TradeJournal.js:986-1068`), `recordOpenTradeBrokerUnverified` (`TradeJournal.js:1070-1126`), the startup caller (474), and the baseline via `git_show` `7ea325e` (960-998); traced callers with `find_references`.\n\nWHAT I DID NOT DO: did not execute any code or tests; did not verify the actual string formats of journal openTrades keys vs state orderIds/id/key (would require runtime data); did not inspect `activeTradeEntries`/`uniqueNonEmptyStrings` helper internals beyond their usage.\n\nWHAT I ASSUMED: that `stateOpenOrderIds` and journal `openTrades` keys are string-identical by contract; that broker position symbols normalize to the scope symbol by case only. These are the named unverified assumptions.\n\nWHY THIS VERDICT: the change adds early-out guards that replicate the journal's own refusal; a record can be mutated only when neither source reports *that record's* exposure. The core safety property holds, and the change strictly shrinks the reconciled set vs baseline. No demonstrated defect.\n\nIF INCOMPLETE, WHY: not incomplete for the enumeration question; the unverified data-format behaviors are named rather than resolved because they require runtime state not present in the captured source tree.",
+    "captured_at_iteration": 11,
+    "revised_at_iteration": null,
+    "revisions": [],
+    "files_mechanically_opened": [
+      "7ea325e0729bb15c3b9eeb0390ae522ad9da2a06:core/TradeJournalBridge.js:960-1000",
+      "core/TradeJournal.js:1060-1100",
+      "core/TradeJournal.js:1095-1135",
+      "core/TradeJournal.js:960-1060",
+      "core/TradeJournalBridge.js:460-490",
+      "core/TradeJournalBridge.js:785-855",
+      "core/TradeJournalBridge.js:855-912",
+      "core/TradeJournalBridge.js:900-1100"
+    ],
+    "file_read_receipts": [
+      {
+        "file": "core/TradeJournal.js",
+        "startLine": 1060,
+        "endLine": 1100,
+        "totalLines": 1479,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/TradeJournal.js",
+        "startLine": 1095,
+        "endLine": 1135,
+        "totalLines": 1479,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/TradeJournal.js",
+        "startLine": 960,
+        "endLine": 1060,
+        "totalLines": 1479,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/TradeJournalBridge.js",
+        "startLine": 460,
+        "endLine": 490,
+        "totalLines": 1762,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/TradeJournalBridge.js",
+        "startLine": 785,
+        "endLine": 855,
+        "totalLines": 1762,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/TradeJournalBridge.js",
+        "startLine": 855,
+        "endLine": 912,
+        "totalLines": 1762,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/TradeJournalBridge.js",
+        "startLine": 900,
+        "endLine": 1100,
+        "totalLines": 1762,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/TradeJournalBridge.js",
+        "ref": "7ea325e0729bb15c3b9eeb0390ae522ad9da2a06",
+        "startLine": 960,
+        "endLine": 1000,
+        "totalLines": 1758,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      }
+    ],
+    "claimed_file_citations": [
+      "TradeJournal.js:1023-1031",
+      "TradeJournal.js:1033",
+      "TradeJournal.js:1070-1126",
+      "TradeJournal.js:986",
+      "TradeJournal.js:986-1068",
+      "TradeJournalBridge.js:474",
+      "TradeJournalBridge.js:785-865",
+      "TradeJournalBridge.js:867-880",
+      "TradeJournalBridge.js:882-894",
+      "TradeJournalBridge.js:913-958",
+      "TradeJournalBridge.js:960-1002",
+      "TradeJournalBridge.js:981",
+      "TradeJournalBridge.js:983",
+      "core/TradeJournal.js:1060-1100",
+      "core/TradeJournal.js:1062-1064",
+      "core/TradeJournal.js:1095-1135",
+      "core/TradeJournal.js:960-1060",
+      "core/TradeJournalBridge.js:460-490",
+      "core/TradeJournalBridge.js:785-855",
+      "core/TradeJournalBridge.js:855-912",
+      "core/TradeJournalBridge.js:900-1100",
+      "core/TradeJournalBridge.js:960-1000",
+      "core/TradeJournalBridge.js:960-1002",
+      "tradeJournalBridge.js:981"
+    ],
+    "final_answer_citations": [
+      "TradeJournal.js:1023-1031",
+      "TradeJournal.js:1033",
+      "TradeJournal.js:1070-1126",
+      "TradeJournal.js:986",
+      "TradeJournal.js:986-1068",
+      "TradeJournalBridge.js:474",
+      "TradeJournalBridge.js:785-865",
+      "TradeJournalBridge.js:867-880",
+      "TradeJournalBridge.js:882-894",
+      "TradeJournalBridge.js:913-958",
+      "TradeJournalBridge.js:960-1002",
+      "TradeJournalBridge.js:981",
+      "TradeJournalBridge.js:983",
+      "core/TradeJournal.js:1062-1064",
+      "core/TradeJournalBridge.js:960-1002",
+      "tradeJournalBridge.js:981"
+    ],
+    "answer_citations_subset": true,
+    "citations_not_in_candidate_set": [],
+    "candidate_sources": [
+      {
+        "coverage": null,
+        "phase": "pass_1",
+        "recheck_index": null,
+        "content": "I have now traced the full reconciliation flow, the producers, the downstream mutation, and the baseline behavior. Let me write up my findings.\n\n---\n\n## Direct answer\n\nA journal-open record can be **changed** by startup reconciliation only when **both** of these hold:\n\n1. **the broker reports no position for that bundle's symbol** (`brokerSymbolPositionCount === 0`), **and**\n2. **the specific orderId is absent from `stateOpenOrderIds`** (`orderId \u2209 stateOpenOrderIds`).\n\nThe only startup path that actually mutates (removes) journal-open records is `_[REDACTED]` (`core/TradeJournalBridge.js:960-1002`, invoked at startup from line 474), whose mutation is `journal.recordOpenTradeReconciliation(...)` \u2192 `core/TradeJournal.js:1062-1064` (appends `OPEN_TRADE_RECONCILED` and deletes the orderId from `openTrades`).\n\n**When the broker still reports exposure** (a position for the symbol): **no** record in that bundle can be changed \u2014 the whole bundle is skipped by the new guard at `TradeJournalBridge.js:981` (`if (brokerSymbolPositionCount !== 0) continue;`), and the journal independently refuses at `TradeJournal.js:1033`.\n\n**When StateManager still reports exposure for a specific orderId**: that **exact** orderId cannot be changed (guard at `TradeJournalBridge.js:983` + journal refusal at `TradeJournal.js:1033`). But the state guard is **per-orderId**, so sibling orderIds in the same symbol bundle **can still be changed**, provided the broker reports no position for that symbol. This is the residual class: records whose own orderId is not in `stateOpenOrderIds`, in a symbol with no broker position \u2014 even while StateManager reports exposure for *other* orderIds in that same symbol.\n\n## Candidate set (examined 8 of 8)\n\n| # | Path | Role | Verdict |\n|---|------|------|---------|\n| 1 | `_[REDACTED]` (`TradeJournalBridge.js:960-1002`) | The changer | Examined; new guards at 981/983 |\n| 2 | `recordOpenTradeReconciliation` (`TradeJournal.js:986-1068`) | Downstream mutation | Examined; deletes from `openTrades` at 1064; refuses exposed at 1033 |\n| 3 | `_reconcileOpenStateTrades` (`TradeJournalBridge.js:785-865`) | Other startup reconciliation | Examined; only *adds* entries for state-active trades missing from journal, skips existing (820-826); never removes journal-open records |\n| 4 | `_[REDACTED]` / `recordOpenTradeBrokerUnverified` (`TradeJournalBridge.js:913-958`, `TradeJournal.js:1070-1126`) | Broker-unavailable path | Examined; marks `untrusted`, does **not** delete or reconcile open records |\n| 5 | `_stateOpenTradeProof` (`TradeJournalBridge.js:867-880`) | Producer of `stateOpenOrderIds` | Examined; builds from `activeTrades` orderId/id/key |\n| 6 | `_[REDACTED]` (`TradeJournalBridge.js:882-894`) | Producer of broker positions | Examined; null + marks-unverified when snapshot unavailable |\n| 7 | Startup caller (`TradeJournalBridge.js:474`) | Invocation | Examined |\n| 8 | Baseline `7ea325e` (`git_show` lines 960-998) | Before/after comparison | Examined; baseline had **no** bridge guards, relied solely on journal-level refusal |\n\n## Analysis of the guards\n\nThe change (`captured-diff` lines 9-13) adds two early-out guards:\n- `TradeJournalBridge.js:981` \u2014 skip whole bundle if `brokerSymbolPositionCount !== 0`.\n- `TradeJournalBridge.js:983` \u2014 skip a specific orderId if `stateProof.stateOpenOrderIds.includes(orderId)`.\n\nThese mirror the journal's own defense-in-depth refusal at `TradeJournal.js:1033` (`if (stateOpenOrderIds.includes(orderId) || brokerSymbolPositionCount !== 0) return null;`). Because the journal already refused exposed records in the baseline, the bridge guards do **not** change *which* records get mutated \u2014 they only avoid the call and the spurious warning logs for exposed records. So the change strictly *shrinks* the reconciled set; it cannot over-reconcile relative to the baseline.\n\nThe notable structural property: **broker exposure is checked at symbol granularity** (protects the whole bundle) while **state exposure is checked at orderId granularity** (protects only exact orderIds). Consequently the residual changeable set is exactly records satisfying both conditions (a) and (b) above.\n\n## Unverified behaviors / missing evidence\n\n- **Exact-string matching**: `stateOpenOrderIds.includes(orderId)` relies on the journal's `openTrades` key being string-identical to the state's orderId/id/key. If representations diverge (casing, prefix, numeric vs string), `includes` could miss and a record could be reconciled despite state exposure. Not verifiable from this code alone.\n- **Instrument-format matching**: `position.symbol.toUpperCase() === scopeSymbol.toUpperCase()` (line 977) requires exact symbol equivalence; format differences (e.g., `BTC/USDT` vs `BTCUSDT`, futures contract codes) could yield `brokerSymbolPositionCount === 0` despite real economic exposure. Not verifiable here.\n- **`statePositionCount` not used as a guard**: it is carried into the proof (line 878) and spread into the record, but only `stateOpenOrderIds` gates reconciliation. If state reports a nonzero position count without enumerating the orderId in `activeTrades`, the record could still be reconciled (subject to the journal consistency check at `TradeJournal.js:1023-1031`).\n\n---\n\nVERDICT: no_break_found\nADVERSARIAL_REVIEW_BLOCKING: no\n\nCANDIDATE SET: examined 8 of 8; complete inventory above (the two startup reconciliation paths, both journal mutation/marking methods, both producers, the caller, and the baseline).\n\nAST EVIDENCE: structure claims backed by `find_references` (callers of `_[REDACTED]`: only line 474) and `grep` (definitions at 867/882/960, `recordOpenTradeReconciliation` at `TradeJournal.js:986`); control-flow reads via `open_file`.\n\nINHERITED: the change inherits the journal's independent refusal at `TradeJournal.js:1033` and consistency check at 1023-1031 as a fallback; when the broker snapshot is unavailable, `_[REDACTED]` returns null and `_[REDACTED]` runs instead (marks untrusted, does not delete).\n\nFOURTH SHAPE CLASSIFIER: classified 2 of 2 added guards \u2014 `tradeJournalBridge.js:981` (broker-symbol gate) and `:983` (state-orderId gate), both with producer evidence above; no new bot gates introduced.\n\nALLEGATIONS: none asserted by prior reviewers (empty prior receipt). My own finding is an enumeration, not a defect: no record whose own exposure is reported by either source can be changed; the residual changeable set is records with no broker position for the symbol and orderId absent from `stateOpenOrderIds`. The data-format assumptions are named as unverified, not demonstrated breaks.\n\nSUBSTANTIVE RESOLUTION: none (no substantive dispute exists; independent review, no competing findings).\n\nWHAT I DID: read the captured diff receipt; inspected `_[REDACTED]` (960-1002), `_stateOpenTradeProof` (867-880), `_[REDACTED]` (882-894), `_reconcileOpenStateTrades` (785-865), `_[REDACTED]` (913-958), `recordOpenTradeReconciliation` (`TradeJournal.js:986-1068`), `recordOpenTradeBrokerUnverified` (`TradeJournal.js:1070-1126`), the startup caller (474), and the baseline via `git_show` `7ea325e` (960-998); traced callers with `find_references`.\n\nWHAT I DID NOT DO: did not execute any code or tests; did not verify the actual string formats of journal openTrades keys vs state orderIds/id/key (would require runtime data); did not inspect `activeTradeEntries`/`uniqueNonEmptyStrings` helper internals beyond their usage.\n\nWHAT I ASSUMED: that `stateOpenOrderIds` and journal `openTrades` keys are string-identical by contract; that broker position symbols normalize to the scope symbol by case only. These are the named unverified assumptions.\n\nWHY THIS VERDICT: the change adds early-out guards that replicate the journal's own refusal; a record can be mutated only when neither source reports *that record's* exposure. The core safety property holds, and the change strictly shrinks the reconciled set vs baseline. No demonstrated defect.\n\nIF INCOMPLETE, WHY: not incomplete for the enumeration question; the unverified data-format behaviors are named rather than resolved because they require runtime state not present in the captured source tree.",
+        "captured_at_iteration": 11,
+        "files_mechanically_opened": [
+          "7ea325e0729bb15c3b9eeb0390ae522ad9da2a06:core/TradeJournalBridge.js:960-1000",
+          "core/TradeJournal.js:1060-1100",
+          "core/TradeJournal.js:1095-1135",
+          "core/TradeJournal.js:960-1060",
+          "core/TradeJournalBridge.js:460-490",
+          "core/TradeJournalBridge.js:785-855",
+          "core/TradeJournalBridge.js:855-912",
+          "core/TradeJournalBridge.js:900-1100"
+        ],
+        "file_read_receipts": [
+          {
+            "file": "core/TradeJournal.js",
+            "startLine": 1060,
+            "endLine": 1100,
+            "totalLines": 1479,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/TradeJournal.js",
+            "startLine": 1095,
+            "endLine": 1135,
+            "totalLines": 1479,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/TradeJournal.js",
+            "startLine": 960,
+            "endLine": 1060,
+            "totalLines": 1479,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/TradeJournalBridge.js",
+            "startLine": 460,
+            "endLine": 490,
+            "totalLines": 1762,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/TradeJournalBridge.js",
+            "startLine": 785,
+            "endLine": 855,
+            "totalLines": 1762,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/TradeJournalBridge.js",
+            "startLine": 855,
+            "endLine": 912,
+            "totalLines": 1762,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/TradeJournalBridge.js",
+            "startLine": 900,
+            "endLine": 1100,
+            "totalLines": 1762,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/TradeJournalBridge.js",
+            "ref": "7ea325e0729bb15c3b9eeb0390ae522ad9da2a06",
+            "startLine": 960,
+            "endLine": 1000,
+            "totalLines": 1758,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          }
+        ],
+        "claimed_file_citations": [
+          "TradeJournal.js:1023-1031",
+          "TradeJournal.js:1033",
+          "TradeJournal.js:1070-1126",
+          "TradeJournal.js:986",
+          "TradeJournal.js:986-1068",
+          "TradeJournalBridge.js:474",
+          "TradeJournalBridge.js:785-865",
+          "TradeJournalBridge.js:867-880",
+          "TradeJournalBridge.js:882-894",
+          "TradeJournalBridge.js:913-958",
+          "TradeJournalBridge.js:960-1002",
+          "TradeJournalBridge.js:981",
+          "TradeJournalBridge.js:983",
+          "core/TradeJournal.js:1060-1100",
+          "core/TradeJournal.js:1062-1064",
+          "core/TradeJournal.js:1095-1135",
+          "core/TradeJournal.js:960-1060",
+          "core/TradeJournalBridge.js:460-490",
+          "core/TradeJournalBridge.js:785-855",
+          "core/TradeJournalBridge.js:855-912",
+          "core/TradeJournalBridge.js:900-1100",
+          "core/TradeJournalBridge.js:960-1000",
+          "core/TradeJournalBridge.js:960-1002",
+          "tradeJournalBridge.js:981"
+        ],
+        "final_answer_citations": [
+          "TradeJournal.js:1023-1031",
+          "TradeJournal.js:1033",
+          "TradeJournal.js:1070-1126",
+          "TradeJournal.js:986",
+          "TradeJournal.js:986-1068",
+          "TradeJournalBridge.js:474",
+          "TradeJournalBridge.js:785-865",
+          "TradeJournalBridge.js:867-880",
+          "TradeJournalBridge.js:882-894",
+          "TradeJournalBridge.js:913-958",
+          "TradeJournalBridge.js:960-1002",
+          "TradeJournalBridge.js:981",
+          "TradeJournalBridge.js:983",
+          "core/TradeJournal.js:1062-1064",
+          "core/TradeJournalBridge.js:960-1002",
+          "tradeJournalBridge.js:981"
+        ],
+        "answer_citations_subset": true,
+        "citations_not_in_candidate_set": [],
+        "claim_inventory": [],
+        "claim_adjudications": null,
+        "final_claim_adjudications": null,
+        "claim_decision_attempts": [],
+        "explicit_continuation": null
+      }
+    ]
+  },
+  "run_checks": [],
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "unselectedReviewers": [
+    "astra",
+    "fable"
+  ],
+  "tools": {
+    "calls": 18,
+    "succeeded": 18,
+    "failed": 0
+  },
+  "codeOutcome": "no_break_found",
+  "reviewMetadataWarnings": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete",
+    "insufficient_qualifying_seats"
+  ],
+  "resolution": {
+    "baselineIdentity": "Mercury read historical 7ea325e. Its complete TradeJournalBridge.js SHA-256 equals the actual pinned base f2408def93421a70f15a94b8d53281b65eed424c: 0ce989f169c5b5bb36019274137bdd282ce74e461bc3014254f3af48d8daacf0.",
+    "mutationSet": "Mercury also says the reconciled set strictly shrinks. More precisely, the caller stops submitting exposed records; the consumer already refused them, so the successful reconciliation set is unchanged for the same input proof.",
+    "runtimeProof": "Isolated baseline, working candidate and staged-candidate receipts execute the actual ledger writer. Open records stay open, eligible stale records are persisted and reconciled, unavailable broker evidence remains visible, no exit is fabricated and execution snapshots remain unchanged.",
+    "remainingAssumptions": "Identity normalization and broker snapshot freshness are inherited contracts, not validated universally by this small selection repair. No demonstrated new defect was found, and no extra trading guard or authority was added."
+  },
+  "runtimeActivation": "not performed",
+  "ragFreshness": "not claimed"
+}

@@ -1,0 +1,10 @@
+diff --git a/core/TradeJournalBridge.js b/core/TradeJournalBridge.js
+index cc3475a1..7811d963 100644
+--- a/core/TradeJournalBridge.js
++++ b/core/TradeJournalBridge.js
+@@ -978,0 +979,3 @@ class TradeJournalBridge {
++      // Only offer stale records for reconciliation; authoritative open trades
++      // remain ordinary journal entries, not failed cleanup attempts.
++      if (brokerSymbolPositionCount !== 0) continue;
+@@ -979,0 +983 @@ class TradeJournalBridge {
++        if (stateProof.stateOpenOrderIds.includes(orderId)) continue;
