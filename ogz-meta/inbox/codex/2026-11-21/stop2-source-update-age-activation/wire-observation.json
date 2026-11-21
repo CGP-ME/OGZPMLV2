@@ -1,0 +1,469 @@
+{
+  "startedAt": "2026-11-21T10:49:21.807Z",
+  "endpoint": "wss://www.ogzprime.com/ws",
+  "commands": [
+    {
+      "type": "auth"
+    },
+    {
+      "type": "identify"
+    },
+    {
+      "type": "get_settings"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "5m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "15m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "30m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1h"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "4h"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1d"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "1m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "5m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "15m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "30m"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "1h"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "4h"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "1d"
+    }
+  ],
+  "counts": {
+    "auth_success": 1,
+    "state_update": 5,
+    "bot_thinking": 5,
+    "broker_status": 62,
+    "price": 745,
+    "trace_event": 2866,
+    "settings_result": 1,
+    "ticker_price": 206,
+    "depth_update": 1143,
+    "market_internals": 270,
+    "cvd_update": 86,
+    "historical_candles": 14,
+    "bot_state": 2,
+    "divergence": 18,
+    "journal_snapshot": 3,
+    "pattern_analysis": 2,
+    "narrator_event": 2,
+    "signal_analysis": 2,
+    "golden_setup_state": 2
+  },
+  "histories": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "t": 1795254600000,
+        "etime": 1795254660000,
+        "o": 57848.5,
+        "h": 57868.4,
+        "l": 57848.4,
+        "c": 57848.4,
+        "v": 1.12760503,
+        "symbol": "BTC-USD",
+        "timeframe": "1m"
+      },
+      "last": {
+        "t": 1795258140000,
+        "etime": 1795258200000,
+        "o": 57854.8,
+        "h": 57882.6,
+        "l": 57854.7,
+        "c": 57882.6,
+        "v": 1.48286843,
+        "symbol": "BTC-USD",
+        "timeframe": "1m"
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "t": 1795240200000,
+        "etime": 1795240500000,
+        "o": 55851.8,
+        "h": 55865.6,
+        "l": 55633.3,
+        "c": 55781.8,
+        "v": 28.49922646,
+        "symbol": "BTC-USD",
+        "timeframe": "5m"
+      },
+      "last": {
+        "t": 1795257900000,
+        "etime": 1795258200000,
+        "o": 57790.1,
+        "h": 57882.6,
+        "l": 57759.9,
+        "c": 57882.6,
+        "v": 4.83346504,
+        "symbol": "BTC-USD",
+        "timeframe": "5m"
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "t": 1795204800000,
+        "etime": 1795205700000,
+        "o": 58479.3,
+        "h": 58631.1,
+        "l": 58304.8,
+        "c": 58347.6,
+        "v": 56.16299149,
+        "symbol": "BTC-USD",
+        "timeframe": "15m"
+      },
+      "last": {
+        "t": 1795257900000,
+        "etime": 1795258800000,
+        "o": 57790.1,
+        "h": 57882.6,
+        "l": 57759.9,
+        "c": 57882.6,
+        "v": 4.83346504,
+        "symbol": "BTC-USD",
+        "timeframe": "15m"
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "t": 1795150800000,
+        "etime": 1795152600000,
+        "o": 61450.7,
+        "h": 61784.7,
+        "l": 61366.9,
+        "c": 61622.6,
+        "v": 36.75365475,
+        "symbol": "BTC-USD",
+        "timeframe": "30m"
+      },
+      "last": {
+        "t": 1795257000000,
+        "etime": 1795258800000,
+        "o": 58000.7,
+        "h": 58025.2,
+        "l": 57741.8,
+        "c": 57882.6,
+        "v": 18.72444564,
+        "symbol": "BTC-USD",
+        "timeframe": "30m"
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "count": 60,
+      "error": null,
+      "first": {
+        "t": 1795042800000,
+        "etime": 1795046400000,
+        "o": 62164.5,
+        "h": 63209.5,
+        "l": 62163.8,
+        "c": 62984.6,
+        "v": 290.40589573,
+        "symbol": "BTC-USD",
+        "timeframe": "1h"
+      },
+      "last": {
+        "t": 1795255200000,
+        "etime": 1795258800000,
+        "o": 57921.8,
+        "h": 58110.1,
+        "l": 57741.8,
+        "c": 57882.6,
+        "v": 94.60743932,
+        "symbol": "BTC-USD",
+        "timeframe": "1h"
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "count": 60,
+      "error": null,
+      "first": {
+        "t": 1794398400000,
+        "etime": 1794412800000,
+        "o": 73916.3,
+        "h": 74399.9,
+        "l": 73303.9,
+        "c": 73905.9,
+        "v": 402.58183765,
+        "symbol": "BTC-USD",
+        "timeframe": "4h"
+      },
+      "last": {
+        "t": 1795248000000,
+        "etime": 1795262400000,
+        "o": 57879.3,
+        "h": 58110.1,
+        "l": 57277.1,
+        "c": 57882.6,
+        "v": 504.25515984,
+        "symbol": "BTC-USD",
+        "timeframe": "4h"
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "count": 60,
+      "error": null,
+      "first": {
+        "t": 1790121600000,
+        "etime": 1790208000000,
+        "o": 86199.4,
+        "h": 87274.4,
+        "l": 83501,
+        "c": 84384.6,
+        "v": 3504.64548619,
+        "symbol": "BTC-USD",
+        "timeframe": "1d"
+      },
+      "last": {
+        "t": 1795219200000,
+        "etime": 1795305600000,
+        "o": 58806.4,
+        "h": 59100,
+        "l": 55100,
+        "c": 57882.6,
+        "v": 3690.82989252,
+        "symbol": "BTC-USD",
+        "timeframe": "1d"
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "count": 0,
+      "error": "Native stock history unavailable for TSLA 1m"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 16,
+      "error": null,
+      "first": {
+        "time": 1795204200,
+        "open": 349.05,
+        "high": 349.21,
+        "low": 347.855,
+        "close": 348.78,
+        "volume": 5277
+      },
+      "last": {
+        "time": 1795210800,
+        "open": 349.32,
+        "high": 349.32,
+        "low": 349.32,
+        "close": 349.32,
+        "volume": 120
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795098600,
+        "open": 390.44,
+        "high": 393.34,
+        "low": 388.44,
+        "close": 389.915,
+        "volume": 61943
+      },
+      "last": {
+        "time": 1795210200,
+        "open": 349.32,
+        "high": 349.32,
+        "low": 349.32,
+        "close": 349.32,
+        "volume": 120
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794934800,
+        "open": 380.39,
+        "high": 382.39,
+        "low": 378.725,
+        "close": 381.115,
+        "volume": 55674
+      },
+      "last": {
+        "time": 1795210200,
+        "open": 349.32,
+        "high": 349.32,
+        "low": 349.32,
+        "close": 349.32,
+        "volume": 120
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "count": 44,
+      "error": null,
+      "first": {
+        "time": 1794834000,
+        "open": 385,
+        "high": 385.59,
+        "low": 384.96,
+        "close": 385.38,
+        "volume": 530
+      },
+      "last": {
+        "time": 1795208400,
+        "open": 348.3,
+        "high": 349.32,
+        "low": 348.3,
+        "close": 349.32,
+        "volume": 240
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1792771200,
+        "open": 373.18,
+        "high": 373.61,
+        "low": 370.33,
+        "close": 372.15,
+        "volume": 278931
+      },
+      "last": {
+        "time": 1795204800,
+        "open": 347.65,
+        "high": 349.32,
+        "low": 344.41,
+        "close": 349.32,
+        "volume": 258690
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1787889600,
+        "open": 357.095,
+        "high": 358.68,
+        "low": 345.23,
+        "close": 348.75,
+        "volume": 553844
+      },
+      "last": {
+        "time": 1795150800,
+        "open": 370.325,
+        "high": 373.715,
+        "low": 344.41,
+        "close": 346.23,
+        "volume": 947368
+      }
+    }
+  ],
+  "nativeFrames": {
+    "BTC-USD 1m": 77,
+    "BTC-USD 5m": 77,
+    "BTC-USD 15m": 77,
+    "BTC-USD 30m": 77,
+    "BTC-USD 1h": 77,
+    "BTC-USD 4h": 77,
+    "BTC-USD 1d": 77
+  },
+  "errors": [],
+  "settings": {
+    "configuration": {
+      "fingerprint": "cd55988f37620f20892d9a15103fca12786eee357cb81eb253dc9006c79b3cd0",
+      "role": "bot",
+      "settings": 24,
+      "internals": 14,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "e55cb313d547c334db9545e804032cb3ed5f1fb6efbf9d9c0fd7067974d516dc"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "finishedAt": "2026-11-21T10:50:56.844Z",
+  "finishReason": "observation_window_complete",
+  "pending": []
+}

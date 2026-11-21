@@ -1,0 +1,14 @@
+{
+  "startedAt": "2026-11-21T10:48:20.407723+00:00",
+  "finishedAt": "2026-11-21T10:48:21.714726+00:00",
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-prime-v2",
+    "--update-env"
+  ],
+  "environmentOwner": "config/internals.json:deployment.pm2.launchEnvironment + services.supervisor.pm2Home; ecosystem.config.js supplies bot role and paper profile",
+  "exitCode": 0
+}
