@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-11-22T03:57:47.026325+00:00",
+  "stateRestorationReceipts": 1,
+  "startupReadyReceipts": 1,
+  "restHydrationCompleteReceipts": 1,
+  "rateLimitErrorCount": 0,
+  "restFetchFailureCount": 0,
+  "stderrMessages": [
+    {
+      "message": "dashboard WebSocket closed; state_update broadcasts stopped",
+      "count": 1,
+      "context": "One message in the activation window; the subsequent authenticated dashboard connection received continuing state/candle updates."
+    }
+  ],
+  "diagnosticTraceTags": {
+    "DECISION_AUTOPSY": 14,
+    "LAST_PRICE_INFLUENCE": 7,
+    "REST_HYDRATION_COMPLETE": 1
+  },
+  "helperNote": "First analyzer invocation preceded completion of the observer and found no final wire receipt. Re-ran after observer completion; no runtime changes were made for this helper ordering mistake."
+}

@@ -1,0 +1,91 @@
+{
+  "frames": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "nativeDurationMs": [
+        60000
+      ]
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "nativeDurationMs": [
+        300000
+      ]
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "nativeDurationMs": [
+        900000
+      ]
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "nativeDurationMs": [
+        1800000
+      ]
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "nativeDurationMs": [
+        3600000
+      ]
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "nativeDurationMs": [
+        14400000
+      ]
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "nativeDurationMs": [
+        86400000
+      ]
+    }
+  ],
+  "observerAddedDelayMs": 0,
+  "requestSequence": "Each next frame request was sent immediately upon the previous response.",
+  "allSevenCompletedMs": 6169
+}
