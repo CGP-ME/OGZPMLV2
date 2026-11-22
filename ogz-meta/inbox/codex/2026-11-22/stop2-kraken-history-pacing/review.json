@@ -1,0 +1,127 @@
+{
+  "runId": "2026-11-22T00-40-54-550Z-992f65ebfbfc",
+  "question": "Review source tree: 052bea81effa2b43f17c14e8452b7231f05737cd; comparison baseline: 4f3b48c2d339f8eddbce4fd294ba5c94834c90a0. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nHow are public OHLC requests dispatched when callers request different timeframes of the same Kraken pair concurrently through multiple adapter instances? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior.",
+  "reviewScope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "kraken_adapter_simple.js"
+    ],
+    "tree": "052bea81effa2b43f17c14e8452b7231f05737cd",
+    "baseTree": "4f3b48c2d339f8eddbce4fd294ba5c94834c90a0",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-22T00-40-00-517Z-2222055-5e063d5faa1b/source-Rh89km.json",
+    "manifestSha256": "60521548324baf01b1d5684fea4d50f8bfbc325f6f58ee65ee4d38f6d6769be1"
+  },
+  "outcome": "no_break_found",
+  "iterations": 11,
+  "tools": [
+    {
+      "name": "find_references",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "git_show",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 7,
+      "succeeded": 7,
+      "failed": 0
+    },
+    {
+      "name": "list_files",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 8,
+      "succeeded": 8,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "df6aafe436c7a24d7d2f4b9ac9349d6879e4faac41a2635beb57d4a91758c6a4",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "namedAbsences": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete",
+    "substantive_resolution_absent"
+  ],
+  "cost": {
+    "amount": 0.02336763,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 12,
+    "total_attempts": 12,
+    "cost_absences": []
+  },
+  "tokens": {
+    "input": 253244,
+    "uncached_input": 168604,
+    "cached_input": 84640,
+    "output": 17131,
+    "total": 270375,
+    "complete": true,
+    "attempts_with_usage": 12,
+    "total_attempts": 12
+  },
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "qualifications": [
+    "One selected independent Mercury vote, not three-seat agreement.",
+    "The reference tools used are regex-backed; no AST execution proof is claimed.",
+    "Actual native replay and transport timing are in baseline.json, candidate.json and pinned.json; review is source analysis.",
+    "The answer wording that no error is swallowed in the dispatch path is too broad: the pre-existing getHistoricalOHLC catch logs provider failures and returns an empty array. No new error policy was introduced; callers explicitly mark unavailable history or quarantine failed hydration.",
+    "Coordination is within this Node module/process. Separate offline utilities or processes sharing the same public IP remain outside this module.",
+    "Public rate policy is per IP/pair for OHLC; the source shares per-pair state among instances and uses canonical requestWindowMs=1000. No claim that the private request queue satisfies its different exchange limits is made."
+  ]
+}

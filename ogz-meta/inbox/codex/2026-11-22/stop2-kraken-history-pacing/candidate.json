@@ -1,0 +1,280 @@
+{
+  "isolation": "test-isolated.py",
+  "lanes": [
+    {
+      "lane": "concurrent_frames_and_instances",
+      "baseline": false,
+      "windowMs": 1000,
+      "spacing": [
+        {
+          "pair": "XXBTZUSD",
+          "requestCount": 7,
+          "gapsMs": [
+            1001,
+            1002,
+            1002,
+            1001,
+            1001,
+            1002
+          ]
+        },
+        {
+          "pair": "XETHZUSD",
+          "requestCount": 1,
+          "gapsMs": []
+        }
+      ],
+      "violations": [],
+      "requests": [
+        {
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "dispatchedAt": 1795307930353,
+          "since": 1795304330
+        },
+        {
+          "pair": "XETHZUSD",
+          "interval": 1,
+          "dispatchedAt": 1795307930356,
+          "since": 1795304330
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 15,
+          "dispatchedAt": 1795307931354,
+          "since": 1795253931
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 5,
+          "dispatchedAt": 1795307932356,
+          "since": 1795289932
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 30,
+          "dispatchedAt": 1795307933358,
+          "since": 1795199933
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 60,
+          "dispatchedAt": 1795307934359,
+          "since": 1795091934
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 240,
+          "dispatchedAt": 1795307935360,
+          "since": 1794443935
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 1440,
+          "dispatchedAt": 1795307936362,
+          "since": 1790123936
+        }
+      ],
+      "outputs": [
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1m",
+          "interval": 1,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "ETH-USD",
+          "timeframe": "1m",
+          "interval": 1,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "15m",
+          "interval": 15,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "5m",
+          "interval": 5,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "30m",
+          "interval": 30,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1h",
+          "interval": 60,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "4h",
+          "interval": 240,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1d",
+          "interval": 1440,
+          "received": 60,
+          "exactNativeValues": true
+        }
+      ],
+      "sourceHashes": {
+        "kraken_adapter_simple.js": "b5aeadeef6da41be0324e385305c984c595ffb0af86f56608d867265419e31e1",
+        "brokers/KrakenIBrokerAdapter.js": "d2811446f4ed1188c1ee4c97b1974f23912bdc99972f0938555a6a48022c0cbf",
+        "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+        "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+      },
+      "warnings": [],
+      "limitations": [
+        "HTTP responses are native captured candles; HTTP 503 and delayed event-loop behavior are explicitly simulated inside isolation.",
+        "This verifies process-local transport pacing; unrelated OS processes sharing the public IP are outside this module."
+      ]
+    },
+    {
+      "lane": "provider_failure_then_success",
+      "baseline": false,
+      "windowMs": 1000,
+      "spacing": [
+        {
+          "pair": "XXBTZUSD",
+          "requestCount": 2,
+          "gapsMs": [
+            1004
+          ]
+        }
+      ],
+      "violations": [],
+      "requests": [
+        {
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "dispatchedAt": 1795307937050,
+          "since": 1795304337
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "dispatchedAt": 1795307938054,
+          "since": 1795304338
+        }
+      ],
+      "outputs": [
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1m",
+          "interval": 1,
+          "received": 0,
+          "exactNativeValues": false
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1m",
+          "interval": 1,
+          "received": 60,
+          "exactNativeValues": true
+        }
+      ],
+      "sourceHashes": {
+        "kraken_adapter_simple.js": "b5aeadeef6da41be0324e385305c984c595ffb0af86f56608d867265419e31e1",
+        "brokers/KrakenIBrokerAdapter.js": "d2811446f4ed1188c1ee4c97b1974f23912bdc99972f0938555a6a48022c0cbf",
+        "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+        "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+      },
+      "warnings": [
+        {
+          "level": "error",
+          "text": "[Kraken REST] Failed to fetch OHLC: fixture HTTP 503"
+        }
+      ],
+      "limitations": [
+        "HTTP responses are native captured candles; HTTP 503 and delayed event-loop behavior are explicitly simulated inside isolation.",
+        "This verifies process-local transport pacing; unrelated OS processes sharing the public IP are outside this module."
+      ]
+    },
+    {
+      "lane": "delayed_event_loop",
+      "baseline": false,
+      "windowMs": 1000,
+      "spacing": [
+        {
+          "pair": "XXBTZUSD",
+          "requestCount": 3,
+          "gapsMs": [
+            1805,
+            1003
+          ]
+        }
+      ],
+      "violations": [],
+      "requests": [
+        {
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "dispatchedAt": 1795307938684,
+          "since": 1795304338
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 15,
+          "dispatchedAt": 1795307940489,
+          "since": 1795253940
+        },
+        {
+          "pair": "XXBTZUSD",
+          "interval": 5,
+          "dispatchedAt": 1795307941492,
+          "since": 1795289941
+        }
+      ],
+      "outputs": [
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "1m",
+          "interval": 1,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "15m",
+          "interval": 15,
+          "received": 60,
+          "exactNativeValues": true
+        },
+        {
+          "symbol": "BTC-USD",
+          "timeframe": "5m",
+          "interval": 5,
+          "received": 60,
+          "exactNativeValues": true
+        }
+      ],
+      "sourceHashes": {
+        "kraken_adapter_simple.js": "b5aeadeef6da41be0324e385305c984c595ffb0af86f56608d867265419e31e1",
+        "brokers/KrakenIBrokerAdapter.js": "d2811446f4ed1188c1ee4c97b1974f23912bdc99972f0938555a6a48022c0cbf",
+        "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+        "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+      },
+      "warnings": [],
+      "limitations": [
+        "HTTP responses are native captured candles; HTTP 503 and delayed event-loop behavior are explicitly simulated inside isolation.",
+        "This verifies process-local transport pacing; unrelated OS processes sharing the public IP are outside this module."
+      ]
+    }
+  ]
+}

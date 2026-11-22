@@ -18,7 +18,7 @@ const ConfigLoader = require('./foundation/ConfigLoader');
  *
  * KEY FEATURES:
  * - WebSocket subscription for real-time OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d)
- * - Rate limiting with exponential backoff (15 req/sec limit)
+ * - Public OHLC pacing separate from private request queue/backoff
  * - Automatic reconnection with heartbeat monitoring
  * - Data-level watchdog: forces reconnect if no data for 60s
  *
@@ -40,6 +40,9 @@ const WebSocket = require('ws');
 const KrakenDepth = require('./server/kraken-depth-adapter');
 const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./core/AssetRegistry');
 const authFailureGuard = require('./core/AuthFailureGuard');
+
+// Public OHLC limits belong to the IP/pair, across frames and adapter instances.
+const ohlcNextRequestAt = new Map();
 
 function krakenAuthFailureText(error) {
   const responseErrors = error?.response?.data?.error;
@@ -102,7 +105,7 @@ class KrakenAdapterSimple {
     this.dataWatchdogInterval = null;
     this.dataTimeout = ConfigLoader.getInternalsFileValue('broker.krakenTransport.dataTimeoutMs'); // 60 seconds without data = force reconnect
 
-    // Rate limiting (Kraken API tier 2: 15 req/sec)
+    // Private request queue accounting; public OHLC pacing is separate.
     this.requestWindow = ConfigLoader.getInternalsFileValue('broker.krakenTransport.requestWindowMs'); // 1 second window
     this.maxRequestsPerWindow = ConfigLoader.getInternalsFileValue('broker.krakenTransport.maxRequestsPerWindow');
     this.requestTimestamps = [];
@@ -302,26 +305,6 @@ class KrakenAdapterSimple {
     }
   }
 
-  async enforceRateLimit() {
-    const now = Date.now();
-
-    // Remove timestamps older than 1 second
-    this.requestTimestamps = this.requestTimestamps.filter(ts => now - ts < this.requestWindow);
-
-    // If at limit, wait until oldest request expires
-    if (this.requestTimestamps.length >= this.maxRequestsPerWindow) {
-      const oldestRequest = this.requestTimestamps[0];
-      const waitTime = this.requestWindow - (now - oldestRequest);
-      if (waitTime > 0) {
-        console.log(`[Kraken] RATE_LIMIT_DELAY: ${waitTime}ms (${this.requestTimestamps.length}/${this.maxRequestsPerWindow} requests in window)`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-      }
-    }
-
-    // Add current request timestamp
-    this.requestTimestamps.push(Date.now());
-  }
-
   /**
    * CHANGE 2026-01-30: Fetch historical OHLC candles from Kraken REST API
    * This provides actual historical data, not just real-time WebSocket updates
@@ -332,6 +315,14 @@ class KrakenAdapterSimple {
    */
   async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault')) {
     try {
+      // One public request per configured one-second window for this pair.
+      // Recheck after each wait: concurrent callers must not wake into a burst.
+      while (ohlcNextRequestAt.has(pair)) {
+        const waitMs = ohlcNextRequestAt.get(pair) - Date.now();
+        if (waitMs <= 0) break;
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+      }
+
       // Calculate 'since' timestamp to get approximately 'count' candles
       const intervalMs = interval * 60 * 1000;
       const since = Math.floor((Date.now() - (count * intervalMs)) / 1000);
@@ -339,6 +330,7 @@ class KrakenAdapterSimple {
       const url = `${this.baseUrl}/0/public/OHLC?pair=${pair}&interval=${interval}&since=${since}`;
       console.log(`[Kraken REST] Fetching ${count} historical ${interval}m candles for ${pair}`);
 
+      ohlcNextRequestAt.set(pair, Date.now() + this.requestWindow);
       const response = await axios.get(url);
 
       if (response.data.error && response.data.error.length > 0) {

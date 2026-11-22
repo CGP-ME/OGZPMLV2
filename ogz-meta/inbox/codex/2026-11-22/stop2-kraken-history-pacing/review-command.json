@@ -1,0 +1,17 @@
+{
+  "arguments": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=052bea81effa2b43f17c14e8452b7231f05737cd",
+    "--review-base=7f6b5a36c7e7170f3d54d198f3929815a17aa647",
+    "--change-path=kraken_adapter_simple.js",
+    "How are public OHLC requests dispatched when callers request different timeframes of the same Kraken pair concurrently through multiple adapter instances? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior."
+  ],
+  "question": "How are public OHLC requests dispatched when callers request different timeframes of the same Kraken pair concurrently through multiple adapter instances? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior.",
+  "sourceIdentity": "source-identity.json",
+  "startedAt": "2026-11-22T00:39:59.709332+00:00"
+}

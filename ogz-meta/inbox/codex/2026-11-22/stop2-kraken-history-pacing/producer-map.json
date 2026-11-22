@@ -1,0 +1,43 @@
+{
+  "runtimeProducers": [
+    {
+      "path": "run-empire-v2.js",
+      "line": 1852,
+      "behavior": "Startup/native-frame hydration"
+    },
+    {
+      "path": "run-empire-v2.js",
+      "line": 2510,
+      "behavior": "Dashboard crypto history"
+    },
+    {
+      "path": "run-empire-v2.js",
+      "line": 2938,
+      "behavior": "Liveness REST recovery"
+    },
+    {
+      "path": "core/CandleProcessor.js",
+      "line": 746,
+      "behavior": "Gap backfill"
+    }
+  ],
+  "sharedConsumer": {
+    "path": "brokers/KrakenIBrokerAdapter.js",
+    "lines": [
+      317,
+      329,
+      547,
+      571
+    ],
+    "behavior": "Registry-normalized REST pair and native interval passed to getHistoricalOHLC"
+  },
+  "source": "kraken_adapter_simple.js:getHistoricalOHLC",
+  "removedOrphan": "enforceRateLimit had no tracked JS/CJS caller; private processQueue accounting remains unchanged.",
+  "separateUtilityPaths": [
+    "scripts/fetch-historical-candles.js",
+    "backtest/backtest-api.js",
+    "tools/fetch-candles.py"
+  ],
+  "scope": "This is a census of the traced live broker-history paths, not a complete IP-level census of every process on the host.",
+  "providerReference": "https://support.kraken.com/gb/articles/206548367-what-are-the-api-rate-limits-"
+}

@@ -1,0 +1,46 @@
+diff --git a/kraken_adapter_simple.js b/kraken_adapter_simple.js
+index f886cea2..419e0054 100644
+--- a/kraken_adapter_simple.js
++++ b/kraken_adapter_simple.js
+@@ -21 +21 @@ const ConfigLoader = require('./foundation/ConfigLoader');
+- * - Rate limiting with exponential backoff (15 req/sec limit)
++ * - Public OHLC pacing separate from private request queue/backoff
+@@ -43,0 +44,3 @@ const authFailureGuard = require('./core/AuthFailureGuard');
++// Public OHLC limits belong to the IP/pair, across frames and adapter instances.
++const ohlcNextRequestAt = new Map();
++
+@@ -105 +108 @@ class KrakenAdapterSimple {
+-    // Rate limiting (Kraken API tier 2: 15 req/sec)
++    // Private request queue accounting; public OHLC pacing is separate.
+@@ -305,20 +307,0 @@ class KrakenAdapterSimple {
+-  async enforceRateLimit() {
+-    const now = Date.now();
+-
+-    // Remove timestamps older than 1 second
+-    this.requestTimestamps = this.requestTimestamps.filter(ts => now - ts < this.requestWindow);
+-
+-    // If at limit, wait until oldest request expires
+-    if (this.requestTimestamps.length >= this.maxRequestsPerWindow) {
+-      const oldestRequest = this.requestTimestamps[0];
+-      const waitTime = this.requestWindow - (now - oldestRequest);
+-      if (waitTime > 0) {
+-        console.log(`[Kraken] RATE_LIMIT_DELAY: ${waitTime}ms (${this.requestTimestamps.length}/${this.maxRequestsPerWindow} requests in window)`);
+-        await new Promise(resolve => setTimeout(resolve, waitTime));
+-      }
+-    }
+-
+-    // Add current request timestamp
+-    this.requestTimestamps.push(Date.now());
+-  }
+-
+@@ -334,0 +318,8 @@ class KrakenAdapterSimple {
++      // One public request per configured one-second window for this pair.
++      // Recheck after each wait: concurrent callers must not wake into a burst.
++      while (ohlcNextRequestAt.has(pair)) {
++        const waitMs = ohlcNextRequestAt.get(pair) - Date.now();
++        if (waitMs <= 0) break;
++        await new Promise(resolve => setTimeout(resolve, waitMs));
++      }
++
+@@ -341,0 +333 @@ class KrakenAdapterSimple {
++      ohlcNextRequestAt.set(pair, Date.now() + this.requestWindow);
