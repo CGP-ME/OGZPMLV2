@@ -1,0 +1,10 @@
+diff --git a/brokers/AlpacaAdapter.js b/brokers/AlpacaAdapter.js
+index 63303832..18a613ac 100644
+--- a/brokers/AlpacaAdapter.js
++++ b/brokers/AlpacaAdapter.js
+@@ -666,0 +667 @@ class AlpacaAdapter extends IBrokerAdapter {
++            const intervalMs = this._timeframeIntervalMs(timeframe);
+@@ -698,0 +700 @@ class AlpacaAdapter extends IBrokerAdapter {
++                etime: new Date(bar.t).getTime() + intervalMs,
+@@ -1233 +1234,0 @@ class AlpacaAdapter extends IBrokerAdapter {
+-                        etime: startMs + requestedIntervalMs,

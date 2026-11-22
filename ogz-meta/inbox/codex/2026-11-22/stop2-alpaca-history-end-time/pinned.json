@@ -1,0 +1,353 @@
+{
+  "baseline": false,
+  "isolation": "test-isolated.py",
+  "results": [
+    {
+      "timeframe": "1m",
+      "providerBars": 60,
+      "returnedBars": 60,
+      "missingNativeEndTimes": 0,
+      "incorrectGapEndTimes": 0,
+      "gapBars": 60,
+      "originalTimestampAndOHLCVUnchanged": true,
+      "first": {
+        "start": 1795204920000,
+        "adapterEnd": 1795204980000,
+        "gapEnd": 1795204980000,
+        "expectedEnd": 1795204980000
+      }
+    },
+    {
+      "timeframe": "5m",
+      "providerBars": 60,
+      "returnedBars": 60,
+      "missingNativeEndTimes": 0,
+      "incorrectGapEndTimes": 0,
+      "gapBars": 60,
+      "originalTimestampAndOHLCVUnchanged": true,
+      "first": {
+        "start": 1795191000000,
+        "adapterEnd": 1795191300000,
+        "gapEnd": 1795191300000,
+        "expectedEnd": 1795191300000
+      }
+    },
+    {
+      "timeframe": "15m",
+      "providerBars": 60,
+      "returnedBars": 60,
+      "missingNativeEndTimes": 0,
+      "incorrectGapEndTimes": 0,
+      "gapBars": 60,
+      "originalTimestampAndOHLCVUnchanged": true,
+      "first": {
+        "start": 1795098600000,
+        "adapterEnd": 1795099500000,
+        "gapEnd": 1795099500000,
+        "expectedEnd": 1795099500000
+      }
+    },
+    {
+      "timeframe": "30m",
+      "providerBars": 60,
+      "returnedBars": 60,
+      "missingNativeEndTimes": 0,
+      "incorrectGapEndTimes": 0,
+      "gapBars": 60,
+      "originalTimestampAndOHLCVUnchanged": true,
+      "first": {
+        "start": 1794934800000,
+        "adapterEnd": 1794936600000,
+        "gapEnd": 1794936600000,
+        "expectedEnd": 1794936600000
+      }
+    },
+    {
+      "timeframe": "1h",
+      "providerBars": 60,
+      "returnedBars": 60,
+      "missingNativeEndTimes": 0,
+      "incorrectGapEndTimes": 0,
+      "gapBars": 60,
+      "originalTimestampAndOHLCVUnchanged": true,
+      "first": {
+        "start": 1794488400000,
+        "adapterEnd": 1794492000000,
+        "gapEnd": 1794492000000,
+        "expectedEnd": 1794492000000
+      }
+    },
+    {
+      "timeframe": "4h",
+      "providerBars": 60,
+      "returnedBars": 60,
+      "missingNativeEndTimes": 0,
+      "incorrectGapEndTimes": 0,
+      "gapBars": 60,
+      "originalTimestampAndOHLCVUnchanged": true,
+      "first": {
+        "start": 1792771200000,
+        "adapterEnd": 1792785600000,
+        "gapEnd": 1792785600000,
+        "expectedEnd": 1792785600000
+      }
+    },
+    {
+      "timeframe": "1d",
+      "providerBars": 60,
+      "returnedBars": 60,
+      "missingNativeEndTimes": 0,
+      "incorrectGapEndTimes": 0,
+      "gapBars": 60,
+      "originalTimestampAndOHLCVUnchanged": true,
+      "first": {
+        "start": 1787889600000,
+        "adapterEnd": 1787976000000,
+        "gapEnd": 1787976000000,
+        "expectedEnd": 1787976000000
+      }
+    }
+  ],
+  "requests": [
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "providerTimeframe": "1Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "providerTimeframe": "1Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "providerTimeframe": "5Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "providerTimeframe": "5Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "providerTimeframe": "5Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "providerTimeframe": "15Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "providerTimeframe": "15Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "providerTimeframe": "15Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "providerTimeframe": "30Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "providerTimeframe": "30Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "providerTimeframe": "30Min"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "providerTimeframe": "1Hour"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "providerTimeframe": "1Hour"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "providerTimeframe": "1Hour"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "providerTimeframe": "4Hour"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "providerTimeframe": "4Hour"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "providerTimeframe": "4Hour"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "providerTimeframe": "1Day"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "providerTimeframe": "1Day"
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "providerTimeframe": "1Day"
+    }
+  ],
+  "nativeRefreshEvents": [
+    {
+      "timeframe": "5m",
+      "t": 1795208700000,
+      "etime": 1795209000000,
+      "priceTimestamp": 1795209000000
+    },
+    {
+      "timeframe": "5m",
+      "t": 1795210800000,
+      "etime": 1795211100000,
+      "priceTimestamp": 1795211100000
+    },
+    {
+      "timeframe": "15m",
+      "t": 1795208400000,
+      "etime": 1795209300000,
+      "priceTimestamp": 1795209300000
+    },
+    {
+      "timeframe": "15m",
+      "t": 1795210200000,
+      "etime": 1795211100000,
+      "priceTimestamp": 1795211100000
+    },
+    {
+      "timeframe": "30m",
+      "t": 1795208400000,
+      "etime": 1795210200000,
+      "priceTimestamp": 1795210200000
+    },
+    {
+      "timeframe": "30m",
+      "t": 1795210200000,
+      "etime": 1795212000000,
+      "priceTimestamp": 1795212000000
+    },
+    {
+      "timeframe": "1h",
+      "t": 1795204800000,
+      "etime": 1795208400000,
+      "priceTimestamp": 1795208400000
+    },
+    {
+      "timeframe": "1h",
+      "t": 1795208400000,
+      "etime": 1795212000000,
+      "priceTimestamp": 1795212000000
+    },
+    {
+      "timeframe": "4h",
+      "t": 1795190400000,
+      "etime": 1795204800000,
+      "priceTimestamp": 1795204800000
+    },
+    {
+      "timeframe": "4h",
+      "t": 1795204800000,
+      "etime": 1795219200000,
+      "priceTimestamp": 1795219200000
+    },
+    {
+      "timeframe": "1d",
+      "t": 1795064400000,
+      "etime": 1795150800000,
+      "priceTimestamp": 1795150800000
+    },
+    {
+      "timeframe": "1d",
+      "t": 1795150800000,
+      "etime": 1795237200000,
+      "priceTimestamp": 1795237200000
+    }
+  ],
+  "sourceHashes": {
+    "brokers/AlpacaAdapter.js": "ffbbf1286c1a2f4beda32d0626ecad3570158207ccf7c3ca3b94584e407a8340",
+    "core/CandleProcessor.js": "6ce4f4985d4ec973913df832a4654f0e317ffa22f9c9000f0ffca88079efc1b3",
+    "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+    "config/settings.json": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+    "config/internals.json": "9655db5b575b826acd814c353189883c389bbbf19bfb16a42bcbdb4cf08d7daa"
+  },
+  "logs": [
+    {
+      "level": "log",
+      "text": "[Narrator] Enabled mode=USER seed=ogzprime\u2026"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] Balance update: 10000 -> 10000"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] State saved to disk"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] No persisted state; initialized configured starting balance $10000"
+    },
+    {
+      "level": "log",
+      "text": "[Alpaca] Paper trading mode"
+    },
+    {
+      "level": "log",
+      "text": "[CandleProcessor] Initialized with gap recovery"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 108 1m candles of TSLA to fill 103 missing"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 74 5m candles of TSLA to fill 69 missing"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 132 15m candles of TSLA to fill 127 missing"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 161 30m candles of TSLA to fill 156 missing"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 208 1h candles of TSLA to fill 203 missing"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 177 4h candles of TSLA to fill 172 missing"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 93 1d candles of TSLA to fill 88 missing"
+    }
+  ],
+  "limitations": [
+    "Actual Alpaca REST producer, requested native refresh emitter and gap consumer execute against captured TSLA provider responses.",
+    "Transport uses captured read-only provider JSON and synthetic credentials inside isolation; no live order, PM2 activation or market-hours claim.",
+    "Adding the native interval end preserves bar start and OHLCV; no smaller candles are combined."
+  ]
+}

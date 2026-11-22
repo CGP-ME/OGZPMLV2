@@ -1,0 +1,122 @@
+{
+  "runId": "2026-11-22T04-26-40-907Z-3bd6abcb3ef5",
+  "reviewScope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "brokers/AlpacaAdapter.js"
+    ],
+    "tree": "8a1329784563a6a812a5674328d80da3fe5f06a1",
+    "baseTree": "7633cca76996abac6527c7126738b3bb358bee9f",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-22T04-25-54-990Z-2257874-3b919ae654a9/source-oEuswL.json",
+    "manifestSha256": "8531a6b1c9b4cb5cb47ee27569c453b2f765ce805c0092eb978f3ec446ab70c3"
+  },
+  "outcome": "no_break_found",
+  "iterations": 13,
+  "tools": [
+    {
+      "name": "find_definition",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 8,
+      "succeeded": 8,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "regex_grep",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    },
+    {
+      "name": "serena_blast_radius",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "025966d9bae239e7ef496225efb8bd4897adfd46365443ece4174a2f70851f95",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "namedAbsences": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "cost": {
+    "amount": 0.02284805,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 14,
+    "total_attempts": 14,
+    "cost_absences": []
+  },
+  "provider": "mercury",
+  "appliedModels": [
+    "mercury-3"
+  ],
+  "metadata": {
+    "qualifyingSeats": 1,
+    "verdictLabelsMatch": false,
+    "evidenceChecksPassed": true,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "issues": [
+      "insufficient_qualifying_seats"
+    ],
+    "sharedVerdictLabel": null
+  },
+  "qualifications": [
+    "Alpaca Market Data FAQ documents bar timestamps as interval starts; the linked official source and captured native data address the API-convention gap.",
+    "The gap backfill and native refresh emitter execute separately in the isolated receipt; Mercury did not execute them.",
+    "Only the configured seven native frames are certified; arbitrary unsupported interval behavior is not broadened.",
+    "The existing duration resolver already rejects unsupported frames. No new literal throw, fallback or gate was added.",
+    "The direct broker REST caller census includes startup hydration, liveness recovery, CandleProcessor gap recovery and the adapter native refresh. Dynamic-call AST zero-caller output is not a caller census."
+  ]
+}

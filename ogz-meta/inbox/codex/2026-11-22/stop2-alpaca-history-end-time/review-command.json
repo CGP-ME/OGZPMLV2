@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=8a1329784563a6a812a5674328d80da3fe5f06a1",
+    "--review-base=4a285e45d59a2d518aed10165dc3aa6bad4018a6",
+    "--change-path=brokers/AlpacaAdapter.js",
+    "What candle-end timestamp reaches gap recovery from Alpaca native REST history for the configured timeframes? Trace the timestamp producer and consumers in the pinned source, cite current file:line evidence, and identify unverified behavior."
+  ],
+  "question": "What candle-end timestamp reaches gap recovery from Alpaca native REST history for the configured timeframes? Trace the timestamp producer and consumers in the pinned source, cite current file:line evidence, and identify unverified behavior.",
+  "startedAt": "2026-11-22T04:25:54.126005+00:00"
+}

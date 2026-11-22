@@ -664,6 +664,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         try {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
+            const intervalMs = this._timeframeIntervalMs(timeframe);
             const end = new Date();
             const requestedLimit = Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit'));
             const params = {
@@ -696,6 +697,7 @@ class AlpacaAdapter extends IBrokerAdapter {
 
             return bars.map(bar => ({
                 t: new Date(bar.t).getTime(),
+                etime: new Date(bar.t).getTime() + intervalMs,
                 o: parseFloat(bar.o),
                 h: parseFloat(bar.h),
                 l: parseFloat(bar.l),
@@ -1230,7 +1232,6 @@ class AlpacaAdapter extends IBrokerAdapter {
                     if (!newClose && previous && ['o', 'h', 'l', 'c', 'v'].every(field => previous[field] === candle[field])) continue;
                     const requestedBar = {
                         ...candle,
-                        etime: startMs + requestedIntervalMs,
                         symbol,
                     };
                     this.emit('ohlc', {

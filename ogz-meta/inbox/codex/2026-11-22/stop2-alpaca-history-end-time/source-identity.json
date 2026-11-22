@@ -1,0 +1,9 @@
+{
+  "candidateTree": "8a1329784563a6a812a5674328d80da3fe5f06a1",
+  "baseCommit": "4a285e45d59a2d518aed10165dc3aa6bad4018a6",
+  "baseTree": "7633cca76996abac6527c7126738b3bb358bee9f",
+  "candidateHashes": {
+    "brokers/AlpacaAdapter.js": "ffbbf1286c1a2f4beda32d0626ecad3570158207ccf7c3ca3b94584e407a8340"
+  },
+  "actualHarnessSHA256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+}
