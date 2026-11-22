@@ -1,0 +1,183 @@
+{
+  "recordedAt": "2026-11-22T04:39:53.052526+00:00",
+  "head": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+  "priorActivatedSource": "dae7d4c151ecf6853218f4a070acfd448599686b",
+  "replays": {
+    "current": {
+      "sourceRef": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+      "candleProcessorRef": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+      "overlay": {
+        "config/internals.json": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "9655db5b575b826acd814c353189883c389bbbf19bfb16a42bcbdb4cf08d7daa"
+        },
+        "config/settings.json": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484"
+        },
+        "core/ExitContractManager.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "e6a6bf6cc69afc08b346c41754c82de9c19e239fcd71a6c25d6d5b8b8ecd64bb"
+        },
+        "core/OrderExecutor.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "7a0390bff09e1817236499127fb5b2e93f7ddbf99a3b2ce9f08630db383d9118"
+        },
+        "core/StateManager.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1"
+        },
+        "core/StrategyOrchestrator.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "3517dbea182aa895160fae51778ac150950d0f16ab7e47710ad83fe39bf4257a"
+        },
+        "core/TradingLoop.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259"
+        },
+        "core/dto/DecisionLedgerSchema.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "1d9da94445f5c7eb0f70e1d9f99160178c32a7e51ae2f6a93915d9959dc2cabf"
+        },
+        "foundation/ConfigLoader.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767"
+        },
+        "modules/DonchianBreakout.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "7b63c758d5d2b6d6b48be8eb4dc96509834aab4f2bb7b34a69005b7b0883a6c9"
+        },
+        "modules/EMATrendRetest.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "a3d57b692ff73ae2f35b7b0310c6d7749c2d0559c63767eb4b7a427b77c9b7ba"
+        },
+        "modules/PropSafeEMAPullback.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "8403ca2d10621dbbc1e49551a1e1d8eaedc4ef85edaccef566da6d61cbec6393"
+        },
+        "modules/RSI2MeanReversion.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "1a87c679dcad043dd1d049614c5a598a9052849713363432bc2e78fa0fcf2611"
+        },
+        "modules/TimeSeriesMomentum.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "b0fc74452a482ba780b3763f7854322f8e9e5711859a0ac39fc5726edd14f900"
+        },
+        "ogzprime-ssl-server.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "17db39d7768c517bcabc66a88c2375994824f5ea9c84e870dc1ff12bc9e62bd2"
+        },
+        "test/mercury-astra-challenger.test.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "10b4a7679656e05e43995d95f3e4b4e687d086c707b79a1c8780689d34b37689"
+        },
+        "test/session-router-fail-safe.test.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "ea038ae0c7238d44b873b0bec938cea5105be15fb95dc6087a4e77ea56fc346a"
+        },
+        "test/trade-replay-capture-contract.test.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "9f9934dc6b4db65b27851d0d44eb6b4ad5d35c160bc724b5d5fffb896358fd43"
+        },
+        "trai_brain/mercury-bridge/react-loop.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "78d2f4b007239173e5e7f8d63f23b2d488ab270b0870333f5977483469655262"
+        }
+      },
+      "resultSha256": "c27ba7ab4c00bce583f17118202d807afdb778e64f41f86a86ea99e263f48f37"
+    },
+    "prior": {
+      "sourceRef": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+      "candleProcessorRef": "dae7d4c151ecf6853218f4a070acfd448599686b",
+      "overlay": {
+        "config/internals.json": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "9655db5b575b826acd814c353189883c389bbbf19bfb16a42bcbdb4cf08d7daa"
+        },
+        "config/settings.json": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484"
+        },
+        "core/ExitContractManager.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "e6a6bf6cc69afc08b346c41754c82de9c19e239fcd71a6c25d6d5b8b8ecd64bb"
+        },
+        "core/OrderExecutor.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "7a0390bff09e1817236499127fb5b2e93f7ddbf99a3b2ce9f08630db383d9118"
+        },
+        "core/StateManager.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "79f0d59e9200987967889d8d2cb74477d59d991b73d47700dc9ee675240f13e1"
+        },
+        "core/StrategyOrchestrator.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "3517dbea182aa895160fae51778ac150950d0f16ab7e47710ad83fe39bf4257a"
+        },
+        "core/TradingLoop.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "f1e69f179a85338e1f19974cb0265d0382a4c01da0d0518ef9fd0722443e0259"
+        },
+        "core/dto/DecisionLedgerSchema.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "1d9da94445f5c7eb0f70e1d9f99160178c32a7e51ae2f6a93915d9959dc2cabf"
+        },
+        "foundation/ConfigLoader.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767"
+        },
+        "modules/DonchianBreakout.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "7b63c758d5d2b6d6b48be8eb4dc96509834aab4f2bb7b34a69005b7b0883a6c9"
+        },
+        "modules/EMATrendRetest.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "a3d57b692ff73ae2f35b7b0310c6d7749c2d0559c63767eb4b7a427b77c9b7ba"
+        },
+        "modules/PropSafeEMAPullback.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "8403ca2d10621dbbc1e49551a1e1d8eaedc4ef85edaccef566da6d61cbec6393"
+        },
+        "modules/RSI2MeanReversion.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "1a87c679dcad043dd1d049614c5a598a9052849713363432bc2e78fa0fcf2611"
+        },
+        "modules/TimeSeriesMomentum.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "b0fc74452a482ba780b3763f7854322f8e9e5711859a0ac39fc5726edd14f900"
+        },
+        "ogzprime-ssl-server.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "17db39d7768c517bcabc66a88c2375994824f5ea9c84e870dc1ff12bc9e62bd2"
+        },
+        "test/mercury-astra-challenger.test.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "10b4a7679656e05e43995d95f3e4b4e687d086c707b79a1c8780689d34b37689"
+        },
+        "test/session-router-fail-safe.test.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "ea038ae0c7238d44b873b0bec938cea5105be15fb95dc6087a4e77ea56fc346a"
+        },
+        "test/trade-replay-capture-contract.test.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "9f9934dc6b4db65b27851d0d44eb6b4ad5d35c160bc724b5d5fffb896358fd43"
+        },
+        "trai_brain/mercury-bridge/react-loop.js": {
+          "ref": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+          "sha256": "78d2f4b007239173e5e7f8d63f23b2d488ab270b0870333f5977483469655262"
+        },
+        "core/CandleProcessor.js": {
+          "ref": "dae7d4c151ecf6853218f4a070acfd448599686b",
+          "sha256": "df2e5de16667e0ebd5a0b171f9518ce0f217d9372ab3ae737493e93d34974a8b"
+        }
+      },
+      "resultSha256": "05045200ff8f32e67b48a66b78b72afea89dc0674a0b69404c115f3d84d9a331"
+    }
+  },
+  "capture": {
+    "path": "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+    "sha256": "2b25ec824542b6784dcf0e6b80170781490df3f168962cf44bd207bcf526c99e"
+  },
+  "productionMutations": false,
+  "mercuryDispatches": 0
+}

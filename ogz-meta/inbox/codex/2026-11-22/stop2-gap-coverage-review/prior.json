@@ -1,0 +1,114 @@
+{
+  "prior": true,
+  "isolation": "test-isolated.py",
+  "results": {
+    "control": {
+      "storedStarts": [
+        1795304160000,
+        1795304220000,
+        1795304280000,
+        1795304340000,
+        1795304400000
+      ],
+      "retryTimers": 0,
+      "pendingJobs": null,
+      "requests": [
+        {
+          "mode": "requested_window",
+          "now": 1795304461000,
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "since": 1795303921000,
+          "gapStart": 1795304220000,
+          "gapEnd": 1795304460000,
+          "rows": 6,
+          "earliestReturnedStart": 1795304160000
+        }
+      ]
+    },
+    "delayedRetry": {
+      "pendingAfterFailure": {
+        "storedStarts": [
+          1795304160000,
+          1795304400000
+        ],
+        "retryTimers": 1,
+        "pendingJobs": null
+      },
+      "storedStarts": [
+        1795304160000,
+        1795304400000
+      ],
+      "retryTimers": 1,
+      "pendingJobs": null,
+      "requests": [
+        {
+          "mode": "unavailable",
+          "now": 1795304465000,
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "since": 1795303925000,
+          "gapStart": 1795304220000,
+          "gapEnd": 1795304460000,
+          "rows": 0,
+          "earliestReturnedStart": null
+        },
+        {
+          "mode": "requested_window",
+          "now": 1795306325000,
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "since": 1795305785000,
+          "gapStart": 1795304220000,
+          "gapEnd": 1795304460000,
+          "rows": 9,
+          "earliestReturnedStart": 1795305840000
+        }
+      ]
+    },
+    "boundaryOnly": {
+      "storedStarts": [
+        1795304160000,
+        1795304400000
+      ],
+      "retryTimers": 0,
+      "pendingJobs": null,
+      "requests": [
+        {
+          "mode": "boundary_only",
+          "now": 1795304463000,
+          "pair": "XXBTZUSD",
+          "interval": 1,
+          "since": 1795303923000,
+          "gapStart": 1795304220000,
+          "gapEnd": 1795304460000,
+          "rows": 1,
+          "earliestReturnedStart": 1795304400000
+        }
+      ],
+      "completionTraces": [],
+      "backfillSuccessLogs": [
+        {
+          "level": "log",
+          "text": "[GAP-RECOVERY] Backfilled 1 candles via REST"
+        }
+      ]
+    }
+  },
+  "sourceHashes": {
+    "core/CandleProcessor.js": "df2e5de16667e0ebd5a0b171f9518ce0f217d9372ab3ae737493e93d34974a8b",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "brokers/KrakenIBrokerAdapter.js": "d2811446f4ed1188c1ee4c97b1974f23912bdc99972f0938555a6a48022c0cbf",
+    "kraken_adapter_simple.js": "b5aeadeef6da41be0324e385305c984c595ffb0af86f56608d867265419e31e1",
+    "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+    "foundation/ConfigLoader.js": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767",
+    "config/settings.json": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+    "config/internals.json": "9655db5b575b826acd814c353189883c389bbbf19bfb16a42bcbdb4cf08d7daa"
+  },
+  "limitations": [
+    "Actual Kraken adapter, low-level REST URL construction, CandleProcessor intake/recovery/replay and CandleStore execute. The only provider I/O is an axios.get seam returning captured native Kraken rows, an explicit HTTP 503, or an explicitly truncated boundary-only response.",
+    "The clock and retry timers are controlled; the HTTP response filters captured rows against the actual requested since value. No real exchange outage was injected.",
+    "Indicators and strategy ingestion are observation seams. This proves recovery behavior, not strategy profitability or trade outcomes.",
+    "The control capture contains genuine candles at the three missing timestamps. This does not require a candle in a broker interval with no trades."
+  ]
+}

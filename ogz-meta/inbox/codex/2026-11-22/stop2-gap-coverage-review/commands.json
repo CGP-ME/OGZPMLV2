@@ -1,0 +1,43 @@
+{
+  "commands": [
+    {
+      "name": "current",
+      "argv": [
+        "python3",
+        "scripts/test-isolated.py",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/coverage.cjs",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/current-source.json",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+        "--",
+        "node",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/coverage.cjs",
+        "--source=ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/current-source.json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "prior",
+      "argv": [
+        "python3",
+        "scripts/test-isolated.py",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/coverage.cjs",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/prior-source.json",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+        "--",
+        "node",
+        "ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/coverage.cjs",
+        "--prior",
+        "--source=ogz-meta/inbox/codex/2026-11-22/stop2-gap-coverage-review/fixtures/prior-source.json"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "recreateOverlay": "For each replays[name].overlay entry in source-identity.json, read git show ref:path, verify sha256 and write the path/content map into the corresponding fixtures/*-source.json. Overlays are applied only inside the disposable isolation snapshot.",
+  "failedAttempts": "Both first invocations omitted the captured native JSON from the explicit fixture list and stopped with ENOENT. No bot or production source was changed. After adding the capture, both completed. The final rerun moved the boundary-only scenario before the delay so its response falls inside the requested time window."
+}
