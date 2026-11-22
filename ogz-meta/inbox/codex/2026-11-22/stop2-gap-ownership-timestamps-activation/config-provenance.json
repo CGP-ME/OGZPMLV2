@@ -1,0 +1,29 @@
+{
+  "observedAt": "2026-11-22T06:39:28.913Z",
+  "role": "bot",
+  "profile": "paper",
+  "fieldCount": 1397,
+  "fieldSourceCounts": {
+    "config:settings.json": 1397
+  },
+  "unavailableInputs": [],
+  "canonicalJsonAlgorithmSource": "foundation/ConfigLoader.js:2155-2168",
+  "files": [
+    {
+      "file": "config/settings.json",
+      "diskRevision": 24,
+      "reportedRevision": 24,
+      "diskHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "reportedHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "match": true
+    },
+    {
+      "file": "config/internals.json",
+      "diskRevision": 15,
+      "reportedRevision": 15,
+      "diskHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22",
+      "reportedHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22",
+      "match": true
+    }
+  ]
+}

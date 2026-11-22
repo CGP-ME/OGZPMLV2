@@ -1,0 +1,18 @@
+{
+  "startedAt": "2026-11-22T06:37:43.257964+00:00",
+  "finishedAt": "2026-11-22T06:37:45.984616+00:00",
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-prime-v2",
+    "--update-env"
+  ],
+  "exitCode": 0,
+  "environmentSource": "config/internals.json deployment.pm2.launchEnvironment + services.supervisor.pm2Home; ecosystem.config.js supplies role settings",
+  "authorizedTargets": [
+    "ogz-prime-v2"
+  ],
+  "activatedSourceThrough": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704"
+}

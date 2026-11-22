@@ -1,0 +1,348 @@
+{
+  "observedAt": "2026-11-22T06:39:55.012624+00:00",
+  "activatedCommit": "50d76e6653dd29851e505c8d9cbaa4a09b0a2704",
+  "checkoutHeadAtActivation": "c62a09ea95e7f5a358e05589fdd8b9f0c227f58e",
+  "branch": "codex/archive-legacy-env",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restartDelta": 0,
+      "pidUnchanged": true,
+      "startedAt": "2026-11-21T18:32:57.878000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "profile": null,
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restartDelta": 0,
+      "pidUnchanged": true,
+      "startedAt": "2026-11-22T00:28:22.189000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "profile": null,
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restartDelta": 0,
+      "pidUnchanged": true,
+      "startedAt": "2026-11-21T18:32:57.962000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "profile": null,
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2276101,
+      "status": "online",
+      "restartDelta": 1,
+      "pidUnchanged": false,
+      "startedAt": "2026-11-22T06:37:45.918000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "PROFILE"
+      ],
+      "profile": "paper",
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    }
+  ],
+  "sourceFilesChecked": 55,
+  "sourceDrift": [],
+  "inheritedFilesChecked": 20,
+  "inheritedDrift": [],
+  "configuration": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "decisionConfigurationCount": 2,
+  "allObservedDecisionConfigurationsMatch": true,
+  "liveCandleCount": 1001,
+  "liveFrames": [
+    {
+      "timeframe": "1m",
+      "count": 143,
+      "statuses": {
+        "on_time": 143
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 41,
+      "sourceAgeMaxMs": 10263,
+      "example": {
+        "traceId": "candle_1795329592999_ffnw2q",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 59123.5,
+        "etime": 1795329600000,
+        "sourceEventTimeMs": 1795329592894,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 106,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -7000,
+        "receivedAt": 1795329593000
+      }
+    },
+    {
+      "timeframe": "5m",
+      "count": 143,
+      "statuses": {
+        "on_time": 143
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 48,
+      "sourceAgeMaxMs": 10277,
+      "example": {
+        "traceId": "candle_1795329593006_l7yfxn",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 59123.5,
+        "etime": 1795329600000,
+        "sourceEventTimeMs": 1795329592894,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 113,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -6993,
+        "receivedAt": 1795329593007
+      }
+    },
+    {
+      "timeframe": "15m",
+      "count": 143,
+      "statuses": {
+        "on_time": 143
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 56,
+      "sourceAgeMaxMs": 10289,
+      "example": {
+        "traceId": "candle_1795329593013_wn4mqf",
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 59123.5,
+        "etime": 1795329900000,
+        "sourceEventTimeMs": 1795329592894,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 121,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -306985,
+        "receivedAt": 1795329593015
+      }
+    },
+    {
+      "timeframe": "30m",
+      "count": 143,
+      "statuses": {
+        "on_time": 143
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 61,
+      "sourceAgeMaxMs": 10299,
+      "example": {
+        "traceId": "candle_1795329593025_powqx8",
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 59123.5,
+        "etime": 1795330800000,
+        "sourceEventTimeMs": 1795329592894,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 132,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -1206974,
+        "receivedAt": 1795329593026
+      }
+    },
+    {
+      "timeframe": "1h",
+      "count": 143,
+      "statuses": {
+        "on_time": 143
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 65,
+      "sourceAgeMaxMs": 10309,
+      "example": {
+        "traceId": "candle_1795329593034_3ll4za",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 59123.5,
+        "etime": 1795330800000,
+        "sourceEventTimeMs": 1795329592894,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 141,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -1206965,
+        "receivedAt": 1795329593035
+      }
+    },
+    {
+      "timeframe": "4h",
+      "count": 143,
+      "statuses": {
+        "on_time": 143
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 68,
+      "sourceAgeMaxMs": 10321,
+      "example": {
+        "traceId": "candle_1795329593042_by1eeq",
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 59123.5,
+        "etime": 1795334400000,
+        "sourceEventTimeMs": 1795329592894,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 149,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -4806957,
+        "receivedAt": 1795329593043
+      }
+    },
+    {
+      "timeframe": "1d",
+      "count": 143,
+      "statuses": {
+        "on_time": 143
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 71,
+      "sourceAgeMaxMs": 10332,
+      "example": {
+        "traceId": "candle_1795329593051_oqh007",
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 59123.5,
+        "etime": 1795392000000,
+        "sourceEventTimeMs": 1795329592894,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 158,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -62406948,
+        "receivedAt": 1795329593052
+      }
+    }
+  ],
+  "producerConsumerMismatchCount": 0,
+  "positionsBefore": 1,
+  "positionsAfter": 0,
+  "positions": [
+    {
+      "identitySHA256": "26e14a26ff0e700d9edc7321e43731dff5c0f979fdcab73b302383858ea701fd",
+      "symbol": "BTC-USD",
+      "direction": "short",
+      "afterActivation": "recorded_paper_exit"
+    }
+  ],
+  "newClosedTradeRows": 1,
+  "pauseReason": null,
+  "symbolHaltCount": 0,
+  "transition": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "crypto",
+    "brokerId": "kraken",
+    "freezeNewEntries": false,
+    "scopeComplete": true
+  },
+  "traceCounts": {
+    "CANDLE_INGRESS": 1001,
+    "CANDLE_NORMALIZED": 1001,
+    "LAST_PRICE_INFLUENCE": 1008,
+    "CANDLE_PROCESSOR_RECEIVED": 1001,
+    "CANDLE_ACCEPTED": 1421,
+    "CANDLE_OBSERVATION_ONLY": 286,
+    "BOOT_REST_HYDRATION_CANDLE": 420,
+    "REST_HYDRATION_COMPLETE": 1,
+    "TRADING_CYCLE_TRIGGER": 2,
+    "ANALYSIS_START": 2,
+    "STRATEGY_DECISION": 2,
+    "DECISION_AUTOPSY": 2,
+    "EXECUTE_HANDOFF": 1,
+    "ORDER_EXECUTE_START": 1,
+    "STATE_MUTATION": 1,
+    "EXECUTE_RETURN": 1,
+    "DECISION_SKIP": 1
+  },
+  "historyPreservation": "history-preservation.json",
+  "limitations": [
+    "Live candle receipts cover the active Kraken crypto session; the stock market is closed.",
+    "Native history and live candle delivery are observed. Broker handoff, live recovery faults and stock REST replay were verified separately in isolation; they are not claimed exercised by this normal crypto runtime window.",
+    "This receipt covers activation through 50d76e66. Gap completeness and delayed-request coverage remain unresolved; the whole Stop 2 and strategy/sizing correctness are not certified.",
+    "No live brokerage order was submitted by this activation; Mercury RAG freshness is not asserted."
+  ]
+}

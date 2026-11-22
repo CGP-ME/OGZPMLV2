@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-11-22T06:40:39.092873+00:00",
+  "stateRestorationReceipts": 1,
+  "rateLimitErrorCount": 0,
+  "restFetchFailureCount": 0,
+  "missingBrokerIdentityCount": 0,
+  "unhandledOrFatalCount": 0,
+  "gapRetryTraceCount": 0,
+  "gapCompletionTraceCount": 0,
+  "stderrMessages": [
+    "[StateManager] dashboard WebSocket closed; state_update broadcasts stopped"
+  ],
+  "unclassifiedStderr": [],
+  "postRestartDashboardStateMessages": 6,
+  "postRestartAuthenticatedSettingsReplies": 1,
+  "postRestartNativeUpdates": {
+    "BTC-USD 1m": 127,
+    "BTC-USD 5m": 127,
+    "BTC-USD 15m": 127,
+    "BTC-USD 30m": 127,
+    "BTC-USD 1h": 127,
+    "BTC-USD 4h": 127,
+    "BTC-USD 1d": 127
+  },
+  "restHydrationCompleteTraceCount": 1,
+  "bootRestHydrationCandleCount": 420,
+  "postRestartTradingCycleCount": 2,
+  "observerErrors": [],
+  "helperNote": "The first display used an obsolete startup log phrase and counted zero. Readiness is substantiated by REST_HYDRATION_COMPLETE and live TRADING_CYCLE_TRIGGER receipts, not that phrase.",
+  "stdoutWarnings": [
+    "[WARNING] [PerformanceAnalyzer] Low quality trade detected (56.0/100)"
+  ],
+  "stdoutWarningContext": "Trade-quality diagnostic after the recorded paper stop-loss close; not a process exception. Strategy quality is not certified by activation."
+}
