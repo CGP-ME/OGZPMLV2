@@ -883,7 +883,7 @@ class OGZPrimeV14Bot {
         emitTrace(this, 'CANDLE_INGRESS', {
           traceId,
           source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
-          brokerId: this.sessionRouter?.activeBroker?.id || null,
+          brokerId: eventData.sessionRouterBrokerId,
           symbol: sym,
           symbolSource,
           timeframe: tf,
@@ -909,7 +909,7 @@ class OGZPrimeV14Bot {
           return;
         }
         const scopeEnvelope = this.getCandleScopeEnvelope({
-          brokerId: this.sessionRouter?.activeBroker?.id || null,
+          brokerId: eventData.sessionRouterBrokerId,
           assetClass: this.sessionRouter?.activeSession === 'crypto'
             ? 'crypto'
             : this.sessionRouter?.activeSession === 'stocks'
@@ -2263,7 +2263,7 @@ class OGZPrimeV14Bot {
         : null;
     const routerEnabled = this.isSessionRoutingActive();
     const brokerId = overrides.brokerId ||
-      this.sessionRouter?.activeBroker?.id ||
+      this.sessionRouter?.activeBroker?.getBrokerName() ||
       this._brokerIdForSession(activeSession) ||
       (!routerEnabled ? this.config.brokerId : null);
     const accountScope = this.resolveBrokerAccountScope(brokerId, overrides);
@@ -2325,7 +2325,6 @@ class OGZPrimeV14Bot {
   }
 
   brokerIdFromAdapter(adapter, fallback = null) {
-    if (adapter?.id) return this.normalizeBrokerId(adapter.id);
     if (typeof adapter?.getBrokerName === 'function') return this.normalizeBrokerId(adapter.getBrokerName());
     return this.normalizeBrokerId(fallback);
   }
@@ -2898,7 +2897,7 @@ class OGZPrimeV14Bot {
       return false;
     }
 
-    const brokerId = this.sessionRouter?.activeBroker?.id || null;
+    const brokerId = this.sessionRouter?.activeBroker?.getBrokerName() || null;
     const assetClass = resolvedConfig.config.execution.assetClass || '';
     const isStockFeed = this.sessionRouter?.activeSession === 'stocks' || assetClass === 'stocks' || brokerId === 'alpaca';
     if (!isStockFeed) return false;
@@ -3844,7 +3843,7 @@ class OGZPrimeV14Bot {
     ].filter(Boolean)));
     for (let index = 0; index < adapters.length; index += 1) {
       const adapter = adapters[index];
-      const adapterId = adapter.id || adapter.constructor?.name || `adapter_${index}`;
+      const adapterId = adapter.getBrokerName();
       await cleanup(`broker_disconnect_${adapterId}`, async () => (
         typeof adapter.disconnect === 'function'
           ? adapter.disconnect()

@@ -1,0 +1,21 @@
+diff --git a/run-empire-v2.js b/run-empire-v2.js
+index b6cfe280..fff9fb07 100644
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -886 +886 @@ class OGZPrimeV14Bot {
+-          brokerId: this.sessionRouter?.activeBroker?.id || null,
++          brokerId: eventData.sessionRouterBrokerId,
+@@ -912 +912 @@ class OGZPrimeV14Bot {
+-          brokerId: this.sessionRouter?.activeBroker?.id || null,
++          brokerId: eventData.sessionRouterBrokerId,
+@@ -2266 +2266 @@ class OGZPrimeV14Bot {
+-      this.sessionRouter?.activeBroker?.id ||
++      this.sessionRouter?.activeBroker?.getBrokerName() ||
+@@ -2328 +2327,0 @@ class OGZPrimeV14Bot {
+-    if (adapter?.id) return this.normalizeBrokerId(adapter.id);
+@@ -2901 +2900 @@ class OGZPrimeV14Bot {
+-    const brokerId = this.sessionRouter?.activeBroker?.id || null;
++    const brokerId = this.sessionRouter?.activeBroker?.getBrokerName() || null;
+@@ -3847 +3846 @@ class OGZPrimeV14Bot {
+-      const adapterId = adapter.id || adapter.constructor?.name || `adapter_${index}`;
++      const adapterId = adapter.getBrokerName();

@@ -1,0 +1,25 @@
+{
+  "candidateTree": "006b068b2fa4d5ac821acbc14852eb65305872ed",
+  "base": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+  "paths": [
+    "run-empire-v2.js",
+    "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs"
+  ],
+  "sourceHashes": {
+    "run-empire-v2.js": "0d5827cd4e200d1962e272f5c893b9a534ac51904968e8a005f950a3d1bf5324",
+    "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs": "ffc2d5a0b0fd64dede81cbc6841cf1fb2fda460c7b64b53afda1bdaa0614d1b0"
+  },
+  "inheritedHarnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=006b068b2fa4d5ac821acbc14852eb65305872ed",
+    "--review-base=cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+    "--change-path=run-empire-v2.js",
+    "How is broker identity preserved from the active SessionRouter callback into the runner candle scope and receipts? Cite current file:line producer and consumer evidence and name any gaps."
+  ]
+}

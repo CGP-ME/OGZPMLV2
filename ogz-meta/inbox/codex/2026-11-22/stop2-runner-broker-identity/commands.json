@@ -1,0 +1,59 @@
+{
+  "commands": {
+    "baseline": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/private/fixtures/baseline-source.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-window/fixtures/alpaca-native.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs",
+      "--source=ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/private/fixtures/baseline-source.json",
+      "--baseline"
+    ],
+    "candidate": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/private/fixtures/candidate-source.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-window/fixtures/alpaca-native.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs",
+      "--source=ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/private/fixtures/candidate-source.json"
+    ],
+    "pinned": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/private/fixtures/pinned-source.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-window/fixtures/alpaca-native.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/fixtures/ingress-identity.cjs",
+      "--source=ogz-meta/inbox/codex/2026-11-22/stop2-runner-broker-identity/private/fixtures/pinned-source.json"
+    ]
+  },
+  "completedExitCodes": {
+    "baseline": 0,
+    "candidate": 0,
+    "pinned": 0
+  },
+  "overlays": "Only inside disposable isolation, restore inherited dirty source/config files to HEAD. Baseline restores runner to cc00cc15. Pinned restores all changed files from reviewed tree 006b068b2fa4d5ac821acbc14852eb65305872ed. Source hashes are retained in each result."
+}

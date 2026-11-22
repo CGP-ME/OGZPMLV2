@@ -1,0 +1,298 @@
+{
+  "capturedAt": "2026-11-22T11:55:08.308040+00:00",
+  "branch": "codex/archive-legacy-env",
+  "headBeforeIdentityCommit": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+  "reviewedIdentityTree": "006b068b2fa4d5ac821acbc14852eb65305872ed",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "startedAt": "2026-11-21T18:32:57.878000+00:00"
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "startedAt": "2026-11-22T00:28:22.189000+00:00"
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "startedAt": "2026-11-21T18:32:57.962000+00:00"
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2276101,
+      "status": "online",
+      "restarts": 10,
+      "profile": "paper",
+      "canonicalLaunchEnvironmentMatches": true,
+      "startedAt": "2026-11-22T06:37:45.918000+00:00"
+    }
+  ],
+  "sourceManifest": [
+    {
+      "path": "TierFeatureFlags.js",
+      "sha256": "273c3be752a94d47244596c8b0cc0961d291c53a3390d305813abb81d01f3d55"
+    },
+    {
+      "path": "brokers/AlpacaAdapter.js",
+      "sha256": "96c9709b45b1f9fcffb1ba5a1c3217a1dcc41a6666283e066b5ae0f21c74075e"
+    },
+    {
+      "path": "config/internals.json",
+      "sha256": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f"
+    },
+    {
+      "path": "core/BacktestRunner.js",
+      "sha256": "251a095951d2b2fe686df147461d2dcc14d52b1b0b11178e5c71f2b8d2fc9d0e"
+    },
+    {
+      "path": "core/CandleProcessor.js",
+      "sha256": "5b37fb743dfdf33e15ffd4fba3be900c982274070864db36557892469f760e33"
+    },
+    {
+      "path": "core/CandleStore.js",
+      "sha256": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0"
+    },
+    {
+      "path": "core/DashboardBroadcaster.js",
+      "sha256": "bb3c6543e1de4a156617e65bf86b6dcce8d23b1f3fefe5f2d642592076542b0b"
+    },
+    {
+      "path": "core/EnhancedPatternRecognition.js",
+      "sha256": "750cbb3a7b40056a949d70ead9249af65d5566c1b0751179eeccbd940e2c862e"
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "sha256": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf"
+    },
+    {
+      "path": "core/FibonacciDetector.js",
+      "sha256": "c8973ba0b14ae27a1e7dca771b6189d72bf01cca5b28d5a1a4d42d98e4330330"
+    },
+    {
+      "path": "core/OptimizedIndicators.js",
+      "sha256": "4d267fd3fc955b05e42732e02f679bb34cbfe91627b0078dcf784c5058df7c76"
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "sha256": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1"
+    },
+    {
+      "path": "core/PerformanceAnalyzer.js",
+      "sha256": "c7c39eca75304124e1f9f197d0cd885759115dc7b3ade45c1ba0c5a5b8214ab2"
+    },
+    {
+      "path": "core/ReplayClosedCandleBoundary.js",
+      "sha256": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e"
+    },
+    {
+      "path": "core/SessionRouter.js",
+      "sha256": "06b732ad3ca24ef6274c03f847de1413edd355fa478e1933aa3cd3bd60634644"
+    },
+    {
+      "path": "core/StateManager.js",
+      "sha256": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e"
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "sha256": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b"
+    },
+    {
+      "path": "core/SymbolTradingContext.js",
+      "sha256": "e9c6a89ec041890103d3114599968da13a0456406be7680a47d244c8b421c793"
+    },
+    {
+      "path": "core/TRAIDecisionModule.js",
+      "sha256": "b0f50bb1a43f353ce8608812815a24dc5a35f335bf69a08500b508b32209d701"
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "sha256": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81"
+    },
+    {
+      "path": "core/UnifiedPatternMemory.js",
+      "sha256": "25129ac09fbf3f1e1c98e6d805cd6d2a8dce6e7165bb4eb0967bb58e9b15d712"
+    },
+    {
+      "path": "core/WebSocketManager.js",
+      "sha256": "318df3b733589c19862a36edd4e19189120e780e88ae8b8b8fe1a8777df7e98b"
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3"
+    },
+    {
+      "path": "core/indicators/IndicatorEngine.js",
+      "sha256": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3"
+    },
+    {
+      "path": "core/persistent_llm_client.js",
+      "sha256": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039"
+    },
+    {
+      "path": "core/trai_core.js",
+      "sha256": "29d7f4df3e0380fd6875a8e8b26c6f0cce443a62692e62e9c749e768ab92e810"
+    },
+    {
+      "path": "ecosystem.config.js",
+      "sha256": "26a2a68118ea16c2e3c06b75b51c3aed1fe89fc56fcb0912e5095fea9716b555"
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "sha256": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "sha256": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2"
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "sha256": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3"
+    },
+    {
+      "path": "modules/MultiTimeframeAdapter.js",
+      "sha256": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a"
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "sha256": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1"
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "sha256": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f"
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "sha256": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367"
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "sha256": "0589e47ab9239a90e396a0764794ff1590e33ab6dbbbe146ebaacf7083874159"
+    },
+    {
+      "path": "public/js/chart.js",
+      "sha256": "f0a46f78908ebc9596f150a4756ea69ba815477b04f16b2c680427aeaa1b0c5a"
+    },
+    {
+      "path": "public/js/core.js",
+      "sha256": "0470d22842d84762d4c117d8484f817dbd9819d5a6f4e9bbe515570a66942c90"
+    },
+    {
+      "path": "public/js/panels/chart-panel.js",
+      "sha256": "f8972419b708bbcd8b83a8ee8bb82ad897080bed6fb373e164ec6bad63e34dec"
+    },
+    {
+      "path": "public/js/websocket.js",
+      "sha256": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532"
+    },
+    {
+      "path": "public/stripe-checkout.js",
+      "sha256": "262a7b9a515f51539b71f13c6f53dfbcc102121800b591ac5641e199519203ef"
+    },
+    {
+      "path": "run-empire-v2.js",
+      "sha256": "0d5827cd4e200d1962e272f5c893b9a534ac51904968e8a005f950a3d1bf5324"
+    },
+    {
+      "path": "scripts/supervisor-daemon.js",
+      "sha256": "4da0a416174ab0aa9e4ef496215a4980db04cc5c82f91ab2a469e20e4cf4048c"
+    },
+    {
+      "path": "server/dashboard-market-scope.js",
+      "sha256": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c"
+    },
+    {
+      "path": "server/dashboard-stock-stream-config.js",
+      "sha256": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533"
+    },
+    {
+      "path": "server/stock-data-adapter.js",
+      "sha256": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+    },
+    {
+      "path": "public/unified-dashboard.html",
+      "sha256": "4ddd3d7959556d1d91591307f733e72ab35521f2681df8501de174cb261fa243"
+    },
+    {
+      "path": "public/unified-dashboard-v2.html",
+      "sha256": "5ea08accf46ceccb57c8872d4ab2c57af77082133bfbf9309f3c4905683ab2f7"
+    },
+    {
+      "path": "public/js/indicators.js",
+      "sha256": "0a6fbda2e5597ea36c35c61a58e9f10a35a25dddf43e93cf3a007dc45c357e1f"
+    },
+    {
+      "path": "core/CryptoMarketFeed.js",
+      "sha256": "62cf9a4840c9ea8519c752ac09bd6854aba0b4887c5bb336cec50194dd74b489"
+    },
+    {
+      "path": "public/js/panels/edge-analytics.js",
+      "sha256": "64b92db0f958ed406a70e5926aa268261899bc9c845b64139a332145148b3837"
+    },
+    {
+      "path": "public/js/panels/edge-analytics-panel.js",
+      "sha256": "5a72ee8a817539fbeace18eb61d480f4b494352beaff58d495951b3b6e2e9ee2"
+    },
+    {
+      "path": "core/TradeJournalBridge.js",
+      "sha256": "cbbb02e37d70cf1e55cff2a7b7b1323780c39c508b9b408d97ae71ac5654a752"
+    },
+    {
+      "path": "kraken_adapter_simple.js",
+      "sha256": "b589fa8602f7a737f1285f59b05490eb12eb238d02fa4b12047beb8898baa7ad"
+    },
+    {
+      "path": "brokers/IBrokerAdapter.js",
+      "sha256": "309670b3f609d5514ce50069709642649567e86c944701ba1567a632c04e7303"
+    },
+    {
+      "path": "brokers/KrakenIBrokerAdapter.js",
+      "sha256": "0dcb51fd975ee26845dadbf807418bea0672209078abe405824eb1d91025f198"
+    },
+    {
+      "path": "foundation/IBrokerAdapter.js",
+      "sha256": "9eeffd006e85cca9aa9dc8cdc2ec5d17a7b4d61a1bcb733d10c43741891d13eb"
+    }
+  ],
+  "previousManifestFiles": 55,
+  "changedSinceActivation": [
+    "brokers/AlpacaAdapter.js",
+    "core/CandleProcessor.js",
+    "run-empire-v2.js",
+    "kraken_adapter_simple.js"
+  ],
+  "unexplainedSourceDrift": [],
+  "additionalReviewedSourceFiles": [
+    "brokers/IBrokerAdapter.js",
+    "foundation/IBrokerAdapter.js",
+    "brokers/KrakenIBrokerAdapter.js"
+  ],
+  "activePositions": 1,
+  "closedTradeCount": 936,
+  "pauseReason": null,
+  "symbolHaltCount": 0,
+  "transitionState": "TARGET_ACTIVATED",
+  "activationPerformed": false,
+  "proposedActivation": "Only ogz-prime-v2 through ecosystem.config.js with --update-env; approval still required."
+}

@@ -1,0 +1,190 @@
+{
+  "baseline": true,
+  "isolation": "test-isolated.py",
+  "results": [
+    {
+      "broker": "kraken",
+      "timeframe": "1m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "kraken",
+      "processorBrokerId": "kraken",
+      "originalClose": 60158.8,
+      "storedClose": 60158.8,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "5m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "kraken",
+      "processorBrokerId": "kraken",
+      "originalClose": 60158.8,
+      "storedClose": 60158.8,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "15m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "kraken",
+      "processorBrokerId": "kraken",
+      "originalClose": 60183.2,
+      "storedClose": 60183.2,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "30m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "kraken",
+      "processorBrokerId": "kraken",
+      "originalClose": 60183.2,
+      "storedClose": 60183.2,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "1h",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "kraken",
+      "processorBrokerId": "kraken",
+      "originalClose": 60088.6,
+      "storedClose": 60088.6,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "4h",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "kraken",
+      "processorBrokerId": "kraken",
+      "originalClose": 60088.6,
+      "storedClose": 60088.6,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "kraken",
+      "timeframe": "1d",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "kraken",
+      "processorBrokerId": "kraken",
+      "originalClose": 60088.6,
+      "storedClose": 60088.6,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "kraken",
+      "adapterIdentityMethod": "kraken",
+      "expectedQuiet": false,
+      "quietLogs": []
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "1m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "alpaca",
+      "processorBrokerId": "alpaca",
+      "originalClose": 349.32,
+      "storedClose": 349.32,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "5m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "alpaca",
+      "processorBrokerId": "alpaca",
+      "originalClose": 349.32,
+      "storedClose": 349.32,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "15m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "alpaca",
+      "processorBrokerId": "alpaca",
+      "originalClose": 349.32,
+      "storedClose": 349.32,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "30m",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "alpaca",
+      "processorBrokerId": "alpaca",
+      "originalClose": 349.32,
+      "storedClose": 349.32,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "1h",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "alpaca",
+      "processorBrokerId": "alpaca",
+      "originalClose": 349.32,
+      "storedClose": 349.32,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "4h",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "alpaca",
+      "processorBrokerId": "alpaca",
+      "originalClose": 349.32,
+      "storedClose": 349.32,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "alpaca",
+      "timeframe": "1d",
+      "adapterHasId": false,
+      "ingressProducerBrokerId": null,
+      "normalizedBrokerId": "alpaca",
+      "processorBrokerId": "alpaca",
+      "originalClose": 346.23,
+      "storedClose": 346.23,
+      "sessionEpoch": 1
+    },
+    {
+      "broker": "alpaca",
+      "adapterIdentityMethod": "alpaca",
+      "expectedQuiet": true,
+      "quietLogs": [
+        {
+          "level": "log",
+          "text": "[WATCHDOG] market data quiet expected | broker=null assetClass=stocks phase=closed next=Pre-market Monday 04:00 ET"
+        }
+      ]
+    }
+  ],
+  "sourceHashes": {
+    "run-empire-v2.js": "3d4e5b56e2d3b60e193fafe95a913d3de770883632c1952c709f8bc5f4103e89",
+    "core/SessionRouter.js": "06b732ad3ca24ef6274c03f847de1413edd355fa478e1933aa3cd3bd60634644",
+    "core/TraceSpine.js": "c8bfd002d3225ea55599edbd577e5723deb4b93eb36ce84ee0a64623986ec7a5",
+    "core/CandleProcessor.js": "5b37fb743dfdf33e15ffd4fba3be900c982274070864db36557892469f760e33",
+    "brokers/KrakenIBrokerAdapter.js": "0dcb51fd975ee26845dadbf807418bea0672209078abe405824eb1d91025f198",
+    "brokers/AlpacaAdapter.js": "96c9709b45b1f9fcffb1ba5a1c3217a1dcc41a6666283e066b5ae0f21c74075e"
+  },
+  "limitations": [
+    "Real adapter identity methods and SessionRouter callback attachment/fence execute. The runner handler and scope methods are extracted by AST from the exact source and execute unchanged, feeding real CandleProcessor and CandleStore.",
+    "Captured native OHLCV is emitted locally; no external connections, broker orders, full bot boot or PM2 activation occur. Indicators, strategy ingestion and dashboard dispatch are observation seams.",
+    "Before repair the raw ingress producer omits the broker; TraceSpine/session lookup still repairs downstream scope. This is a producer provenance correction, not evidence of previously observed misrouted trades."
+  ]
+}
