@@ -1,0 +1,18 @@
+{
+  "arguments": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=214805e92d7071c3292f83ba0d9ce352d174d91b",
+    "--review-base=fda374d99bd5361d4d21864e9f48a70d0a942814",
+    "--change-path=core/CandleProcessor.js",
+    "--change-path=core/SessionRouter.js",
+    "How is the broker and symbol/timeframe ownership of a pending candle-gap backfill maintained from initial dispatch through retry and session retirement? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior."
+  ],
+  "question": "How is the broker and symbol/timeframe ownership of a pending candle-gap backfill maintained from initial dispatch through retry and session retirement? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior.",
+  "startedAt": "2026-11-22T04:10:51.436589+00:00",
+  "sourceIdentity": "source-identity.json"
+}

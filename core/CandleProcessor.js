@@ -8,7 +8,7 @@
  * 1. Gap detected using ConfigLoader dataFeed threshold
  * 2. Attempt REST backfill through the broker adapter
  * 3. Success: splice candles, replay through indicators, continue
- * 4. Fail: halt and recover using ConfigLoader dataFeed retry settings
+ * 4. Fail: retry the same scoped gap using ConfigLoader dataFeed settings
  *
  * @module core/CandleProcessor
  */
@@ -126,7 +126,7 @@ class CandleProcessor {
     // Gap recovery state
     this.candleIntervalMs = this._resolveCandleIntervalMs();
     this.gapThresholdMultiplier = this.dataFeedConfig.gapThresholdMultiplier;
-    this.backfillRetryInterval = null;
+    this.backfillJobs = new Map();
     this.backfillRetryDelayMs = this.dataFeedConfig.gapBackfillRetryDelayMs;
     this.lastBrokerStatusTimestampByKey = new Map();
     this.brokerStatusDedupeMaxKeys = this._resolveDashboardInt('dashboard.brokerStatusDedupeMaxKeys');
@@ -689,15 +689,14 @@ class CandleProcessor {
    * shape (Kraken arrays, Alpaca objects, etc.) converges to the
    * canonical 9-element array the rest of the pipeline expects.
    *
-   * @param {number} gapStart - Start timestamp of gap (ms)
-   * @param {number} gapEnd - End timestamp of gap (ms)
+   * @param {Object} job - Gap bounds, immutable candle scope and owning broker
    * @returns {Array} Backfilled candles or empty array on failure
    */
-  async attemptBackfill(gapStart, gapEnd, traceContext = {}) {
+  async attemptBackfill(job) {
+    const { gapStart, gapEnd, traceContext, broker } = job;
     try {
-      const broker = this.ctx.sessionRouter?.activeBroker;
       if (!broker || typeof broker.getCandles !== 'function') {
-        console.error('[GAP-RECOVERY] Active broker does not support getCandles() — sessionRouter.activeBroker missing or adapter misconfigured');
+        console.error('[GAP-RECOVERY] Owning broker does not support getCandles()');
         return [];
       }
 
@@ -714,15 +713,13 @@ class CandleProcessor {
         return [];
       }
 
-      const brokerId = cleanScopeValue(
-        traceContext.brokerId || broker.id || broker.brokerId || this.ctx.config?.brokerId
-      );
+      const brokerId = cleanScopeValue(broker.id);
       if (!brokerId) {
         console.error(`[GAP-RECOVERY] Missing broker identity for ${symbol} backfill; refusing broker-ambiguous REST fetch`);
         return [];
       }
 
-      const assetClass = cleanScopeValue(traceContext.assetClass || this.ctx.config?.assetClass);
+      const assetClass = cleanScopeValue(traceContext.assetClass);
       const brokerKey = brokerId.toLowerCase();
       const stockSymbol = looksLikeStockSymbol(symbol) || looksLikeConfiguredStockSymbol(symbol);
       const cryptoUsdSymbol = looksLikeUsdCryptoSymbol(symbol) && !stockSymbol;
@@ -783,40 +780,65 @@ class CandleProcessor {
   }
 
   /**
-   * Start retry loop for failed backfill
+   * Own the initial request and every retry for this exact scoped gap.
    * @param {number} gapStart - Start timestamp
    * @param {number} gapEnd - End timestamp
    */
-  startBackfillRetry(gapStart, gapEnd, traceContext = {}) {
-    if (this.backfillRetryInterval) return; // Already retrying
+  startBackfill(gapStart, gapEnd, traceContext) {
+    const router = this.ctx.sessionRouter;
+    if (this.ctx._shutdownRequested || router?.stopping || router?.transitionInProgress) {
+      emitTrace(this.ctx, 'GAP_BACKFILL_CANCELLED', {
+        ...traceContext, gapStart, gapEnd,
+        reason: this.ctx._shutdownRequested || router?.stopping ? 'shutdown' : 'session_transition',
+      });
+      return;
+    }
+    const key = JSON.stringify([
+      traceContext.brokerId, traceContext.accountId, traceContext.assetClass,
+      traceContext.executionMode, traceContext.symbol, traceContext.timeframe,
+      traceContext.sessionRouterEpoch, gapStart, gapEnd,
+    ]);
+    const existing = this.backfillJobs.get(key);
+    if (existing) return existing.pending;
+    const job = {
+      key, gapStart, gapEnd, traceContext: { ...traceContext },
+      broker: router?.activeBroker, timer: null,
+    };
+    this.backfillJobs.set(key, job);
+    job.pending = this._runBackfill(job);
+    return job.pending;
+  }
 
-    console.log(`[GAP-RECOVERY] Starting retry loop (every ${this.backfillRetryDelayMs}ms)`);
-
-    this.backfillRetryInterval = setInterval(async () => {
-      console.log('[GAP-RECOVERY] Retry attempt...');
-
-      const candles = await this.attemptBackfill(gapStart, gapEnd, traceContext);
-
-      if (candles.length > 0) {
-        console.log(`[GAP-RECOVERY] Retry succeeded: ${candles.length} candles`);
-        this.handleBackfillSuccess(candles, {
-          ...this._resolveTraceContext(traceContext),
-          gapStart,
-          gapEnd,
-        });
-        this.stopBackfillRetry();
-      }
+  async _runBackfill(job) {
+    if (this.backfillJobs.get(job.key) !== job) return;
+    const candles = await this.attemptBackfill(job);
+    // Handoff/stop retires the producer before a late response can be replayed.
+    if (this.backfillJobs.get(job.key) !== job) return;
+    if (candles.length > 0) {
+      this.handleBackfillSuccess(candles, {
+        ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd,
+      });
+      this._finishBackfill(job, 'completed');
+      return;
+    }
+    console.error(`[GAP-RECOVERY] Backfill unavailable for ${job.traceContext.symbol} ${job.traceContext.timeframe}; retry in ${this.backfillRetryDelayMs}ms`);
+    emitTrace(this.ctx, 'GAP_BACKFILL_RETRY_SCHEDULED', {
+      ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd,
+      retryDelayMs: this.backfillRetryDelayMs,
+    });
+    // Schedule after settlement: a slow request cannot overlap its next retry.
+    job.timer = setTimeout(() => {
+      job.timer = null;
+      job.pending = this._runBackfill(job);
     }, this.backfillRetryDelayMs);
   }
 
-  /**
-   * Stop the retry loop
-   */
-  stopBackfillRetry() {
-    if (this.backfillRetryInterval) {
-      clearInterval(this.backfillRetryInterval);
-      this.backfillRetryInterval = null;
-    }
+  _finishBackfill(job, reason) {
+    if (job.timer !== null) clearTimeout(job.timer);
+    this.backfillJobs.delete(job.key);
+    emitTrace(this.ctx, reason === 'completed' ? 'GAP_BACKFILL_COMPLETED' : 'GAP_BACKFILL_CANCELLED', {
+      ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd, reason,
+    });
   }
 
   /**
@@ -1051,23 +1073,10 @@ class CandleProcessor {
             accountIdSource: candle.accountIdSource,
             assetClass: candle.assetClass,
             executionMode: candle.executionMode,
+            sessionRouterEpoch: wrappedInput?.sessionRouterEpoch,
           };
 
-          this.attemptBackfill(lastCandle.etime, candle.etime, gapTraceContext).then(backfilledCandles => {
-            if (backfilledCandles.length > 0) {
-              this.handleBackfillSuccess(backfilledCandles, {
-                ...gapTraceContext,
-                gapStart: lastCandle.etime,
-                gapEnd: candle.etime,
-              });
-            } else {
-              console.error('[GAP-RECOVERY] Backfill failed; not pausing trading');
-              this.startBackfillRetry(lastCandle.etime, candle.etime, {
-                ...gapTraceContext,
-                source: 'gap_backfill_retry',
-              });
-            }
-          });
+          this.startBackfill(lastCandle.etime, candle.etime, gapTraceContext);
         }
       }
     }
@@ -1225,8 +1234,8 @@ class CandleProcessor {
   /**
    * Cleanup on shutdown
    */
-  cleanup() {
-    this.stopBackfillRetry();
+  cleanup(reason = 'candle_processor_cleanup') {
+    for (const job of this.backfillJobs.values()) this._finishBackfill(job, reason);
   }
 }
 

@@ -677,6 +677,7 @@ class SessionRouter extends EventEmitter {
   }
 
   _beginTransitionContext(from, to, now, details = {}) {
+    this.ctx.candleProcessor?.cleanup('session_transition');
     if (!this.transitionStore || typeof this.transitionStore.acquireLock !== 'function') {
       throw new Error('SessionRouter transition lock unavailable');
     }
@@ -1952,6 +1953,7 @@ class SessionRouter extends EventEmitter {
     this.stopping = true;
     if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
     this._detachActiveOhlcCallback();
+    this.ctx.candleProcessor?.cleanup('session_router_stop');
     const outcomes = await Promise.allSettled(Array.from(this.activeOperations));
     this._detachActiveOhlcCallback();
     const failures = outcomes.filter((outcome) => outcome.status === 'rejected');

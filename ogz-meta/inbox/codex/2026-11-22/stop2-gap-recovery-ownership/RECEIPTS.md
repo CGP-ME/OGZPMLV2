@@ -1,0 +1,24 @@
+# Scoped candle-gap recovery ownership
+
+Coverage: one live gap producer, its request/retry/replay methods, four live transition/activation callers of `_beginTransitionContext`, router stop and the backtest exclusion. The production change touches only `core/CandleProcessor.js` and `core/SessionRouter.js`. A tracked-file census considered 308 production JS/CJS paths after excluding test, metadata, hook, archive, backup and public paths; none retained the retired `startBackfillRetry`, `stopBackfillRetry` or `backfillRetryInterval` APIs. Historical fixtures and legacy Jest calls remain historical, not live callers.
+
+| Executed observation | Before | Candidate and exact staged source |
+| --- | --- | --- |
+| BTC 1m, BTC 5m and ETH 1m gaps | Three initial requests but only one retry owner. Completing BTC 1m leaves none. | Three independent retries. Completing BTC 1m leaves BTC 5m and ETH 1m pending. |
+| Native successful replay | Five captured BTC bars in chronological order. | Same five bars, exact timestamp/OHLCV equality. |
+| Crypto-to-stocks transition with delayed reply | Retry survives handoff and late reply inserts three historical candles. | No pending timer and no late insertion; actual active broker becomes Alpaca. |
+| Stocks-to-crypto transition | Retained TSLA retry dispatches through Kraken. | TSLA request belongs to Alpaca and is retired before active broker becomes Kraken. |
+| Stop with delayed reply | Late reply inserts three candles. | No late insertion, no retry timer. |
+| Slow request / repeated same gap / new later gap | Prior ownership failures are above. | No overlapping retry or duplicate dispatch; a later separate gap is retained. Provider failure schedules the same two owners. New requests during shutdown are explicitly cancelled. |
+
+[Before](baseline.json), [candidate](candidate.json), [exact staged source](pinned.json), and [helper](fixtures/recovery-lifecycle.cjs) contain the executed receipts. The helper imports actual CandleProcessor, CandleStore and SessionRouter methods inside `scripts/test-isolated.py`; captured native Kraken/Alpaca data supplies candle values. Broker I/O, timer scheduling, order/reconciliation/pattern/lock effects and indicator/strategy observations are declared seams. This is a recovery-ownership rehearsal, not full trading or live session-transition proof. The initial helper omitted the broker-intent-store seam; both before/candidate attempts failed there, the helper was corrected, and both completed. Production source did not change for that helper correction.
+
+[Source identity](source-identity.json) pins tree `214805e92d7071c3292f83ba0d9ce352d174d91b` against `fda374d99bd5361d4d21864e9f48a70d0a942814`; [diff](source.diff) contains the two-file production change. Exact-tree execution replaced the 19 unrelated dirty source/config files with their staged-tree versions, without changing the host checkout.
+
+[Mercury's complete answer](mercury-answer.md), [review receipt](review.json), [source manifest](review-source-manifest.json) and [dispatch](review-command.json) record one neutral ownership question. Run `2026-11-22T04-11-56-431Z-9aff3c31439e` returned `no_break_found`, nonblocking, with 13 iterations and 25 successful tools; recorded cost $0.03353426. Mercury was the only selected seat. Coverage/whole-file/inherited-section metadata warnings and the insufficient-qualifying-seats diagnostic remain explicit. Regex reference tools are not AST proof. Its execution gap is addressed by the isolated receipts above, without claiming live fault injection.
+
+The jobs capture the original adapter and immutable candle fields. Both initial request and retries use the same owner; retries schedule only after settlement. Handoff/stop delete the owner and clear its timer, so late replies cannot publish. This logical cancellation does not abort an already dispatched HTTP request and does not add a network deadline or transition wait. No global pause, symbol halt, throw, new config owner, candle synthesis or exception-swallowing catch was added.
+
+Mercury noted unexpected replay exceptions and an uncapped pending-job map. Missing replay scope is checked by the existing live intake before job creation, and the executed routes preserve it. Arbitrary downstream exceptions were not fault-injected or claimed impossible; the new Map's exceptional retention is not described as an old Map defect. No cap that silently discards gaps was added. Existing backfill data-coverage/completeness and Alpaca end-time handling remain separate follow-up checks; this ownership repair does not certify them.
+
+The running bot still has `dae7d4c1` from the approved activation. This new repair requires its own runtime activation approval after delivery. No Jest, production state alteration, RAG rebuild or new restart occurred for this source change.

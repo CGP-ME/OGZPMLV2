@@ -1,0 +1,1588 @@
+{
+  "baseline": true,
+  "isolation": "test-isolated.py",
+  "results": {
+    "independentOwners": {
+      "initialCalls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC-USD",
+          "timeframe": "1m",
+          "count": 9
+        },
+        {
+          "broker": "kraken",
+          "symbol": "BTC-USD",
+          "timeframe": "5m",
+          "count": 9
+        },
+        {
+          "broker": "kraken",
+          "symbol": "ETH-USD",
+          "timeframe": "1m",
+          "count": 9
+        }
+      ],
+      "initialTimers": 1,
+      "retryCalls": [
+        {
+          "broker": "kraken",
+          "symbol": "BTC-USD",
+          "timeframe": "1m",
+          "count": 9
+        }
+      ],
+      "remainingTimers": 0,
+      "btcOneMinuteStored": [
+        {
+          "t": 1795304160000,
+          "etime": 1795304220000,
+          "o": 60140.6,
+          "h": 60155.9,
+          "l": 60140.6,
+          "c": 60153.4,
+          "v": 0.44873152
+        },
+        {
+          "t": 1795304220000,
+          "etime": 1795304280000,
+          "o": 60153.4,
+          "h": 60153.4,
+          "l": 60129.4,
+          "c": 60129.4,
+          "v": 0.51611914
+        },
+        {
+          "t": 1795304280000,
+          "etime": 1795304340000,
+          "o": 60129.3,
+          "h": 60129.3,
+          "l": 60104.2,
+          "c": 60106.4,
+          "v": 0.50435823
+        },
+        {
+          "t": 1795304340000,
+          "etime": 1795304400000,
+          "o": 60106.4,
+          "h": 60127.2,
+          "l": 60106.3,
+          "c": 60127.2,
+          "v": 0.11459834
+        },
+        {
+          "t": 1795304400000,
+          "etime": 1795304460000,
+          "o": 60127.5,
+          "h": 60127.5,
+          "l": 60110.5,
+          "c": 60120.1,
+          "v": 1.16516365
+        }
+      ],
+      "remainingOwners": []
+    },
+    "handoff": {
+      "actualTargetBroker": "alpaca",
+      "timersAfterHandoff": 1,
+      "lateInserted": 3,
+      "callsBeforeHandoff": 2,
+      "callsAfterHandoff": 2,
+      "lifecycle": [
+        {
+          "event": "SESSION_TRANSITION_PLANNED",
+          "remainingJobs": null,
+          "timers": 1
+        },
+        {
+          "event": "SESSION_FREEZE_SOURCE",
+          "remainingJobs": null,
+          "timers": 1
+        },
+        {
+          "event": "fixture_source_reconciliation"
+        },
+        {
+          "event": "fixture_broker_intent",
+          "brokerId": "kraken",
+          "intent": "remove_ohlc_listeners"
+        },
+        {
+          "event": "SESSION_TARGET_ACTIVATED",
+          "remainingJobs": null,
+          "timers": 1
+        }
+      ]
+    },
+    "reverseHandoff": {
+      "timersBefore": 1,
+      "timersAfter": 1,
+      "actualTargetBroker": "kraken",
+      "dispatches": [
+        {
+          "broker": "kraken",
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "count": 9
+        }
+      ]
+    },
+    "stop": {
+      "lateInserted": 3,
+      "timers": 0
+    }
+  },
+  "sourceHashes": {
+    "core/CandleProcessor.js": "df2e5de16667e0ebd5a0b171f9518ce0f217d9372ab3ae737493e93d34974a8b",
+    "core/SessionRouter.js": "29df1064e9940fd191c65f00344ee2e9f8c4044902024f000feff699bbf80df8",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "traces": [
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587421,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 60153.4,
+        "etime": 1795304220000,
+        "sourceEventTimeMs": 1795320587419,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 1,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16367420,
+        "receivedAt": 1795320587420
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587424,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 1,
+        "close": 60153.4,
+        "etime": 1795304220000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587425,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "sourceEventTimeMs": 1795320587425,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16127425,
+        "receivedAt": 1795320587425
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587426,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 2,
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587427,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-5m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-5m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "5m",
+        "timeframeSource": "payload",
+        "close": 60275.1,
+        "etime": 1795290300000,
+        "sourceEventTimeMs": 1795320587427,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 30287427,
+        "receivedAt": 1795320587427
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587427,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-5m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:5m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-5m",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "update": false,
+        "priceHistory": 1,
+        "close": 60275.1,
+        "etime": 1795290300000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:5m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587427,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-5m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-5m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "5m",
+        "timeframeSource": "payload",
+        "close": 60199.6,
+        "etime": 1795291500000,
+        "sourceEventTimeMs": 1795320587427,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 29087427,
+        "receivedAt": 1795320587427
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587428,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-5m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:5m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-5m",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "update": false,
+        "priceHistory": 2,
+        "close": 60199.6,
+        "etime": 1795291500000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:5m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587428,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-ETH-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-ETH-USD-1m",
+        "symbol": "ETH-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 1680.56,
+        "etime": 1795304280000,
+        "sourceEventTimeMs": 1795320587428,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16307428,
+        "receivedAt": 1795320587428
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587429,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-ETH-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:ETH-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-ETH-USD-1m",
+        "symbol": "ETH-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 1,
+        "close": 1680.56,
+        "etime": 1795304280000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:ETH-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587429,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-ETH-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-ETH-USD-1m",
+        "symbol": "ETH-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 1680.77,
+        "etime": 1795304520000,
+        "sourceEventTimeMs": 1795320587429,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16067429,
+        "receivedAt": 1795320587429
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587429,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-ETH-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:ETH-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-ETH-USD-1m",
+        "symbol": "ETH-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 2,
+        "close": 1680.77,
+        "etime": 1795304520000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:ETH-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587434,
+      "event": "GAP_BACKFILL_REPLAY",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "source": "gap_backfill_retry",
+        "candles": 4,
+        "gapStart": 1795304220000,
+        "gapEnd": 1795304460000,
+        "symbol": "BTC-USD",
+        "timeframe": "1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587435,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 3,
+        "close": 60129.4,
+        "etime": 1795304280000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587435,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 4,
+        "close": 60106.4,
+        "etime": 1795304340000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587436,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 5,
+        "close": 60127.2,
+        "etime": 1795304400000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587437,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": true,
+        "priceHistory": 5,
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587438,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 60153.4,
+        "etime": 1795304220000,
+        "sourceEventTimeMs": 1795320587438,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16367438,
+        "receivedAt": 1795320587438
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587438,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 1,
+        "close": 60153.4,
+        "etime": 1795304220000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587439,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "sourceEventTimeMs": 1795320587439,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16127439,
+        "receivedAt": 1795320587439
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587439,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 2,
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587447,
+      "event": "GAP_BACKFILL_REPLAY",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "source": "gap_backfill_retry",
+        "candles": 4,
+        "gapStart": 1795304220000,
+        "gapEnd": 1795304460000,
+        "symbol": "BTC-USD",
+        "timeframe": "1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587447,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 3,
+        "close": 60129.4,
+        "etime": 1795304280000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587447,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 4,
+        "close": 60106.4,
+        "etime": 1795304340000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587447,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 5,
+        "close": 60127.2,
+        "etime": 1795304400000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587447,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": true,
+        "priceHistory": 5,
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587450,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 60153.4,
+        "etime": 1795304220000,
+        "sourceEventTimeMs": 1795320587450,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16367450,
+        "receivedAt": 1795320587450
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587450,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 1,
+        "close": 60153.4,
+        "etime": 1795304220000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587451,
+      "event": "CANDLE_PROCESSOR_RECEIVED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "symbolSource": "payload",
+        "timeframe": "1m",
+        "timeframeSource": "payload",
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "sourceEventTimeMs": 1795320587451,
+        "sourceEventKind": "captured_native_fixture",
+        "sourceEventAgeMs": 0,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": 16127451,
+        "receivedAt": 1795320587451
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587451,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 2,
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587452,
+      "event": "GAP_BACKFILL_REPLAY",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": null,
+      "accountId": null,
+      "assetClass": null,
+      "executionMode": null,
+      "scopeKey": null,
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "source": "gap_backfill",
+        "candles": 4,
+        "gapStart": 1795304220000,
+        "gapEnd": 1795304460000,
+        "symbol": "BTC-USD",
+        "timeframe": "1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587452,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 3,
+        "close": 60129.4,
+        "etime": 1795304280000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587452,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 4,
+        "close": 60106.4,
+        "etime": 1795304340000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587453,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": false,
+        "priceHistory": 5,
+        "close": 60127.2,
+        "etime": 1795304400000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    },
+    {
+      "type": "trace_event",
+      "timestamp": 1795320587453,
+      "event": "CANDLE_ACCEPTED",
+      "traceId": "fixture-BTC-USD-1m",
+      "signalId": null,
+      "decisionId": null,
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken",
+      "accountId": "fixture-account",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m",
+      "action": null,
+      "positionEffect": null,
+      "fields": {
+        "traceId": "fixture-BTC-USD-1m",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "update": true,
+        "priceHistory": 5,
+        "close": 60120.1,
+        "etime": 1795304460000,
+        "brokerId": "kraken",
+        "accountId": "fixture-account",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "scopeKey": "paper:kraken:fixture-account:crypto:BTC-USD:1m"
+      }
+    }
+  ],
+  "logs": [
+    {
+      "level": "log",
+      "text": "[Narrator] Enabled mode=USER seed=ogzprime\u2026"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] Balance update: 10000 -> 10000"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] State saved to disk"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] No persisted state; initialized configured starting balance $10000"
+    },
+    {
+      "level": "log",
+      "text": "[CandleProcessor] Initialized with gap recovery"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] first route candleSymbol=BTC-USD selected=BTC-USD ctxTradingPair=BTC-USD price=60153.4"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60153.4 candles=1"
+    },
+    {
+      "level": "log",
+      "text": "Candle #1/15 [6:36:00 PM]"
+    },
+    {
+      "level": "warn",
+      "text": "[GAP-RECOVERY] Gap detected: 240000ms (3 candles missing)"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60120.1 candles=2"
+    },
+    {
+      "level": "log",
+      "text": "Candle #2/15 [6:40:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60275.1 candles=1"
+    },
+    {
+      "level": "warn",
+      "text": "[GAP-RECOVERY] Gap detected: 1200000ms (3 candles missing)"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 5m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60199.6 candles=2"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] first route candleSymbol=ETH-USD selected=ETH-USD ctxTradingPair=BTC-USD price=1680.56"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=ETH-USD selected=ETH-USD price=1680.56 candles=1"
+    },
+    {
+      "level": "warn",
+      "text": "[GAP-RECOVERY] Gap detected: 240000ms (3 candles missing)"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of ETH-USD to fill 4 missing"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=ETH-USD selected=ETH-USD price=1680.77 candles=2"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] REST API returned no candles"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] REST API returned no candles"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] REST API returned no candles"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] Backfill failed; not pausing trading"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Starting retry loop (every 60000ms)"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] Backfill failed; not pausing trading"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] Backfill failed; not pausing trading"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Retry attempt..."
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Retry succeeded: 4 candles"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Processing 4 backfilled candles"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60129.4 candles=3"
+    },
+    {
+      "level": "log",
+      "text": "Candle #3/15 [6:37:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60106.4 candles=4"
+    },
+    {
+      "level": "log",
+      "text": "Candle #4/15 [6:38:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60127.2 candles=5"
+    },
+    {
+      "level": "log",
+      "text": "Candle #5/15 [6:39:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Backfilled 4 candles via REST"
+    },
+    {
+      "level": "log",
+      "text": "[CandleProcessor] Initialized with gap recovery"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] first route candleSymbol=BTC-USD selected=BTC-USD ctxTradingPair=BTC-USD price=60153.4"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60153.4 candles=1"
+    },
+    {
+      "level": "log",
+      "text": "Candle #1/15 [6:36:00 PM]"
+    },
+    {
+      "level": "warn",
+      "text": "[GAP-RECOVERY] Gap detected: 240000ms (3 candles missing)"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60120.1 candles=2"
+    },
+    {
+      "level": "log",
+      "text": "Candle #2/15 [6:40:00 PM]"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] REST API returned no candles"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] Backfill failed; not pausing trading"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Starting retry loop (every 60000ms)"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Retry attempt..."
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "log",
+      "text": "[SessionRouter] TRANSITION: crypto -> stocks at 9:30 ET"
+    },
+    {
+      "level": "log",
+      "text": "[SessionRouter] ACTIVE: stocks session"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Retry succeeded: 4 candles"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Processing 4 backfilled candles"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60129.4 candles=3"
+    },
+    {
+      "level": "log",
+      "text": "Candle #3/15 [6:37:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60106.4 candles=4"
+    },
+    {
+      "level": "log",
+      "text": "Candle #4/15 [6:38:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60127.2 candles=5"
+    },
+    {
+      "level": "log",
+      "text": "Candle #5/15 [6:39:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Backfilled 4 candles via REST"
+    },
+    {
+      "level": "log",
+      "text": "[CandleProcessor] Initialized with gap recovery"
+    },
+    {
+      "level": "log",
+      "text": "[SessionRouter] TRANSITION: crypto -> stocks at 9:30 ET"
+    },
+    {
+      "level": "log",
+      "text": "[SessionRouter] ACTIVE: stocks session"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Starting retry loop (every 60000ms)"
+    },
+    {
+      "level": "log",
+      "text": "[SessionRouter] TRANSITION: stocks -> crypto at 16:00 ET"
+    },
+    {
+      "level": "log",
+      "text": "[SessionRouter] ACTIVE: crypto session"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Retry attempt..."
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of TSLA to fill 4 missing"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] REST API returned no candles"
+    },
+    {
+      "level": "log",
+      "text": "[CandleProcessor] Initialized with gap recovery"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] first route candleSymbol=BTC-USD selected=BTC-USD ctxTradingPair=BTC-USD price=60153.4"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60153.4 candles=1"
+    },
+    {
+      "level": "log",
+      "text": "Candle #1/15 [6:36:00 PM]"
+    },
+    {
+      "level": "warn",
+      "text": "[GAP-RECOVERY] Gap detected: 240000ms (3 candles missing)"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60120.1 candles=2"
+    },
+    {
+      "level": "log",
+      "text": "Candle #2/15 [6:40:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[SessionRouter] Stopped"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Processing 4 backfilled candles"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60129.4 candles=3"
+    },
+    {
+      "level": "log",
+      "text": "Candle #3/15 [6:37:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60106.4 candles=4"
+    },
+    {
+      "level": "log",
+      "text": "Candle #4/15 [6:38:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[VIS][CandleProcessor] route candleSymbol=BTC-USD selected=BTC-USD price=60127.2 candles=5"
+    },
+    {
+      "level": "log",
+      "text": "Candle #5/15 [6:39:00 PM]"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Backfilled 4 candles via REST"
+    }
+  ],
+  "limitations": [
+    "Actual CandleProcessor intake, recovery, replay and CandleStore execute with captured native Kraken/Alpaca candles.",
+    "Actual SessionRouter transition entry/body, cleanup and stop methods execute; order execution, account reconciliation, hydration, lock storage and pattern handoff are explicit seams.",
+    "Timers and broker transport/unavailability/delay/failure are controlled. Indicators and strategy ingestion are observation seams; strategy economics are not tested.",
+    "Retiring an owner suppresses late publication; it does not abort an already dispatched provider HTTP request. No live fault injection or real order occurred."
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "runId": "2026-11-22T04-11-56-431Z-9aff3c31439e",
+  "question": "Review source tree: 214805e92d7071c3292f83ba0d9ce352d174d91b; comparison baseline: 23627d3a03275ffd76509f74c618287a8e74d5f8. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\nHow is the broker and symbol/timeframe ownership of a pending candle-gap backfill maintained from initial dispatch through retry and session retirement? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence, and name any unverified behavior.",
+  "reviewScope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "core/CandleProcessor.js",
+      "core/SessionRouter.js"
+    ],
+    "tree": "214805e92d7071c3292f83ba0d9ce352d174d91b",
+    "baseTree": "23627d3a03275ffd76509f74c618287a8e74d5f8",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-22T04-10-52-523Z-2252789-83e50fb5d196/source-3MgAks.json",
+    "manifestSha256": "ecd3778950569ca559bd4f8491fcb0de2709fdf254b75a7e74b2514069bfe4b5"
+  },
+  "outcome": "no_break_found",
+  "iterations": 13,
+  "tools": [
+    {
+      "name": "find_references",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 7,
+      "succeeded": 7,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 13,
+      "succeeded": 13,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "a0226eff85bae3bd404f05694452f7ab7b40768edf2530fe435ddfb53cc848cc",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "namedAbsences": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "cost": {
+    "amount": 0.03353426,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 14,
+    "total_attempts": 14,
+    "cost_absences": []
+  },
+  "provider": "mercury",
+  "appliedModels": [
+    "mercury-3"
+  ],
+  "metadata": {
+    "qualifyingSeats": 1,
+    "verdictLabelsMatch": false,
+    "evidenceChecksPassed": true,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "issues": [
+      "insufficient_qualifying_seats"
+    ],
+    "sharedVerdictLabel": null
+  },
+  "answerSHA256": "c7dde947268318abaac51e5a79e725a23dcee3df939785014a51b2de6e6634ee",
+  "sourceManifest": "review-source-manifest.json",
+  "executionEvidence": [
+    "candidate.json",
+    "pinned.json"
+  ],
+  "qualifications": [
+    "One selected Mercury seat; Astra and Opus were unselected.",
+    "find_references is regex-backed, not AST proof.",
+    "All review conclusions are source-derived; executed ownership behavior is in the separate isolated receipts.",
+    "Old API references remain in historical fixtures and legacy Jest tests; the live production caller census contains no old retry API call.",
+    "The new owner Map can retain a job if replay unexpectedly throws. Missing scope is blocked by the existing intake producer before job creation; arbitrary downstream exceptions were not fault-injected or claimed impossible. No catch-and-ignore or artificial size cap was added."
+  ],
+  "doctrineReview": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 7,
+      "total": 7
+    },
+    "candidateCoverage": {
+      "expectedTotal": 2,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 2,
+    "changedJsCount": 2,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  }
+}

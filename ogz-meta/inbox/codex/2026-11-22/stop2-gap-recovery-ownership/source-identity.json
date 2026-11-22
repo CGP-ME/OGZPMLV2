@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-11-22T04:10:51.427722+00:00",
+  "candidateTree": "214805e92d7071c3292f83ba0d9ce352d174d91b",
+  "baseCommit": "fda374d99bd5361d4d21864e9f48a70d0a942814",
+  "baseTree": "23627d3a03275ffd76509f74c618287a8e74d5f8",
+  "changedProductionPaths": [
+    "core/CandleProcessor.js",
+    "core/SessionRouter.js"
+  ],
+  "candidateHashes": {
+    "core/CandleProcessor.js": "b45834812a656a10f5a76d02dfdf129c9b98c1ee3416da1dc0ea8533df0ae7e8",
+    "core/SessionRouter.js": "06b732ad3ca24ef6274c03f847de1413edd355fa478e1933aa3cd3bd60634644"
+  },
+  "overriddenInheritedPaths": [
+    "config/internals.json",
+    "config/settings.json",
+    "core/ExitContractManager.js",
+    "core/OrderExecutor.js",
+    "core/StateManager.js",
+    "core/StrategyOrchestrator.js",
+    "core/TradingLoop.js",
+    "core/dto/DecisionLedgerSchema.js",
+    "foundation/ConfigLoader.js",
+    "modules/DonchianBreakout.js",
+    "modules/EMATrendRetest.js",
+    "modules/PropSafeEMAPullback.js",
+    "modules/RSI2MeanReversion.js",
+    "modules/TimeSeriesMomentum.js",
+    "ogzprime-ssl-server.js",
+    "test/mercury-astra-challenger.test.js",
+    "test/session-router-fail-safe.test.js",
+    "test/trade-replay-capture-contract.test.js",
+    "trai_brain/mercury-bridge/react-loop.js"
+  ],
+  "actualHarnessSHA256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+}
