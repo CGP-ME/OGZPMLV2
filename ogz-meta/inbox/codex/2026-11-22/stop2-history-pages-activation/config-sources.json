@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-11-22T00:31:06.295548+00:00",
+  "role": "bot",
+  "configuration": {
+    "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+    "role": "bot",
+    "settings": 24,
+    "internals": 15,
+    "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+    "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+  },
+  "fieldCount": 1397,
+  "sources": {
+    "settings.json": 1397
+  },
+  "noncanonicalSources": [],
+  "unavailableInputs": [],
+  "otherProcessLimit": "Other roles have canonical launch environment checks; their live configuration fingerprints are not exposed by this endpoint.",
+  "diskComparison": {
+    "settings": {
+      "hash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "matchesLive": true
+    },
+    "internals": {
+      "hash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22",
+      "matchesLive": true
+    }
+  },
+  "hashAlgorithmEvidence": "foundation/ConfigLoader.js:2155-2168"
+}

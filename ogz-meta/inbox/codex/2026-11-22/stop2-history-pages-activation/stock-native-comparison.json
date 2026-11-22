@@ -1,0 +1,37 @@
+{
+  "observedAt": "2026-11-22T00:30:19.640472+00:00",
+  "symbol": "TSLA",
+  "timeframe": "1h",
+  "requestedLimit": 500,
+  "liveCount": 500,
+  "providerCount": 500,
+  "providerPageCounts": [
+    216,
+    203,
+    81
+  ],
+  "providerFixture": "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-pages/fixtures/native-pages.json",
+  "providerFixtureSHA256": "c00f7970208831c4b04b0914faa444eb1da7a25cdbc394e84d1c58c4e650ed52",
+  "liveCandlesSHA256": "875d7f0b00df23b40a4fb52a5fe0064d4b312986e883ece036ce84b0016b98f1",
+  "ascendingTimes": true,
+  "uniqueTimes": true,
+  "missingProviderTimes": [],
+  "ohlcvMismatches": [],
+  "first": {
+    "time": 1787839200,
+    "open": 350.28,
+    "high": 354.78,
+    "low": 349.47,
+    "close": 353.65,
+    "volume": 101858
+  },
+  "last": {
+    "time": 1795208400,
+    "open": 348.3,
+    "high": 349.32,
+    "low": 348.3,
+    "close": 349.32,
+    "volume": 240
+  },
+  "limitation": "Provider pages were captured November 21 during the same closed stock-market interval; all 500 timestamps and OHLCV fields are compared, not just counts."
+}

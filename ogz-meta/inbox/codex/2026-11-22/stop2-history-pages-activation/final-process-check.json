@@ -1,0 +1,42 @@
+{
+  "observedAt": "2026-11-22T00:32:24.904458+00:00",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3,
+      "restartDelta": 0,
+      "expectedRestartDelta": 0,
+      "matchesApprovedActivation": true
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5,
+      "restartDelta": 1,
+      "expectedRestartDelta": 1,
+      "matchesApprovedActivation": true
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3,
+      "restartDelta": 0,
+      "expectedRestartDelta": 0,
+      "matchesApprovedActivation": true
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2218962,
+      "status": "online",
+      "restarts": 8,
+      "restartDelta": 1,
+      "expectedRestartDelta": 1,
+      "matchesApprovedActivation": true
+    }
+  ],
+  "sourceDrift": []
+}

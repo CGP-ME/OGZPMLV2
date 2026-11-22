@@ -1,0 +1,51 @@
+{
+  "stateRestoreLines": [
+    "[StateManager] Active trades restored: 1 trades"
+  ],
+  "krakenRateLimitErrors": 4,
+  "missingHistoryFrames": [],
+  "newFalseOpenTradeReconciledWarnings": 0,
+  "positionPreservation": [
+    {
+      "identitySHA256": "839482fe28a1cbb89e3e949574d92867fd123d0da128dfd279181dafa1bcdfb1",
+      "symbol": "BTC-USD",
+      "direction": "short",
+      "stillOpen": true,
+      "immutableFieldsCompared": [
+        "symbol",
+        "direction",
+        "entryPrice",
+        "size",
+        "entryTime",
+        "orderId",
+        "executionMode"
+      ],
+      "changedImmutableFields": []
+    }
+  ],
+  "rewrittenSnapshots": [
+    {
+      "pathSHA256": "fb32ca803abb08d5e245f31ce2778af8b7a313ddbf3650fb49e8ff518af841aa",
+      "objectKeys": [
+        "orderId",
+        "direction",
+        "_noEntryCapture",
+        "accountingBasis",
+        "exitFills",
+        "candleContext",
+        "captureScope",
+        "entry",
+        "exit",
+        "candles",
+        "exitCandleContext",
+        "candleCount",
+        "postExitCandles",
+        "postExit",
+        "savedAt"
+      ],
+      "kind": "trade replay JSON with ongoing post-exit candle capture",
+      "writerEvidence": "core/TradeReplayCapture.js:356-366"
+    }
+  ],
+  "closedTradeRowsPreserved": true
+}
