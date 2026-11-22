@@ -1,0 +1,47 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+require(process.cwd() + '/test/helpers/require-isolation.cjs')();
+const logs = [];
+for (const level of ['log','warn','error']) console[level]=(...args)=>logs.push({level,text:args.join(' ')});
+const dotenv = path.join(__dirname,'synthetic.env');
+fs.writeFileSync(dotenv,'ALPACA_API_KEY=fixture-key\nALPACA_API_SECRET=fixture-secret\nKRAKEN_API_KEY=fixture-key\nKRAKEN_API_SECRET=fixture-secret\nWEBSOCKET_AUTH_TOKEN=fixture-token\n');
+process.env.DOTENV_CONFIG_PATH=dotenv;
+process.env.PROFILE='paper';
+const ConfigLoader=require(process.cwd()+'/foundation/ConfigLoader');
+const loaded=ConfigLoader.load({role:'bot',silent:true});
+const CandleProcessor=require(process.cwd()+'/core/CandleProcessor');
+const capture=JSON.parse(fs.readFileSync('ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json'));
+const observation=capture.observations[0];
+const key=Object.keys(observation.response.result).find(key=>key!=='last');
+const native=observation.response.result[key];
+const gapStart=Number(native[0][0])*1000;
+const gapEnd=Number(native[4][0])*1000;
+const calls=[];
+const kraken={id:'kraken',getCandles:async(symbol,timeframe,count)=>{calls.push({actualBroker:'kraken',symbol,timeframe,count});return [];}};
+const alpaca={id:'alpaca',getCandles:async(symbol,timeframe,count)=>{calls.push({actualBroker:'alpaca',symbol,timeframe,count});return [];}};
+const ctx={config:loaded.config,candleTimeframe:'1m',sessionRouter:{activeBroker:kraken,activeSession:'crypto',activeCallbackEpoch:1}};
+const processor=new CandleProcessor(ctx);
+const timers=new Map();let nextTimer=0;
+global.setInterval=(callback,ms)=>{const id=++nextTimer;timers.set(id,{callback,ms});return id;};
+global.clearInterval=id=>timers.delete(id);
+const scopes=[['BTC-USD','1m'],['BTC-USD','5m'],['ETH-USD','1m']].map(([symbol,timeframe])=>({symbol,timeframe,brokerId:'kraken',assetClass:'crypto',executionMode:'paper',accountId:'isolated-account',accountIdSource:'fixture'}));
+async function main(){
+  for(const scope of scopes)processor.startBackfillRetry(gapStart,gapEnd,scope);
+  const scheduledRetries=timers.size;
+  for(const timer of timers.values())await timer.callback();
+  const firstPass=calls.splice(0);
+  ctx.sessionRouter.activeBroker=alpaca;
+  ctx.sessionRouter.activeSession='stocks';
+  ctx.sessionRouter.activeCallbackEpoch=2;
+  for(const timer of timers.values())await timer.callback();
+  const afterSessionChange=calls.splice(0);
+  processor.stopBackfillRetry();
+  assert.equal(timers.size,0,'Cleanup must release the simulated timer');
+  const sourceHashes=Object.fromEntries(['core/CandleProcessor.js','core/SessionRouter.js','run-empire-v2.js','foundation/ConfigLoader.js'].map(file=>[file,crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')]));
+  process.stdout.write(JSON.stringify({isolation:'test-isolated.py',requestedRetryOwners:scopes.map(({symbol,timeframe,brokerId})=>({symbol,timeframe,brokerId})),scheduledRetries,firstPass,afterSessionChange,sourceHashes,logs,
+    limitations:['Actual CandleProcessor constructor/retry/request methods execute; timers and unavailable provider responses are explicit simulation seams.','No native candle content is fabricated or ingested. Gap timestamps come from the captured native provider page.','This demonstrates retry dispatch ownership, not a real production handoff or order execution.']},null,2)+'\n');
+}
+main().catch(error=>{process.stderr.write(error.stack+'\n');process.exitCode=1;});

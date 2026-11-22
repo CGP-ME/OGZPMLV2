@@ -1,0 +1,98 @@
+{
+  "isolation": "test-isolated.py",
+  "requestedRetryOwners": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "brokerId": "kraken"
+    },
+    {
+      "symbol": "ETH-USD",
+      "timeframe": "1m",
+      "brokerId": "kraken"
+    }
+  ],
+  "scheduledRetries": 1,
+  "firstPass": [
+    {
+      "actualBroker": "kraken",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "count": 9
+    }
+  ],
+  "afterSessionChange": [
+    {
+      "actualBroker": "alpaca",
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "count": 9
+    }
+  ],
+  "sourceHashes": {
+    "core/CandleProcessor.js": "df2e5de16667e0ebd5a0b171f9518ce0f217d9372ab3ae737493e93d34974a8b",
+    "core/SessionRouter.js": "29df1064e9940fd191c65f00344ee2e9f8c4044902024f000feff699bbf80df8",
+    "run-empire-v2.js": "3d4e5b56e2d3b60e193fafe95a913d3de770883632c1952c709f8bc5f4103e89",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+  },
+  "logs": [
+    {
+      "level": "log",
+      "text": "[Narrator] Enabled mode=USER seed=ogzprime…"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] Balance update: 10000 -> 10000"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] State saved to disk"
+    },
+    {
+      "level": "log",
+      "text": "[StateManager] No persisted state; initialized configured starting balance $10000"
+    },
+    {
+      "level": "log",
+      "text": "[CandleProcessor] Initialized with gap recovery"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Starting retry loop (every 60000ms)"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Retry attempt..."
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] REST API returned no candles"
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Retry attempt..."
+    },
+    {
+      "level": "log",
+      "text": "[GAP-RECOVERY] Fetching 9 1m candles of BTC-USD to fill 4 missing"
+    },
+    {
+      "level": "error",
+      "text": "[GAP-RECOVERY] REST API returned no candles"
+    }
+  ],
+  "limitations": [
+    "Actual CandleProcessor constructor/retry/request methods execute; timers and unavailable provider responses are explicit simulation seams.",
+    "No native candle content is fabricated or ingested. Gap timestamps come from the captured native provider page.",
+    "This demonstrates retry dispatch ownership, not a real production handoff or order execution."
+  ]
+}

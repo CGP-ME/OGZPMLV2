@@ -1,0 +1,17 @@
+# Stop 2: bounded gap-retry ownership investigation
+
+Coverage: three explicitly considered ownership questions—tracked liveness work during transitions, concurrent gap-retry owners, and a retained retry after a broker switch. The last two execute the actual CandleProcessor methods inside isolation, with three requested symbol/frame owners and two simulated active brokers. This is not a complete recovery, session-transition or Stop 2 audit.
+
+| Question | Current evidence | Result |
+| --- | --- | --- |
+| Can a normal tracked liveness pass cross the broker switch? | `run-empire-v2.js:3035-3040` tracks the pass and prevents new passes during transition. Both transition directions await existing `liveness_check` operations at `core/SessionRouter.js:1609-1614` and `:1734-1739` before liquidation and broker replacement. | Source coordination exists. No new gate is warranted from the initial late-response hypothesis. Full transition execution is not claimed. |
+| Do different failed symbol/frame histories retain independent retries? | `CandleProcessor.startBackfillRetry` returns whenever its single instance-wide timer exists (`core/CandleProcessor.js:790-809`). The actual method was called for BTC 1m, BTC 5m and ETH 1m. | **One timer and one BTC 1m retry**, with no retries retained for the other two requested owners. |
+| Does a retained retry still use its original broker? | `attemptBackfill` chooses the current active adapter at `core/CandleProcessor.js:698`, but classifies the request using the earlier trace's broker ID at `:717-718`. SessionRouter changes that active adapter at `:1658-1660` / `:1786-1788`. | After changing the simulated active broker to Alpaca, the actual retained retry called Alpaca for **BTC-USD 1m**, still carrying its old Kraken/crypto trace. |
+
+[Executed receipt](recovery-ownership.json) and [reproduction helper](fixtures/recovery-ownership.cjs) preserve the source hashes, requested owners, actual broker dispatches and limitations. The helper uses the real CandleProcessor constructor and retry/request methods. Only timers and unavailable broker responses are simulated. Its gap timestamps come from the earlier native Kraken capture. Empty responses deliberately exercise the failure path; no market prices or candles are fabricated or ingested.
+
+The helper ran through `scripts/test-isolated.py`. Module startup initializes a disposable state file inside that sandbox; it does not touch the live paper balance or journal. No Jest, live fault injection, broker order, production configuration edit or additional process restart occurred.
+
+The producer for both confirmed failures is the ownership of pending gap work. The next source repair should retain each symbol/frame request with its original broker/session scope, finish or cancel that work explicitly at handoff, and remove only the completed owner's retry. It must preserve independent healthy data and avoid a global halt, guessed broker, fallback candle or extra configuration owner. Delayed replies and shutdown cleanup need inclusion in that bounded implementation review.
+
+**These two findings remain unfixed in this packet.** Production source remains the pushed pacing repair `dae7d4c151ecf6853218f4a070acfd448599686b`, whose separate bot activation approval is pending. This investigation is delivered independently so it cannot be mistaken for an already applied recovery repair. No Mercury code-review verdict is claimed for an unauthored change.
