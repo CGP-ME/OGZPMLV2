@@ -311,9 +311,11 @@ class KrakenAdapterSimple {
    * @param {string} pair - Trading pair (e.g., 'XBTUSD', 'ETHUSD')
    * @param {number} interval - Candle interval in minutes (1, 5, 15, 30, 60, 240, 1440)
    * @param {number} count - Number of candles to fetch (max ~720)
-   * @returns {Array} Array of OHLC candles
+   * @param {Object|null} range - Optional fixed start-inclusive/end-exclusive ms range.
+   *   Its start is an already-observed candle, used to establish retained coverage.
+   * @returns {Array|Object} Candles, or { candles, coverage } for a range request
    */
-  async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault')) {
+  async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault'), range = null) {
     try {
       // One public request per configured one-second window for this pair.
       // Recheck after each wait: concurrent callers must not wake into a burst.
@@ -323,9 +325,12 @@ class KrakenAdapterSimple {
         await new Promise(resolve => setTimeout(resolve, waitMs));
       }
 
-      // Calculate 'since' timestamp to get approximately 'count' candles
+      // A recovery range stays fixed even while pacing or retrying this request.
+      // Include its known left anchor despite the API's since cursor boundary.
       const intervalMs = interval * 60 * 1000;
-      const since = Math.floor((Date.now() - (count * intervalMs)) / 1000);
+      const since = range
+        ? Math.floor(range.start / 1000) - 1
+        : Math.floor((Date.now() - (count * intervalMs)) / 1000);
 
       const url = `${this.baseUrl}/0/public/OHLC?pair=${pair}&interval=${interval}&since=${since}`;
       console.log(`[Kraken REST] Fetching ${count} historical ${interval}m candles for ${pair}`);
@@ -334,6 +339,7 @@ class KrakenAdapterSimple {
       const response = await axios.get(url);
 
       if (response.data.error && response.data.error.length > 0) {
+        if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_error', error: response.data.error.join(', ') } };
         throw new Error(`OHLC error: ${response.data.error.join(', ')}`);
       }
 
@@ -341,8 +347,9 @@ class KrakenAdapterSimple {
       const result = response.data.result;
       const pairKey = Object.keys(result).find(k => k !== 'last');
 
-      if (!pairKey || !result[pairKey]) {
+      if (!pairKey || !Array.isArray(result[pairKey])) {
         console.warn(`[Kraken REST] No OHLC data for ${pair}`);
+        if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_bars_unavailable' } };
         return [];
       }
 
@@ -351,7 +358,7 @@ class KrakenAdapterSimple {
 
       // Convert to our standard format: { t, etime, o, h, l, c, v }
       // Kraken format: [time, open, high, low, close, vwap, volume, count]
-      return candles.map(c => ({
+      const mapped = candles.map(c => ({
         t: parseFloat(c[0]) * 1000,       // Start time in ms
         etime: (parseFloat(c[0]) + interval * 60) * 1000, // End time in ms
         o: parseFloat(c[1]),
@@ -360,9 +367,29 @@ class KrakenAdapterSimple {
         c: parseFloat(c[4]),
         v: parseFloat(c[6])
       }));
+      if (!range) return mapped;
+
+      if (mapped.some(c => !Number.isSafeInteger(c.t) || !Number.isSafeInteger(c.etime)
+        || ![c.o, c.h, c.l, c.c, c.v].every(Number.isFinite))) {
+        return { candles: [], coverage: { ...range, complete: false, reason: 'provider_candle_invalid' } };
+      }
+
+      // Kraken always includes a forming bar and retains only recent history.
+      // A nonempty reply alone proves neither that the left edge is retained
+      // nor that the requested closed interval is committed at the provider.
+      const cursor = Number(result.last) * 1000;
+      const hasAnchor = mapped.some(c => c.t === range.start);
+      const reason = !hasAnchor ? 'range_start_unavailable'
+        : !Number.isSafeInteger(cursor) || cursor < range.end - intervalMs ? 'provider_cursor_before_range_end'
+        : null;
+      return {
+        candles: mapped.filter(c => c.t >= range.start && c.t < range.end),
+        coverage: { ...range, complete: reason === null, reason, source: 'kraken_ohlc_since', cursor },
+      };
 
     } catch (error) {
       console.error(`[Kraken REST] Failed to fetch OHLC: ${error.message}`);
+      if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_request_failed', error: error.message } };
       return [];
     }
   }

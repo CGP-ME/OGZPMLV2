@@ -1,0 +1,35 @@
+{
+  "candidateTree": "34c1e10d748216569dcb69080d12f6d07cc4ea87",
+  "base": "bd55fce9712631a3762ee12615632d174074fb61",
+  "paths": [
+    "core/CandleProcessor.js",
+    "brokers/KrakenIBrokerAdapter.js",
+    "brokers/AlpacaAdapter.js",
+    "kraken_adapter_simple.js",
+    "brokers/IBrokerAdapter.js",
+    "foundation/IBrokerAdapter.js",
+    "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs"
+  ],
+  "sourceHashes": {
+    "core/CandleProcessor.js": "5b37fb743dfdf33e15ffd4fba3be900c982274070864db36557892469f760e33",
+    "brokers/KrakenIBrokerAdapter.js": "0dcb51fd975ee26845dadbf807418bea0672209078abe405824eb1d91025f198",
+    "brokers/AlpacaAdapter.js": "96c9709b45b1f9fcffb1ba5a1c3217a1dcc41a6666283e066b5ae0f21c74075e",
+    "kraken_adapter_simple.js": "b589fa8602f7a737f1285f59b05490eb12eb238d02fa4b12047beb8898baa7ad",
+    "brokers/IBrokerAdapter.js": "309670b3f609d5514ce50069709642649567e86c944701ba1567a632c04e7303",
+    "foundation/IBrokerAdapter.js": "9eeffd006e85cca9aa9dc8cdc2ec5d17a7b4d61a1bcb733d10c43741891d13eb",
+    "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs": "0a31cad2e0953acb5b42c5f8a7f1ccc9154fb1f42581f93a4b296a3cc2e3ef71"
+  },
+  "inheritedHarnessSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=34c1e10d748216569dcb69080d12f6d07cc4ea87",
+    "--review-base=bd55fce9712631a3762ee12615632d174074fb61",
+    "--change-path=core/CandleProcessor.js",
+    "What evidence does a candle-gap recovery job use to decide that its originally requested interval is complete after a delayed or partial provider response? Start at core/CandleProcessor.js and follow the relevant provider request and replay paths. Cite current file:line evidence and name any unverified assumptions."
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "commands": {
+    "baseline": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/private/fixtures/baseline-source.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-window/fixtures/alpaca-native.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs",
+      "--source=ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/private/fixtures/baseline-source.json",
+      "--baseline"
+    ],
+    "candidate": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/private/fixtures/candidate-source.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-window/fixtures/alpaca-native.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs",
+      "--source=ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/private/fixtures/candidate-source.json"
+    ],
+    "pinned": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/private/fixtures/pinned-source.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-kraken-history-pacing/fixtures/native-ohlc.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-21/stop2-stock-history-window/fixtures/alpaca-native.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/fixtures/recover-range.cjs",
+      "--source=ogz-meta/inbox/codex/2026-11-22/stop2-gap-range-coverage/private/fixtures/pinned-source.json"
+    ]
+  },
+  "completedExitCodes": {
+    "baseline": 0,
+    "candidate": 0,
+    "pinned": 0
+  },
+  "helperCorrection": "The first candidate invocation read recoveredCandles at the top level of a TraceSpine event. The existing envelope puts it under fields. Corrected only the helper and reran; no production edit was needed for that failure.",
+  "overlays": "Each source overlay is applied only inside isolation. Baseline uses HEAD for all changed files. Candidate restores the 19 inherited dirty source/config files to HEAD. Pinned uses the staged tree for all changed source/config files. Source hashes are recorded in each result."
+}

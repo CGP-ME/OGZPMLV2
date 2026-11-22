@@ -314,7 +314,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     };
   }
 
-  async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.limitDefault')) {
+  async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.limitDefault'), range = null) {
     // CHANGE 2026-01-30: Implement proper historical candle fetching via REST API
     const krakenPair = this.toKrakenRestPair(symbol);
 
@@ -326,7 +326,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     const interval = timeframeToInterval[timeframe] || ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.intervalFallback');
 
     console.log(`[KrakenIBroker] Fetching ${limit} historical candles for ${symbol} @ ${timeframe}`);
-    return await this.kraken.getHistoricalOHLC(krakenPair, interval, limit);
+    return await this.kraken.getHistoricalOHLC(krakenPair, interval, limit, range);
   }
 
   async getOrderBook(symbol, depth = 20) {

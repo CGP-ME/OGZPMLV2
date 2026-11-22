@@ -1,0 +1,266 @@
+diff --git a/brokers/AlpacaAdapter.js b/brokers/AlpacaAdapter.js
+index 18a613ac..fee4df7f 100644
+--- a/brokers/AlpacaAdapter.js
++++ b/brokers/AlpacaAdapter.js
+@@ -663 +663 @@ class AlpacaAdapter extends IBrokerAdapter {
+-    async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault')) {
++    async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault'), range = null) {
+@@ -672,2 +672,2 @@ class AlpacaAdapter extends IBrokerAdapter {
+-                start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
+-                end: end.toISOString(),
++                start: range ? new Date(range.start).toISOString() : ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
++                end: range ? new Date(range.end - 1).toISOString() : end.toISOString(),
+@@ -681,0 +682 @@ class AlpacaAdapter extends IBrokerAdapter {
++            const seenPages = new Set();
+@@ -685 +686 @@ class AlpacaAdapter extends IBrokerAdapter {
+-                    params.limit = requestedLimit - bars.length;
++                    params.limit = range ? requestedLimit : requestedLimit - bars.length;
+@@ -693,0 +695,4 @@ class AlpacaAdapter extends IBrokerAdapter {
++                if (range && ((!Array.isArray(response.data.bars) && response.data.bars !== null)
++                    || response.data.symbol !== sym || !Object.hasOwn(response.data, 'next_page_token'))) {
++                    return { candles: [], coverage: { ...range, complete: false, reason: 'provider_bars_unavailable' } };
++                }
+@@ -696 +701,5 @@ class AlpacaAdapter extends IBrokerAdapter {
+-            } while (pageToken && bars.length < requestedLimit);
++                if (range && pageToken != null && (typeof pageToken !== 'string' || !pageToken || seenPages.has(pageToken))) {
++                    return { candles: [], coverage: { ...range, complete: false, reason: 'provider_page_token_invalid' } };
++                }
++                if (pageToken) seenPages.add(pageToken);
++            } while (pageToken && (range || bars.length < requestedLimit));
+@@ -698 +707 @@ class AlpacaAdapter extends IBrokerAdapter {
+-            return bars.map(bar => ({
++            const candles = bars.map(bar => ({
+@@ -706,0 +716,15 @@ class AlpacaAdapter extends IBrokerAdapter {
++            if (!range) return candles;
++
++            if (candles.some(c => !Number.isSafeInteger(c.t) || !Number.isSafeInteger(c.etime)
++                || ![c.o, c.h, c.l, c.c, c.v].every(Number.isFinite))) {
++                return { candles: [], coverage: { ...range, complete: false, reason: 'provider_candle_invalid' } };
++            }
++
++            // Missing clock slots can be valid: Alpaca emits no bar without
++            // qualifying trades. Exhaust every page and require the known
++            // left anchor instead of inventing an expected number of bars.
++            const hasAnchor = candles.some(c => c.t === range.start);
++            return {
++                candles: candles.filter(c => c.t >= range.start && c.t < range.end),
++                coverage: { ...range, complete: hasAnchor, reason: hasAnchor ? null : 'range_start_unavailable', source: 'alpaca_bars_range', pagesExhausted: true },
++            };
+@@ -708,0 +733 @@ class AlpacaAdapter extends IBrokerAdapter {
++            if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_request_failed', error: error.message } };
+diff --git a/brokers/IBrokerAdapter.js b/brokers/IBrokerAdapter.js
+index 8f22f032..882c8064 100644
+--- a/brokers/IBrokerAdapter.js
++++ b/brokers/IBrokerAdapter.js
+@@ -157 +157,5 @@ class IBrokerAdapter extends EventEmitter {
+-     * @returns {Promise<Array>} [{ o, h, l, c, v, t }, ...]
++     * @param {Object|null} range - Optional fixed { start, end } in milliseconds,
++     *   inclusive/exclusive bar starts. start identifies an already-known candle.
++     * @returns {Promise<Array|Object>} Ordinary requests return candles. Range-capable
++     *   adapters return { candles, coverage: { start, end, complete, reason, ... } };
++     *   complete requires provider coverage, never an assumed candle count.
+diff --git a/brokers/KrakenIBrokerAdapter.js b/brokers/KrakenIBrokerAdapter.js
+index 123dd6b5..b18a3749 100644
+--- a/brokers/KrakenIBrokerAdapter.js
++++ b/brokers/KrakenIBrokerAdapter.js
+@@ -317 +317 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
+-  async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.limitDefault')) {
++  async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.krakenWrapperHistorical.limitDefault'), range = null) {
+@@ -329 +329 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
+-    return await this.kraken.getHistoricalOHLC(krakenPair, interval, limit);
++    return await this.kraken.getHistoricalOHLC(krakenPair, interval, limit, range);
+diff --git a/core/CandleProcessor.js b/core/CandleProcessor.js
+index 0866f4b7..a0acbc84 100644
+--- a/core/CandleProcessor.js
++++ b/core/CandleProcessor.js
+@@ -682,9 +682,4 @@ class CandleProcessor {
+-   * Broker-agnostic: calls the active SessionRouter broker adapter through
+-   * the canonical IBrokerAdapter.getCandles() method (defined at
+-   * foundation/IBrokerAdapter.js:187), which every adapter past and future
+-   * implements per their own API.
+-   *
+-   * Symbol + timeframe come from config, NOT hardcoded. Returned
+-   * candles go through the OHLC normalizer so any broker's native
+-   * shape (Kraken arrays, Alpaca objects, etc.) converges to the
+-   * canonical 9-element array the rest of the pipeline expects.
++   * The owning adapter receives the original interval, including its known
++   * left candle. Its range receipt distinguishes unavailable history from a
++   * fully queried interval with no native bars between the known boundaries.
++   * Symbol, timeframe and owner stay attached to this job across retries.
+@@ -693 +688 @@ class CandleProcessor {
+-   * @returns {Array} Backfilled candles or empty array on failure
++   * @returns {Object} { candles, coverage } with an explicit completion result
+@@ -696,0 +692,5 @@ class CandleProcessor {
++    const intervalMs = timeframeToMs(traceContext.timeframe);
++    const range = { start: gapStart - intervalMs, end: gapEnd - intervalMs };
++    const unavailable = (reason, error = null) => ({
++      candles: [], coverage: { ...range, complete: false, reason, error },
++    });
+@@ -700 +700 @@ class CandleProcessor {
+-        return [];
++        return unavailable('broker_range_api_unavailable');
+@@ -707 +707 @@ class CandleProcessor {
+-        return [];
++        return unavailable('candle_symbol_unavailable');
+@@ -713 +713 @@ class CandleProcessor {
+-        return [];
++        return unavailable('candle_timeframe_unavailable');
+@@ -719 +719 @@ class CandleProcessor {
+-        return [];
++        return unavailable('broker_identity_unavailable');
+@@ -730 +730 @@ class CandleProcessor {
+-        return [];
++        return unavailable('broker_asset_mismatch');
+@@ -734 +734 @@ class CandleProcessor {
+-        return [];
++        return unavailable('broker_asset_mismatch');
+@@ -737,3 +737,4 @@ class CandleProcessor {
+-      // Calculate how many candles we need
+-      const missingCount = Math.ceil((gapEnd - gapStart) / timeframeToMs(timeframe));
+-      const fetchCount = missingCount + this.dataFeedConfig.gapBackfillBufferCandles;
++      // Limit controls page size; the fixed range controls which history is
++      // requested. It does not slide forward when a retry or pacing is delayed.
++      const fetchCount = Math.ceil((gapEnd - gapStart) / intervalMs)
++        + this.dataFeedConfig.gapBackfillBufferCandles;
+@@ -741 +742 @@ class CandleProcessor {
+-      console.log(`[GAP-RECOVERY] Fetching ${fetchCount} ${timeframe} candles of ${symbol} to fill ${missingCount} missing`);
++      console.log(`[GAP-RECOVERY] Fetching ${symbol} ${timeframe} native range ${range.start} to ${range.end}`);
+@@ -743 +744,6 @@ class CandleProcessor {
+-      const rawCandles = await broker.getCandles(symbol, timeframe, fetchCount);
++      const result = await broker.getCandles(symbol, timeframe, fetchCount, range);
++      const coverage = result?.coverage;
++      if (!coverage || coverage.start !== range.start || coverage.end !== range.end) {
++        return unavailable('broker_range_coverage_unavailable');
++      }
++      if (coverage.complete !== true) return { candles: [], coverage };
+@@ -745,3 +751,3 @@ class CandleProcessor {
+-      if (!rawCandles || rawCandles.length === 0) {
+-        console.error('[GAP-RECOVERY] REST API returned no candles');
+-        return [];
++      const rawCandles = result.candles;
++      if (!Array.isArray(rawCandles)) {
++        return unavailable('provider_bars_unavailable');
+@@ -753,3 +759 @@ class CandleProcessor {
+-      const normalized = rawCandles
+-        .map(c => normalizeOhlc(c))
+-        .filter(Boolean);
++      const normalized = rawCandles.map(c => normalizeOhlc(c));
+@@ -757,3 +761,6 @@ class CandleProcessor {
+-      if (!normalized.length) {
+-        console.error(`[GAP-RECOVERY] All ${rawCandles.length} candles failed normalization`);
+-        return [];
++      if (normalized.some(c => !c || !isIntegerEpochMs(c[0]) || !isIntegerEpochMs(c[1])
++        || c[1] !== c[0] + intervalMs || ![c[2], c[3], c[4], c[5], c[7]].every(Number.isFinite))) {
++        return unavailable('provider_candle_invalid');
++      }
++      if (!normalized.some(c => c[0] === range.start)) {
++        return unavailable('range_start_unavailable');
+@@ -764,5 +771,3 @@ class CandleProcessor {
+-      // etime not always set (e.g., Alpaca normalized); fall back to [0].
+-      const gapCandles = normalized.filter(arr => {
+-        const et = arr[1] != null ? arr[1] : arr[0];
+-        return et > gapStart && et <= gapEnd;
+-      });
++      // Both observed boundaries already exist. Replay only the native bars
++      // between them, never count the right boundary as a recovered candle.
++      const gapCandles = normalized.filter(arr => arr[1] > gapStart && arr[1] < gapEnd);
+@@ -774 +779 @@ class CandleProcessor {
+-      return gapCandles;
++      return { candles: gapCandles, coverage };
+@@ -778 +783 @@ class CandleProcessor {
+-      return [];
++      return unavailable('backfill_request_failed', error.message);
+@@ -814 +819 @@ class CandleProcessor {
+-    const candles = await this.attemptBackfill(job);
++    const { candles, coverage } = await this.attemptBackfill(job);
+@@ -817,2 +822,2 @@ class CandleProcessor {
+-    if (candles.length > 0) {
+-      this.handleBackfillSuccess(candles, {
++    if (coverage.complete === true) {
++      if (candles.length > 0) this.handleBackfillSuccess(candles, {
+@@ -821 +826 @@ class CandleProcessor {
+-      this._finishBackfill(job, 'completed');
++      this._finishBackfill(job, 'completed', { coverage, recoveredCandles: candles.length });
+@@ -824 +829 @@ class CandleProcessor {
+-    console.error(`[GAP-RECOVERY] Backfill unavailable for ${job.traceContext.symbol} ${job.traceContext.timeframe}; retry in ${this.backfillRetryDelayMs}ms`);
++    console.error(`[GAP-RECOVERY] Backfill unavailable for ${job.traceContext.symbol} ${job.traceContext.timeframe}: ${coverage.reason}${coverage.error ? ` (${coverage.error})` : ''}; retry in ${this.backfillRetryDelayMs}ms`);
+@@ -827,0 +833 @@ class CandleProcessor {
++      coverage,
+@@ -836 +842 @@ class CandleProcessor {
+-  _finishBackfill(job, reason) {
++  _finishBackfill(job, reason, receipt = {}) {
+@@ -840 +846 @@ class CandleProcessor {
+-      ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd, reason,
++      ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd, reason, ...receipt,
+@@ -893 +898,0 @@ class CandleProcessor {
+-      // Fall back to t if etime missing (Alpaca single-timestamp case).
+@@ -896 +901 @@ class CandleProcessor {
+-        etime: arr[1] != null ? arr[1] : arr[0],
++        etime: arr[1],
+@@ -901 +906 @@ class CandleProcessor {
+-        v: arr[7] != null ? arr[7] : 0,
++        v: arr[7],
+diff --git a/foundation/IBrokerAdapter.js b/foundation/IBrokerAdapter.js
+index a7bc92de..09a00cff 100644
+--- a/foundation/IBrokerAdapter.js
++++ b/foundation/IBrokerAdapter.js
+@@ -185 +185,5 @@ class IBrokerAdapter extends EventEmitter {
+-     * @returns {Promise<Array>} [{ o, h, l, c, v, t }, ...]
++     * @param {Object|null} range - Optional fixed { start, end } in milliseconds,
++     *   inclusive/exclusive bar starts. start identifies an already-known candle.
++     * @returns {Promise<Array|Object>} Ordinary requests return candles. Range-capable
++     *   adapters return { candles, coverage: { start, end, complete, reason, ... } };
++     *   complete requires provider coverage, never an assumed candle count.
+diff --git a/kraken_adapter_simple.js b/kraken_adapter_simple.js
+index 419e0054..e4ed4338 100644
+--- a/kraken_adapter_simple.js
++++ b/kraken_adapter_simple.js
+@@ -314 +314,3 @@ class KrakenAdapterSimple {
+-   * @returns {Array} Array of OHLC candles
++   * @param {Object|null} range - Optional fixed start-inclusive/end-exclusive ms range.
++   *   Its start is an already-observed candle, used to establish retained coverage.
++   * @returns {Array|Object} Candles, or { candles, coverage } for a range request
+@@ -316 +318 @@ class KrakenAdapterSimple {
+-  async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault')) {
++  async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault'), range = null) {
+@@ -326 +328,2 @@ class KrakenAdapterSimple {
+-      // Calculate 'since' timestamp to get approximately 'count' candles
++      // A recovery range stays fixed even while pacing or retrying this request.
++      // Include its known left anchor despite the API's since cursor boundary.
+@@ -328 +331,3 @@ class KrakenAdapterSimple {
+-      const since = Math.floor((Date.now() - (count * intervalMs)) / 1000);
++      const since = range
++        ? Math.floor(range.start / 1000) - 1
++        : Math.floor((Date.now() - (count * intervalMs)) / 1000);
+@@ -336,0 +342 @@ class KrakenAdapterSimple {
++        if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_error', error: response.data.error.join(', ') } };
+@@ -344 +350 @@ class KrakenAdapterSimple {
+-      if (!pairKey || !result[pairKey]) {
++      if (!pairKey || !Array.isArray(result[pairKey])) {
+@@ -345,0 +352 @@ class KrakenAdapterSimple {
++        if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_bars_unavailable' } };
+@@ -354 +361 @@ class KrakenAdapterSimple {
+-      return candles.map(c => ({
++      const mapped = candles.map(c => ({
+@@ -362,0 +370,19 @@ class KrakenAdapterSimple {
++      if (!range) return mapped;
++
++      if (mapped.some(c => !Number.isSafeInteger(c.t) || !Number.isSafeInteger(c.etime)
++        || ![c.o, c.h, c.l, c.c, c.v].every(Number.isFinite))) {
++        return { candles: [], coverage: { ...range, complete: false, reason: 'provider_candle_invalid' } };
++      }
++
++      // Kraken always includes a forming bar and retains only recent history.
++      // A nonempty reply alone proves neither that the left edge is retained
++      // nor that the requested closed interval is committed at the provider.
++      const cursor = Number(result.last) * 1000;
++      const hasAnchor = mapped.some(c => c.t === range.start);
++      const reason = !hasAnchor ? 'range_start_unavailable'
++        : !Number.isSafeInteger(cursor) || cursor < range.end - intervalMs ? 'provider_cursor_before_range_end'
++        : null;
++      return {
++        candles: mapped.filter(c => c.t >= range.start && c.t < range.end),
++        coverage: { ...range, complete: reason === null, reason, source: 'kraken_ohlc_since', cursor },
++      };
+@@ -365,0 +392 @@ class KrakenAdapterSimple {
++      if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_request_failed', error: error.message } };

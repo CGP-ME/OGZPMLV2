@@ -660,7 +660,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
     }
 
-    async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault')) {
+    async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault'), range = null) {
         try {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
@@ -669,8 +669,8 @@ class AlpacaAdapter extends IBrokerAdapter {
             const requestedLimit = Math.min(limit, ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.maxLimit'));
             const params = {
                 // Market closures do not bound the number of native bars.
-                start: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
-                end: end.toISOString(),
+                start: range ? new Date(range.start).toISOString() : ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.historyStart'),
+                end: range ? new Date(range.end - 1).toISOString() : end.toISOString(),
                 timeframe: tf,
                 limit: requestedLimit,
                 adjustment: ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.adjustment'),
@@ -679,10 +679,11 @@ class AlpacaAdapter extends IBrokerAdapter {
             };
             const bars = [];
             let pageToken;
+            const seenPages = new Set();
             do {
                 if (pageToken) {
                     params.page_token = pageToken;
-                    params.limit = requestedLimit - bars.length;
+                    params.limit = range ? requestedLimit : requestedLimit - bars.length;
                 }
                 const response = await axios.get(
                     `${this.dataUrl}/v2/stocks/${sym}/bars`,
@@ -691,11 +692,19 @@ class AlpacaAdapter extends IBrokerAdapter {
                         params
                     }
                 );
+                if (range && ((!Array.isArray(response.data.bars) && response.data.bars !== null)
+                    || response.data.symbol !== sym || !Object.hasOwn(response.data, 'next_page_token'))) {
+                    return { candles: [], coverage: { ...range, complete: false, reason: 'provider_bars_unavailable' } };
+                }
                 bars.push(...(response.data.bars || []));
                 pageToken = response.data.next_page_token;
-            } while (pageToken && bars.length < requestedLimit);
+                if (range && pageToken != null && (typeof pageToken !== 'string' || !pageToken || seenPages.has(pageToken))) {
+                    return { candles: [], coverage: { ...range, complete: false, reason: 'provider_page_token_invalid' } };
+                }
+                if (pageToken) seenPages.add(pageToken);
+            } while (pageToken && (range || bars.length < requestedLimit));
 
-            return bars.map(bar => ({
+            const candles = bars.map(bar => ({
                 t: new Date(bar.t).getTime(),
                 etime: new Date(bar.t).getTime() + intervalMs,
                 o: parseFloat(bar.o),
@@ -704,8 +713,24 @@ class AlpacaAdapter extends IBrokerAdapter {
                 c: parseFloat(bar.c),
                 v: parseFloat(bar.v)
             })).sort((a, b) => a.t - b.t);
+            if (!range) return candles;
+
+            if (candles.some(c => !Number.isSafeInteger(c.t) || !Number.isSafeInteger(c.etime)
+                || ![c.o, c.h, c.l, c.c, c.v].every(Number.isFinite))) {
+                return { candles: [], coverage: { ...range, complete: false, reason: 'provider_candle_invalid' } };
+            }
+
+            // Missing clock slots can be valid: Alpaca emits no bar without
+            // qualifying trades. Exhaust every page and require the known
+            // left anchor instead of inventing an expected number of bars.
+            const hasAnchor = candles.some(c => c.t === range.start);
+            return {
+                candles: candles.filter(c => c.t >= range.start && c.t < range.end),
+                coverage: { ...range, complete: hasAnchor, reason: hasAnchor ? null : 'range_start_unavailable', source: 'alpaca_bars_range', pagesExhausted: true },
+            };
         } catch (error) {
             this._recordAuthFailureIfRelevant(error, 'rest-candles');
+            if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_request_failed', error: error.message } };
             throw new Error(`[Alpaca] Failed to get candles for ${symbol}: ${error.message}`);
         }
     }

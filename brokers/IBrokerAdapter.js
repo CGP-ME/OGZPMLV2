@@ -154,7 +154,11 @@ class IBrokerAdapter extends EventEmitter {
      * @param {string} symbol - Trading pair/symbol
      * @param {string} timeframe - '1m', '5m', '15m', '1h', '4h', '1d'
      * @param {number} limit - Number of candles
-     * @returns {Promise<Array>} [{ o, h, l, c, v, t }, ...]
+     * @param {Object|null} range - Optional fixed { start, end } in milliseconds,
+     *   inclusive/exclusive bar starts. start identifies an already-known candle.
+     * @returns {Promise<Array|Object>} Ordinary requests return candles. Range-capable
+     *   adapters return { candles, coverage: { start, end, complete, reason, ... } };
+     *   complete requires provider coverage, never an assumed candle count.
      */
     async getCandles(symbol, timeframe = '1m', limit = 100) {
         throw new Error('getCandles() must be implemented');

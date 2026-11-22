@@ -679,44 +679,44 @@ class CandleProcessor {
   /**
    * Attempt to backfill missing candles via REST API.
    *
-   * Broker-agnostic: calls the active SessionRouter broker adapter through
-   * the canonical IBrokerAdapter.getCandles() method (defined at
-   * foundation/IBrokerAdapter.js:187), which every adapter past and future
-   * implements per their own API.
-   *
-   * Symbol + timeframe come from config, NOT hardcoded. Returned
-   * candles go through the OHLC normalizer so any broker's native
-   * shape (Kraken arrays, Alpaca objects, etc.) converges to the
-   * canonical 9-element array the rest of the pipeline expects.
+   * The owning adapter receives the original interval, including its known
+   * left candle. Its range receipt distinguishes unavailable history from a
+   * fully queried interval with no native bars between the known boundaries.
+   * Symbol, timeframe and owner stay attached to this job across retries.
    *
    * @param {Object} job - Gap bounds, immutable candle scope and owning broker
-   * @returns {Array} Backfilled candles or empty array on failure
+   * @returns {Object} { candles, coverage } with an explicit completion result
    */
   async attemptBackfill(job) {
     const { gapStart, gapEnd, traceContext, broker } = job;
+    const intervalMs = timeframeToMs(traceContext.timeframe);
+    const range = { start: gapStart - intervalMs, end: gapEnd - intervalMs };
+    const unavailable = (reason, error = null) => ({
+      candles: [], coverage: { ...range, complete: false, reason, error },
+    });
     try {
       if (!broker || typeof broker.getCandles !== 'function') {
         console.error('[GAP-RECOVERY] Owning broker does not support getCandles()');
-        return [];
+        return unavailable('broker_range_api_unavailable');
       }
 
       const rawSymbol = traceContext.symbol;
       const symbol = normalizeCandleSymbol(rawSymbol);
       if (!symbol) {
         console.error(`[GAP-RECOVERY] Missing candle symbol for backfill (raw=${rawSymbol})`);
-        return [];
+        return unavailable('candle_symbol_unavailable');
       }
 
       const timeframe = cleanScopeValue(traceContext.timeframe);
       if (!timeframeToMs(timeframe)) {
         console.error(`[GAP-RECOVERY] Missing/invalid candle timeframe for backfill (${timeframe})`);
-        return [];
+        return unavailable('candle_timeframe_unavailable');
       }
 
       const brokerId = cleanScopeValue(broker.getBrokerName());
       if (!brokerId) {
         console.error(`[GAP-RECOVERY] Missing broker identity for ${symbol} backfill; refusing broker-ambiguous REST fetch`);
-        return [];
+        return unavailable('broker_identity_unavailable');
       }
 
       const assetClass = cleanScopeValue(traceContext.assetClass);
@@ -727,55 +727,60 @@ class CandleProcessor {
         assetClass === 'stocks' || stockSymbol
       )) {
         console.error(`[GAP-RECOVERY] Refusing to backfill stock symbol ${symbol} through Kraken`);
-        return [];
+        return unavailable('broker_asset_mismatch');
       }
       if (brokerKey === 'alpaca' && (assetClass === 'crypto' || cryptoUsdSymbol)) {
         console.error(`[GAP-RECOVERY] Refusing to backfill crypto symbol ${symbol} through Alpaca`);
-        return [];
+        return unavailable('broker_asset_mismatch');
       }
 
-      // Calculate how many candles we need
-      const missingCount = Math.ceil((gapEnd - gapStart) / timeframeToMs(timeframe));
-      const fetchCount = missingCount + this.dataFeedConfig.gapBackfillBufferCandles;
+      // Limit controls page size; the fixed range controls which history is
+      // requested. It does not slide forward when a retry or pacing is delayed.
+      const fetchCount = Math.ceil((gapEnd - gapStart) / intervalMs)
+        + this.dataFeedConfig.gapBackfillBufferCandles;
 
-      console.log(`[GAP-RECOVERY] Fetching ${fetchCount} ${timeframe} candles of ${symbol} to fill ${missingCount} missing`);
+      console.log(`[GAP-RECOVERY] Fetching ${symbol} ${timeframe} native range ${range.start} to ${range.end}`);
 
-      const rawCandles = await broker.getCandles(symbol, timeframe, fetchCount);
+      const result = await broker.getCandles(symbol, timeframe, fetchCount, range);
+      const coverage = result?.coverage;
+      if (!coverage || coverage.start !== range.start || coverage.end !== range.end) {
+        return unavailable('broker_range_coverage_unavailable');
+      }
+      if (coverage.complete !== true) return { candles: [], coverage };
 
-      if (!rawCandles || rawCandles.length === 0) {
-        console.error('[GAP-RECOVERY] REST API returned no candles');
-        return [];
+      const rawCandles = result.candles;
+      if (!Array.isArray(rawCandles)) {
+        return unavailable('provider_bars_unavailable');
       }
 
       // Normalize every returned candle through the shared shape-translator
       // so both Kraken-array format and Alpaca-object format converge to
       // the canonical 9-element array before filtering / sorting / replay.
-      const normalized = rawCandles
-        .map(c => normalizeOhlc(c))
-        .filter(Boolean);
+      const normalized = rawCandles.map(c => normalizeOhlc(c));
 
-      if (!normalized.length) {
-        console.error(`[GAP-RECOVERY] All ${rawCandles.length} candles failed normalization`);
-        return [];
+      if (normalized.some(c => !c || !isIntegerEpochMs(c[0]) || !isIntegerEpochMs(c[1])
+        || c[1] !== c[0] + intervalMs || ![c[2], c[3], c[4], c[5], c[7]].every(Number.isFinite))) {
+        return unavailable('provider_candle_invalid');
+      }
+      if (!normalized.some(c => c[0] === range.start)) {
+        return unavailable('range_start_unavailable');
       }
 
       // Filter to only candles within the gap. Canonical array positions:
       // [0]=time(ms), [1]=etime, [2]=o, [3]=h, [4]=l, [5]=c, [6]=vwap, [7]=v, [8]=count
-      // etime not always set (e.g., Alpaca normalized); fall back to [0].
-      const gapCandles = normalized.filter(arr => {
-        const et = arr[1] != null ? arr[1] : arr[0];
-        return et > gapStart && et <= gapEnd;
-      });
+      // Both observed boundaries already exist. Replay only the native bars
+      // between them, never count the right boundary as a recovered candle.
+      const gapCandles = normalized.filter(arr => arr[1] > gapStart && arr[1] < gapEnd);
 
       // Sort chronologically by start-time [0] (oldest first — critical
       // for indicator replay which expects monotonic time)
       gapCandles.sort((a, b) => a[0] - b[0]);
 
-      return gapCandles;
+      return { candles: gapCandles, coverage };
 
     } catch (error) {
       console.error(`[GAP-RECOVERY] Backfill failed: ${error.message}`);
-      return [];
+      return unavailable('backfill_request_failed', error.message);
     }
   }
 
@@ -811,20 +816,21 @@ class CandleProcessor {
 
   async _runBackfill(job) {
     if (this.backfillJobs.get(job.key) !== job) return;
-    const candles = await this.attemptBackfill(job);
+    const { candles, coverage } = await this.attemptBackfill(job);
     // Handoff/stop retires the producer before a late response can be replayed.
     if (this.backfillJobs.get(job.key) !== job) return;
-    if (candles.length > 0) {
-      this.handleBackfillSuccess(candles, {
+    if (coverage.complete === true) {
+      if (candles.length > 0) this.handleBackfillSuccess(candles, {
         ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd,
       });
-      this._finishBackfill(job, 'completed');
+      this._finishBackfill(job, 'completed', { coverage, recoveredCandles: candles.length });
       return;
     }
-    console.error(`[GAP-RECOVERY] Backfill unavailable for ${job.traceContext.symbol} ${job.traceContext.timeframe}; retry in ${this.backfillRetryDelayMs}ms`);
+    console.error(`[GAP-RECOVERY] Backfill unavailable for ${job.traceContext.symbol} ${job.traceContext.timeframe}: ${coverage.reason}${coverage.error ? ` (${coverage.error})` : ''}; retry in ${this.backfillRetryDelayMs}ms`);
     emitTrace(this.ctx, 'GAP_BACKFILL_RETRY_SCHEDULED', {
       ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd,
       retryDelayMs: this.backfillRetryDelayMs,
+      coverage,
     });
     // Schedule after settlement: a slow request cannot overlap its next retry.
     job.timer = setTimeout(() => {
@@ -833,11 +839,11 @@ class CandleProcessor {
     }, this.backfillRetryDelayMs);
   }
 
-  _finishBackfill(job, reason) {
+  _finishBackfill(job, reason, receipt = {}) {
     if (job.timer !== null) clearTimeout(job.timer);
     this.backfillJobs.delete(job.key);
     emitTrace(this.ctx, reason === 'completed' ? 'GAP_BACKFILL_COMPLETED' : 'GAP_BACKFILL_CANCELLED', {
-      ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd, reason,
+      ...job.traceContext, gapStart: job.gapStart, gapEnd: job.gapEnd, reason, ...receipt,
     });
   }
 
@@ -890,15 +896,14 @@ class CandleProcessor {
     // One canonical path - dedupe + insert + indicators all in one
     candles.forEach(arr => {
       // Normalizer output: [t(ms), etime(ms), o, h, l, c, vwap, v, count]
-      // Fall back to t if etime missing (Alpaca single-timestamp case).
       const candle = {
         t: arr[0],
-        etime: arr[1] != null ? arr[1] : arr[0],
+        etime: arr[1],
         o: arr[2],
         h: arr[3],
         l: arr[4],
         c: arr[5],
-        v: arr[7] != null ? arr[7] : 0,
+        v: arr[7],
         symbol: replaySymbol,
         timeframe: replayTimeframe,
         brokerId: replayScope.brokerId,
