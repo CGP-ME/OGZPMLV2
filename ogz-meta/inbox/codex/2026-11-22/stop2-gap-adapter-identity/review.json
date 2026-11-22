@@ -1,0 +1,132 @@
+{
+  "runId": "2026-11-22T04-22-45-648Z-5984a8089664",
+  "reviewScope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "core/CandleProcessor.js"
+    ],
+    "tree": "71e48c3a77dc3e6e4a27469db0b51987430211cd",
+    "baseTree": "27001d40e38bc0c3bf619c8a0813bf8939f5db72",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-22T04-21-51-570Z-2255928-3e516ed28bed/source-sZ4RZ6.json",
+    "manifestSha256": "c9cf41c8212a717987899abc0aed1ae778b2bce10dcc0a7a8b0e2d77a48e57d0"
+  },
+  "outcome": "no_break_found",
+  "iterations": 21,
+  "tools": [
+    {
+      "name": "find_definition",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "git_diff",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 11,
+      "succeeded": 11,
+      "failed": 0
+    },
+    {
+      "name": "list_files",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 17,
+      "succeeded": 17,
+      "failed": 0
+    },
+    {
+      "name": "regex_grep",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "serena_property_refs",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    }
+  ],
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "decision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "e5e9ac2255665af802dc14e844693771d741572362deafcccdfdc310b83915ee",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "namedAbsences": [
+    "coverage_insufficient",
+    "coverage_unresolved",
+    "whole_file_read_absent",
+    "inherited_section_incomplete"
+  ],
+  "cost": {
+    "amount": 0.0590712,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 22,
+    "total_attempts": 22,
+    "cost_absences": []
+  },
+  "provider": "mercury",
+  "appliedModels": [
+    "mercury-3"
+  ],
+  "metadata": {
+    "qualifyingSeats": 1,
+    "verdictLabelsMatch": false,
+    "evidenceChecksPassed": true,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "issues": [
+      "insufficient_qualifying_seats"
+    ],
+    "sharedVerdictLabel": null
+  },
+  "qualifications": [
+    "The factory checks that a method is callable; it does not distinguish an inherited abstract method from a concrete override. Both actual runtime adapters have concrete getBrokerName implementations, verified here.",
+    "Other activeBroker.id reads in runner trace/scope construction are inherited and were not changed. getCandleScopeEnvelope uses its existing session-to-broker resolution when id is absent. Their remaining trace identity behavior is an explicit follow-up, not certified by this correction.",
+    "Review tools did not execute the code; real-adapter isolated receipts are separate."
+  ]
+}

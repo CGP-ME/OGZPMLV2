@@ -1,0 +1,9 @@
+{
+  "candidateTree": "71e48c3a77dc3e6e4a27469db0b51987430211cd",
+  "baseCommit": "dbf8309da7668ed299c92dc7d84f01177285ac86",
+  "baseTree": "27001d40e38bc0c3bf619c8a0813bf8939f5db72",
+  "candidateHashes": {
+    "core/CandleProcessor.js": "6ce4f4985d4ec973913df832a4654f0e317ffa22f9c9000f0ffca88079efc1b3"
+  },
+  "actualHarnessSHA256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+}

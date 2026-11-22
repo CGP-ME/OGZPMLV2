@@ -1,0 +1,7 @@
+diff --git a/core/CandleProcessor.js b/core/CandleProcessor.js
+index 61465ea5..0866f4b7 100644
+--- a/core/CandleProcessor.js
++++ b/core/CandleProcessor.js
+@@ -716 +716 @@ class CandleProcessor {
+-      const brokerId = cleanScopeValue(broker.id);
++      const brokerId = cleanScopeValue(broker.getBrokerName());

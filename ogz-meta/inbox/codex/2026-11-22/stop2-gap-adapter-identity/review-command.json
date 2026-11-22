@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=71e48c3a77dc3e6e4a27469db0b51987430211cd",
+    "--review-base=dbf8309da7668ed299c92dc7d84f01177285ac86",
+    "--change-path=core/CandleProcessor.js",
+    "Which interface supplies the broker identity used by candle-gap REST dispatch, and do the instantiated runtime broker adapters implement it? Examine the pinned source and its relevant producers and consumers, cite current file:line evidence, and identify unverified behavior."
+  ],
+  "question": "Which interface supplies the broker identity used by candle-gap REST dispatch, and do the instantiated runtime broker adapters implement it? Examine the pinned source and its relevant producers and consumers, cite current file:line evidence, and identify unverified behavior.",
+  "startedAt": "2026-11-22T04:21:50.663079+00:00"
+}

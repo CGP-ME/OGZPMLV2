@@ -713,7 +713,7 @@ class CandleProcessor {
         return [];
       }
 
-      const brokerId = cleanScopeValue(broker.id);
+      const brokerId = cleanScopeValue(broker.getBrokerName());
       if (!brokerId) {
         console.error(`[GAP-RECOVERY] Missing broker identity for ${symbol} backfill; refusing broker-ambiguous REST fetch`);
         return [];
