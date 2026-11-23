@@ -1,0 +1,582 @@
+{
+  "run_id": "2026-11-23T13-42-40-696Z-01a2574b371b",
+  "started_at": "2026-11-23T13:41:52.803Z",
+  "created_at": "2026-11-23T13:42:40.696Z",
+  "head_sha": "c0f120f136a72af5dd0b1c9f20f0b6dd6ca57205",
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "verdict": "no_break_found",
+  "termination": "answer_given",
+  "iterations": 12,
+  "latency_ms": 30031,
+  "run_tokens": {
+    "input": 296633,
+    "uncached_input": 201452,
+    "cached_input": 95181,
+    "output": 9956,
+    "total": 306589,
+    "complete": true,
+    "attempts_with_usage": 13,
+    "total_attempts": 13
+  },
+  "run_cost": {
+    "amount": 0.02421531,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 13,
+    "total_attempts": 13,
+    "cost_absences": []
+  },
+  "candidate_set": {
+    "coverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "claim_inventory": [],
+    "content": "I have traced the full path. Let me verify one more detail \u2014 the `_runBackfill` retry/complete gate and the `attemptBackfill` coverage checks are the decisive evidence. I have all I need.\n\n---\n\n## VERDICT: no_break_found\n\nThe candle-gap recovery job decides its originally requested interval is complete based on **the provider's `coverage` receipt, gated by two exact-match checks and one independent anchor verification**. It does **not** count expected bars or verify interior contiguity; completeness is a provider-attested claim that the CandleProcessor cross-checks only against the left anchor.\n\n### The completion decision path (core/CandleProcessor.js)\n\n**1. Gap detection triggers the job** \u2014 When a new candle arrives in live mode and the gap exceeds the threshold, `startBackfill(lastCandle.etime, candle.etime, gapTraceContext)` is called (`core/CandleProcessor.js:1051-1084`). The job bounds are fixed at gap start/end.\n\n**2. `startBackfill` owns the immutable job** (`core/CandleProcessor.js:792-815`) \u2014 keyed by `[brokerId, accountId, assetClass, executionMode, symbol, timeframe, sessionRouterEpoch, gapStart, gapEnd]` (801-805). Concurrent identical requests share one pending promise (807). Each job carries a fixed `gapStart`/`gapEnd`.\n\n**3. `attemptBackfill` builds the range and calls the provider** (`core/CandleProcessor.js:690-785`):\n- `range = { start: gapStart - intervalMs, end: gapEnd - intervalMs }` (693). The range start is one interval before the gap \u2014 the last known candle (the anchor).\n- Calls `broker.getCandles(symbol, timeframe, fetchCount, range)` (744). `fetchCount` is only a page-size hint (739-740); the range controls what is queried and does not slide on retry (comment 737-738).\n\n**4. The decisive completeness evidence** (`core/CandleProcessor.js:746-749`):\n- Line 746: `if (!coverage || coverage.start !== range.start || coverage.end !== range.end) return unavailable('[REDACTED]')` \u2014 the coverage must exist **and exactly match the requested range**.\n- Line 749: `if (coverage.complete !== true) return { candles: [], coverage }` \u2014 the provider must explicitly attest completion. Otherwise the job does not complete.\n\n**5. Independent anchor verification** (`core/CandleProcessor.js:765-767`): `if (!normalized.some(c => c[0] === range.start)) return unavailable('range_start_unavailable')` \u2014 even after the provider claims `complete: true`, the CandleProcessor requires the left anchor candle (start == `range.start`) to be present in the returned set.\n\n**6. `_runBackfill` gates completion vs retry** (`core/CandleProcessor.js:817-840`): only `coverage.complete === true` (822) leads to `handleBackfillSuccess` + `_finishBackfill(job, 'completed')` (826). Otherwise it schedules a retry after `backfillRetryDelayMs` (836-839). Guards at 818/821 discard a late response after the job is retired (comment 820: \"Handoff/stop retires the producer before a late response can be replayed\").\n\n### What `complete: true` means at the provider\n\n- **AlpacaAdapter** (`brokers/AlpacaAdapter.js:663-736`): pages through every page (`do...while (pageToken && ...)`, 683-705), then `hasAnchor = candles.some(c => c.t === range.start)` (726) and returns `complete: hasAnchor` (729). Completion therefore requires **all pages exhausted AND the anchor present**. A pagination error or malformed page returns `complete: false` (697, 702, 720, 733).\n- **Kraken simple adapter** (`kraken_adapter_simple.js:318-395`): `hasAnchor = mapped.some(c => c.t === range.start)` (381), and `reason = !hasAnchor ? 'range_start_unavailable' : cursor < range.end - intervalMs ? '[REDACTED]' : null` (382-384), with `complete: reason === null` (387). Completion requires **anchor present AND the provider cursor reaching at least `range.end - intervalMs`** \u2014 i.e., the provider confirms the queried interval is committed.\n\n### How delayed/partial responses are handled\n\n- **Delayed**: the job simply awaits the async result; the range stays fixed (Kraken comment 328: \"A recovery range stays fixed even while pacing or retrying this request\"). A late response arriving after shutdown/session-transition is discarded by the 818/821 guards, not replayed.\n- **Partial**: Alpaca exhausts all pages before declaring complete; an interrupted/errored pagination lands in `catch` \u2192 `complete: false` (733). Kraken requires the cursor to reach past the interval end (383). So a genuinely partial response yields `complete: false` \u2192 retry, not completion.\n\n### Unverified assumptions / named limitations\n\n1. **Completeness is ultimately trusted from the provider.** The CandleProcessor does not count expected bars (`Math.floor(gapMs / intervalMs) - 1` is computed only for logging at 1068, never used as a completion gate) and does not verify interior contiguity. If a provider returned `complete: true` with missing interior bars, the job would accept it. The only independent check is the left anchor (765).\n2. **Adapters that do not emit coverage never complete.** `SchwabAdapter.getCandles` (`brokers/SchwabAdapter.js:398-423`) returns a plain array (no `range` param, no coverage), so it would fail the line 746 check and retry indefinitely. `KrakenAdapterV2.getCandles` (core) returns `[]` (235-239). This is an inherited limitation, not part of the completion gate itself.\n3. **No executed test run** confirms the behavior; this is a source-derived reading of the control flow.\n\n### CANDIDATE SET: examined 11 of 11\n`core/CandleProcessor.js` attemptBackfill (690-785), startBackfill (792-815), _runBackfill (817-840), _finishBackfill (842-848), handleBackfillSuccess (863-923), gap detection (1050-1087); `brokers/AlpacaAdapter.js` getCandles (663-736); `kraken_adapter_simple.js` getHistoricalOHLC (318-395); `core/KrakenAdapterV2.js` getCandles (235-239); `brokers/SchwabAdapter.js` getCandles (398-423); `brokers/IBrokerAdapter.js` contract doc (152-165). All read.\n\n### AST EVIDENCE\nUsed `find_definition` (getCandles \u2192 19 candidate defs), `find_references` (startBackfill \u2192 call site at line 1084), `grep`/`regex_grep` for coverage/complete producers. Structure claims are backed by these tool results plus direct `open_file` reads of the cited ranges.\n\n### INHERITED\n- `core/CandleProcessor.js`: on missing/mismatched coverage \u2192 `[REDACTED]` (746-748); on `complete !== true` \u2192 silent `{ candles: [], coverage }` return and retry (749, 829-839). Swallowed error: `catch` in attemptBackfill returns `backfill_request_failed` without rethrow (781-784).\n- `brokers/AlpacaAdapter.js`: swallows provider errors into `complete: false` coverage (733); no rethrow in range mode.\n- `kraken_adapter_simple.js`: swallows errors into `complete: false` coverage (392); rate-limit wait is honored before each request (322-326).\n- `brokers/SchwabAdapter.js`: no coverage support; returns a plain array (411-418) \u2014 would never satisfy the line 746 gate.\n\n### ALLEGATIONS\nNo defect is alleged by the prompt; the question is descriptive. I found the completion mechanism coherent and matching the documented contract (`brokers/IBrokerAdapter.js:160-161`: \"complete requires provider coverage, never an assumed candle count\"). The only caveat is the provider-trust assumption, which is named above, not a break.\n\n### SUBSTANTIVE RESOLUTION: none\n(No prior reviewer findings exist; no dispute to resolve.)\n\n### WHAT I DID\nRead `core/CandleProcessor.js` lines 1-120, 600-793, 792-1000, 1040-1100; `brokers/AlpacaAdapter.js` 600-740; `kraken_adapter_simple.js` 300-395; `brokers/IBrokerAdapter.js` 150-200; `brokers/SchwabAdapter.js` 398-460; ran `grep`/`regex_grep` for gap/backfill/coverage/complete across the tree; ran `find_definition`/`find_references` for getCandles/startBackfill.\n\n### WHAT I DID NOT DO\nDid not execute any code or test. Did not read the full 1248-line CandleProcessor.js (only the cited ranges). Did not inspect the CME/Gemini/Binance/Coinbase/etc. adapters' getCandles for coverage support (only those relevant to the active backfill path were examined).\n\n### WHAT I ASSUMED\nThat the active broker for a given job is one of the range-capable adapters (Alpaca or Kraken simple); the completion path for non-coverage adapters (e.g., Schwab) is unreachable by design.\n\n### WHY THIS VERDICT\nThe completion decision is fully traced: exact coverage-window match (746) + `coverage.complete === true` (749, 822) + independent left-anchor presence (765). This matches the documented contract and both provider implementations. No defect found in the decision mechanism; the provider-trust caveat is a named assumption, not a break.\n\n### IF INCOMPLETE, WHY\nNot incomplete for the stated question. Coverage of the completion gate and its two provider producers is complete; the unread CandleProcessor ranges are unrelated to the completion decision.\n\n---\n\n## ADVERSARIAL_REVIEW_BLOCKING: no",
+    "captured_at_iteration": 12,
+    "revised_at_iteration": null,
+    "revisions": [],
+    "files_mechanically_opened": [
+      "brokers/AlpacaAdapter.js:600-740",
+      "brokers/IBrokerAdapter.js:150-200",
+      "brokers/SchwabAdapter.js:398-460",
+      "core/CandleProcessor.js:1-120",
+      "core/CandleProcessor.js:1040-1100",
+      "core/CandleProcessor.js:600-793",
+      "core/CandleProcessor.js:792-1000",
+      "core/KrakenAdapterV2.js:235-357",
+      "kraken_adapter_simple.js:300-395"
+    ],
+    "file_read_receipts": [
+      {
+        "file": "brokers/AlpacaAdapter.js",
+        "startLine": 600,
+        "endLine": 740,
+        "totalLines": 1324,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "brokers/IBrokerAdapter.js",
+        "startLine": 150,
+        "endLine": 200,
+        "totalLines": 302,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "brokers/SchwabAdapter.js",
+        "startLine": 398,
+        "endLine": 460,
+        "totalLines": 585,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 1,
+        "endLine": 120,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 1040,
+        "endLine": 1100,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 600,
+        "endLine": 793,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": true
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 792,
+        "endLine": 1000,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/KrakenAdapterV2.js",
+        "startLine": 235,
+        "endLine": 357,
+        "totalLines": 357,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "kraken_adapter_simple.js",
+        "startLine": 300,
+        "endLine": 395,
+        "totalLines": 1382,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      }
+    ],
+    "claimed_file_citations": [
+      "brokers/AlpacaAdapter.js:600-740",
+      "brokers/AlpacaAdapter.js:663-736",
+      "brokers/IBrokerAdapter.js:150-200",
+      "brokers/IBrokerAdapter.js:160-161",
+      "brokers/SchwabAdapter.js:398-423",
+      "brokers/SchwabAdapter.js:398-460",
+      "core/CandleProcessor.js:1-120",
+      "core/CandleProcessor.js:1040-1100",
+      "core/CandleProcessor.js:1051-1084",
+      "core/CandleProcessor.js:600-793",
+      "core/CandleProcessor.js:690-785",
+      "core/CandleProcessor.js:746-749",
+      "core/CandleProcessor.js:765-767",
+      "core/CandleProcessor.js:792-1000",
+      "core/CandleProcessor.js:792-815",
+      "core/CandleProcessor.js:817-840",
+      "core/KrakenAdapterV2.js:235-357",
+      "kraken_adapter_simple.js:300-395",
+      "kraken_adapter_simple.js:318-395"
+    ],
+    "final_answer_citations": [
+      "brokers/AlpacaAdapter.js:663-736",
+      "brokers/IBrokerAdapter.js:160-161",
+      "brokers/SchwabAdapter.js:398-423",
+      "core/CandleProcessor.js:1051-1084",
+      "core/CandleProcessor.js:690-785",
+      "core/CandleProcessor.js:746-749",
+      "core/CandleProcessor.js:765-767",
+      "core/CandleProcessor.js:792-815",
+      "core/CandleProcessor.js:817-840",
+      "kraken_adapter_simple.js:318-395"
+    ],
+    "answer_citations_subset": true,
+    "citations_not_in_candidate_set": [],
+    "candidate_sources": [
+      {
+        "coverage": null,
+        "phase": "pass_1",
+        "recheck_index": null,
+        "content": "I have traced the full path. Let me verify one more detail \u2014 the `_runBackfill` retry/complete gate and the `attemptBackfill` coverage checks are the decisive evidence. I have all I need.\n\n---\n\n## VERDICT: no_break_found\n\nThe candle-gap recovery job decides its originally requested interval is complete based on **the provider's `coverage` receipt, gated by two exact-match checks and one independent anchor verification**. It does **not** count expected bars or verify interior contiguity; completeness is a provider-attested claim that the CandleProcessor cross-checks only against the left anchor.\n\n### The completion decision path (core/CandleProcessor.js)\n\n**1. Gap detection triggers the job** \u2014 When a new candle arrives in live mode and the gap exceeds the threshold, `startBackfill(lastCandle.etime, candle.etime, gapTraceContext)` is called (`core/CandleProcessor.js:1051-1084`). The job bounds are fixed at gap start/end.\n\n**2. `startBackfill` owns the immutable job** (`core/CandleProcessor.js:792-815`) \u2014 keyed by `[brokerId, accountId, assetClass, executionMode, symbol, timeframe, sessionRouterEpoch, gapStart, gapEnd]` (801-805). Concurrent identical requests share one pending promise (807). Each job carries a fixed `gapStart`/`gapEnd`.\n\n**3. `attemptBackfill` builds the range and calls the provider** (`core/CandleProcessor.js:690-785`):\n- `range = { start: gapStart - intervalMs, end: gapEnd - intervalMs }` (693). The range start is one interval before the gap \u2014 the last known candle (the anchor).\n- Calls `broker.getCandles(symbol, timeframe, fetchCount, range)` (744). `fetchCount` is only a page-size hint (739-740); the range controls what is queried and does not slide on retry (comment 737-738).\n\n**4. The decisive completeness evidence** (`core/CandleProcessor.js:746-749`):\n- Line 746: `if (!coverage || coverage.start !== range.start || coverage.end !== range.end) return unavailable('[REDACTED]')` \u2014 the coverage must exist **and exactly match the requested range**.\n- Line 749: `if (coverage.complete !== true) return { candles: [], coverage }` \u2014 the provider must explicitly attest completion. Otherwise the job does not complete.\n\n**5. Independent anchor verification** (`core/CandleProcessor.js:765-767`): `if (!normalized.some(c => c[0] === range.start)) return unavailable('range_start_unavailable')` \u2014 even after the provider claims `complete: true`, the CandleProcessor requires the left anchor candle (start == `range.start`) to be present in the returned set.\n\n**6. `_runBackfill` gates completion vs retry** (`core/CandleProcessor.js:817-840`): only `coverage.complete === true` (822) leads to `handleBackfillSuccess` + `_finishBackfill(job, 'completed')` (826). Otherwise it schedules a retry after `backfillRetryDelayMs` (836-839). Guards at 818/821 discard a late response after the job is retired (comment 820: \"Handoff/stop retires the producer before a late response can be replayed\").\n\n### What `complete: true` means at the provider\n\n- **AlpacaAdapter** (`brokers/AlpacaAdapter.js:663-736`): pages through every page (`do...while (pageToken && ...)`, 683-705), then `hasAnchor = candles.some(c => c.t === range.start)` (726) and returns `complete: hasAnchor` (729). Completion therefore requires **all pages exhausted AND the anchor present**. A pagination error or malformed page returns `complete: false` (697, 702, 720, 733).\n- **Kraken simple adapter** (`kraken_adapter_simple.js:318-395`): `hasAnchor = mapped.some(c => c.t === range.start)` (381), and `reason = !hasAnchor ? 'range_start_unavailable' : cursor < range.end - intervalMs ? '[REDACTED]' : null` (382-384), with `complete: reason === null` (387). Completion requires **anchor present AND the provider cursor reaching at least `range.end - intervalMs`** \u2014 i.e., the provider confirms the queried interval is committed.\n\n### How delayed/partial responses are handled\n\n- **Delayed**: the job simply awaits the async result; the range stays fixed (Kraken comment 328: \"A recovery range stays fixed even while pacing or retrying this request\"). A late response arriving after shutdown/session-transition is discarded by the 818/821 guards, not replayed.\n- **Partial**: Alpaca exhausts all pages before declaring complete; an interrupted/errored pagination lands in `catch` \u2192 `complete: false` (733). Kraken requires the cursor to reach past the interval end (383). So a genuinely partial response yields `complete: false` \u2192 retry, not completion.\n\n### Unverified assumptions / named limitations\n\n1. **Completeness is ultimately trusted from the provider.** The CandleProcessor does not count expected bars (`Math.floor(gapMs / intervalMs) - 1` is computed only for logging at 1068, never used as a completion gate) and does not verify interior contiguity. If a provider returned `complete: true` with missing interior bars, the job would accept it. The only independent check is the left anchor (765).\n2. **Adapters that do not emit coverage never complete.** `SchwabAdapter.getCandles` (`brokers/SchwabAdapter.js:398-423`) returns a plain array (no `range` param, no coverage), so it would fail the line 746 check and retry indefinitely. `KrakenAdapterV2.getCandles` (core) returns `[]` (235-239). This is an inherited limitation, not part of the completion gate itself.\n3. **No executed test run** confirms the behavior; this is a source-derived reading of the control flow.\n\n### CANDIDATE SET: examined 11 of 11\n`core/CandleProcessor.js` attemptBackfill (690-785), startBackfill (792-815), _runBackfill (817-840), _finishBackfill (842-848), handleBackfillSuccess (863-923), gap detection (1050-1087); `brokers/AlpacaAdapter.js` getCandles (663-736); `kraken_adapter_simple.js` getHistoricalOHLC (318-395); `core/KrakenAdapterV2.js` getCandles (235-239); `brokers/SchwabAdapter.js` getCandles (398-423); `brokers/IBrokerAdapter.js` contract doc (152-165). All read.\n\n### AST EVIDENCE\nUsed `find_definition` (getCandles \u2192 19 candidate defs), `find_references` (startBackfill \u2192 call site at line 1084), `grep`/`regex_grep` for coverage/complete producers. Structure claims are backed by these tool results plus direct `open_file` reads of the cited ranges.\n\n### INHERITED\n- `core/CandleProcessor.js`: on missing/mismatched coverage \u2192 `[REDACTED]` (746-748); on `complete !== true` \u2192 silent `{ candles: [], coverage }` return and retry (749, 829-839). Swallowed error: `catch` in attemptBackfill returns `backfill_request_failed` without rethrow (781-784).\n- `brokers/AlpacaAdapter.js`: swallows provider errors into `complete: false` coverage (733); no rethrow in range mode.\n- `kraken_adapter_simple.js`: swallows errors into `complete: false` coverage (392); rate-limit wait is honored before each request (322-326).\n- `brokers/SchwabAdapter.js`: no coverage support; returns a plain array (411-418) \u2014 would never satisfy the line 746 gate.\n\n### ALLEGATIONS\nNo defect is alleged by the prompt; the question is descriptive. I found the completion mechanism coherent and matching the documented contract (`brokers/IBrokerAdapter.js:160-161`: \"complete requires provider coverage, never an assumed candle count\"). The only caveat is the provider-trust assumption, which is named above, not a break.\n\n### SUBSTANTIVE RESOLUTION: none\n(No prior reviewer findings exist; no dispute to resolve.)\n\n### WHAT I DID\nRead `core/CandleProcessor.js` lines 1-120, 600-793, 792-1000, 1040-1100; `brokers/AlpacaAdapter.js` 600-740; `kraken_adapter_simple.js` 300-395; `brokers/IBrokerAdapter.js` 150-200; `brokers/SchwabAdapter.js` 398-460; ran `grep`/`regex_grep` for gap/backfill/coverage/complete across the tree; ran `find_definition`/`find_references` for getCandles/startBackfill.\n\n### WHAT I DID NOT DO\nDid not execute any code or test. Did not read the full 1248-line CandleProcessor.js (only the cited ranges). Did not inspect the CME/Gemini/Binance/Coinbase/etc. adapters' getCandles for coverage support (only those relevant to the active backfill path were examined).\n\n### WHAT I ASSUMED\nThat the active broker for a given job is one of the range-capable adapters (Alpaca or Kraken simple); the completion path for non-coverage adapters (e.g., Schwab) is unreachable by design.\n\n### WHY THIS VERDICT\nThe completion decision is fully traced: exact coverage-window match (746) + `coverage.complete === true` (749, 822) + independent left-anchor presence (765). This matches the documented contract and both provider implementations. No defect found in the decision mechanism; the provider-trust caveat is a named assumption, not a break.\n\n### IF INCOMPLETE, WHY\nNot incomplete for the stated question. Coverage of the completion gate and its two provider producers is complete; the unread CandleProcessor ranges are unrelated to the completion decision.\n\n---\n\n## ADVERSARIAL_REVIEW_BLOCKING: no",
+        "captured_at_iteration": 12,
+        "files_mechanically_opened": [
+          "brokers/AlpacaAdapter.js:600-740",
+          "brokers/IBrokerAdapter.js:150-200",
+          "brokers/SchwabAdapter.js:398-460",
+          "core/CandleProcessor.js:1-120",
+          "core/CandleProcessor.js:1040-1100",
+          "core/CandleProcessor.js:600-793",
+          "core/CandleProcessor.js:792-1000",
+          "core/KrakenAdapterV2.js:235-357",
+          "kraken_adapter_simple.js:300-395"
+        ],
+        "file_read_receipts": [
+          {
+            "file": "brokers/AlpacaAdapter.js",
+            "startLine": 600,
+            "endLine": 740,
+            "totalLines": 1324,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "brokers/IBrokerAdapter.js",
+            "startLine": 150,
+            "endLine": 200,
+            "totalLines": 302,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "brokers/SchwabAdapter.js",
+            "startLine": 398,
+            "endLine": 460,
+            "totalLines": 585,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 1,
+            "endLine": 120,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 1040,
+            "endLine": 1100,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 600,
+            "endLine": 793,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": true
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 792,
+            "endLine": 1000,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/KrakenAdapterV2.js",
+            "startLine": 235,
+            "endLine": 357,
+            "totalLines": 357,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "kraken_adapter_simple.js",
+            "startLine": 300,
+            "endLine": 395,
+            "totalLines": 1382,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          }
+        ],
+        "claimed_file_citations": [
+          "brokers/AlpacaAdapter.js:600-740",
+          "brokers/AlpacaAdapter.js:663-736",
+          "brokers/IBrokerAdapter.js:150-200",
+          "brokers/IBrokerAdapter.js:160-161",
+          "brokers/SchwabAdapter.js:398-423",
+          "brokers/SchwabAdapter.js:398-460",
+          "core/CandleProcessor.js:1-120",
+          "core/CandleProcessor.js:1040-1100",
+          "core/CandleProcessor.js:1051-1084",
+          "core/CandleProcessor.js:600-793",
+          "core/CandleProcessor.js:690-785",
+          "core/CandleProcessor.js:746-749",
+          "core/CandleProcessor.js:765-767",
+          "core/CandleProcessor.js:792-1000",
+          "core/CandleProcessor.js:792-815",
+          "core/CandleProcessor.js:817-840",
+          "core/KrakenAdapterV2.js:235-357",
+          "kraken_adapter_simple.js:300-395",
+          "kraken_adapter_simple.js:318-395"
+        ],
+        "final_answer_citations": [
+          "brokers/AlpacaAdapter.js:663-736",
+          "brokers/IBrokerAdapter.js:160-161",
+          "brokers/SchwabAdapter.js:398-423",
+          "core/CandleProcessor.js:1051-1084",
+          "core/CandleProcessor.js:690-785",
+          "core/CandleProcessor.js:746-749",
+          "core/CandleProcessor.js:765-767",
+          "core/CandleProcessor.js:792-815",
+          "core/CandleProcessor.js:817-840",
+          "kraken_adapter_simple.js:318-395"
+        ],
+        "answer_citations_subset": true,
+        "citations_not_in_candidate_set": [],
+        "claim_inventory": [],
+        "claim_adjudications": null,
+        "final_claim_adjudications": null,
+        "claim_decision_attempts": [],
+        "explicit_continuation": null
+      }
+    ]
+  },
+  "answer_quality": [],
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 11,
+      "total": 11
+    },
+    "candidateCoverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 1,
+    "changedJsCount": 1,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "files_opened": [
+    "brokers/AlpacaAdapter.js:600-740",
+    "brokers/IBrokerAdapter.js:150-200",
+    "brokers/SchwabAdapter.js:398-460",
+    "core/CandleProcessor.js:1-120",
+    "core/CandleProcessor.js:1040-1100",
+    "core/CandleProcessor.js:600-793",
+    "core/CandleProcessor.js:792-1000",
+    "core/KrakenAdapterV2.js:235-357",
+    "kraken_adapter_simple.js:300-395"
+  ],
+  "file_reads": [
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1,
+      "endLine": 120,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 600,
+      "endLine": 793,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": true
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 792,
+      "endLine": 1000,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/KrakenAdapterV2.js",
+      "startLine": 235,
+      "endLine": 357,
+      "totalLines": 357,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "brokers/AlpacaAdapter.js",
+      "startLine": 600,
+      "endLine": 740,
+      "totalLines": 1324,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "kraken_adapter_simple.js",
+      "startLine": 300,
+      "endLine": 395,
+      "totalLines": 1382,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1040,
+      "endLine": 1100,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "brokers/IBrokerAdapter.js",
+      "startLine": 150,
+      "endLine": 200,
+      "totalLines": 302,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "brokers/SchwabAdapter.js",
+      "startLine": 398,
+      "endLine": 460,
+      "totalLines": 585,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    }
+  ],
+  "commandFile": "02-after-old-command.json",
+  "fullAnswerSHA256": "48bba770df992072f31ad7a95f6165c1c5e4d5e863024aa0ea78b3ffcd86fe80",
+  "rawLedgerSHA256": "677d07a113e1285ae10316408b4be8d9fe28cd38bc98bcd458c4208d2d11159e",
+  "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+  "sourceTree": "a491f9b14b2105e3c3c1a06c11d73a0edeaf00a3",
+  "configSHA256": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a",
+  "evidenceBundle": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-41-52-803z-2489056-2e51207ca085/current-change-evidence.txt",
+    "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-41-52-803z-2489056-2e51207ca085/current-change-evidence.txt:1",
+    "sha256": "ac05bc77b3446c43a2a0566c808a9910d6b57b84b0be66cca79db595d25f8354",
+    "bytes": 90336,
+    "lines": 1282,
+    "section_count": 5,
+    "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-41-52-803z-2489056-2e51207ca085/manifest.json",
+    "manifest_sha256": "d38675d14138a787f628907b15f91b5cf5115a19021a1853813e37424da731df",
+    "manifest_bytes": 7548
+  },
+  "sourceTargets": [
+    {
+      "path": "core/CandleProcessor.js",
+      "status": "current",
+      "source_ref": "a491f9b14b2105e3c3c1a06c11d73a0edeaf00a3",
+      "source_artifact_id": "artifact-0001-5b37fb743dfdf33e",
+      "diff_artifact_id": "artifact-0002-e3b0c44298fc1c14",
+      "source_total_lines": 1247,
+      "source_sha256": "5b37fb743dfdf33e15ffd4fba3be900c982274070864db36557892469f760e33",
+      "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "unresolved": []
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "find_definition",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    },
+    {
+      "name": "list_files",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 9,
+      "succeeded": 9,
+      "failed": 0
+    },
+    {
+      "name": "regex_grep",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    }
+  ],
+  "reviewers": {
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit",
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "reported_decision": {
+      "verdict": "no_break_found",
+      "majorityOutcome": "no_break_found",
+      "majorityRequired": 1,
+      "selectedCount": 1,
+      "tally": {
+        "found_break": 0,
+        "no_break_found": 1,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "no_break_found",
+          "rawVerdict": "no_break_found",
+          "answerSha256": "de1143d21460702970a0c2c1c662023487d8c82711c3c1b4e431b3d7908b342f",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    },
+    "seats": [
+      {
+        "id": "mercury",
+        "label": "Mercury",
+        "status": "succeeded",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "termination": "answer_given",
+        "identityConflict": false,
+        "verdict": "no_break_found",
+        "qualifying": true,
+        "named_absences": [],
+        "stopped_because": "stop",
+        "seat_tokens": {
+          "input": 292063,
+          "uncached_input": 196882,
+          "cached_input": 95181,
+          "output": 9954,
+          "total": 302017,
+          "complete": true,
+          "attempts_with_usage": 12,
+          "total_attempts": 12
+        },
+        "seat_cost": {
+          "amount": 0.02412391,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 12,
+          "total_attempts": 12,
+          "cost_absences": []
+        }
+      }
+    ]
+  },
+  "wallSeconds": 56.920771
+}

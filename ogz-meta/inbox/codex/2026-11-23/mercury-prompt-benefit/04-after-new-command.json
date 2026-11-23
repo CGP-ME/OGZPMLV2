@@ -1,0 +1,23 @@
+{
+  "id": "04-after-new",
+  "prompt": "new",
+  "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+  "sourceTree": "a491f9b14b2105e3c3c1a06c11d73a0edeaf00a3",
+  "configPath": "mercury.config.json",
+  "configSHA256": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+    "--review-base=cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+    "--change-path=core/CandleProcessor.js",
+    "Scope: completion of a candle-gap recovery job for its originally requested interval after a delayed or partial provider response, starting at core/CandleProcessor.js and following the relevant provider request and replay paths. How does this fail or cost me money in production? Cite current file:line evidence and name any unverified assumptions."
+  ],
+  "startedAt": "2026-11-23T13:44:22.492796+00:00",
+  "finishedAt": "2026-11-23T13:45:43.911240+00:00",
+  "exitCode": 0
+}

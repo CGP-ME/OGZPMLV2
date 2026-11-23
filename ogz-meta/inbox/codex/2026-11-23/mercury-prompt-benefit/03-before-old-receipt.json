@@ -1,0 +1,482 @@
+{
+  "run_id": "2026-11-23T13-43-53-743Z-ad0794081eda",
+  "started_at": "2026-11-23T13:43:13.403Z",
+  "created_at": "2026-11-23T13:43:53.743Z",
+  "head_sha": "c0f120f136a72af5dd0b1c9f20f0b6dd6ca57205",
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "verdict": "found_break",
+  "termination": "answer_given",
+  "iterations": 10,
+  "latency_ms": 24032,
+  "run_tokens": {
+    "input": 243915,
+    "uncached_input": 163763,
+    "cached_input": 80152,
+    "output": 9642,
+    "total": 253557,
+    "complete": true,
+    "attempts_with_usage": 11,
+    "total_attempts": 11
+  },
+  "run_cost": {
+    "amount": 0.02025734,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 11,
+    "total_attempts": 11,
+    "cost_absences": []
+  },
+  "candidate_set": {
+    "coverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "claim_inventory": [],
+    "content": "I have now exhaustively traced the candle-gap recovery path in `core/CandleProcessor.js`. Let me write up the findings.\n\n## VERDICT: found_break\n\nA candle-gap recovery job decides its originally requested interval is complete using **only one piece of evidence: that the provider returned at least one candle inside the gap bounds** (`candles.length > 0`). It never verifies that the returned candles actually cover the full `[gapStart, gapEnd]` interval. A partial provider response therefore causes the job to declare the interval complete while unfilled portions remain.\n\n---\n\n### The complete control flow (evidence path)\n\n**1. Gap detection** \u2014 `handleMarketData` detects a gap on a new candle when `gapMs > gapThreshold` and calls `startBackfill(lastCandle.etime, candle.etime, gapTraceContext)` (`core/CandleProcessor.js:1046-1082`, call at `:1079`).\n\n**2. Job creation** \u2014 `startBackfill` builds a job keyed by the scoped interval and launches `_runBackfill` (`:787-810`). `find_references` confirms `startBackfill` has no callers outside this file (only `:787` definition and `:1079` call site).\n\n**3. Provider request** \u2014 `_runBackfill` calls `attemptBackfill(job)` (`:814`). `attemptBackfill` computes `missingCount = Math.ceil((gapEnd - gapStart) / timeframeToMs(timeframe))` (`:738`), requests `fetchCount = missingCount + gapBackfillBufferCandles` (`:739`), normalizes the response, and **filters to only the in-gap candles**: `et > gapStart && et <= gapEnd` (`:765-768`). It returns the sorted `gapCandles` (`:772-774`).\n\n**4. Completion decision** \u2014 back in `_runBackfill`:\n\n```\nif (candles.length > 0) {\n  this.handleBackfillSuccess(candles, {...});\n  this._finishBackfill(job, 'completed');\n  return;\n}\nconsole.error(`[GAP-RECOVERY] Backfill unavailable ... retry`);\n```\n(`:817-824`)\n\nThis is the **sole** gate. `handleBackfillSuccess` (`:857-918`) merely replays each returned candle through `processNewCandle`; it performs no completeness reconciliation. `_finishBackfill` deletes the job from `backfillJobs` and emits `GAP_BACKFILL_COMPLETED` (`:836-842`).\n\n---\n\n### Candidate inventory for \"what evidence decides completeness\"\n\n| Candidate | Evidence | Verdict |\n|---|---|---|\n| **`candles.length > 0`** (returned \u22651 in-gap candle) | `:817` \u2014 the only gate before `'completed'` | **SELECTED** \u2014 this is the deciding evidence |\n| `missingCount` comparison | Computed at `:738`, used only for `fetchCount` (`:739`) and logging (`:741`); grep shows only these 3 occurrences, never compared against returned count | REJECTED as a completeness check |\n| Contiguity/coverage check across `[gapStart, gapEnd]` | `attemptBackfill` filters to in-gap candles (`:765-768`) but never verifies the candles tile the full interval | REJECTED \u2014 no such check exists |\n| Retry path | `:824-833` \u2014 fires **only** when `candles.length === 0` (empty response); a partial non-empty response never retries | REJECTED as a safety net for partial responses |\n| Re-detection via future gap detection | After splice, the triggering candle remains last in `priceHistory` (`:518-527`); gap detection compares only the newest boundary (`:1046-1082`), so residual mid-history sub-gaps are not re-examined | REJECTED as guaranteed recovery \u2014 depends on future new candles and does not repair the already-\"completed\" interval |\n\n---\n\n### Why a partial response is treated as complete\n\nThe gap detection at `:1079` fires *before* the triggering candle is inserted. When the backfill later completes, `processNewCandle` splices the returned candles in timestamp order *before* the triggering candle (`:518-527`), so the triggering candle remains last. A partial response (e.g., filling 1 of 3 missing candles) still yields `candles.length > 0` (`:817`), so the job emits `GAP_BACKFILL_COMPLETED` and is removed from `backfillJobs` (`:838`). The unfilled candles sit in the middle of history, and future gap detection only inspects the newest boundary (`:1046-1082`), so they are not re-requested by this mechanism.\n\n---\n\n### Unverified assumptions\n\n- I did **not** execute the code or run tests; this is a source-derived control-flow analysis, not an observed runtime failure. No execution receipt was supplied.\n- The claim that the triggering candle remains last depends on `processNewCandle`'s splice ordering (`:518-527`) and on the backfill completing asynchronously after the triggering candle's insertion (`:1079` \u2192 `:1085`); this ordering is consistent with the source but was not observed at runtime.\n- I did not inspect `dataFeedConfig` defaults (e.g., `gapBackfillBufferCandles`, `gapThresholdMultiplier`, `gapBackfillRetryDelayMs`) in config files; those values affect *when* gaps are detected and *how many* candles are requested, not the completeness decision itself.\n\n---\n\n### Required fields\n\n**CANDIDATE SET:** examined 5 of 5 (listed above); the full `core/CandleProcessor.js` (1243 lines) was read across the delivered windows (1-100, 100-330, 330-558, 558-680, 680-910, 910-1110, 1110-1243). Diff artifact is empty (baseline == review tree).\n\n**AST EVIDENCE:** I used `find_references` (startBackfill, _runBackfill, handleBackfillSuccess), `find_definition` (processNewCandle \u2192 `:435`), and `grep` (gap, replay, missingCount) in this run. No host-provided AST scan receipts were used.\n\n**INHERITED:** No changed paths; review tree equals baseline (`414528f`). The gap-recovery behavior described is inherited current-source behavior, not a new change. No swallowed errors or silent defaults were introduced by a diff (diff is empty).\n\n**FOURTH SHAPE CLASSIFIER:** classified 0 of 0 added throw/guard/gate/fallback (no diff). The `candles.length > 0` gate at `:817` and the retry `setTimeout` at `:830-833` are pre-existing source, not additions.\n\n**ALLEGATIONS:** The finding is that the completeness decision at `:817` does not verify interval coverage; a partial provider response is treated as complete. This is observed directly in current source (lines cited above), not testimony.\n\n**SUBSTANTIVE RESOLUTION:** none (no prior reviewer testimony exists; receipt has 0 entries).\n\n**ADVERSARIAL_REVIEW_BLOCKING:** yes \u2014 the supported defect is that a partial provider response causes the job to declare the originally requested interval complete without verifying coverage, leaving unfilled candles unrecovered.\n\n**WHAT I DID:** Read all 1243 lines of `core/CandleProcessor.js`; traced gap detection (`:1046-1082`) \u2192 `startBackfill` (`:787-810`) \u2192 `_runBackfill` (`:812-834`) \u2192 `attemptBackfill` (`:695-780`) \u2192 `handleBackfillSuccess` (`:857-918`) \u2192 `processNewCandle` (`:435-613`); confirmed `missingCount` usage is logging/fetchCount-only via grep; confirmed no external callers via `find_references`.\n\n**WHAT I DID NOT DO:** Did not execute the code, run tests, or inspect config defaults (`dataFeedConfig` values). No execution receipt was available.\n\n**WHAT I ASSUMED:** That the backfill completes asynchronously after the triggering candle is inserted, so the triggering candle remains last in `priceHistory` (consistent with `:1079` \u2192 `:1085` and splice at `:518-527`).\n\n**WHY THIS VERDICT:** The completion gate at `:817` (`candles.length > 0`) is the only evidence the job consults; `missingCount` is never compared against the returned count, and no contiguity/coverage check exists. Therefore a delayed or partial provider response that returns \u22651 in-gap candle is declared complete regardless of whether the full interval was filled.\n\n**IF INCOMPLETE, WHY:** Not incomplete for the stated question; the full control flow was traced from current source. Runtime behavior was not executed, so the defect is source-established, not observed.",
+    "captured_at_iteration": 10,
+    "revised_at_iteration": null,
+    "revisions": [],
+    "files_mechanically_opened": [
+      "core/CandleProcessor.js:1-100",
+      "core/CandleProcessor.js:100-330",
+      "core/CandleProcessor.js:1110-1243",
+      "core/CandleProcessor.js:330-558",
+      "core/CandleProcessor.js:558-680",
+      "core/CandleProcessor.js:680-910",
+      "core/CandleProcessor.js:910-1110"
+    ],
+    "file_read_receipts": [
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 1,
+        "endLine": 100,
+        "totalLines": 1243,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 100,
+        "endLine": 330,
+        "totalLines": 1243,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 1110,
+        "endLine": 1243,
+        "totalLines": 1243,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 330,
+        "endLine": 558,
+        "totalLines": 1243,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": true
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 558,
+        "endLine": 680,
+        "totalLines": 1243,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 680,
+        "endLine": 910,
+        "totalLines": 1243,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": true
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 910,
+        "endLine": 1110,
+        "totalLines": 1243,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": true
+      }
+    ],
+    "claimed_file_citations": [
+      "core/CandleProcessor.js:1-100",
+      "core/CandleProcessor.js:100-330",
+      "core/CandleProcessor.js:1046-1082",
+      "core/CandleProcessor.js:1110-1243",
+      "core/CandleProcessor.js:330-558",
+      "core/CandleProcessor.js:558-680",
+      "core/CandleProcessor.js:680-910",
+      "core/CandleProcessor.js:910-1110"
+    ],
+    "final_answer_citations": [
+      "core/CandleProcessor.js:1046-1082"
+    ],
+    "answer_citations_subset": true,
+    "citations_not_in_candidate_set": [],
+    "candidate_sources": [
+      {
+        "coverage": null,
+        "phase": "pass_1",
+        "recheck_index": null,
+        "content": "I have now exhaustively traced the candle-gap recovery path in `core/CandleProcessor.js`. Let me write up the findings.\n\n## VERDICT: found_break\n\nA candle-gap recovery job decides its originally requested interval is complete using **only one piece of evidence: that the provider returned at least one candle inside the gap bounds** (`candles.length > 0`). It never verifies that the returned candles actually cover the full `[gapStart, gapEnd]` interval. A partial provider response therefore causes the job to declare the interval complete while unfilled portions remain.\n\n---\n\n### The complete control flow (evidence path)\n\n**1. Gap detection** \u2014 `handleMarketData` detects a gap on a new candle when `gapMs > gapThreshold` and calls `startBackfill(lastCandle.etime, candle.etime, gapTraceContext)` (`core/CandleProcessor.js:1046-1082`, call at `:1079`).\n\n**2. Job creation** \u2014 `startBackfill` builds a job keyed by the scoped interval and launches `_runBackfill` (`:787-810`). `find_references` confirms `startBackfill` has no callers outside this file (only `:787` definition and `:1079` call site).\n\n**3. Provider request** \u2014 `_runBackfill` calls `attemptBackfill(job)` (`:814`). `attemptBackfill` computes `missingCount = Math.ceil((gapEnd - gapStart) / timeframeToMs(timeframe))` (`:738`), requests `fetchCount = missingCount + gapBackfillBufferCandles` (`:739`), normalizes the response, and **filters to only the in-gap candles**: `et > gapStart && et <= gapEnd` (`:765-768`). It returns the sorted `gapCandles` (`:772-774`).\n\n**4. Completion decision** \u2014 back in `_runBackfill`:\n\n```\nif (candles.length > 0) {\n  this.handleBackfillSuccess(candles, {...});\n  this._finishBackfill(job, 'completed');\n  return;\n}\nconsole.error(`[GAP-RECOVERY] Backfill unavailable ... retry`);\n```\n(`:817-824`)\n\nThis is the **sole** gate. `handleBackfillSuccess` (`:857-918`) merely replays each returned candle through `processNewCandle`; it performs no completeness reconciliation. `_finishBackfill` deletes the job from `backfillJobs` and emits `GAP_BACKFILL_COMPLETED` (`:836-842`).\n\n---\n\n### Candidate inventory for \"what evidence decides completeness\"\n\n| Candidate | Evidence | Verdict |\n|---|---|---|\n| **`candles.length > 0`** (returned \u22651 in-gap candle) | `:817` \u2014 the only gate before `'completed'` | **SELECTED** \u2014 this is the deciding evidence |\n| `missingCount` comparison | Computed at `:738`, used only for `fetchCount` (`:739`) and logging (`:741`); grep shows only these 3 occurrences, never compared against returned count | REJECTED as a completeness check |\n| Contiguity/coverage check across `[gapStart, gapEnd]` | `attemptBackfill` filters to in-gap candles (`:765-768`) but never verifies the candles tile the full interval | REJECTED \u2014 no such check exists |\n| Retry path | `:824-833` \u2014 fires **only** when `candles.length === 0` (empty response); a partial non-empty response never retries | REJECTED as a safety net for partial responses |\n| Re-detection via future gap detection | After splice, the triggering candle remains last in `priceHistory` (`:518-527`); gap detection compares only the newest boundary (`:1046-1082`), so residual mid-history sub-gaps are not re-examined | REJECTED as guaranteed recovery \u2014 depends on future new candles and does not repair the already-\"completed\" interval |\n\n---\n\n### Why a partial response is treated as complete\n\nThe gap detection at `:1079` fires *before* the triggering candle is inserted. When the backfill later completes, `processNewCandle` splices the returned candles in timestamp order *before* the triggering candle (`:518-527`), so the triggering candle remains last. A partial response (e.g., filling 1 of 3 missing candles) still yields `candles.length > 0` (`:817`), so the job emits `GAP_BACKFILL_COMPLETED` and is removed from `backfillJobs` (`:838`). The unfilled candles sit in the middle of history, and future gap detection only inspects the newest boundary (`:1046-1082`), so they are not re-requested by this mechanism.\n\n---\n\n### Unverified assumptions\n\n- I did **not** execute the code or run tests; this is a source-derived control-flow analysis, not an observed runtime failure. No execution receipt was supplied.\n- The claim that the triggering candle remains last depends on `processNewCandle`'s splice ordering (`:518-527`) and on the backfill completing asynchronously after the triggering candle's insertion (`:1079` \u2192 `:1085`); this ordering is consistent with the source but was not observed at runtime.\n- I did not inspect `dataFeedConfig` defaults (e.g., `gapBackfillBufferCandles`, `gapThresholdMultiplier`, `gapBackfillRetryDelayMs`) in config files; those values affect *when* gaps are detected and *how many* candles are requested, not the completeness decision itself.\n\n---\n\n### Required fields\n\n**CANDIDATE SET:** examined 5 of 5 (listed above); the full `core/CandleProcessor.js` (1243 lines) was read across the delivered windows (1-100, 100-330, 330-558, 558-680, 680-910, 910-1110, 1110-1243). Diff artifact is empty (baseline == review tree).\n\n**AST EVIDENCE:** I used `find_references` (startBackfill, _runBackfill, handleBackfillSuccess), `find_definition` (processNewCandle \u2192 `:435`), and `grep` (gap, replay, missingCount) in this run. No host-provided AST scan receipts were used.\n\n**INHERITED:** No changed paths; review tree equals baseline (`414528f`). The gap-recovery behavior described is inherited current-source behavior, not a new change. No swallowed errors or silent defaults were introduced by a diff (diff is empty).\n\n**FOURTH SHAPE CLASSIFIER:** classified 0 of 0 added throw/guard/gate/fallback (no diff). The `candles.length > 0` gate at `:817` and the retry `setTimeout` at `:830-833` are pre-existing source, not additions.\n\n**ALLEGATIONS:** The finding is that the completeness decision at `:817` does not verify interval coverage; a partial provider response is treated as complete. This is observed directly in current source (lines cited above), not testimony.\n\n**SUBSTANTIVE RESOLUTION:** none (no prior reviewer testimony exists; receipt has 0 entries).\n\n**ADVERSARIAL_REVIEW_BLOCKING:** yes \u2014 the supported defect is that a partial provider response causes the job to declare the originally requested interval complete without verifying coverage, leaving unfilled candles unrecovered.\n\n**WHAT I DID:** Read all 1243 lines of `core/CandleProcessor.js`; traced gap detection (`:1046-1082`) \u2192 `startBackfill` (`:787-810`) \u2192 `_runBackfill` (`:812-834`) \u2192 `attemptBackfill` (`:695-780`) \u2192 `handleBackfillSuccess` (`:857-918`) \u2192 `processNewCandle` (`:435-613`); confirmed `missingCount` usage is logging/fetchCount-only via grep; confirmed no external callers via `find_references`.\n\n**WHAT I DID NOT DO:** Did not execute the code, run tests, or inspect config defaults (`dataFeedConfig` values). No execution receipt was available.\n\n**WHAT I ASSUMED:** That the backfill completes asynchronously after the triggering candle is inserted, so the triggering candle remains last in `priceHistory` (consistent with `:1079` \u2192 `:1085` and splice at `:518-527`).\n\n**WHY THIS VERDICT:** The completion gate at `:817` (`candles.length > 0`) is the only evidence the job consults; `missingCount` is never compared against the returned count, and no contiguity/coverage check exists. Therefore a delayed or partial provider response that returns \u22651 in-gap candle is declared complete regardless of whether the full interval was filled.\n\n**IF INCOMPLETE, WHY:** Not incomplete for the stated question; the full control flow was traced from current source. Runtime behavior was not executed, so the defect is source-established, not observed.",
+        "captured_at_iteration": 10,
+        "files_mechanically_opened": [
+          "core/CandleProcessor.js:1-100",
+          "core/CandleProcessor.js:100-330",
+          "core/CandleProcessor.js:1110-1243",
+          "core/CandleProcessor.js:330-558",
+          "core/CandleProcessor.js:558-680",
+          "core/CandleProcessor.js:680-910",
+          "core/CandleProcessor.js:910-1110"
+        ],
+        "file_read_receipts": [
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 1,
+            "endLine": 100,
+            "totalLines": 1243,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 100,
+            "endLine": 330,
+            "totalLines": 1243,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 1110,
+            "endLine": 1243,
+            "totalLines": 1243,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 330,
+            "endLine": 558,
+            "totalLines": 1243,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": true
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 558,
+            "endLine": 680,
+            "totalLines": 1243,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 680,
+            "endLine": 910,
+            "totalLines": 1243,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": true
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 910,
+            "endLine": 1110,
+            "totalLines": 1243,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": true
+          }
+        ],
+        "claimed_file_citations": [
+          "core/CandleProcessor.js:1-100",
+          "core/CandleProcessor.js:100-330",
+          "core/CandleProcessor.js:1046-1082",
+          "core/CandleProcessor.js:1110-1243",
+          "core/CandleProcessor.js:330-558",
+          "core/CandleProcessor.js:558-680",
+          "core/CandleProcessor.js:680-910",
+          "core/CandleProcessor.js:910-1110"
+        ],
+        "final_answer_citations": [
+          "core/CandleProcessor.js:1046-1082"
+        ],
+        "answer_citations_subset": true,
+        "citations_not_in_candidate_set": [],
+        "claim_inventory": [],
+        "claim_adjudications": null,
+        "final_claim_adjudications": null,
+        "claim_decision_attempts": [],
+        "explicit_continuation": null
+      }
+    ]
+  },
+  "answer_quality": [],
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "inherited_section_incomplete",
+      "substantive_resolution_absent"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 5,
+      "total": 5
+    },
+    "candidateCoverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 1,
+    "changedJsCount": 1,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "files_opened": [
+    "core/CandleProcessor.js:1-100",
+    "core/CandleProcessor.js:100-330",
+    "core/CandleProcessor.js:1110-1243",
+    "core/CandleProcessor.js:330-558",
+    "core/CandleProcessor.js:558-680",
+    "core/CandleProcessor.js:680-910",
+    "core/CandleProcessor.js:910-1110"
+  ],
+  "file_reads": [
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1,
+      "endLine": 100,
+      "totalLines": 1243,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 680,
+      "endLine": 910,
+      "totalLines": 1243,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": true
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 910,
+      "endLine": 1110,
+      "totalLines": 1243,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": true
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1110,
+      "endLine": 1243,
+      "totalLines": 1243,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 100,
+      "endLine": 330,
+      "totalLines": 1243,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 330,
+      "endLine": 558,
+      "totalLines": 1243,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": true
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 558,
+      "endLine": 680,
+      "totalLines": 1243,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    }
+  ],
+  "commandFile": "03-before-old-command.json",
+  "fullAnswerSHA256": "6514d774ad8526264a44a46090f7f8e39b507d5bab21125a91ff5b00c7cf1f5b",
+  "rawLedgerSHA256": "98748a751ff267209bfba91e263bdd74ebc85efbc843d24bb843cf6266479105",
+  "sourceRef": "bd55fce9712631a3762ee12615632d174074fb61",
+  "sourceTree": "414528f8c3f84ebf86944e650120f6af90b4fefb",
+  "configSHA256": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a",
+  "evidenceBundle": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-43-13-403z-2490189-bf0a700afbc0/current-change-evidence.txt",
+    "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-43-13-403z-2490189-bf0a700afbc0/current-change-evidence.txt:1",
+    "sha256": "64cecbf428338064b4d662005de3fcfc35fb9f33b57b45d427410091d1fa88d0",
+    "bytes": 89043,
+    "lines": 1277,
+    "section_count": 5,
+    "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-43-13-403z-2490189-bf0a700afbc0/manifest.json",
+    "manifest_sha256": "aaa9c7e3a4ff8a1447c6147fd14157f47882d52d63c25bd708dbff0a686bf95a",
+    "manifest_bytes": 7548
+  },
+  "sourceTargets": [
+    {
+      "path": "core/CandleProcessor.js",
+      "status": "current",
+      "source_ref": "414528f8c3f84ebf86944e650120f6af90b4fefb",
+      "source_artifact_id": "artifact-0001-6ce4f4985d4ec973",
+      "diff_artifact_id": "artifact-0002-e3b0c44298fc1c14",
+      "source_total_lines": 1242,
+      "source_sha256": "6ce4f4985d4ec973913df832a4654f0e317ffa22f9c9000f0ffca88079efc1b3",
+      "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "unresolved": []
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "find_definition",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 3,
+      "succeeded": 3,
+      "failed": 0
+    },
+    {
+      "name": "list_files",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 7,
+      "succeeded": 7,
+      "failed": 0
+    }
+  ],
+  "reviewers": {
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit",
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "reported_decision": {
+      "verdict": "found_break",
+      "majorityOutcome": "found_break",
+      "majorityRequired": 1,
+      "selectedCount": 1,
+      "tally": {
+        "found_break": 1,
+        "no_break_found": 0,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "found_break",
+          "rawVerdict": "found_break",
+          "answerSha256": "c84475800ce25a0238cecff7c5d33fd364dc669e5460f837e984e7c0436f74b0",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    },
+    "seats": [
+      {
+        "id": "mercury",
+        "label": "Mercury",
+        "status": "succeeded",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "termination": "answer_given",
+        "identityConflict": false,
+        "verdict": "found_break",
+        "qualifying": true,
+        "named_absences": [],
+        "stopped_because": "stop",
+        "seat_tokens": {
+          "input": 240234,
+          "uncached_input": 160082,
+          "cached_input": 80152,
+          "output": 9640,
+          "total": 249874,
+          "complete": true,
+          "attempts_with_usage": 10,
+          "total_attempts": 10
+        },
+        "seat_cost": {
+          "amount": 0.02018372,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 10,
+          "total_attempts": 10,
+          "cost_absences": []
+        }
+      }
+    ]
+  },
+  "wallSeconds": 49.495138
+}

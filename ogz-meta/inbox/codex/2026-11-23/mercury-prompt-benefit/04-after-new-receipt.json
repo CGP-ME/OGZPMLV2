@@ -1,0 +1,662 @@
+{
+  "run_id": "2026-11-23T13-45-35-570Z-a218ae0728b0",
+  "started_at": "2026-11-23T13:44:23.379Z",
+  "created_at": "2026-11-23T13:45:35.570Z",
+  "head_sha": "c0f120f136a72af5dd0b1c9f20f0b6dd6ca57205",
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "verdict": "found_break",
+  "termination": "answer_given",
+  "iterations": 17,
+  "latency_ms": 55600,
+  "run_tokens": {
+    "input": 613588,
+    "uncached_input": 477944,
+    "cached_input": 135644,
+    "output": 21906,
+    "total": 635494,
+    "complete": true,
+    "attempts_with_usage": 18,
+    "total_attempts": 18
+  },
+  "run_cost": {
+    "amount": 0.05647628,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 18,
+    "total_attempts": 18,
+    "cost_absences": []
+  },
+  "candidate_set": {
+    "coverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "claim_inventory": [],
+    "content": "I have enough evidence to render a verdict. Let me consolidate the candidate inventory against the code.\n\n---\n\n## Direct answer\n\nThe candle-gap recovery job can **complete as \"completed\" without actually recovering the full originally-requested interval** when a provider returns a partial response that still contains the left anchor candle. The completeness contract is anchor-based, not full-coverage-based, and the expected missing-candle count computed at gap detection is never enforced against the recovered count. The unfilled remainder is then silently lost because gap detection only fires on *new live* candles comparing consecutive `priceHistory` entries \u2014 once the right boundary exists, a missing interior bar creates no adjacent gap.\n\n## Primary defect (partial response accepted as complete)\n\nThe chain of evidence:\n\n1. **Gap detection computes the expected missing count but never uses it for validation.** `core/CandleProcessor.js:1068` computes `missingCandles = Math.floor(gapMs / candleIntervalMs) - 1` and only logs it at line 1069. A repo-wide grep for `missingCandles` returns exactly these two lines \u2014 the count is never compared against the count of recovered candles.\n\n2. **The CandleProcessor recheck verifies only the left anchor**, not full coverage: `core/CandleProcessor.js:765-767` returns `unavailable('range_start_unavailable')` if `range.start` is absent, but accepts any response that contains the anchor. The recovered set is filtered at line 773 (`gapCandles = normalized.filter(arr => arr[1] > gapStart && arr[1] < gapEnd)`) and returned verbatim at line 779 with no count check.\n\n3. **The provider-side completeness flags are also anchor-only:**\n   - Alpaca: `brokers/AlpacaAdapter.js:726` `hasAnchor = candles.some(c => c.t === range.start)`, and line 729 sets `complete: hasAnchor`. A response containing the anchor but omitting interior bars is marked complete.\n   - Kraken: `kraken_adapter_simple.js:381-387` requires `hasAnchor` **and** `cursor >= range.end - intervalMs`. This is stronger (guards against truncation) but still never verifies that every interior bar is present.\n\n4. **When `coverage.complete === true`, the job finishes and is deleted regardless of how many bars were recovered:** `core/CandleProcessor.js:822-827` replays only if `candles.length > 0`, then calls `_finishBackfill(job, 'completed', ...)`; line 844 deletes the job from `backfillJobs`. A partial-but-complete response therefore permanently removes the recovery attempt.\n\n5. **The lost bars are never re-detected.** Gap detection only runs in `handleMarketData` on `isNewCandle && lastCandle && !isBacktesting` (`core/CandleProcessor.js:1051`), comparing the *new live candle* against the last `priceHistory` entry. Once the right-boundary candle exists (it was processed as the live candle at line 1090), a missing interior bar creates no adjacent gap, so no second `startBackfill` is ever triggered (call site line 1084).\n\n**Production cost:** the strategy trades on a permanently incomplete price series (missing bars \u2192 wrong indicator state \u2192 wrong signals), with no recovery retry, and no log indicating the interval was only partially filled.\n\n## Secondary failure modes\n\n- **Kraken large-gap infinite retry (never completes).** `fetchCount` is computed at `core/CandleProcessor.js:739-740` and passed through `brokers/KrakenIBrokerAdapter.js:329`, but is **not used in the request URL** \u2014 `kraken_adapter_simple.js:335` builds `...&interval=${interval}&since=${since}` with no `count`. With Kraken's default ~720-candle cap and the cursor check at line 383 (`cursor < range.end - intervalMs` \u2192 incomplete), any gap spanning more than ~722 intervals can never satisfy `complete=true`, so `_runBackfill` retries forever (`core/CandleProcessor.js:829-839`). The gap is never recovered; the system trades on the gap indefinitely.\n- **Delayed response dropped on job removal/shutdown.** `core/CandleProcessor.js:821` discards a late provider response if the job was removed from `backfillJobs`; `cleanup()` at line 1243 cancels all jobs on shutdown. A delayed response arriving during shutdown/transition is never replayed, and after restart the gap is not re-detected (per point 5 above).\n\n## Candidate inventory\n\nExamined 5 of 5 candidate failure paths:\n1. **Partial-but-anchor-present accepted as complete \u2192 permanent silent gap loss** \u2014 SUPPORTED (the deciding defect above).\n2. **Kraken large-gap infinite retry** \u2014 SUPPORTED (count ignored in URL + cursor check).\n3. **Delayed response dropped on shutdown/job-removal** \u2014 SUPPORTED (line 821 guard + line 1243 cleanup).\n4. **Duplicate replay racing live data (double-feed to indicators/strategies)** \u2014 UNRESOLVED. The update path re-feeds `indicatorEngine.updateCandle` (`core/CandleProcessor.js:487`) and `ingestMarketCandle` (line 490); the IndicatorEngine does handle out-of-order replay via `_replayRetainedCandles` (`core/indicators/IndicatorEngine.js:232-237,269-304`), but I did not verify downstream idempotency of the MTF adapter (`core/StrategyOrchestrator.js:986`). Not asserted as a break.\n5. **Wrong-interval completion** \u2014 REFUTED: the range is fixed to the original gap (`core/CandleProcessor.js:693`, providers filter to `[range.start, range.end)`) and does not slide.\n\n## Evidence gaps\n\n- I could not execute the partial-response scenario; the specific production trigger (a provider omitting interior bars while returning the anchor) is a structurally-supported risk, not an observed failure. For well-behaved providers the only legitimate interior omission is a no-trade slot.\n- I did not read `kraken_adapter_simple.js` beyond line 460 or the full Alpaca pagination path beyond line 780; the Kraken count-omission is directly visible at line 335.\n- Downstream idempotency of `ingestMarketCandle` (MTF adapter) was not verified.\n\n---\n\nVERDICT: found_break\n\nADVERSARIAL_REVIEW_BLOCKING: yes\n\nCANDIDATE SET: examined 5 of 5; paths 1, 2, 3 supported; path 4 unresolved; path 5 refuted.\n\nAST EVIDENCE: I used `find_definition`/`find_references`/`grep`/`regex_grep`/`open_file` myself in this run; I did not rely on the host-provided AST artifact (artifact-0003) or blast-radius artifact (artifact-0004) as evidence.\n\nINHERITED: `core/CandleProcessor.js` \u2014 the backfill completion path inherits the anchor-only completeness contract from both providers; a partial-but-anchor-present response is silently accepted as complete and the job is deleted. The expected `missingCandles` count is computed but never enforced. On shutdown, `cleanup()` cancels all pending jobs, dropping any in-flight delayed response.\n\nFOURTH SHAPE CLASSIFIER: classified 2 of 2 added/guarded fallbacks relevant to this question \u2014 (a) the \"retry after settlement\" timer (`core/CandleProcessor.js:835-839`) prevents overlapping retries but does not cap retry count (so Kraken large gaps retry forever); (b) the late-response guard at line 821 protects against stale replay but also silently discards recovered candles when a job is removed. Both are review-level fallbacks, not bot-runtime gates.\n\nALLEGATIONS: (1) Partial response accepted as complete \u2014 supported by `core/CandleProcessor.js:765-767,773,779,826,844`, `brokers/AlpacaAdapter.js:726-729`, `kraken_adapter_simple.js:381-387`, and the unused `missingCandles` at line 1068. (2) Kraken large-gap hang \u2014 supported by `kraken_adapter_simple.js:335,383` and `core/CandleProcessor.js:829-839`. (3) Delayed-response drop on shutdown \u2014 supported by `core/CandleProcessor.js:821,1243`. These are source-derived scenarios, not executed observations.\n\nSUBSTANTIVE RESOLUTION: UNRESOLVED-FOR-TREY (the partial-response trigger is structurally supported but not observed in execution; no prior reviewer testimony exists in this run).\n\nWHAT I DID: read `core/CandleProcessor.js` lines 1-200, 429-613, 600-960, 1000-1100, 1180-1248; `brokers/AlpacaAdapter.js` 663-780; `brokers/KrakenIBrokerAdapter.js` 317-420; `kraken_adapter_simple.js` 318-460; `core/indicators/IndicatorEngine.js` 200-320; `core/StrategyOrchestrator.js` 984-1060; ran `grep`/`regex_grep`/`find_definition`/`find_references` for `backfill`, `gap`, `missingCandles`, `ingestMarketCandle`, `getCandles`, `getHistoricalOHLC`, `updateCandle`, `startBackfill`, `indicatorEngine`, `IndicatorEngine`.\n\nWHAT I DID NOT DO: did not execute any runtime scenario (read-only review); did not verify downstream MTF-adapter idempotency; did not read the full Alpaca pagination loop beyond line 780 or the full IndicatorEngine replay internals.\n\nWHAT I ASSUMED: that the provider `coverage` receipt is honored as designed (complete = fully queried interval); that `normalizeOhlc` yields the documented `[t, etime, o, h, l, c, vwap, v, count]` shape used by the filter at line 773.\n\nWHY THIS VERDICT: the code structurally cannot detect or retry an incompletely-filled gap once a partial response is marked `complete` \u2014 the expected missing count is computed (line 1068) but never enforced, the completeness flag is anchor-only in both providers, and gap detection only fires on new live candles. This is a supported defect in recovery completion for the originally requested interval, directly matching the question's \"partial provider response\" trigger.\n\nIF INCOMPLETE, WHY: the specific production trigger (provider omitting interior bars while returning the anchor) is not observed in execution; the verdict rests on the code's completeness contract being provably insufficient rather than on a captured live failure.",
+    "captured_at_iteration": 17,
+    "revised_at_iteration": null,
+    "revisions": [],
+    "files_mechanically_opened": [
+      "brokers/AlpacaAdapter.js:663-780",
+      "brokers/KrakenIBrokerAdapter.js:317-420",
+      "core/CandleProcessor.js:1-200",
+      "core/CandleProcessor.js:1000-1100",
+      "core/CandleProcessor.js:1180-1248",
+      "core/CandleProcessor.js:429-613",
+      "core/CandleProcessor.js:600-793",
+      "core/CandleProcessor.js:793-960",
+      "core/StrategyOrchestrator.js:984-1060",
+      "core/indicators/IndicatorEngine.js:200-320",
+      "kraken_adapter_simple.js:318-460"
+    ],
+    "file_read_receipts": [
+      {
+        "file": "brokers/AlpacaAdapter.js",
+        "startLine": 663,
+        "endLine": 780,
+        "totalLines": 1324,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "brokers/KrakenIBrokerAdapter.js",
+        "startLine": 317,
+        "endLine": 420,
+        "totalLines": 587,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 1,
+        "endLine": 200,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 1000,
+        "endLine": 1100,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 1180,
+        "endLine": 1248,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 429,
+        "endLine": 613,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 600,
+        "endLine": 793,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": true
+      },
+      {
+        "file": "core/CandleProcessor.js",
+        "startLine": 793,
+        "endLine": 960,
+        "totalLines": 1248,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/indicators/IndicatorEngine.js",
+        "startLine": 200,
+        "endLine": 320,
+        "totalLines": 1674,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "core/StrategyOrchestrator.js",
+        "startLine": 984,
+        "endLine": 1060,
+        "totalLines": 3107,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      {
+        "file": "kraken_adapter_simple.js",
+        "startLine": 318,
+        "endLine": 460,
+        "totalLines": 1382,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      }
+    ],
+    "claimed_file_citations": [
+      "brokers/AlpacaAdapter.js:663-780",
+      "brokers/AlpacaAdapter.js:726",
+      "brokers/AlpacaAdapter.js:726-729",
+      "brokers/KrakenIBrokerAdapter.js:317-420",
+      "brokers/KrakenIBrokerAdapter.js:329",
+      "core/CandleProcessor.js:1-200",
+      "core/CandleProcessor.js:1000-1100",
+      "core/CandleProcessor.js:1051",
+      "core/CandleProcessor.js:1068",
+      "core/CandleProcessor.js:1180-1248",
+      "core/CandleProcessor.js:429-613",
+      "core/CandleProcessor.js:487",
+      "core/CandleProcessor.js:600-793",
+      "core/CandleProcessor.js:693",
+      "core/CandleProcessor.js:739-740",
+      "core/CandleProcessor.js:765-767",
+      "core/CandleProcessor.js:793-960",
+      "core/CandleProcessor.js:821",
+      "core/CandleProcessor.js:822-827",
+      "core/CandleProcessor.js:829-839",
+      "core/CandleProcessor.js:835-839",
+      "core/StrategyOrchestrator.js:984-1060",
+      "core/StrategyOrchestrator.js:986",
+      "core/indicators/IndicatorEngine.js:200-320",
+      "core/indicators/IndicatorEngine.js:232-237",
+      "kraken_adapter_simple.js:318-460",
+      "kraken_adapter_simple.js:335",
+      "kraken_adapter_simple.js:381-387"
+    ],
+    "final_answer_citations": [
+      "brokers/AlpacaAdapter.js:726",
+      "brokers/AlpacaAdapter.js:726-729",
+      "brokers/KrakenIBrokerAdapter.js:329",
+      "core/CandleProcessor.js:1051",
+      "core/CandleProcessor.js:1068",
+      "core/CandleProcessor.js:487",
+      "core/CandleProcessor.js:693",
+      "core/CandleProcessor.js:739-740",
+      "core/CandleProcessor.js:765-767",
+      "core/CandleProcessor.js:821",
+      "core/CandleProcessor.js:822-827",
+      "core/CandleProcessor.js:829-839",
+      "core/CandleProcessor.js:835-839",
+      "core/StrategyOrchestrator.js:986",
+      "core/indicators/IndicatorEngine.js:232-237",
+      "kraken_adapter_simple.js:335",
+      "kraken_adapter_simple.js:381-387"
+    ],
+    "answer_citations_subset": true,
+    "citations_not_in_candidate_set": [],
+    "candidate_sources": [
+      {
+        "coverage": null,
+        "phase": "pass_1",
+        "recheck_index": null,
+        "content": "I have enough evidence to render a verdict. Let me consolidate the candidate inventory against the code.\n\n---\n\n## Direct answer\n\nThe candle-gap recovery job can **complete as \"completed\" without actually recovering the full originally-requested interval** when a provider returns a partial response that still contains the left anchor candle. The completeness contract is anchor-based, not full-coverage-based, and the expected missing-candle count computed at gap detection is never enforced against the recovered count. The unfilled remainder is then silently lost because gap detection only fires on *new live* candles comparing consecutive `priceHistory` entries \u2014 once the right boundary exists, a missing interior bar creates no adjacent gap.\n\n## Primary defect (partial response accepted as complete)\n\nThe chain of evidence:\n\n1. **Gap detection computes the expected missing count but never uses it for validation.** `core/CandleProcessor.js:1068` computes `missingCandles = Math.floor(gapMs / candleIntervalMs) - 1` and only logs it at line 1069. A repo-wide grep for `missingCandles` returns exactly these two lines \u2014 the count is never compared against the count of recovered candles.\n\n2. **The CandleProcessor recheck verifies only the left anchor**, not full coverage: `core/CandleProcessor.js:765-767` returns `unavailable('range_start_unavailable')` if `range.start` is absent, but accepts any response that contains the anchor. The recovered set is filtered at line 773 (`gapCandles = normalized.filter(arr => arr[1] > gapStart && arr[1] < gapEnd)`) and returned verbatim at line 779 with no count check.\n\n3. **The provider-side completeness flags are also anchor-only:**\n   - Alpaca: `brokers/AlpacaAdapter.js:726` `hasAnchor = candles.some(c => c.t === range.start)`, and line 729 sets `complete: hasAnchor`. A response containing the anchor but omitting interior bars is marked complete.\n   - Kraken: `kraken_adapter_simple.js:381-387` requires `hasAnchor` **and** `cursor >= range.end - intervalMs`. This is stronger (guards against truncation) but still never verifies that every interior bar is present.\n\n4. **When `coverage.complete === true`, the job finishes and is deleted regardless of how many bars were recovered:** `core/CandleProcessor.js:822-827` replays only if `candles.length > 0`, then calls `_finishBackfill(job, 'completed', ...)`; line 844 deletes the job from `backfillJobs`. A partial-but-complete response therefore permanently removes the recovery attempt.\n\n5. **The lost bars are never re-detected.** Gap detection only runs in `handleMarketData` on `isNewCandle && lastCandle && !isBacktesting` (`core/CandleProcessor.js:1051`), comparing the *new live candle* against the last `priceHistory` entry. Once the right-boundary candle exists (it was processed as the live candle at line 1090), a missing interior bar creates no adjacent gap, so no second `startBackfill` is ever triggered (call site line 1084).\n\n**Production cost:** the strategy trades on a permanently incomplete price series (missing bars \u2192 wrong indicator state \u2192 wrong signals), with no recovery retry, and no log indicating the interval was only partially filled.\n\n## Secondary failure modes\n\n- **Kraken large-gap infinite retry (never completes).** `fetchCount` is computed at `core/CandleProcessor.js:739-740` and passed through `brokers/KrakenIBrokerAdapter.js:329`, but is **not used in the request URL** \u2014 `kraken_adapter_simple.js:335` builds `...&interval=${interval}&since=${since}` with no `count`. With Kraken's default ~720-candle cap and the cursor check at line 383 (`cursor < range.end - intervalMs` \u2192 incomplete), any gap spanning more than ~722 intervals can never satisfy `complete=true`, so `_runBackfill` retries forever (`core/CandleProcessor.js:829-839`). The gap is never recovered; the system trades on the gap indefinitely.\n- **Delayed response dropped on job removal/shutdown.** `core/CandleProcessor.js:821` discards a late provider response if the job was removed from `backfillJobs`; `cleanup()` at line 1243 cancels all jobs on shutdown. A delayed response arriving during shutdown/transition is never replayed, and after restart the gap is not re-detected (per point 5 above).\n\n## Candidate inventory\n\nExamined 5 of 5 candidate failure paths:\n1. **Partial-but-anchor-present accepted as complete \u2192 permanent silent gap loss** \u2014 SUPPORTED (the deciding defect above).\n2. **Kraken large-gap infinite retry** \u2014 SUPPORTED (count ignored in URL + cursor check).\n3. **Delayed response dropped on shutdown/job-removal** \u2014 SUPPORTED (line 821 guard + line 1243 cleanup).\n4. **Duplicate replay racing live data (double-feed to indicators/strategies)** \u2014 UNRESOLVED. The update path re-feeds `indicatorEngine.updateCandle` (`core/CandleProcessor.js:487`) and `ingestMarketCandle` (line 490); the IndicatorEngine does handle out-of-order replay via `_replayRetainedCandles` (`core/indicators/IndicatorEngine.js:232-237,269-304`), but I did not verify downstream idempotency of the MTF adapter (`core/StrategyOrchestrator.js:986`). Not asserted as a break.\n5. **Wrong-interval completion** \u2014 REFUTED: the range is fixed to the original gap (`core/CandleProcessor.js:693`, providers filter to `[range.start, range.end)`) and does not slide.\n\n## Evidence gaps\n\n- I could not execute the partial-response scenario; the specific production trigger (a provider omitting interior bars while returning the anchor) is a structurally-supported risk, not an observed failure. For well-behaved providers the only legitimate interior omission is a no-trade slot.\n- I did not read `kraken_adapter_simple.js` beyond line 460 or the full Alpaca pagination path beyond line 780; the Kraken count-omission is directly visible at line 335.\n- Downstream idempotency of `ingestMarketCandle` (MTF adapter) was not verified.\n\n---\n\nVERDICT: found_break\n\nADVERSARIAL_REVIEW_BLOCKING: yes\n\nCANDIDATE SET: examined 5 of 5; paths 1, 2, 3 supported; path 4 unresolved; path 5 refuted.\n\nAST EVIDENCE: I used `find_definition`/`find_references`/`grep`/`regex_grep`/`open_file` myself in this run; I did not rely on the host-provided AST artifact (artifact-0003) or blast-radius artifact (artifact-0004) as evidence.\n\nINHERITED: `core/CandleProcessor.js` \u2014 the backfill completion path inherits the anchor-only completeness contract from both providers; a partial-but-anchor-present response is silently accepted as complete and the job is deleted. The expected `missingCandles` count is computed but never enforced. On shutdown, `cleanup()` cancels all pending jobs, dropping any in-flight delayed response.\n\nFOURTH SHAPE CLASSIFIER: classified 2 of 2 added/guarded fallbacks relevant to this question \u2014 (a) the \"retry after settlement\" timer (`core/CandleProcessor.js:835-839`) prevents overlapping retries but does not cap retry count (so Kraken large gaps retry forever); (b) the late-response guard at line 821 protects against stale replay but also silently discards recovered candles when a job is removed. Both are review-level fallbacks, not bot-runtime gates.\n\nALLEGATIONS: (1) Partial response accepted as complete \u2014 supported by `core/CandleProcessor.js:765-767,773,779,826,844`, `brokers/AlpacaAdapter.js:726-729`, `kraken_adapter_simple.js:381-387`, and the unused `missingCandles` at line 1068. (2) Kraken large-gap hang \u2014 supported by `kraken_adapter_simple.js:335,383` and `core/CandleProcessor.js:829-839`. (3) Delayed-response drop on shutdown \u2014 supported by `core/CandleProcessor.js:821,1243`. These are source-derived scenarios, not executed observations.\n\nSUBSTANTIVE RESOLUTION: UNRESOLVED-FOR-TREY (the partial-response trigger is structurally supported but not observed in execution; no prior reviewer testimony exists in this run).\n\nWHAT I DID: read `core/CandleProcessor.js` lines 1-200, 429-613, 600-960, 1000-1100, 1180-1248; `brokers/AlpacaAdapter.js` 663-780; `brokers/KrakenIBrokerAdapter.js` 317-420; `kraken_adapter_simple.js` 318-460; `core/indicators/IndicatorEngine.js` 200-320; `core/StrategyOrchestrator.js` 984-1060; ran `grep`/`regex_grep`/`find_definition`/`find_references` for `backfill`, `gap`, `missingCandles`, `ingestMarketCandle`, `getCandles`, `getHistoricalOHLC`, `updateCandle`, `startBackfill`, `indicatorEngine`, `IndicatorEngine`.\n\nWHAT I DID NOT DO: did not execute any runtime scenario (read-only review); did not verify downstream MTF-adapter idempotency; did not read the full Alpaca pagination loop beyond line 780 or the full IndicatorEngine replay internals.\n\nWHAT I ASSUMED: that the provider `coverage` receipt is honored as designed (complete = fully queried interval); that `normalizeOhlc` yields the documented `[t, etime, o, h, l, c, vwap, v, count]` shape used by the filter at line 773.\n\nWHY THIS VERDICT: the code structurally cannot detect or retry an incompletely-filled gap once a partial response is marked `complete` \u2014 the expected missing count is computed (line 1068) but never enforced, the completeness flag is anchor-only in both providers, and gap detection only fires on new live candles. This is a supported defect in recovery completion for the originally requested interval, directly matching the question's \"partial provider response\" trigger.\n\nIF INCOMPLETE, WHY: the specific production trigger (provider omitting interior bars while returning the anchor) is not observed in execution; the verdict rests on the code's completeness contract being provably insufficient rather than on a captured live failure.",
+        "captured_at_iteration": 17,
+        "files_mechanically_opened": [
+          "brokers/AlpacaAdapter.js:663-780",
+          "brokers/KrakenIBrokerAdapter.js:317-420",
+          "core/CandleProcessor.js:1-200",
+          "core/CandleProcessor.js:1000-1100",
+          "core/CandleProcessor.js:1180-1248",
+          "core/CandleProcessor.js:429-613",
+          "core/CandleProcessor.js:600-793",
+          "core/CandleProcessor.js:793-960",
+          "core/StrategyOrchestrator.js:984-1060",
+          "core/indicators/IndicatorEngine.js:200-320",
+          "kraken_adapter_simple.js:318-460"
+        ],
+        "file_read_receipts": [
+          {
+            "file": "brokers/AlpacaAdapter.js",
+            "startLine": 663,
+            "endLine": 780,
+            "totalLines": 1324,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "brokers/KrakenIBrokerAdapter.js",
+            "startLine": 317,
+            "endLine": 420,
+            "totalLines": 587,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 1,
+            "endLine": 200,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 1000,
+            "endLine": 1100,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 1180,
+            "endLine": 1248,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 429,
+            "endLine": 613,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 600,
+            "endLine": 793,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": true
+          },
+          {
+            "file": "core/CandleProcessor.js",
+            "startLine": 793,
+            "endLine": 960,
+            "totalLines": 1248,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/indicators/IndicatorEngine.js",
+            "startLine": 200,
+            "endLine": 320,
+            "totalLines": 1674,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "core/StrategyOrchestrator.js",
+            "startLine": 984,
+            "endLine": 1060,
+            "totalLines": 3107,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          },
+          {
+            "file": "kraken_adapter_simple.js",
+            "startLine": 318,
+            "endLine": 460,
+            "totalLines": 1382,
+            "executionProvenance": "trusted_repo_read",
+            "contextCompacted": false
+          }
+        ],
+        "claimed_file_citations": [
+          "brokers/AlpacaAdapter.js:663-780",
+          "brokers/AlpacaAdapter.js:726",
+          "brokers/AlpacaAdapter.js:726-729",
+          "brokers/KrakenIBrokerAdapter.js:317-420",
+          "brokers/KrakenIBrokerAdapter.js:329",
+          "core/CandleProcessor.js:1-200",
+          "core/CandleProcessor.js:1000-1100",
+          "core/CandleProcessor.js:1051",
+          "core/CandleProcessor.js:1068",
+          "core/CandleProcessor.js:1180-1248",
+          "core/CandleProcessor.js:429-613",
+          "core/CandleProcessor.js:487",
+          "core/CandleProcessor.js:600-793",
+          "core/CandleProcessor.js:693",
+          "core/CandleProcessor.js:739-740",
+          "core/CandleProcessor.js:765-767",
+          "core/CandleProcessor.js:793-960",
+          "core/CandleProcessor.js:821",
+          "core/CandleProcessor.js:822-827",
+          "core/CandleProcessor.js:829-839",
+          "core/CandleProcessor.js:835-839",
+          "core/StrategyOrchestrator.js:984-1060",
+          "core/StrategyOrchestrator.js:986",
+          "core/indicators/IndicatorEngine.js:200-320",
+          "core/indicators/IndicatorEngine.js:232-237",
+          "kraken_adapter_simple.js:318-460",
+          "kraken_adapter_simple.js:335",
+          "kraken_adapter_simple.js:381-387"
+        ],
+        "final_answer_citations": [
+          "brokers/AlpacaAdapter.js:726",
+          "brokers/AlpacaAdapter.js:726-729",
+          "brokers/KrakenIBrokerAdapter.js:329",
+          "core/CandleProcessor.js:1051",
+          "core/CandleProcessor.js:1068",
+          "core/CandleProcessor.js:487",
+          "core/CandleProcessor.js:693",
+          "core/CandleProcessor.js:739-740",
+          "core/CandleProcessor.js:765-767",
+          "core/CandleProcessor.js:821",
+          "core/CandleProcessor.js:822-827",
+          "core/CandleProcessor.js:829-839",
+          "core/CandleProcessor.js:835-839",
+          "core/StrategyOrchestrator.js:986",
+          "core/indicators/IndicatorEngine.js:232-237",
+          "kraken_adapter_simple.js:335",
+          "kraken_adapter_simple.js:381-387"
+        ],
+        "answer_citations_subset": true,
+        "citations_not_in_candidate_set": [],
+        "claim_inventory": [],
+        "claim_adjudications": null,
+        "final_claim_adjudications": null,
+        "claim_decision_attempts": [],
+        "explicit_continuation": null
+      }
+    ]
+  },
+  "answer_quality": [],
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "substantive_unresolved_for_trey"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 5,
+      "total": 5
+    },
+    "candidateCoverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 1,
+    "changedJsCount": 1,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "files_opened": [
+    "brokers/AlpacaAdapter.js:663-780",
+    "brokers/KrakenIBrokerAdapter.js:317-420",
+    "core/CandleProcessor.js:1-200",
+    "core/CandleProcessor.js:1000-1100",
+    "core/CandleProcessor.js:1180-1248",
+    "core/CandleProcessor.js:429-613",
+    "core/CandleProcessor.js:600-793",
+    "core/CandleProcessor.js:793-960",
+    "core/StrategyOrchestrator.js:984-1060",
+    "core/indicators/IndicatorEngine.js:200-320",
+    "kraken_adapter_simple.js:318-460"
+  ],
+  "file_reads": [
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1,
+      "endLine": 200,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 600,
+      "endLine": 793,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": true
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 793,
+      "endLine": 960,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1000,
+      "endLine": 1100,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 429,
+      "endLine": 613,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "startLine": 1180,
+      "endLine": 1248,
+      "totalLines": 1248,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "brokers/AlpacaAdapter.js",
+      "startLine": 663,
+      "endLine": 780,
+      "totalLines": 1324,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "brokers/KrakenIBrokerAdapter.js",
+      "startLine": 317,
+      "endLine": 420,
+      "totalLines": 587,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "kraken_adapter_simple.js",
+      "startLine": 318,
+      "endLine": 460,
+      "totalLines": 1382,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/indicators/IndicatorEngine.js",
+      "startLine": 200,
+      "endLine": 320,
+      "totalLines": 1674,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "startLine": 984,
+      "endLine": 1060,
+      "totalLines": 3107,
+      "executionProvenance": "trusted_repo_read",
+      "contextCompacted": false
+    }
+  ],
+  "commandFile": "04-after-new-command.json",
+  "fullAnswerSHA256": "24f192bfe3b19ce220b6f7d0f1f9acaba006073d076d2c492d98c32e4df08c1b",
+  "rawLedgerSHA256": "6d1e22086c09df7c481668885ba5ccebd065ed83215a2694d8b7a3d67b7bf792",
+  "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+  "sourceTree": "a491f9b14b2105e3c3c1a06c11d73a0edeaf00a3",
+  "configSHA256": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f",
+  "evidenceBundle": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-44-23-379z-2491294-1a811748e2d0/current-change-evidence.txt",
+    "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-44-23-379z-2491294-1a811748e2d0/current-change-evidence.txt:1",
+    "sha256": "b2e21e685a8f26ae4b01ddbace02a2b176e346b017a40509d843cd7ffeb6eea6",
+    "bytes": 90336,
+    "lines": 1282,
+    "section_count": 5,
+    "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t13-44-23-379z-2491294-1a811748e2d0/manifest.json",
+    "manifest_sha256": "1f56fc2cc28cfc8f2b801707bc3a33c28b537af1fc1a78078a7c3b90fc147ce5",
+    "manifest_bytes": 7548
+  },
+  "sourceTargets": [
+    {
+      "path": "core/CandleProcessor.js",
+      "status": "current",
+      "source_ref": "a491f9b14b2105e3c3c1a06c11d73a0edeaf00a3",
+      "source_artifact_id": "artifact-0001-5b37fb743dfdf33e",
+      "diff_artifact_id": "artifact-0002-e3b0c44298fc1c14",
+      "source_total_lines": 1247,
+      "source_sha256": "5b37fb743dfdf33e15ffd4fba3be900c982274070864db36557892469f760e33",
+      "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "unresolved": []
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "find_definition",
+      "calls": 4,
+      "succeeded": 4,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 6,
+      "succeeded": 6,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 11,
+      "succeeded": 11,
+      "failed": 0
+    },
+    {
+      "name": "regex_grep",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    }
+  ],
+  "reviewers": {
+    "selected": [
+      "mercury"
+    ],
+    "unselected": [
+      "astra",
+      "fable"
+    ],
+    "source": "explicit",
+    "diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "reported_decision": {
+      "verdict": "found_break",
+      "majorityOutcome": "found_break",
+      "majorityRequired": 1,
+      "selectedCount": 1,
+      "tally": {
+        "found_break": 1,
+        "no_break_found": 0,
+        "cannot_verify": 0,
+        "absent": 0
+      },
+      "votes": [
+        {
+          "reviewer": "mercury",
+          "status": "succeeded",
+          "outcome": "found_break",
+          "rawVerdict": "found_break",
+          "answerSha256": "84011108c2965bea9e9afb9701803882ab1f00b78089ee42511c7d9c6320345d",
+          "absence": null
+        }
+      ],
+      "reviewComplete": true,
+      "agreement": "unanimous",
+      "dissent": [],
+      "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+    },
+    "seats": [
+      {
+        "id": "mercury",
+        "label": "Mercury",
+        "status": "succeeded",
+        "provider": "mercury",
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "termination": "answer_given",
+        "identityConflict": false,
+        "verdict": "found_break",
+        "qualifying": true,
+        "named_absences": [],
+        "stopped_because": "stop",
+        "seat_tokens": {
+          "input": 609326,
+          "uncached_input": 473682,
+          "cached_input": 135644,
+          "output": 21904,
+          "total": 631230,
+          "complete": true,
+          "attempts_with_usage": 17,
+          "total_attempts": 17
+        },
+        "seat_cost": {
+          "amount": 0.05639104,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 17,
+          "total_attempts": 17,
+          "cost_absences": []
+        }
+      }
+    ]
+  },
+  "wallSeconds": 81.418444
+}

@@ -1,0 +1,23 @@
+{
+  "id": "03-before-old",
+  "prompt": "old",
+  "sourceRef": "bd55fce9712631a3762ee12615632d174074fb61",
+  "sourceTree": "414528f8c3f84ebf86944e650120f6af90b4fefb",
+  "configPath": "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/baseline-mercury-config.json",
+  "configSHA256": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=bd55fce9712631a3762ee12615632d174074fb61",
+    "--review-base=bd55fce9712631a3762ee12615632d174074fb61",
+    "--change-path=core/CandleProcessor.js",
+    "What evidence does a candle-gap recovery job use to decide that its originally requested interval is complete after a delayed or partial provider response? Start at core/CandleProcessor.js and follow the relevant provider request and replay paths. Cite current file:line evidence and name any unverified assumptions."
+  ],
+  "startedAt": "2026-11-23T13:43:12.750374+00:00",
+  "finishedAt": "2026-11-23T13:44:02.245512+00:00",
+  "exitCode": 0
+}

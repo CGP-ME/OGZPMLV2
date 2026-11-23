@@ -1,0 +1,113 @@
+{
+  "createdAt": "2026-11-23T13:40:02.780970+00:00",
+  "objective": "Evaluate the operational old neutral framing versus the new production-failure/loss framing on one known Stop 2 behavior before and after its verified repair. No production changes.",
+  "design": "Four independent, sequential Mercury runs; one question per dispatch. Same source, tools, current harness, model settings and token setting within each source pair. Both user question framing and its corresponding system-prompt addition change together: this tests the deployed prompt package, not attribution to either text alone. Balanced order; no reviewers receive prior answers or expected outcomes.",
+  "sourceComparison": "Each source ref is compared to itself so no repair diff or expected result is supplied. Explicit CandleProcessor target with tools free to follow producers/consumers. Canonical exclusions stay enforced.",
+  "grading": [
+    "Does the answer identify the demonstrated completion/interval failure on the pre-repair source with a reachable mechanism and correct source evidence?",
+    "Does it describe repaired completion honestly without alleging a defect contradicted by executable evidence?",
+    "Does any additional claim establish producer, consumer, trigger and consequence; otherwise is it named as unverified?",
+    "Does it distinguish possible trading harm from demonstrated monetary loss?",
+    "Record complete answers, tools, latency, tokens, provider-estimated cost, run completeness and warnings."
+  ],
+  "groundTruth": {
+    "source": "../2026-11-22/stop2-gap-range-coverage/{baseline,candidate,pinned,commands}.json (actual path is sibling date directory)",
+    "before": {
+      "boundaryOnly": "A response containing only the already-known right boundary removes the job and emits completed while only two boundary bars remain.",
+      "delayedRetry": "Kraken since moves forward with now; a 31-minute delayed retry misses the original three missing bars."
+    },
+    "after": {
+      "boundaryOnly": "Missing requested left anchor leaves job pending with range_start_unavailable.",
+      "delayedRetry": "Fixed original range restores the three real interior bars and completes with coverage.",
+      "sparse": "Confirmed sparse interval may complete with zero interior bars; do not invent one bar per clock slot."
+    }
+  },
+  "limitations": [
+    "One run per prompt/source cell: directional pilot, not statistical proof or guarantee.",
+    "Historical repository context is visible through tools; this is not a blinded benchmark.",
+    "Model/provider variability and caching may affect cost/time. Costs are ledger estimates, not invoices.",
+    "Only Mercury is selected. This is a prompt experiment, not fresh panel approval or live trading acceptance."
+  ],
+  "trials": [
+    {
+      "id": "01-before-new",
+      "prompt": "new",
+      "sourceRef": "bd55fce9712631a3762ee12615632d174074fb61",
+      "sourceTree": "414528f8c3f84ebf86944e650120f6af90b4fefb",
+      "configPath": "mercury.config.json",
+      "configSHA256": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f",
+      "argv": [
+        "node",
+        "trai_brain/mercury-bridge/ask.js",
+        "--agentic",
+        "--attack",
+        "--reviewers=mercury",
+        "--max-tokens=7750",
+        "--review-ref=bd55fce9712631a3762ee12615632d174074fb61",
+        "--review-base=bd55fce9712631a3762ee12615632d174074fb61",
+        "--change-path=core/CandleProcessor.js",
+        "Scope: completion of a candle-gap recovery job for its originally requested interval after a delayed or partial provider response, starting at core/CandleProcessor.js and following the relevant provider request and replay paths. How does this fail or cost me money in production? Cite current file:line evidence and name any unverified assumptions."
+      ]
+    },
+    {
+      "id": "02-after-old",
+      "prompt": "old",
+      "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+      "sourceTree": "a491f9b14b2105e3c3c1a06c11d73a0edeaf00a3",
+      "configPath": "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/baseline-mercury-config.json",
+      "configSHA256": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a",
+      "argv": [
+        "node",
+        "trai_brain/mercury-bridge/ask.js",
+        "--agentic",
+        "--attack",
+        "--reviewers=mercury",
+        "--max-tokens=7750",
+        "--review-ref=cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+        "--review-base=cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+        "--change-path=core/CandleProcessor.js",
+        "What evidence does a candle-gap recovery job use to decide that its originally requested interval is complete after a delayed or partial provider response? Start at core/CandleProcessor.js and follow the relevant provider request and replay paths. Cite current file:line evidence and name any unverified assumptions."
+      ]
+    },
+    {
+      "id": "03-before-old",
+      "prompt": "old",
+      "sourceRef": "bd55fce9712631a3762ee12615632d174074fb61",
+      "sourceTree": "414528f8c3f84ebf86944e650120f6af90b4fefb",
+      "configPath": "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/baseline-mercury-config.json",
+      "configSHA256": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a",
+      "argv": [
+        "node",
+        "trai_brain/mercury-bridge/ask.js",
+        "--agentic",
+        "--attack",
+        "--reviewers=mercury",
+        "--max-tokens=7750",
+        "--review-ref=bd55fce9712631a3762ee12615632d174074fb61",
+        "--review-base=bd55fce9712631a3762ee12615632d174074fb61",
+        "--change-path=core/CandleProcessor.js",
+        "What evidence does a candle-gap recovery job use to decide that its originally requested interval is complete after a delayed or partial provider response? Start at core/CandleProcessor.js and follow the relevant provider request and replay paths. Cite current file:line evidence and name any unverified assumptions."
+      ]
+    },
+    {
+      "id": "04-after-new",
+      "prompt": "new",
+      "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+      "sourceTree": "a491f9b14b2105e3c3c1a06c11d73a0edeaf00a3",
+      "configPath": "mercury.config.json",
+      "configSHA256": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f",
+      "argv": [
+        "node",
+        "trai_brain/mercury-bridge/ask.js",
+        "--agentic",
+        "--attack",
+        "--reviewers=mercury",
+        "--max-tokens=7750",
+        "--review-ref=cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+        "--review-base=cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+        "--change-path=core/CandleProcessor.js",
+        "Scope: completion of a candle-gap recovery job for its originally requested interval after a delayed or partial provider response, starting at core/CandleProcessor.js and following the relevant provider request and replay paths. How does this fail or cost me money in production? Cite current file:line evidence and name any unverified assumptions."
+      ]
+    }
+  ]
+}

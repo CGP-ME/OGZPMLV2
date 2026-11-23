@@ -1,0 +1,46 @@
+{
+  "observedAt": "2026-11-23T13:51:04.914595+00:00",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2453304,
+      "status": "online",
+      "restarts": 11
+    }
+  ],
+  "session": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "crypto",
+    "brokerId": "kraken",
+    "symbols": [
+      "BTC-USD"
+    ],
+    "freezeNewEntries": false,
+    "scopeComplete": true,
+    "safeModeReason": null,
+    "updatedAt": "2026-11-23T09:09:18.136Z"
+  },
+  "activePositions": 1,
+  "closedTradeRows": 950,
+  "limitations": [
+    "Read-only status and state inspection; not new dashboard, active stock-session or broker-fault acceptance."
+  ]
+}

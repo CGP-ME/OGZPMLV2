@@ -1,0 +1,89 @@
+{
+  "completedAt": "2026-11-23T13:48:32.874014+00:00",
+  "protocolSHA256": "4d58d3a4466d714acff866c60e06c2534377cb99f41e56e296449ff42be30db9",
+  "trials": [
+    {
+      "trial": "01-before-new",
+      "framing": "new",
+      "sourceRef": "bd55fce9712631a3762ee12615632d174074fb61",
+      "runId": "2026-11-23T13-41-05-472Z-d31b79307c35",
+      "reportedVerdict": "found_break",
+      "costUSD": 0.02908804,
+      "tokens": 342431,
+      "toolCalls": 15,
+      "wallSeconds": 60.725926
+    },
+    {
+      "trial": "02-after-old",
+      "framing": "old",
+      "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+      "runId": "2026-11-23T13-42-40-696Z-01a2574b371b",
+      "reportedVerdict": "no_break_found",
+      "costUSD": 0.02421531,
+      "tokens": 306589,
+      "toolCalls": 17,
+      "wallSeconds": 56.920771
+    },
+    {
+      "trial": "03-before-old",
+      "framing": "old",
+      "sourceRef": "bd55fce9712631a3762ee12615632d174074fb61",
+      "runId": "2026-11-23T13-43-53-743Z-ad0794081eda",
+      "reportedVerdict": "found_break",
+      "costUSD": 0.02025734,
+      "tokens": 253557,
+      "toolCalls": 15,
+      "wallSeconds": 49.495138
+    },
+    {
+      "trial": "04-after-new",
+      "framing": "new",
+      "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+      "runId": "2026-11-23T13-45-35-570Z-a218ae0728b0",
+      "reportedVerdict": "found_break",
+      "costUSD": 0.05647628,
+      "tokens": 635494,
+      "toolCalls": 24,
+      "wallSeconds": 81.418444
+    }
+  ],
+  "totals": {
+    "old": {
+      "costUSD": 0.04447265,
+      "tokens": 560146,
+      "toolCalls": 32,
+      "wallSeconds": 106.415909
+    },
+    "new": {
+      "costUSD": 0.08556432,
+      "tokens": 977925,
+      "toolCalls": 39,
+      "wallSeconds": 142.14436999999998
+    }
+  },
+  "totalCostUSD": 0.13003697,
+  "observedConclusion": "No demonstrated net benefit in this four-run pilot. Both framings detect the known pre-repair nonempty-response completion defect. Neither traces the separate before-state sliding Kraken since calculation. Old framing reports no_break_found after the repair; new framing reports found_break based on an unverified provider-omission risk, a known retention limitation with an incorrect causal explanation, and intended retired-owner cancellation with an unverified restart assertion. New framing uses more tools, tokens and estimated cost in this sample.",
+  "generalization": "One run per prompt/source, with both system and user framing varied together. This cannot establish statistical performance, guaranteed accuracy, future cost or the cause of an invoice.",
+  "preservation": {
+    "inheritedFiles": 20,
+    "harnessFiles": 26,
+    "drift": {
+      "inherited": [],
+      "harness": []
+    },
+    "productionChanged": false,
+    "restartedProcesses": [],
+    "newJestTests": 0,
+    "freshRAGClaim": false
+  },
+  "additionalRuntimeObservation": {
+    "currentlyActiveSession": "crypto",
+    "latestObservedBotPID": 2453304,
+    "latestObservedBotRestarts": 11,
+    "newStderrSinceActivation": [
+      "SMS volume-profile RTH filter reports 12/35 and uses ordinary trailing history at modules/SmartMoneySweep.js:339-355. Existing strategy fallback; observed in crypto runtime, exact candle correlation unverified. No strategy code changed.",
+      "Expected opposite-direction entry refusal and one dashboard crypto feed reconnect also logged. Historical tail warnings are not treated as new."
+    ],
+    "nextStop2Proof": "Active Alpaca stock-session feed, hydration and dashboard receipts remain pending. Current schedule selects stocks for the regular-hours market phase; no forced transition or new restart."
+  }
+}

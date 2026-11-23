@@ -1,0 +1,682 @@
+{
+  "baseline": {
+    "sourceRef": "bd55fce9712631a3762ee12615632d174074fb61",
+    "sourceHashes": {
+      "core/CandleProcessor.js": "6ce4f4985d4ec973913df832a4654f0e317ffa22f9c9000f0ffca88079efc1b3",
+      "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "brokers/KrakenIBrokerAdapter.js": "d2811446f4ed1188c1ee4c97b1974f23912bdc99972f0938555a6a48022c0cbf",
+      "kraken_adapter_simple.js": "b5aeadeef6da41be0324e385305c984c595ffb0af86f56608d867265419e31e1",
+      "brokers/AlpacaAdapter.js": "ffbbf1286c1a2f4beda32d0626ecad3570158207ccf7c3ca3b94584e407a8340",
+      "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "foundation/ConfigLoader.js": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767",
+      "config/settings.json": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+      "config/internals.json": "9655db5b575b826acd814c353189883c389bbbf19bfb16a42bcbdb4cf08d7daa"
+    },
+    "sourceMismatch": [],
+    "scenarioCount": 3,
+    "scenarios": {
+      "boundaryOnly": {
+        "storedCandles": 2,
+        "pendingJobs": 0,
+        "retryTimers": 0,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "boundary_only",
+            "now": 1795304462000,
+            "start": 1795303922000,
+            "end": 1795304462000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_REPLAY",
+            "fields": {
+              "traceId": "range-fixture-1",
+              "source": "gap_backfill",
+              "candles": 1,
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "timeframe": "1m"
+            }
+          },
+          {
+            "event": "GAP_BACKFILL_COMPLETED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-1",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "reason": "completed"
+            }
+          }
+        ]
+      },
+      "kraken_delayed_retry": {
+        "storedCandles": 2,
+        "pendingJobs": 1,
+        "retryTimers": 1,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "unavailable",
+            "now": 1795304466000,
+            "start": 1795303926000,
+            "end": 1795304466000,
+            "limit": null,
+            "pageToken": null
+          },
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "full",
+            "now": 1795306326000,
+            "start": 1795305786000,
+            "end": 1795306326000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_RETRY_SCHEDULED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-2",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "retryDelayMs": 60000
+            }
+          },
+          {
+            "event": "GAP_BACKFILL_RETRY_SCHEDULED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-2",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "retryDelayMs": 60000
+            }
+          }
+        ]
+      }
+    },
+    "rawSHA256": "b28e67f0e2f48d6b13582ab2ff5bad33d9e5c825d33f94f377dd3adfe9151bd2",
+    "limitations": [
+      "Real adapter constructors, REST request builders, CandleProcessor gap jobs/replay and CandleStore run against captured native provider OHLCV. HTTP, clock and timers are controlled. Indicators and strategy intake are observation seams.",
+      "Explicit truncation, unavailable, malformed, retention, cursor and sparse scenarios alter the transport response only. They are controlled fault scenarios, not claims of live exchange events.",
+      "Known boundaries are seeded through processNewCandle; startBackfill is invoked directly for reproducible stock-session and higher-frame coverage. No production orders or PM2 changes."
+    ]
+  },
+  "pinned": {
+    "sourceRef": "cc00cc15196e3fdc2fa2a291b94bf21ca93938be",
+    "sourceHashes": {
+      "core/CandleProcessor.js": "5b37fb743dfdf33e15ffd4fba3be900c982274070864db36557892469f760e33",
+      "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "brokers/KrakenIBrokerAdapter.js": "0dcb51fd975ee26845dadbf807418bea0672209078abe405824eb1d91025f198",
+      "kraken_adapter_simple.js": "b589fa8602f7a737f1285f59b05490eb12eb238d02fa4b12047beb8898baa7ad",
+      "brokers/AlpacaAdapter.js": "96c9709b45b1f9fcffb1ba5a1c3217a1dcc41a6666283e066b5ae0f21c74075e",
+      "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "foundation/ConfigLoader.js": "b9918dffd10c213448a14dcb50cb08b59caff2b74959a8a92d6222880260b767",
+      "config/settings.json": "41d46c6d9f9f098022464c091520dfbfdac9f8312fda51178eaadd7ba565f484",
+      "config/internals.json": "9655db5b575b826acd814c353189883c389bbbf19bfb16a42bcbdb4cf08d7daa"
+    },
+    "sourceMismatch": [],
+    "scenarioCount": 46,
+    "scenarios": {
+      "kraken_sparse": {
+        "storedCandles": 2,
+        "pendingJobs": 0,
+        "retryTimers": 0,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "sparse",
+            "now": 1795304466000,
+            "start": 1795304159000,
+            "end": 1795304466000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_COMPLETED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-2",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "reason": "completed",
+              "coverage": {
+                "start": 1795304160000,
+                "end": 1795304400000,
+                "complete": true,
+                "reason": null,
+                "source": "kraken_ohlc_since",
+                "cursor": 1795304400000
+              },
+              "recoveredCandles": 0
+            }
+          }
+        ]
+      },
+      "kraken_boundary_only": {
+        "storedCandles": 2,
+        "pendingJobs": 1,
+        "retryTimers": 1,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "boundary_only",
+            "now": 1795304472000,
+            "start": 1795304159000,
+            "end": 1795304472000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_RETRY_SCHEDULED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-3",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "retryDelayMs": 60000,
+              "coverage": {
+                "start": 1795304160000,
+                "end": 1795304400000,
+                "complete": false,
+                "reason": "range_start_unavailable",
+                "source": "kraken_ohlc_since",
+                "cursor": 1795304400000
+              }
+            }
+          }
+        ]
+      },
+      "alpaca_paged": {
+        "storedCandles": 5,
+        "pendingJobs": 0,
+        "retryTimers": 0,
+        "requests": [
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "paged",
+            "now": 1795304642000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": null
+          },
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "paged",
+            "now": 1795304642000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": "1"
+          },
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "paged",
+            "now": 1795304642000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": "2"
+          },
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "paged",
+            "now": 1795304642000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": "3"
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_REPLAY",
+            "fields": {
+              "traceId": "range-fixture-13",
+              "source": "gap_backfill",
+              "candles": 3,
+              "gapStart": 1795204980000,
+              "gapEnd": 1795205220000,
+              "timeframe": "1m"
+            }
+          },
+          {
+            "event": "GAP_BACKFILL_COMPLETED",
+            "fields": {
+              "symbol": "TSLA",
+              "timeframe": "1m",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-13",
+              "gapStart": 1795204980000,
+              "gapEnd": 1795205220000,
+              "reason": "completed",
+              "coverage": {
+                "start": 1795204920000,
+                "end": 1795205160000,
+                "complete": true,
+                "reason": null,
+                "source": "alpaca_bars_range",
+                "pagesExhausted": true
+              },
+              "recoveredCandles": 3
+            }
+          }
+        ]
+      },
+      "alpaca_repeat_token": {
+        "storedCandles": 2,
+        "pendingJobs": 1,
+        "retryTimers": 1,
+        "requests": [
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "repeat_token",
+            "now": 1795304670000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": null
+          },
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "repeat_token",
+            "now": 1795304670000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": "1"
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_RETRY_SCHEDULED",
+            "fields": {
+              "symbol": "TSLA",
+              "timeframe": "1m",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-14",
+              "gapStart": 1795204980000,
+              "gapEnd": 1795205220000,
+              "retryDelayMs": 60000,
+              "coverage": {
+                "start": 1795204920000,
+                "end": 1795205160000,
+                "complete": false,
+                "reason": "provider_page_token_invalid"
+              }
+            }
+          }
+        ]
+      },
+      "kraken_delayed_retry": {
+        "storedCandles": 5,
+        "pendingJobs": 0,
+        "retryTimers": 0,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "unavailable",
+            "now": 1795304700000,
+            "start": 1795304159000,
+            "end": 1795304700000,
+            "limit": null,
+            "pageToken": null
+          },
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "full",
+            "now": 1795306560000,
+            "start": 1795304159000,
+            "end": 1795306560000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_RETRY_SCHEDULED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-15",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "retryDelayMs": 60000,
+              "coverage": {
+                "start": 1795304160000,
+                "end": 1795304400000,
+                "complete": false,
+                "reason": "provider_request_failed",
+                "error": "explicit fixture HTTP 503"
+              }
+            }
+          },
+          {
+            "event": "GAP_BACKFILL_REPLAY",
+            "fields": {
+              "traceId": "range-fixture-15",
+              "source": "gap_backfill",
+              "candles": 3,
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "timeframe": "1m"
+            }
+          },
+          {
+            "event": "GAP_BACKFILL_COMPLETED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-15",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "reason": "completed",
+              "coverage": {
+                "start": 1795304160000,
+                "end": 1795304400000,
+                "complete": true,
+                "reason": null,
+                "source": "kraken_ohlc_since",
+                "cursor": 1795306500000
+              },
+              "recoveredCandles": 3
+            }
+          }
+        ]
+      },
+      "kraken_retention": {
+        "storedCandles": 2,
+        "pendingJobs": 1,
+        "retryTimers": 1,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "retention",
+            "now": 1795304592000,
+            "start": 1795304159000,
+            "end": 1795304592000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_RETRY_SCHEDULED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-11",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "retryDelayMs": 60000,
+              "coverage": {
+                "start": 1795304160000,
+                "end": 1795304400000,
+                "complete": false,
+                "reason": "range_start_unavailable",
+                "source": "kraken_ohlc_since",
+                "cursor": 1795304520000
+              }
+            }
+          }
+        ]
+      },
+      "kraken_cursor_behind": {
+        "storedCandles": 2,
+        "pendingJobs": 1,
+        "retryTimers": 1,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "cursor_behind",
+            "now": 1795304616000,
+            "start": 1795304159000,
+            "end": 1795304616000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_RETRY_SCHEDULED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-12",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "retryDelayMs": 60000,
+              "coverage": {
+                "start": 1795304160000,
+                "end": 1795304400000,
+                "complete": false,
+                "reason": "provider_cursor_before_range_end",
+                "source": "kraken_ohlc_since",
+                "cursor": 1795304160000
+              }
+            }
+          }
+        ]
+      },
+      "alpaca_sparse": {
+        "storedCandles": 2,
+        "pendingJobs": 0,
+        "retryTimers": 0,
+        "requests": [
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "sparse",
+            "now": 1795304516000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_COMPLETED",
+            "fields": {
+              "symbol": "TSLA",
+              "timeframe": "1m",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-7",
+              "gapStart": 1795204980000,
+              "gapEnd": 1795205220000,
+              "reason": "completed",
+              "coverage": {
+                "start": 1795204920000,
+                "end": 1795205160000,
+                "complete": true,
+                "reason": null,
+                "source": "alpaca_bars_range",
+                "pagesExhausted": true
+              },
+              "recoveredCandles": 0
+            }
+          }
+        ]
+      },
+      "kraken_retired_owner": {
+        "storedCandles": 2,
+        "pendingJobs": 0,
+        "retryTimers": 0,
+        "requests": [
+          {
+            "kind": "kraken",
+            "frame": "1m",
+            "mode": "held",
+            "now": 1795308486000,
+            "start": 1795304159000,
+            "end": 1795308486000,
+            "limit": null,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_CANCELLED",
+            "fields": {
+              "symbol": "BTC-USD",
+              "timeframe": "1m",
+              "brokerId": "kraken",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "crypto",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-17",
+              "gapStart": 1795304220000,
+              "gapEnd": 1795304460000,
+              "reason": "session_transition"
+            }
+          }
+        ]
+      },
+      "alpaca_retired_owner": {
+        "storedCandles": 2,
+        "pendingJobs": 0,
+        "retryTimers": 0,
+        "requests": [
+          {
+            "kind": "alpaca",
+            "frame": "1m",
+            "mode": "held",
+            "now": 1795308522000,
+            "start": 1795204920000,
+            "end": 1795205160000,
+            "limit": 9,
+            "pageToken": null
+          }
+        ],
+        "events": [
+          {
+            "event": "GAP_BACKFILL_CANCELLED",
+            "fields": {
+              "symbol": "TSLA",
+              "timeframe": "1m",
+              "brokerId": "alpaca",
+              "accountId": "fixture-account",
+              "accountIdSource": "fixture",
+              "assetClass": "stocks",
+              "executionMode": "paper",
+              "sessionRouterEpoch": 1,
+              "traceId": "range-fixture-18",
+              "gapStart": 1795204980000,
+              "gapEnd": 1795205220000,
+              "reason": "session_transition"
+            }
+          }
+        ]
+      }
+    },
+    "rawSHA256": "66a4f2e4c2fc1f6eeff4612c56439729b88670971276402a6dd3ab6da33753f0",
+    "limitations": [
+      "Real adapter constructors, REST request builders, CandleProcessor gap jobs/replay and CandleStore run against captured native provider OHLCV. HTTP, clock and timers are controlled. Indicators and strategy intake are observation seams.",
+      "Explicit truncation, unavailable, malformed, retention, cursor and sparse scenarios alter the transport response only. They are controlled fault scenarios, not claims of live exchange events.",
+      "Known boundaries are seeded through processNewCandle; startBackfill is invoked directly for reproducible stock-session and higher-frame coverage. No production orders or PM2 changes."
+    ]
+  }
+}
