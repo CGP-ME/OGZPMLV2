@@ -194,8 +194,13 @@ Pipeline order:
   fix, expected answer or desired verdict. Let Mercury choose its tools, collect
   relevant evidence and alternatives, then decide for itself. Do not preload
   another reviewer's conclusion as fact or hide contrary evidence.
-- Example: "What happens to a queued entry decision's input values when another
-  candle arrives before execution? Cite the relevant producers and consumers."
+- Trey's 2026-11-23 code-review question is: "How does this fail or cost me money
+  in production?" Supply the one behavior and source identity as context. Require
+  a reachable production trigger, consequence and current evidence; distinguish
+  observed failure from unverified risk without prescribing the answer.
+- Example: "Scope: queued entry input ownership when another candle arrives
+  before execution. How does this fail or cost me money in production? Cite the
+  relevant producers and consumers."
 - Dispatch Mercury audits one at a time.
 - Always read the full answer before moving on.
 - Relevant source locations and raw observations are context, not an answer or

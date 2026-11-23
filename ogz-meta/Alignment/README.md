@@ -29,6 +29,11 @@ choose its evidence and conclusion. Read the complete answer before the next
 question. The current usage guide is `trai_brain/mercury-bridge/README.md`;
 this instruction supersedes historical broad-review wording in older records.
 
+Trey's 2026-11-23 code-review framing is: "How does this fail or cost me money in
+production?" State the one behavior under review and its source identity. Require
+a reachable production trigger, consequence and evidence, while preserving
+Mercury's independent conclusion and the one-question rule.
+
 Trey's further 2026-11-10 correction: Mercury, Astra and Fable are independent
 tool-enabled peers. When their conclusions differ, all bring their evidence and
 vote equally after receiving the same evidence. There is no final judge.

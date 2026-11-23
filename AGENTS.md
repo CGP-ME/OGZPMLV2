@@ -143,6 +143,10 @@ For changes on the trading/backtest execution path:
 - Run Mercury as an independent evidence-based review before commit.
 - Ask one specific, neutral question about one behavior per dispatch. A generic
   request to review a whole repair or work summary is not one focused question.
+- Trey's 2026-11-23 review framing is: "How does this fail or cost me money in
+  production?" Identify the one behavior and source version as context. Require
+  a reachable production trigger, consequence and evidence; do not prescribe a
+  diagnosis or require a defect to exist.
 - Do not supply a diagnosis, preferred fix, expected answer or desired verdict.
   State observations and source identity; let Mercury choose the evidence path,
   examine relevant alternatives, and reach its own conclusion. Require current

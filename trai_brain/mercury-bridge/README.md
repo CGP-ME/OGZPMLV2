@@ -75,6 +75,16 @@ The generic `Mercury, break my fix.` prompt is retired. One dispatch investigate
 one behavior or uncertainty. A single sentence asking for the entire repair,
 every changed file, or the whole work summary still bundles multiple questions.
 
+Trey's 2026-11-23 code-review question is:
+
+> How does this fail or cost me money in production?
+
+Name the one behavior and source version as context. Explain a finding's reachable
+production trigger, consequence and current evidence. Distinguish observed failure
+from unverified risk; do not manufacture a defect or prescribe the answer. The
+configured agentic system prompt carries this framing for code reviews. Ordinary
+repository questions retain their own topic.
+
 State the question, relevant observations and source identity. Do not supply the
 implementer's diagnosis, preferred fix, expected answer or desired verdict. Do
 not tell Mercury a defect must exist, ask it to approve your work, or present an
@@ -102,7 +112,7 @@ For an authorized change, stage only its files/hunks and pin the source comparis
 
 ```bash
 candidate=$(git write-tree)
-node trai_brain/mercury-bridge/ask.js --agentic --attack --reviewers=mercury,astra,fable --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD --change-path=core/TradingLoop.js "What happens to a queued entry decision's input values when another candle arrives before execution? Cite the relevant producers and consumers."
+node trai_brain/mercury-bridge/ask.js --agentic --attack --reviewers=mercury,astra,fable --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD --change-path=core/TradingLoop.js "Scope: queued entry input ownership when another candle arrives before execution. How does this fail or cost me money in production? Cite the relevant producers and consumers."
 ```
 
 The refs resolve to immutable trees before evidence capture. The run records those

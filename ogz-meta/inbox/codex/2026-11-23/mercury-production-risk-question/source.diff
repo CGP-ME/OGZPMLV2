@@ -1,0 +1,69 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 5cbf2266..420e3e1c 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -145,0 +146,4 @@ For changes on the trading/backtest execution path:
++- Trey's 2026-11-23 review framing is: "How does this fail or cost me money in
++  production?" Identify the one behavior and source version as context. Require
++  a reachable production trigger, consequence and evidence; do not prescribe a
++  diagnosis or require a defect to exist.
+diff --git a/mercury.config.json b/mercury.config.json
+index 6c3cdf06..2d7b28b1 100644
+--- a/mercury.config.json
++++ b/mercury.config.json
+@@ -254,0 +255 @@
++      "For code review, use Trey's question: \"How does this fail or cost me money in production?\" Apply it to the one behavior under review. Ground any finding in a reachable production trigger, its consequence and current evidence; distinguish an observed failure from an unverified risk.",
+diff --git a/ogz-meta/AGENTS.md b/ogz-meta/AGENTS.md
+index fd5768fe..462e44c7 100644
+--- a/ogz-meta/AGENTS.md
++++ b/ogz-meta/AGENTS.md
+@@ -197,2 +197,7 @@ Pipeline order:
+-- Example: "What happens to a queued entry decision's input values when another
+-  candle arrives before execution? Cite the relevant producers and consumers."
++- Trey's 2026-11-23 code-review question is: "How does this fail or cost me money
++  in production?" Supply the one behavior and source identity as context. Require
++  a reachable production trigger, consequence and current evidence; distinguish
++  observed failure from unverified risk without prescribing the answer.
++- Example: "Scope: queued entry input ownership when another candle arrives
++  before execution. How does this fail or cost me money in production? Cite the
++  relevant producers and consumers."
+diff --git a/ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md b/ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md
+index b274c0c8..cf108d38 100644
+--- a/ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md
++++ b/ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md
+@@ -299,0 +300,7 @@ request is one sentence. See `trai_brain/mercury-bridge/README.md` for usage.
++Trey's 2026-11-23 code-review question is: "How does this fail or cost me money in
++production?" Identify the one behavior and source version in the context. Ground
++findings in reachable production triggers, consequences and current evidence;
++distinguish observed failures from unverified risks. This preserves independent
++investigation and does not require a defect to exist or expand the review to
++unrelated changes.
++
+diff --git a/ogz-meta/Alignment/README.md b/ogz-meta/Alignment/README.md
+index 2a75e836..c9fa50b6 100644
+--- a/ogz-meta/Alignment/README.md
++++ b/ogz-meta/Alignment/README.md
+@@ -31,0 +32,5 @@ this instruction supersedes historical broad-review wording in older records.
++Trey's 2026-11-23 code-review framing is: "How does this fail or cost me money in
++production?" State the one behavior under review and its source identity. Require
++a reachable production trigger, consequence and evidence, while preserving
++Mercury's independent conclusion and the one-question rule.
++
+diff --git a/trai_brain/mercury-bridge/README.md b/trai_brain/mercury-bridge/README.md
+index 555ab940..3b6b8303 100644
+--- a/trai_brain/mercury-bridge/README.md
++++ b/trai_brain/mercury-bridge/README.md
+@@ -77,0 +78,10 @@ every changed file, or the whole work summary still bundles multiple questions.
++Trey's 2026-11-23 code-review question is:
++
++> How does this fail or cost me money in production?
++
++Name the one behavior and source version as context. Explain a finding's reachable
++production trigger, consequence and current evidence. Distinguish observed failure
++from unverified risk; do not manufacture a defect or prescribe the answer. The
++configured agentic system prompt carries this framing for code reviews. Ordinary
++repository questions retain their own topic.
++
+@@ -105 +115 @@ candidate=$(git write-tree)
+-node trai_brain/mercury-bridge/ask.js --agentic --attack --reviewers=mercury,astra,fable --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD --change-path=core/TradingLoop.js "What happens to a queued entry decision's input values when another candle arrives before execution? Cite the relevant producers and consumers."
++node trai_brain/mercury-bridge/ask.js --agentic --attack --reviewers=mercury,astra,fable --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD --change-path=core/TradingLoop.js "Scope: queued entry input ownership when another candle arrives before execution. How does this fail or cost me money in production? Cite the relevant producers and consumers."

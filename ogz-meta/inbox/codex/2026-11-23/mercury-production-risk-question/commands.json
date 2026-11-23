@@ -1,0 +1,39 @@
+[
+  {
+    "mode": "baseline",
+    "argv": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/capture-request.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/ignore-contract.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/baseline-mercury-config.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/capture-request.cjs",
+      "--baseline"
+    ],
+    "exitCode": 0,
+    "finishedAt": "2026-11-23T11:24:44.706980+00:00"
+  },
+  {
+    "mode": "candidate",
+    "argv": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/capture-request.cjs",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/ignore-contract.json",
+      "--fixture",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/baseline-mercury-config.json",
+      "--",
+      "node",
+      "ogz-meta/inbox/codex/2026-11-23/mercury-production-risk-question/fixtures/capture-request.cjs"
+    ],
+    "exitCode": 0,
+    "finishedAt": "2026-11-23T11:24:45.837009+00:00"
+  }
+]

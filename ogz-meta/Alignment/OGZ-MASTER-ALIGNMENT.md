@@ -297,6 +297,13 @@ identity are evidence inputs; Mercury chooses the investigation path and examine
 contrary evidence. A work-summary review is not one question merely because the
 request is one sentence. See `trai_brain/mercury-bridge/README.md` for usage.
 
+Trey's 2026-11-23 code-review question is: "How does this fail or cost me money in
+production?" Identify the one behavior and source version in the context. Ground
+findings in reachable production triggers, consequences and current evidence;
+distinguish observed failures from unverified risks. This preserves independent
+investigation and does not require a defect to exist or expand the review to
+unrelated changes.
+
 ## The three Mercury laws — non-negotiable
 
 **LAW 1: Independent investigation, no prescribed answer.** Ask one neutral question about a concrete behavior. Supply observations without a diagnosis or a desired pass/fail result. Require current evidence and uncertainty; let Mercury decide whether the evidence supports a defect, expected behavior or an unresolved question.

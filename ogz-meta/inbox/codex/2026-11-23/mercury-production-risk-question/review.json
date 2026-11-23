@@ -1,0 +1,174 @@
+{
+  "run_id": "2026-11-23T11-26-43-020Z-dcb7e348bdb8",
+  "started_at": "2026-11-23T11:25:47.181Z",
+  "created_at": "2026-11-23T11:26:43.020Z",
+  "head_sha": "932daae7d94e461f3057aa7b9efe1011ae2b9670",
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "index_freshness": null,
+  "verdict": "no_break_found",
+  "termination": "answer_given",
+  "iterations": 10,
+  "run_tokens": {
+    "input": 236257,
+    "uncached_input": 162496,
+    "cached_input": 73761,
+    "output": 10061,
+    "total": 246318,
+    "complete": true,
+    "attempts_with_usage": 11,
+    "total_attempts": 11
+  },
+  "run_cost": {
+    "amount": 0.02027962,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 11,
+    "total_attempts": 11,
+    "cost_absences": []
+  },
+  "doctrine_review": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "inherited_section_incomplete"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 7,
+      "total": 7
+    },
+    "candidateCoverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 1,
+    "changedJsCount": 0,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "selected": [
+    "mercury"
+  ],
+  "unselected": [
+    "astra",
+    "fable"
+  ],
+  "panelDiagnostics": {
+    "qualifyingSeats": 1,
+    "verdictLabelsMatch": false,
+    "evidenceChecksPassed": true,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "issues": [
+      "insufficient_qualifying_seats"
+    ],
+    "sharedVerdictLabel": null
+  },
+  "panelDecision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "743bd283aeb189f0016bc242f511032de512eabca67a5effb862ac5aa476fe65",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "toolCounts": [
+    {
+      "name": "find_definition",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "git_diff",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "git_show",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 5,
+      "succeeded": 5,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 9,
+      "succeeded": 9,
+      "failed": 0
+    }
+  ],
+  "executedRunChecks": [],
+  "reviewedTree": "f16103e1f29423693a04b7bbd51bf56cac3fceeb",
+  "baseCommit": "932daae7d94e461f3057aa7b9efe1011ae2b9670",
+  "resolvedBaseTree": "b779e1fc83a48b39499bcc8a7fb0937bd1cad099",
+  "sourceHashes": {
+    "AGENTS.md": "5f2b0b5b3077e53921969383e94a47d131a4b6fddaf6dd53babfac30da78e8cc",
+    "ogz-meta/AGENTS.md": "55a497645e325a5c3d52da44260fe6d90b0aa6ad767ab300b08900b1c5cb2015",
+    "ogz-meta/Alignment/README.md": "191391b82c7c5711cef7a2e443c64fc4e54b13258b4a7c736af2f82126cb7d15",
+    "ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md": "bfeb0ee43881047134ceae43b195c8158d84ef7754679a69e52de07b56fd9947",
+    "trai_brain/mercury-bridge/README.md": "38f1ec94522054c6c6e147b1dffdc5bca5f8f4d8fc6552c1dd28789b599e0bc1",
+    "mercury.config.json": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f"
+  },
+  "inheritedHarnessSHA256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+  "evidenceBundle": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t11-25-47-181z-2469334-f1d44869ee02/current-change-evidence.txt",
+    "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t11-25-47-181z-2469334-f1d44869ee02/current-change-evidence.txt:1",
+    "sha256": "ee940b369d4a3d68d3cbb00e09971f00ba50af0856a528ca541c72bf3730c785",
+    "bytes": 22637,
+    "lines": 349,
+    "section_count": 3,
+    "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-23/2026-11-23t11-25-47-181z-2469334-f1d44869ee02/manifest.json",
+    "manifest_sha256": "cac392a6ff871835c52e8660ccddb28031214fef52b10616f01419c5ba147b74",
+    "manifest_bytes": 4562
+  },
+  "assessmentCorrections": [
+    "The changed documentation in the candidate is not evidence that this exact wording was installed before this change; the saved baseline has no production-risk instruction.",
+    "The phrase 'For code review' is a model instruction, not a mechanical isolation gate; non-review model behavior was not proven unchanged.",
+    "The review's zero-hit test searches cannot establish absence or test success: canonical retrieval excludes tests, and test/mercury-first-pass-tools.test.js:4 and test/mercury-react-loop.test.js:235 contain the named prompt fields. No Jest run was performed or needed for request delivery proof.",
+    "An added 45-word/282-byte system instruction adds input to provider requests. The 7750 output-token setting does not bound input cost; exact token/financial impact was not measured. The run's recorded estimate is separate from invoiced billing.",
+    "Regex-backed reference searches and partial file deliveries do not prove exhaustive AST or whole-file coverage. Preserve the returned coverage warnings; scoped loader/request/hook behavior is established separately by execution receipts."
+  ]
+}

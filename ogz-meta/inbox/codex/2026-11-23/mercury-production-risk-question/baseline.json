@@ -1,0 +1,25 @@
+{
+  "mode": "baseline",
+  "externalCalls": 0,
+  "actualRequestAssemblyCalls": 1,
+  "question": "Scope: queued entry input ownership when another candle arrives before execution. How does this fail or cost me money in production? Cite the relevant producers and consumers.",
+  "systemContainsProductionRiskQuestion": false,
+  "existingIndependenceAndScopeInstructionsDelivered": true,
+  "userQuestionUnchanged": true,
+  "hooks": {
+    "newQuestion": null,
+    "retiredQuestion": "retired_generic_prompt",
+    "prescribedApproval": "leading_question",
+    "unfinishedReviewAccepted": false
+  },
+  "termination": "answer_given",
+  "modelJudgment": "not exercised; captured request only",
+  "sourceHashes": {
+    "mercury.config.json": "8415c1063d06ad0933ba397d64d335e4c119d66594afc6731b28418f5c09517a",
+    "trai_brain/mercury-bridge/config.js": "a841f41ec893322d55fdaead1b61b16b8eb20bb7e54a375ec63dfda1b3d52ba7",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "trai_brain/shared/mercury-question.js": "8e5955177176003ad340193e30e522d74850f5bde553646a3d669356c91682f1",
+    "trai_brain/claude-bridge/pre-bash.js": "f487ad126cb544a16371adeda705bc81f3d21ac12e7e430c9726a9763875c278",
+    "trai_brain/claude-bridge/finish-gate.js": "f95164aa69e83ecafb9cfd57e19b5d92966039a3856a097f3b743cf684d36987"
+  }
+}
