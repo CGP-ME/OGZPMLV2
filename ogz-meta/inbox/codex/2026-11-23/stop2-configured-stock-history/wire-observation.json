@@ -1,0 +1,1185 @@
+{
+  "startedAt": "2026-11-23T13:52:44.656Z",
+  "endpoint": "wss://www.ogzprime.com/ws",
+  "commands": [
+    {
+      "type": "auth"
+    },
+    {
+      "type": "identify"
+    },
+    {
+      "type": "get_settings"
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "1m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "5m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "15m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "TSLA",
+      "timeframe": "1d",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "NVDA",
+      "timeframe": "1m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "NVDA",
+      "timeframe": "5m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "NVDA",
+      "timeframe": "15m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "NVDA",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "NVDA",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "NVDA",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "NVDA",
+      "timeframe": "1d",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "COIN",
+      "timeframe": "1m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "COIN",
+      "timeframe": "5m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "COIN",
+      "timeframe": "15m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "COIN",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "COIN",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "COIN",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "COIN",
+      "timeframe": "1d",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "MARA",
+      "timeframe": "1m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "MARA",
+      "timeframe": "5m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "MARA",
+      "timeframe": "15m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "MARA",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "MARA",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "MARA",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "MARA",
+      "timeframe": "1d",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "RIOT",
+      "timeframe": "1m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "RIOT",
+      "timeframe": "5m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "RIOT",
+      "timeframe": "15m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "RIOT",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "RIOT",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "RIOT",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "RIOT",
+      "timeframe": "1d",
+      "limit": 60
+    }
+  ],
+  "counts": {
+    "auth_success": 1,
+    "state_update": 7,
+    "bot_thinking": 9,
+    "broker_status": 115,
+    "settings_result": 1,
+    "depth_update": 2110,
+    "price": 1583,
+    "ticker_price": 505,
+    "historical_candles": 35,
+    "trace_event": 5747,
+    "cvd_update": 171,
+    "market_internals": 514,
+    "divergence": 63,
+    "pattern_analysis": 4,
+    "narrator_event": 4,
+    "signal_analysis": 4,
+    "golden_setup_state": 4,
+    "journal_snapshot": 6,
+    "bot_state": 3
+  },
+  "histories": [
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "sentAt": 1795441964763,
+      "receivedAt": 1795441964908,
+      "durationMs": 145,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795205040,
+        "open": 347.52,
+        "high": 347.53,
+        "low": 347.25,
+        "close": 347.25,
+        "volume": 1538
+      },
+      "last": {
+        "time": 1795441500,
+        "open": 361.9,
+        "high": 361.9,
+        "low": 361.9,
+        "close": 361.9,
+        "volume": 80
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "sentAt": 1795441964908,
+      "receivedAt": 1795441964947,
+      "durationMs": 39,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795191600,
+        "open": 360.34,
+        "high": 360.72,
+        "low": 359.51,
+        "close": 359.87,
+        "volume": 9702
+      },
+      "last": {
+        "time": 1795441500,
+        "open": 361.9,
+        "high": 361.9,
+        "low": 361.9,
+        "close": 361.9,
+        "volume": 80
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "sentAt": 1795441964947,
+      "receivedAt": 1795441965022,
+      "durationMs": 75,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795100400,
+        "open": 386.12,
+        "high": 387.07,
+        "low": 384.61,
+        "close": 385.48,
+        "volume": 13403
+      },
+      "last": {
+        "time": 1795441500,
+        "open": 361.9,
+        "high": 361.9,
+        "low": 361.9,
+        "close": 361.9,
+        "volume": 80
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795441965022,
+      "receivedAt": 1795441965041,
+      "durationMs": 19,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794938400,
+        "open": 380.1,
+        "high": 380.69,
+        "low": 379.13,
+        "close": 380.545,
+        "volume": 20187
+      },
+      "last": {
+        "time": 1795440600,
+        "open": 361.9,
+        "high": 361.9,
+        "low": 361.9,
+        "close": 361.9,
+        "volume": 80
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795441965041,
+      "receivedAt": 1795441965186,
+      "durationMs": 145,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794492000,
+        "open": 386.09,
+        "high": 395.935,
+        "low": 385.41,
+        "close": 392.46,
+        "volume": 97552
+      },
+      "last": {
+        "time": 1795438800,
+        "open": 362.8,
+        "high": 362.8,
+        "low": 361.9,
+        "close": 361.9,
+        "volume": 160
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795441965186,
+      "receivedAt": 1795441965960,
+      "durationMs": 774,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1792785600,
+        "open": 371.88,
+        "high": 372.21,
+        "low": 371.73,
+        "close": 372.21,
+        "volume": 384
+      },
+      "last": {
+        "time": 1795435200,
+        "open": 362.8,
+        "high": 362.8,
+        "low": 361.9,
+        "close": 361.9,
+        "volume": 160
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795441965960,
+      "receivedAt": 1795441965985,
+      "durationMs": 25,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1787889600,
+        "open": 357.095,
+        "high": 358.68,
+        "low": 345.23,
+        "close": 348.75,
+        "volume": 553844
+      },
+      "last": {
+        "time": 1795150800,
+        "open": 370.325,
+        "high": 373.715,
+        "low": 344.41,
+        "close": 346.23,
+        "volume": 947368
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "sentAt": 1795441965985,
+      "receivedAt": 1795441966008,
+      "durationMs": 23,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795208460,
+        "open": 126.48,
+        "high": 126.48,
+        "low": 126.48,
+        "close": 126.48,
+        "volume": 100
+      },
+      "last": {
+        "time": 1795441860,
+        "open": 136.17,
+        "high": 136.2,
+        "low": 136.11,
+        "close": 136.2,
+        "volume": 1088
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966008,
+      "receivedAt": 1795441966031,
+      "durationMs": 23,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795195500,
+        "open": 135.3,
+        "high": 135.48,
+        "low": 135.04,
+        "close": 135.4,
+        "volume": 75757
+      },
+      "last": {
+        "time": 1795441800,
+        "open": 136.2,
+        "high": 136.2,
+        "low": 136.11,
+        "close": 136.2,
+        "volume": 1600
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966031,
+      "receivedAt": 1795441966053,
+      "durationMs": 22,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795106700,
+        "open": 152.71,
+        "high": 153.02,
+        "low": 150.41,
+        "close": 150.51,
+        "volume": 318984
+      },
+      "last": {
+        "time": 1795441500,
+        "open": 136.16,
+        "high": 136.68,
+        "low": 136,
+        "close": 136.2,
+        "volume": 7216
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966053,
+      "receivedAt": 1795441966076,
+      "durationMs": 23,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794945600,
+        "open": 152.84,
+        "high": 153.71,
+        "low": 151.975,
+        "close": 153.48,
+        "volume": 1172685
+      },
+      "last": {
+        "time": 1795440600,
+        "open": 136.01,
+        "high": 136.99,
+        "low": 136,
+        "close": 136.2,
+        "volume": 20795
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966076,
+      "receivedAt": 1795441966110,
+      "durationMs": 34,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794502800,
+        "open": 165.165,
+        "high": 166.19,
+        "low": 163.6,
+        "close": 164.9,
+        "volume": 1965449
+      },
+      "last": {
+        "time": 1795438800,
+        "open": 135.66,
+        "high": 136.99,
+        "low": 135.63,
+        "close": 136.2,
+        "volume": 43251
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966110,
+      "receivedAt": 1795441966156,
+      "durationMs": 46,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1793030400,
+        "open": 215.28,
+        "high": 216.75,
+        "low": 214.95,
+        "close": 216.01,
+        "volume": 1184994
+      },
+      "last": {
+        "time": 1795435200,
+        "open": 135.66,
+        "high": 136.99,
+        "low": 135.63,
+        "close": 136.2,
+        "volume": 43251
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795441966156,
+      "receivedAt": 1795441966177,
+      "durationMs": 21,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1787889600,
+        "open": 227.28,
+        "high": 229.25,
+        "low": 216.82,
+        "close": 217.545,
+        "volume": 5357434
+      },
+      "last": {
+        "time": 1795150800,
+        "open": 143.52,
+        "high": 143.72,
+        "low": 124.51,
+        "close": 125.65,
+        "volume": 17679388
+      }
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966177,
+      "receivedAt": 1795441966202,
+      "durationMs": 25,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795204920,
+        "open": 104.28,
+        "high": 104.39,
+        "low": 104.22,
+        "close": 104.22,
+        "volume": 716
+      },
+      "last": {
+        "time": 1795440180,
+        "open": 106.53,
+        "high": 106.53,
+        "low": 106.53,
+        "close": 106.53,
+        "volume": 100
+      }
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966202,
+      "receivedAt": 1795441966222,
+      "durationMs": 20,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795191600,
+        "open": 107.16,
+        "high": 107.23,
+        "low": 106.825,
+        "close": 106.92,
+        "volume": 3714
+      },
+      "last": {
+        "time": 1795440000,
+        "open": 106.53,
+        "high": 106.53,
+        "low": 106.53,
+        "close": 106.53,
+        "volume": 100
+      }
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966222,
+      "receivedAt": 1795441966251,
+      "durationMs": 29,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795033800,
+        "open": 110.92,
+        "high": 111.17,
+        "low": 110.77,
+        "close": 110.77,
+        "volume": 12833
+      },
+      "last": {
+        "time": 1795439700,
+        "open": 106.53,
+        "high": 106.53,
+        "low": 106.53,
+        "close": 106.53,
+        "volume": 100
+      }
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966251,
+      "receivedAt": 1795441966275,
+      "durationMs": 24,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794861000,
+        "open": 120.24,
+        "high": 120.72,
+        "low": 119.76,
+        "close": 119.8,
+        "volume": 47899
+      },
+      "last": {
+        "time": 1795438800,
+        "open": 106.4,
+        "high": 106.53,
+        "low": 106.4,
+        "close": 106.53,
+        "volume": 235
+      }
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966275,
+      "receivedAt": 1795441966310,
+      "durationMs": 35,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794412800,
+        "open": 137.2,
+        "high": 137.87,
+        "low": 136.86,
+        "close": 136.88,
+        "volume": 13614
+      },
+      "last": {
+        "time": 1795438800,
+        "open": 106.4,
+        "high": 106.53,
+        "low": 106.4,
+        "close": 106.53,
+        "volume": 235
+      }
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966310,
+      "receivedAt": 1795441966451,
+      "durationMs": 141,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1792684800,
+        "open": 169.83,
+        "high": 170.41,
+        "low": 166.745,
+        "close": 169.17,
+        "volume": 157214
+      },
+      "last": {
+        "time": 1795435200,
+        "open": 106.4,
+        "high": 106.53,
+        "low": 106.4,
+        "close": 106.53,
+        "volume": 235
+      }
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795441966451,
+      "receivedAt": 1795441966471,
+      "durationMs": 20,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1787889600,
+        "open": 187.36,
+        "high": 189.025,
+        "low": 176.185,
+        "close": 178.53,
+        "volume": 287683
+      },
+      "last": {
+        "time": 1795150800,
+        "open": 107.015,
+        "high": 110.96,
+        "low": 101.73,
+        "close": 102,
+        "volume": 403452
+      }
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966471,
+      "receivedAt": 1795441966491,
+      "durationMs": 20,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795204740,
+        "open": 5.255,
+        "high": 5.255,
+        "low": 5.245,
+        "close": 5.245,
+        "volume": 792
+      },
+      "last": {
+        "time": 1795440000,
+        "open": 5.47,
+        "high": 5.47,
+        "low": 5.47,
+        "close": 5.47,
+        "volume": 165
+      }
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966491,
+      "receivedAt": 1795441966514,
+      "durationMs": 23,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795190700,
+        "open": 5.62,
+        "high": 5.685,
+        "low": 5.62,
+        "close": 5.655,
+        "volume": 15000
+      },
+      "last": {
+        "time": 1795440000,
+        "open": 5.47,
+        "high": 5.47,
+        "low": 5.47,
+        "close": 5.47,
+        "volume": 165
+      }
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966514,
+      "receivedAt": 1795441966538,
+      "durationMs": 24,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795032900,
+        "open": 6.69,
+        "high": 6.69,
+        "low": 6.615,
+        "close": 6.62,
+        "volume": 57563
+      },
+      "last": {
+        "time": 1795439700,
+        "open": 5.47,
+        "high": 5.47,
+        "low": 5.47,
+        "close": 5.47,
+        "volume": 165
+      }
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966538,
+      "receivedAt": 1795441966563,
+      "durationMs": 25,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794857400,
+        "open": 6.67,
+        "high": 6.71,
+        "low": 6.62,
+        "close": 6.705,
+        "volume": 69242
+      },
+      "last": {
+        "time": 1795438800,
+        "open": 5.47,
+        "high": 5.47,
+        "low": 5.47,
+        "close": 5.47,
+        "volume": 165
+      }
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966563,
+      "receivedAt": 1795441966622,
+      "durationMs": 59,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794405600,
+        "open": 7.68,
+        "high": 7.84,
+        "low": 7.46,
+        "close": 7.585,
+        "volume": 182484
+      },
+      "last": {
+        "time": 1795438800,
+        "open": 5.47,
+        "high": 5.47,
+        "low": 5.47,
+        "close": 5.47,
+        "volume": 165
+      }
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966622,
+      "receivedAt": 1795441966675,
+      "durationMs": 53,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1792670400,
+        "open": 7.47,
+        "high": 7.68,
+        "low": 7.32,
+        "close": 7.39,
+        "volume": 492952
+      },
+      "last": {
+        "time": 1795435200,
+        "open": 5.47,
+        "high": 5.47,
+        "low": 5.47,
+        "close": 5.47,
+        "volume": 165
+      }
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795441966675,
+      "receivedAt": 1795441966695,
+      "durationMs": 20,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1787889600,
+        "open": 11.535,
+        "high": 11.6,
+        "low": 10.565,
+        "close": 10.66,
+        "volume": 1197314
+      },
+      "last": {
+        "time": 1795150800,
+        "open": 6.08,
+        "high": 6.11,
+        "low": 5.04,
+        "close": 5.085,
+        "volume": 1635874
+      }
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966695,
+      "receivedAt": 1795441966714,
+      "durationMs": 19,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795204860,
+        "open": 16.13,
+        "high": 16.175,
+        "low": 16.13,
+        "close": 16.16,
+        "volume": 2680
+      },
+      "last": {
+        "time": 1795209300,
+        "open": 16.4,
+        "high": 16.41,
+        "low": 16.4,
+        "close": 16.41,
+        "volume": 5100
+      }
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966714,
+      "receivedAt": 1795441966734,
+      "durationMs": 20,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795190700,
+        "open": 16.06,
+        "high": 16.255,
+        "low": 15.995,
+        "close": 16.225,
+        "volume": 6731
+      },
+      "last": {
+        "time": 1795209300,
+        "open": 16.4,
+        "high": 16.41,
+        "low": 16.4,
+        "close": 16.41,
+        "volume": 5100
+      }
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966734,
+      "receivedAt": 1795441966755,
+      "durationMs": 21,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1795030200,
+        "open": 18.49,
+        "high": 18.535,
+        "low": 18.41,
+        "close": 18.45,
+        "volume": 27699
+      },
+      "last": {
+        "time": 1795209300,
+        "open": 16.4,
+        "high": 16.41,
+        "low": 16.4,
+        "close": 16.41,
+        "volume": 5100
+      }
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795441966755,
+      "receivedAt": 1795441966777,
+      "durationMs": 22,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794852000,
+        "open": 16.82,
+        "high": 16.82,
+        "low": 16.71,
+        "close": 16.75,
+        "volume": 56137
+      },
+      "last": {
+        "time": 1795208400,
+        "open": 16.4,
+        "high": 16.41,
+        "low": 16.4,
+        "close": 16.41,
+        "volume": 5100
+      }
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966777,
+      "receivedAt": 1795441966809,
+      "durationMs": 32,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1794337200,
+        "open": 17.885,
+        "high": 17.89,
+        "low": 17.675,
+        "close": 17.82,
+        "volume": 90603
+      },
+      "last": {
+        "time": 1795208400,
+        "open": 16.4,
+        "high": 16.41,
+        "low": 16.4,
+        "close": 16.41,
+        "volume": 5100
+      }
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795441966809,
+      "receivedAt": 1795441966865,
+      "durationMs": 56,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1792598400,
+        "open": 14.05,
+        "high": 14.51,
+        "low": 13.98,
+        "close": 14.025,
+        "volume": 708261
+      },
+      "last": {
+        "time": 1795204800,
+        "open": 16.145,
+        "high": 16.41,
+        "low": 16.025,
+        "close": 16.41,
+        "volume": 753415
+      }
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795441966865,
+      "receivedAt": 1795441966887,
+      "durationMs": 22,
+      "count": 60,
+      "error": null,
+      "first": {
+        "time": 1787889600,
+        "open": 20.45,
+        "high": 20.495,
+        "low": 18.75,
+        "close": 18.98,
+        "volume": 965347
+      },
+      "last": {
+        "time": 1795150800,
+        "open": 17.435,
+        "high": 17.52,
+        "low": 15.84,
+        "close": 16.22,
+        "volume": 2194226
+      }
+    }
+  ],
+  "nativeFrames": {
+    "BTC-USD 1m": 154,
+    "BTC-USD 5m": 154,
+    "BTC-USD 15m": 154,
+    "BTC-USD 30m": 154,
+    "BTC-USD 1h": 154,
+    "BTC-USD 4h": 154,
+    "BTC-USD 1d": 154
+  },
+  "errors": [],
+  "settings": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "finishedAt": "2026-11-23T13:55:44.713Z",
+  "finishReason": "observation_window_complete",
+  "pending": []
+}

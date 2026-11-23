@@ -1,0 +1,82 @@
+{
+  "observedAt": "2026-11-23T13:58:55.935357+00:00",
+  "head": "959583dc2b454fd606d6f488c217bbcbc393d779",
+  "sourceManifest": [
+    {
+      "path": "ogzprime-ssl-server.js",
+      "sha256": "0589e47ab9239a90e396a0764794ff1590e33ab6dbbbe146ebaacf7083874159",
+      "matchesActivation": true
+    },
+    {
+      "path": "server/stock-data-adapter.js",
+      "sha256": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6",
+      "matchesActivation": true
+    },
+    {
+      "path": "server/dashboard-stock-stream-config.js",
+      "sha256": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+      "matchesActivation": true
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+      "matchesActivation": true
+    },
+    {
+      "path": "config/internals.json",
+      "sha256": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+      "matchesActivation": true
+    }
+  ],
+  "inheritedFilesChecked": 20,
+  "inheritedDrift": [],
+  "runtimeConfiguration": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2453304,
+      "status": "online",
+      "restarts": 11
+    }
+  ],
+  "transition": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "crypto",
+    "freezeNewEntries": false,
+    "safeModeReason": null,
+    "updatedAt": "2026-11-23T09:09:18.136Z"
+  },
+  "restartsPerformed": [],
+  "productionEdits": []
+}

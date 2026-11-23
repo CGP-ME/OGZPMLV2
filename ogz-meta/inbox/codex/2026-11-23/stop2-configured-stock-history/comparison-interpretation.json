@@ -1,0 +1,481 @@
+{
+  "closedCandles": 2087,
+  "formingCandles": 13,
+  "closedDifferenceCount": 0,
+  "formingFieldDifferenceCount": 19,
+  "allDifferencesWereLatestFormingBars": true,
+  "rows": [
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "receivedAt": 1795441964908,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "receivedAt": 1795441964947,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "receivedAt": 1795441965022,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "receivedAt": 1795441965041,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "receivedAt": 1795441965186,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [
+        {
+          "time": 1795438800,
+          "field": "volume",
+          "dashboard": 160,
+          "native": 1195
+        }
+      ],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "receivedAt": 1795441965960,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [
+        {
+          "time": 1795435200,
+          "field": "volume",
+          "dashboard": 160,
+          "native": 1195
+        }
+      ],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "receivedAt": 1795441965985,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "receivedAt": 1795441966008,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "receivedAt": 1795441966031,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [
+        {
+          "time": 1795441800,
+          "field": "low",
+          "dashboard": 136.11,
+          "native": 135.85
+        },
+        {
+          "time": 1795441800,
+          "field": "close",
+          "dashboard": 136.2,
+          "native": 135.98
+        },
+        {
+          "time": 1795441800,
+          "field": "volume",
+          "dashboard": 1600,
+          "native": 3171
+        }
+      ],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "15m",
+      "receivedAt": 1795441966053,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [
+        {
+          "time": 1795441500,
+          "field": "high",
+          "dashboard": 136.68,
+          "native": 148.9
+        },
+        {
+          "time": 1795441500,
+          "field": "low",
+          "dashboard": 136,
+          "native": 135.85
+        },
+        {
+          "time": 1795441500,
+          "field": "close",
+          "dashboard": 136.2,
+          "native": 148.9
+        },
+        {
+          "time": 1795441500,
+          "field": "volume",
+          "dashboard": 7216,
+          "native": 48386
+        }
+      ],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "30m",
+      "receivedAt": 1795441966076,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [
+        {
+          "time": 1795440600,
+          "field": "high",
+          "dashboard": 136.99,
+          "native": 148.9
+        },
+        {
+          "time": 1795440600,
+          "field": "low",
+          "dashboard": 136,
+          "native": 135.85
+        },
+        {
+          "time": 1795440600,
+          "field": "close",
+          "dashboard": 136.2,
+          "native": 148.9
+        },
+        {
+          "time": 1795440600,
+          "field": "volume",
+          "dashboard": 20795,
+          "native": 61965
+        }
+      ],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1h",
+      "receivedAt": 1795441966110,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [
+        {
+          "time": 1795438800,
+          "field": "high",
+          "dashboard": 136.99,
+          "native": 148.9
+        },
+        {
+          "time": 1795438800,
+          "field": "close",
+          "dashboard": 136.2,
+          "native": 148.9
+        },
+        {
+          "time": 1795438800,
+          "field": "volume",
+          "dashboard": 43251,
+          "native": 84421
+        }
+      ],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "4h",
+      "receivedAt": 1795441966156,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [
+        {
+          "time": 1795435200,
+          "field": "high",
+          "dashboard": 136.99,
+          "native": 148.9
+        },
+        {
+          "time": 1795435200,
+          "field": "close",
+          "dashboard": 136.2,
+          "native": 148.9
+        },
+        {
+          "time": 1795435200,
+          "field": "volume",
+          "dashboard": 43251,
+          "native": 84421
+        }
+      ],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1d",
+      "receivedAt": 1795441966177,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "receivedAt": 1795441966202,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "5m",
+      "receivedAt": 1795441966222,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "15m",
+      "receivedAt": 1795441966251,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "30m",
+      "receivedAt": 1795441966275,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1h",
+      "receivedAt": 1795441966310,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "4h",
+      "receivedAt": 1795441966451,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1d",
+      "receivedAt": 1795441966471,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "receivedAt": 1795441966491,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "5m",
+      "receivedAt": 1795441966514,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "15m",
+      "receivedAt": 1795441966538,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "30m",
+      "receivedAt": 1795441966563,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1h",
+      "receivedAt": 1795441966622,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "4h",
+      "receivedAt": 1795441966675,
+      "closedAtObservation": 59,
+      "formingAtObservation": 1,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1d",
+      "receivedAt": 1795441966695,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1m",
+      "receivedAt": 1795441966714,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "5m",
+      "receivedAt": 1795441966734,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "15m",
+      "receivedAt": 1795441966755,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "30m",
+      "receivedAt": 1795441966777,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1h",
+      "receivedAt": 1795441966809,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "4h",
+      "receivedAt": 1795441966865,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1d",
+      "receivedAt": 1795441966887,
+      "closedAtObservation": 60,
+      "formingAtObservation": 0,
+      "closedDifferences": [],
+      "formingDifferences": [],
+      "allDifferencesWereLatestFormingBar": true
+    }
+  ],
+  "explanation": "Raw comparison is retained with complete=false. Provider requests occurred later than dashboard snapshots. Every observed difference belongs to a candle still forming at dashboard observation. Exact contemporaneous forming-bar identity is not established; no production fix follows from this temporal comparison."
+}
