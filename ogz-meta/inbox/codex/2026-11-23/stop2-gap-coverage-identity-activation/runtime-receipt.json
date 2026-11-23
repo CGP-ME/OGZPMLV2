@@ -1,0 +1,200 @@
+{
+  "observedAt": "2026-11-23T09:11:35.880911+00:00",
+  "activatedCommit": "a27bcb71ad7a67f9dfc85eebffba6903cf91bfa7",
+  "checkoutHeadAtActivation": "a27bcb71ad7a67f9dfc85eebffba6903cf91bfa7",
+  "branch": "codex/archive-legacy-env",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restartDelta": 0,
+      "pidUnchanged": true,
+      "startedAt": "2026-11-21T18:32:57.878000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "profile": null,
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restartDelta": 0,
+      "pidUnchanged": true,
+      "startedAt": "2026-11-22T00:28:22.189000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "profile": null,
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restartDelta": 0,
+      "pidUnchanged": true,
+      "startedAt": "2026-11-21T18:32:57.962000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "profile": null,
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2453304,
+      "status": "online",
+      "restartDelta": 1,
+      "pidUnchanged": false,
+      "startedAt": "2026-11-23T09:09:12.874000+00:00",
+      "canonicalEnvironmentMatches": true,
+      "canonicalEnvironmentKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "PROFILE"
+      ],
+      "profile": "paper",
+      "alternateDotenvPathPresent": false,
+      "backtestDescriptorPresent": false
+    }
+  ],
+  "sourceFilesChecked": 58,
+  "sourceDrift": [],
+  "inheritedFilesChecked": 20,
+  "inheritedDrift": [],
+  "configuration": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "decisionConfigurationCount": 11,
+  "allObservedDecisionConfigurationsMatch": true,
+  "liveCandleCount": 721,
+  "producerConsumerMismatchCount": 0,
+  "positionsBefore": 1,
+  "positionsAfter": 1,
+  "positions": [
+    {
+      "identitySHA256": "f054493e5f52d2d3adc24df72727a6b2105b72b1093e097eb9f7d6b673cd7556",
+      "symbol": "BTC-USD",
+      "direction": "long",
+      "afterActivation": "still_open"
+    }
+  ],
+  "newClosedTradeRows": 0,
+  "pauseReason": null,
+  "symbolHaltCount": 0,
+  "transition": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "crypto",
+    "brokerId": "kraken",
+    "freezeNewEntries": false,
+    "scopeComplete": true
+  },
+  "ingressBrokerIdentities": {
+    "kraken": 721
+  },
+  "traceCounts": {
+    "CANDLE_INGRESS": 721,
+    "CANDLE_NORMALIZED": 721,
+    "LAST_PRICE_INFLUENCE": 728,
+    "CANDLE_PROCESSOR_RECEIVED": 721,
+    "CANDLE_ACCEPTED": 1141,
+    "CANDLE_OBSERVATION_ONLY": 206,
+    "BOOT_REST_HYDRATION_CANDLE": 420,
+    "REST_HYDRATION_COMPLETE": 1,
+    "EXIT_ONLY_START": 8,
+    "DECISION_AUTOPSY": 11,
+    "TRADING_CYCLE_TRIGGER": 3,
+    "ANALYSIS_START": 3,
+    "STRATEGY_DECISION": 3,
+    "DECISION_SKIP": 3
+  },
+  "historyPreservation": "history-preservation.json",
+  "limitations": [
+    "This observation covers the active Kraken crypto session on 2026-11-23 around 09:09-09:12 UTC. No active Alpaca stock session was exercised.",
+    "Native history and live candle delivery are observed. Broker handoff, live recovery faults and stock REST replay were verified separately in isolation; they are not claimed exercised by this normal crypto runtime window.",
+    "This receipt covers activation through a27bcb71. Fixed-range recovery and provider coverage have separate isolated behavior receipts; actual gap-recovery execution is reported only if observed here. Live stock-session acceptance and the whole Stop 2 remain open.",
+    "No live brokerage order was submitted by this activation; Mercury RAG freshness is not asserted."
+  ],
+  "liveCandleEvidence": "live-candle-receipts.json",
+  "gapRecoveryObserved": false,
+  "configurationEvidence": "config-provenance.json",
+  "windowStart": "2026-11-23T09:09:12.961073+00:00",
+  "preDeliveryCheck": {
+    "checkedAt": "2026-11-23T09:15:02.794172+00:00",
+    "processes": [
+      {
+        "name": "ogz-supervisor",
+        "pid": 2158697,
+        "status": "online",
+        "restarts": 3,
+        "pidStableSinceObservation": true
+      },
+      {
+        "name": "ogz-websocket",
+        "pid": 2218954,
+        "status": "online",
+        "restarts": 5,
+        "pidStableSinceObservation": true
+      },
+      {
+        "name": "ogz-stripe",
+        "pid": 2158705,
+        "status": "online",
+        "restarts": 3,
+        "pidStableSinceObservation": true
+      },
+      {
+        "name": "ogz-prime-v2",
+        "pid": 2453304,
+        "status": "online",
+        "restarts": 11,
+        "pidStableSinceObservation": true
+      }
+    ],
+    "activePositions": 1,
+    "closedTradeRows": 949,
+    "pauseReason": null,
+    "symbolHaltCount": 0,
+    "additionalStdoutBytesChecked": 2087450,
+    "additionalWarningOrErrorLineCount": 0
+  }
+}

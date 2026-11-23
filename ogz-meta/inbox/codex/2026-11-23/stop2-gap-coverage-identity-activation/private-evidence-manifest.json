@@ -1,0 +1,64 @@
+{
+  "artifacts": [
+    {
+      "path": "private/preflight-log-offsets.json",
+      "bytes": 1242,
+      "sha256": "1b936ceea3fa214d7e1e2793aed8f52b6e096e9b07423817bf6f22207c9733f5",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/state-before.json",
+      "bytes": 772286,
+      "sha256": "9659227fab646f6f3dd9aec81334333c40bc4a86aa12cb37a8765fca6ab77117",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/state-after.json",
+      "bytes": 772331,
+      "sha256": "a8b36072fa2a54b4aebd87ac2fc5197afa67b44b1584d35703e21b57d1ef745a",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/transition-before.json",
+      "bytes": 929,
+      "sha256": "5c4010c21e815c8f68c1c01d30531e5a92767330082c4ad49eebf4e6f7956b5a",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/live-wire.jsonl",
+      "bytes": 89134298,
+      "sha256": "52518c14637fa939700fcfda59980e10b10578adc6321c6607c2468eac10a080",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/live-settings.json",
+      "bytes": 536162,
+      "sha256": "dfbaa6e729e30e1a6294d0978151079e5f9e6da6e228939382b9c45f4b425371",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/ogz-prime-v2-pm_out_log_path.log",
+      "bytes": 2329708,
+      "sha256": "7e090b0ad23a0028bd465f8f1923c8afcedb42ab8bf447b34c9e9c6a3a8026bf",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/ogz-prime-v2-pm_err_log_path.log",
+      "bytes": 75,
+      "sha256": "aec36d13ab464b874c8c637f26ffc57a3dc2b09adde0ed387200dc99b16c919e",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/observe-wire.cjs",
+      "bytes": 3996,
+      "sha256": "5106f2d20064f18a66e82c7f7a26ae22acb9f08dbb88b54511e4519dece21421",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    },
+    {
+      "path": "private/analyze-runtime.py",
+      "bytes": 11972,
+      "sha256": "9b326e4f1b516fcb1f24a62a079d53abcd1c2dc96a98bf13ad4bee5364260fcd",
+      "publication": "retained locally; may contain private state, account scope or runtime details"
+    }
+  ]
+}

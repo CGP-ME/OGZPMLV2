@@ -1,0 +1,104 @@
+{
+  "capturedAt": "2026-11-23T09:11:25.353340+00:00",
+  "frames": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "ohlcBoundsAndVolumeValid": true,
+      "nativeDurationMs": [
+        60000
+      ],
+      "expectedDurationMatches": true
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "ohlcBoundsAndVolumeValid": true,
+      "nativeDurationMs": [
+        300000
+      ],
+      "expectedDurationMatches": true
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "ohlcBoundsAndVolumeValid": true,
+      "nativeDurationMs": [
+        900000
+      ],
+      "expectedDurationMatches": true
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "ohlcBoundsAndVolumeValid": true,
+      "nativeDurationMs": [
+        1800000
+      ],
+      "expectedDurationMatches": true
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "ohlcBoundsAndVolumeValid": true,
+      "nativeDurationMs": [
+        3600000
+      ],
+      "expectedDurationMatches": true
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "ohlcBoundsAndVolumeValid": true,
+      "nativeDurationMs": [
+        14400000
+      ],
+      "expectedDurationMatches": true
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "count": 60,
+      "timestampsStrictlyAscending": true,
+      "uniqueTimestamps": true,
+      "scopeMatchesEnvelope": true,
+      "finiteOHLCV": true,
+      "ohlcBoundsAndVolumeValid": true,
+      "nativeDurationMs": [
+        86400000
+      ],
+      "expectedDurationMatches": true
+    }
+  ],
+  "note": "Authenticated public dashboard response validation. Native provenance is combined with the reviewed source and live bot trace receipts; no chart screenshot or synthetic fault is claimed."
+}

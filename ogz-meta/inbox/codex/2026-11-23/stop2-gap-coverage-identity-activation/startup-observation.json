@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-11-23T09:11:35.880911+00:00",
+  "diagnosticCounts": {
+    "EAPI:Rate limit exceeded": 0,
+    "EService:Throttled": 0,
+    "CANDLE_FETCH_FAILED": 0,
+    "CANDLE_INGRESS_DROPPED": 0,
+    "GAP_BACKFILL_COMPLETED": 0,
+    "GAP_BACKFILL_RETRY_SCHEDULED": 0,
+    "RECOVERY_REQUIRED": 0,
+    "UnhandledPromiseRejection": 0,
+    "uncaughtException": 0,
+    "FATAL": 0,
+    "Error:": 0,
+    "[ERROR]": 0,
+    "[WARN]": 0,
+    "[WARNING]": 0
+  },
+  "warningOrErrorLineCount": 0,
+  "botStderrLines": [
+    "[StateManager] dashboard WebSocket closed; state_update broadcasts stopped"
+  ],
+  "stderrContext": "The retiring bot closes its dashboard socket during restart. The new bot then returns settings and state, and streams native candles.",
+  "postRestartStateMessages": 4,
+  "restHydrationCompleteTraceCount": 1,
+  "bootRestHydrationCandleCount": 420,
+  "tradingCycleCount": 3,
+  "otherProcessStderrBytes": {
+    "ogz-supervisor": 0,
+    "ogz-websocket": 0,
+    "ogz-stripe": 0
+  },
+  "observerErrors": []
+}

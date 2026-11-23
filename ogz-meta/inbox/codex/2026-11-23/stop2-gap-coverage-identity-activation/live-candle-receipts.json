@@ -1,0 +1,198 @@
+{
+  "capturedAt": "2026-11-23T09:11:35.009263+00:00",
+  "count": 721,
+  "frames": [
+    {
+      "timeframe": "1m",
+      "count": 103,
+      "statuses": {
+        "on_time": 103
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 46,
+      "sourceAgeMaxMs": 6086,
+      "example": {
+        "traceId": "candle_1795425094580_x7x0eq",
+        "symbol": "BTC-USD",
+        "timeframe": "1m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 61481.9,
+        "etime": 1795425120000,
+        "sourceEventTimeMs": 1795425094531,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 51,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -25418,
+        "receivedAt": 1795425094582
+      }
+    },
+    {
+      "timeframe": "5m",
+      "count": 103,
+      "statuses": {
+        "on_time": 103
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 54,
+      "sourceAgeMaxMs": 6096,
+      "example": {
+        "traceId": "candle_1795425094589_hduypw",
+        "symbol": "BTC-USD",
+        "timeframe": "5m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 61481.9,
+        "etime": 1795425300000,
+        "sourceEventTimeMs": 1795425094531,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 59,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -205410,
+        "receivedAt": 1795425094590
+      }
+    },
+    {
+      "timeframe": "15m",
+      "count": 103,
+      "statuses": {
+        "on_time": 103
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 59,
+      "sourceAgeMaxMs": 6105,
+      "example": {
+        "traceId": "candle_1795425094595_uatosp",
+        "symbol": "BTC-USD",
+        "timeframe": "15m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 61481.9,
+        "etime": 1795425300000,
+        "sourceEventTimeMs": 1795425094531,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 66,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -205403,
+        "receivedAt": 1795425094597
+      }
+    },
+    {
+      "timeframe": "30m",
+      "count": 103,
+      "statuses": {
+        "on_time": 103
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 62,
+      "sourceAgeMaxMs": 6117,
+      "example": {
+        "traceId": "candle_1795425094603_dabp97",
+        "symbol": "BTC-USD",
+        "timeframe": "30m",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 61481.9,
+        "etime": 1795426200000,
+        "sourceEventTimeMs": 1795425094531,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 73,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -1105396,
+        "receivedAt": 1795425094604
+      }
+    },
+    {
+      "timeframe": "1h",
+      "count": 103,
+      "statuses": {
+        "on_time": 103
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 65,
+      "sourceAgeMaxMs": 6139,
+      "example": {
+        "traceId": "candle_1795425094610_gq7vha",
+        "symbol": "BTC-USD",
+        "timeframe": "1h",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 61481.9,
+        "etime": 1795428000000,
+        "sourceEventTimeMs": 1795425094531,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 79,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -2905390,
+        "receivedAt": 1795425094610
+      }
+    },
+    {
+      "timeframe": "4h",
+      "count": 103,
+      "statuses": {
+        "on_time": 103
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 68,
+      "sourceAgeMaxMs": 6154,
+      "example": {
+        "traceId": "candle_1795425094615_8x8hs0",
+        "symbol": "BTC-USD",
+        "timeframe": "4h",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 61481.9,
+        "etime": 1795435200000,
+        "sourceEventTimeMs": 1795425094531,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 85,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -10105384,
+        "receivedAt": 1795425094616
+      }
+    },
+    {
+      "timeframe": "1d",
+      "count": 103,
+      "statuses": {
+        "on_time": 103
+      },
+      "sourceKinds": [
+        "kraken_candle_update"
+      ],
+      "sourceAgeMinMs": 71,
+      "sourceAgeMaxMs": 6165,
+      "example": {
+        "traceId": "candle_1795425094622_f29io4",
+        "symbol": "BTC-USD",
+        "timeframe": "1d",
+        "brokerId": "kraken",
+        "executionMode": "paper",
+        "close": 61481.9,
+        "etime": 1795478400000,
+        "sourceEventTimeMs": 1795425094531,
+        "sourceEventKind": "kraken_candle_update",
+        "sourceEventAgeMs": 92,
+        "sourceEventStatus": "on_time",
+        "candleEndAgeMs": -53305377,
+        "receivedAt": 1795425094623
+      }
+    }
+  ],
+  "producerConsumerMismatches": [],
+  "sourceLogSHA256": "7e090b0ad23a0028bd465f8f1923c8afcedb42ab8bf447b34c9e9c6a3a8026bf",
+  "scopeComparison": "Correlated ingress, normalized and processor broker/account/execution identity by traceId; correlated last-price, normalized and processor symbol/frame/close/end/update time; checked age arithmetic."
+}

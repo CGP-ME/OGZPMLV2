@@ -1,0 +1,20 @@
+{
+  "filesChecked": 1319,
+  "missingPathHashes": [],
+  "priorByteRangesPreserved": 1319,
+  "appendOnlyFilesChecked": 42,
+  "changedAppendOnlyPathHashes": [],
+  "rewrittenSnapshotCount": 0,
+  "previousClosedTradeRows": 949,
+  "allPreviousClosedTradeRowsPreserved": true,
+  "positionIdentityPreserved": true,
+  "positionChangedFields": {
+    "f054493e5f52d2d3adc24df72727a6b2105b72b1093e097eb9f7d6b673cd7556": [
+      "maxProfitPercent",
+      "maxFavorableExcursionPercent",
+      "maxAdverseExcursionPercent",
+      "highestPrice"
+    ]
+  },
+  "positionChangeContext": "Only ongoing market observation fields changed during this window; saved trade identity, entry, direction, quantity and strategy fields are retained."
+}
