@@ -1073,19 +1073,10 @@
         };
         tvChart.timeScale().subscribeVisibleLogicalRangeChange(_trackedVisibleRangeCB);
 
-        // Crosshair tooltip
+        // Historical candle hover belongs to the tooltip; live quotes own the header.
         const tooltipEl = _cachedTooltipEl;
         tvChart.subscribeCrosshairMove(param => {
-            const priceEl = _cachedPriceEl;
             const candleData = param.seriesData ? param.seriesData.get(candleSeries) : null;
-
-            if (priceEl) {
-                if (!param.time || !candleData) {
-                    priceEl.textContent = OGZ.state.lastPriceSymbol === selectedAssetSymbol() ? `$${OGZ.state.lastPrice.toLocaleString()}` : '--';
-                } else {
-                    priceEl.textContent = `O:${candleData.open.toFixed(2)} H:${candleData.high.toFixed(2)} L:${candleData.low.toFixed(2)} C:${candleData.close.toFixed(2)}`;
-                }
-            }
 
             if (!tooltipEl) return;
             if (!param.time || !candleData || !param.point) {

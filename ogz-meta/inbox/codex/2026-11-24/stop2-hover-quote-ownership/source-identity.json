@@ -1,0 +1,18 @@
+{
+  "createdAt": "2026-11-24T17:31:20.881753+00:00",
+  "reviewRef": "474e8b7d4f90e91a3a14ad99530e5cfcb73daa6e",
+  "reviewBase": "2de13376edfb60b75bb18344389cee7576bf5a8d",
+  "reviewBaseTree": "b73876b62ff8b79477698cbda70fab9a4773bcdc",
+  "files": {
+    "public/js/chart.js": "b68f05a6242f73f414b1122091e5be2215f677b64af7fa23194597ce46f93b36",
+    "public/js/panels/chart-panel.js": "9fdef0b1418f0713af349dad2b8b5cda9bbd927ff521e1f4e6463809134a3ae6",
+    "public/unified-dashboard.html": "9e81c19183d0d0b01464768f1abb5c78f61ac7945920ed2a1eaacbdcfbc3fcd4",
+    "public/unified-dashboard-v2.html": "44ca3bb384237163220cdca0b92d6d4bd1082c571b260ded73c0e8be4e9c4f2f"
+  },
+  "harness": {
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "regularIndexPaths": [],
+  "liveSourceChanged": false
+}

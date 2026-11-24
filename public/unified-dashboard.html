@@ -3358,7 +3358,7 @@
     <!-- Data layer -->
     <script src="/js/indicators.js?v=20261119-native-samples"></script>
     <script src="/js/websocket.js?v=20261118-native-mtf"></script>
-    <script src="/js/chart.js?v=20261119-native-indicators"></script>
+    <script src="/js/chart.js?v=20261124-live-quote-owner"></script>
 
     <!-- Panels (self-registering, order-independent) -->
     <script src="/js/panels/rail-resize.js?v=1777847456749"></script>
@@ -3436,9 +3436,7 @@
                 return;
             }
 
-            // Only show price part — strip OHLC if currentPrice has it
-            // (when crosshair is hovering the chart, #currentPrice may
-            // hold "O:..H:..L:..C:..". Hero stays clean with just $.)
+            // Mirror the selected live quote; historical OHLC belongs to the tooltip.
             dst.textContent = '$' + num.toFixed(2);
 
             if (lastNum != null) {

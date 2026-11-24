@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-11-24T17:31:44.272550+00:00",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=474e8b7d4f90e91a3a14ad99530e5cfcb73daa6e",
+    "--review-base=2de13376edfb60b75bb18344389cee7576bf5a8d",
+    "--change-path=public/js/chart.js",
+    "--change-path=public/js/panels/chart-panel.js",
+    "--change-path=public/unified-dashboard.html",
+    "--change-path=public/unified-dashboard-v2.html",
+    "Scope: current-price identity while a user hovers historical candles in the two served dashboard chart implementations. How does this fail or cost me money in production? Trace the relevant current-price and hover producers and consumers in the pinned source; cite current file:line evidence and name any gaps."
+  ],
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "iterationLimit": null
+}

@@ -424,23 +424,10 @@
             };
             tvChart.timeScale().subscribeVisibleLogicalRangeChange(_trackedVisibleRangeCB);
 
-            // Crosshair driver: (1) keep header price live, (2) feed floating
-            // tooltip near the cursor so you see exact time + price at any point.
-            // Both DOM refs come from the module-level cache set at the top of
-            // init() — no per-callback getElementById.
+            // Historical candle hover belongs to the tooltip; live quotes own the header.
             const tooltipEl = _cachedTooltipEl;
             tvChart.subscribeCrosshairMove(param => {
-                const priceEl = _cachedPriceEl;
                 const candleData = param.seriesData ? param.seriesData.get(candleSeries) : null;
-
-                // Header readout
-                if (priceEl) {
-                    if (!param.time || !candleData) {
-                        priceEl.textContent = OGZ.state.lastPriceSymbol === selectedLegacyAsset(document.getElementById('assetSelector')) ? `$${OGZ.state.lastPrice.toLocaleString()}` : '--';
-                    } else {
-                        priceEl.textContent = `O:${candleData.open.toFixed(2)} H:${candleData.high.toFixed(2)} L:${candleData.low.toFixed(2)} C:${candleData.close.toFixed(2)}`;
-                    }
-                }
 
                 // Floating tooltip near cursor
                 if (!tooltipEl) return;

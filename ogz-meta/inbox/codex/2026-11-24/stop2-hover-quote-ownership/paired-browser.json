@@ -1,0 +1,607 @@
+{
+  "startedAt": "2026-11-24T17:30:32.307Z",
+  "pages": [
+    {
+      "mode": "baseline",
+      "version": "legacy",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "bar": {
+            "open": 150.835,
+            "high": 151.005,
+            "low": 150.58,
+            "close": 150.935,
+            "time": 1795539600
+          },
+          "observed": {
+            "currentPrice": "O:150.84 H:151.00 L:150.58 C:150.94",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$150.84",
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:00 PM$166.79O 150.84   H 151.00L 150.58   C 150.94"
+          },
+          "quoteMatches": false,
+          "heroMatches": false,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 150.85,
+            "high": 151.57,
+            "low": 150.79,
+            "close": 151.56,
+            "time": 1795539900
+          },
+          "observed": {
+            "currentPrice": "O:150.85 H:151.57 L:150.79 C:151.56",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$150.85",
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:05 PM$166.79O 150.85   H 151.57L 150.79   C 151.56"
+          },
+          "quoteMatches": false,
+          "heroMatches": false,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 152.735,
+            "high": 153.23,
+            "low": 152.735,
+            "close": 153.175,
+            "time": 1795540200
+          },
+          "observed": {
+            "currentPrice": "O:152.74 H:153.23 L:152.74 C:153.18",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$152.74",
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:10 PM$166.79O 152.74   H 153.23L 152.74   C 153.18"
+          },
+          "quoteMatches": false,
+          "heroMatches": false,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 153.11,
+            "high": 153.35,
+            "low": 153.1,
+            "close": 153.3,
+            "time": 1795540500
+          },
+          "observed": {
+            "currentPrice": "O:153.11 H:153.35 L:153.10 C:153.30",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$153.11",
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:15 PM$166.79O 153.11   H 153.35L 153.10   C 153.30"
+          },
+          "quoteMatches": false,
+          "heroMatches": false,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 152.96,
+            "high": 153.23,
+            "low": 152.84,
+            "close": 152.84,
+            "time": 1795540800
+          },
+          "observed": {
+            "currentPrice": "O:152.96 H:153.23 L:152.84 C:152.84",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$152.96",
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:20 PM$166.79O 152.96   H 153.23L 152.84   C 152.84"
+          },
+          "quoteMatches": false,
+          "heroMatches": false,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 152.745,
+            "high": 153.06,
+            "low": 152.745,
+            "close": 152.94,
+            "time": 1795541100
+          },
+          "observed": {
+            "currentPrice": "O:152.75 H:153.06 L:152.75 C:152.94",
+            "expectedQuote": "$154.1",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$152.75",
+            "expectedHero": "$154.10",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:25 PM$166.79O 152.75   H 153.06L 152.75   C 152.94"
+          },
+          "quoteMatches": false,
+          "heroMatches": false,
+          "tooltipMatches": true
+        }
+      ],
+      "httpStatus": 200,
+      "screenshot": "private/baseline-legacy-hover.png"
+    },
+    {
+      "mode": "candidate",
+      "version": "legacy",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "bar": {
+            "open": 150.835,
+            "high": 151.005,
+            "low": 150.58,
+            "close": 150.935,
+            "time": 1795539600
+          },
+          "observed": {
+            "currentPrice": "$154.22",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$154.22",
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:00 PM$166.79O 150.84   H 151.00L 150.58   C 150.94"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 150.85,
+            "high": 151.57,
+            "low": 150.79,
+            "close": 151.56,
+            "time": 1795539900
+          },
+          "observed": {
+            "currentPrice": "$154.22",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$154.22",
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:05 PM$166.79O 150.85   H 151.57L 150.79   C 151.56"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 152.735,
+            "high": 153.23,
+            "low": 152.735,
+            "close": 153.175,
+            "time": 1795540200
+          },
+          "observed": {
+            "currentPrice": "$154.135",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$154.13",
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:10 PM$166.79O 152.74   H 153.23L 152.74   C 153.18"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 153.11,
+            "high": 153.35,
+            "low": 153.1,
+            "close": 153.3,
+            "time": 1795540500
+          },
+          "observed": {
+            "currentPrice": "$154.135",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$154.13",
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:15 PM$166.79O 153.11   H 153.35L 153.10   C 153.30"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 152.96,
+            "high": 153.23,
+            "low": 152.84,
+            "close": 152.84,
+            "time": 1795540800
+          },
+          "observed": {
+            "currentPrice": "$154.135",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$154.13",
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:20 PM$166.79O 152.96   H 153.23L 152.84   C 152.84"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 152.745,
+            "high": 153.06,
+            "low": 152.745,
+            "close": 152.94,
+            "time": 1795541100
+          },
+          "observed": {
+            "currentPrice": "$154.135",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": "$154.13",
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 05:25 PM$166.79O 152.75   H 153.06L 152.75   C 152.94"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        }
+      ],
+      "httpStatus": 200,
+      "screenshot": "private/candidate-legacy-hover.png"
+    },
+    {
+      "mode": "baseline",
+      "version": "v2",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "bar": {
+            "open": 163.96,
+            "high": 165.24,
+            "low": 163.79,
+            "close": 164.41,
+            "time": 1795460400
+          },
+          "observed": {
+            "currentPrice": "O:163.96 H:165.24 L:163.79 C:164.41",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 23, 07:00 PM$166.84O 163.96   H 165.24L 163.79   C 164.41"
+          },
+          "quoteMatches": false,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 165.71,
+            "high": 166.685,
+            "low": 164.735,
+            "close": 166.405,
+            "time": 1795464900
+          },
+          "observed": {
+            "currentPrice": "O:165.71 H:166.69 L:164.74 C:166.41",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 23, 08:15 PM$166.84O 165.71   H 166.69L 164.74   C 166.41"
+          },
+          "quoteMatches": false,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 165.21,
+            "high": 165.21,
+            "low": 164.64,
+            "close": 164.64,
+            "time": 1795469400
+          },
+          "observed": {
+            "currentPrice": "O:165.21 H:165.21 L:164.64 C:164.64",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 23, 09:30 PM$166.84O 165.21   H 165.21L 164.64   C 164.64"
+          },
+          "quoteMatches": false,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 156.95,
+            "high": 157.2,
+            "low": 156.17,
+            "close": 156.35,
+            "time": 1795527900
+          },
+          "observed": {
+            "currentPrice": "O:156.95 H:157.20 L:156.17 C:156.35",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 01:45 PM$166.84O 156.95   H 157.20L 156.17   C 156.35"
+          },
+          "quoteMatches": false,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 156.19,
+            "high": 156.47,
+            "low": 153.365,
+            "close": 155.39,
+            "time": 1795532400
+          },
+          "observed": {
+            "currentPrice": "O:156.19 H:156.47 L:153.37 C:155.39",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 03:00 PM$166.84O 156.19   H 156.47L 153.37   C 155.39"
+          },
+          "quoteMatches": false,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 151.19,
+            "high": 152.48,
+            "low": 150.89,
+            "close": 151.48,
+            "time": 1795536900
+          },
+          "observed": {
+            "currentPrice": "O:151.19 H:152.48 L:150.89 C:151.48",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 04:15 PM$166.84O 151.19   H 152.48L 150.89   C 151.48"
+          },
+          "quoteMatches": false,
+          "heroMatches": true,
+          "tooltipMatches": true
+        }
+      ],
+      "httpStatus": 200,
+      "screenshot": "private/baseline-v2-hover.png"
+    },
+    {
+      "mode": "candidate",
+      "version": "v2",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "bar": {
+            "open": 163.96,
+            "high": 165.24,
+            "low": 163.79,
+            "close": 164.41,
+            "time": 1795460400
+          },
+          "observed": {
+            "currentPrice": "$154.22",
+            "expectedQuote": "$154.22",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.22",
+            "tooltipVisible": true,
+            "tooltip": "Nov 23, 07:00 PM$166.84O 163.96   H 165.24L 163.79   C 164.41"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 165.71,
+            "high": 166.685,
+            "low": 164.735,
+            "close": 166.405,
+            "time": 1795464900
+          },
+          "observed": {
+            "currentPrice": "$154.135",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 23, 08:15 PM$166.84O 165.71   H 166.69L 164.74   C 166.41"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 165.21,
+            "high": 165.21,
+            "low": 164.64,
+            "close": 164.64,
+            "time": 1795469400
+          },
+          "observed": {
+            "currentPrice": "$154.135",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 23, 09:30 PM$166.84O 165.21   H 165.21L 164.64   C 164.64"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 156.95,
+            "high": 157.2,
+            "low": 156.17,
+            "close": 156.35,
+            "time": 1795527900
+          },
+          "observed": {
+            "currentPrice": "$154.135",
+            "expectedQuote": "$154.135",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.13",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 01:45 PM$166.84O 156.95   H 157.20L 156.17   C 156.35"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 156.19,
+            "high": 156.47,
+            "low": 153.365,
+            "close": 155.39,
+            "time": 1795532400
+          },
+          "observed": {
+            "currentPrice": "$154.1",
+            "expectedQuote": "$154.1",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.10",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 03:00 PM$166.84O 156.19   H 156.47L 153.37   C 155.39"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        },
+        {
+          "bar": {
+            "open": 151.19,
+            "high": 152.48,
+            "low": 150.89,
+            "close": 151.48,
+            "time": 1795536900
+          },
+          "observed": {
+            "currentPrice": "$154.175",
+            "expectedQuote": "$154.175",
+            "lastPriceSymbol": "NVDA",
+            "hero": null,
+            "expectedHero": "$154.18",
+            "tooltipVisible": true,
+            "tooltip": "Nov 24, 04:15 PM$166.84O 151.19   H 152.48L 150.89   C 151.48"
+          },
+          "quoteMatches": true,
+          "heroMatches": true,
+          "tooltipMatches": true
+        }
+      ],
+      "httpStatus": 200,
+      "screenshot": "private/candidate-v2-hover.png"
+    }
+  ],
+  "browserVersion": "156.0.8078.4",
+  "finishedAt": "2026-11-24T17:30:55.865Z"
+}

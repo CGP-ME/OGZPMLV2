@@ -1,0 +1,45 @@
+{
+  "run_id": "2026-11-24T17-33-10-690Z-0bddbbac0564",
+  "created_at": "2026-11-24T17:33:10.690Z",
+  "verdict": "no_break_found",
+  "iterations": 19,
+  "latency_ms": 65029,
+  "run_tokens": {
+    "input": 775090,
+    "uncached_input": 580851,
+    "cached_input": 194239,
+    "output": 22950,
+    "total": 798040,
+    "complete": true,
+    "attempts_with_usage": 20,
+    "total_attempts": 20
+  },
+  "run_cost": {
+    "amount": 0.06771865,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 20,
+    "total_attempts": 20,
+    "cost_absences": []
+  },
+  "termination": "answer_given",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "unselectedReviewers": [
+    "astra",
+    "fable"
+  ],
+  "blocking": false,
+  "reviewedCandidates": 15,
+  "namedCandidates": 16,
+  "successfulTools": 52,
+  "sourceIdentity": "source-identity.json",
+  "limitations": [
+    "Mercury performed source review only; browser execution is independent evidence.",
+    "Coverage/whole-file/inherited-section metadata warnings retained.",
+    "Reviewer did not fully trace quote dispatch. Author checked core.js:188-204 and executed both actual served paths.",
+    "No claim that quote interruption freezes every native candle source or that historical legacy/demo pages are verified.",
+    "No full-panel or fresh RAG claim."
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "observedAt": "2026-11-24T17:36:04.935295+00:00",
+  "inheritedFilesChecked": 20,
+  "inheritedDriftExcludingOwnChangelogPrefixes": [],
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3,
+      "uptime": 1795285977878
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5,
+      "uptime": 1795307302189
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3,
+      "uptime": 1795285977962
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2453304,
+      "status": "online",
+      "restarts": 11,
+      "uptime": 1795424952874
+    }
+  ],
+  "processChanges": [],
+  "router": {
+    "state": "TARGET_ACTIVATED",
+    "activeSession": "stocks",
+    "brokerId": "alpaca",
+    "freezeNewEntries": false
+  },
+  "sourceMatchesReviewedCandidate": true,
+  "sourceFiles": {
+    "public/js/chart.js": "b68f05a6242f73f414b1122091e5be2215f677b64af7fa23194597ce46f93b36",
+    "public/js/panels/chart-panel.js": "9fdef0b1418f0713af349dad2b8b5cda9bbd927ff521e1f4e6463809134a3ae6",
+    "public/unified-dashboard.html": "9e81c19183d0d0b01464768f1abb5c78f61ac7945920ed2a1eaacbdcfbc3fcd4",
+    "public/unified-dashboard-v2.html": "44ca3bb384237163220cdca0b92d6d4bd1082c571b260ded73c0e8be4e9c4f2f"
+  }
+}
