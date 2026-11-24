@@ -1,0 +1,19 @@
+{
+  "startedAt": "2026-11-24T17:23:36.995100+00:00",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=4c21f6cacecb68c5864cda2de4e3cd61e57ada3c",
+    "--review-base=1adf7a92a414aba18d9e1f4320dbced861fa2eab",
+    "--change-path=public/unified-dashboard.html",
+    "Scope: the legacy dashboard hero price and percentage readout as chart asset selection and quote availability change. How does this fail or cost me money in production? Trace the current producers and consumers in the pinned source; cite file:line evidence and identify any unverified part of that behavior."
+  ],
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "iterationLimit": null
+}

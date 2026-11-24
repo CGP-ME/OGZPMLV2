@@ -1,0 +1,304 @@
+{
+  "startedAt": "2026-11-24T17:22:21.628Z",
+  "pages": [
+    {
+      "mode": "baseline",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "symbol": "COIN",
+          "observations": [
+            {
+              "symbol": "COIN",
+              "source": "--",
+              "hero": "$382.04",
+              "delta": ""
+            },
+            {
+              "symbol": "COIN",
+              "source": "$103.43",
+              "hero": "$103.43",
+              "delta": "-278.61  (-72.93%)"
+            },
+            {
+              "symbol": "COIN",
+              "source": "$103.43",
+              "hero": "$103.43",
+              "delta": "-278.61  (-72.93%)"
+            }
+          ],
+          "firstQuote": {
+            "symbol": "COIN",
+            "source": "$103.43",
+            "hero": "$103.43",
+            "delta": "-278.61  (-72.93%)"
+          },
+          "firstQuoteHasNoCrossAssetDelta": false,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [
+            {
+              "symbol": "COIN",
+              "source": "--",
+              "hero": "$382.04",
+              "delta": ""
+            }
+          ],
+          "sameSymbolMoves": []
+        },
+        {
+          "symbol": "TSLA",
+          "observations": [
+            {
+              "symbol": "TSLA",
+              "source": "--",
+              "hero": "$103.43",
+              "delta": "-278.61  (-72.93%)"
+            },
+            {
+              "symbol": "TSLA",
+              "source": "$382.075",
+              "hero": "$382.07",
+              "delta": "+278.64  (+269.40%)"
+            },
+            {
+              "symbol": "TSLA",
+              "source": "$381.93",
+              "hero": "$381.93",
+              "delta": "-0.14  (-0.04%)"
+            }
+          ],
+          "firstQuote": {
+            "symbol": "TSLA",
+            "source": "$382.075",
+            "hero": "$382.07",
+            "delta": "+278.64  (+269.40%)"
+          },
+          "firstQuoteHasNoCrossAssetDelta": false,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [
+            {
+              "symbol": "TSLA",
+              "source": "--",
+              "hero": "$103.43",
+              "delta": "-278.61  (-72.93%)"
+            }
+          ],
+          "sameSymbolMoves": [
+            {
+              "previous": 382.075,
+              "current": 381.93,
+              "expected": "-0.14  (-0.04%)",
+              "actual": "-0.14  (-0.04%)",
+              "matches": true
+            }
+          ]
+        },
+        {
+          "symbol": "NVDA",
+          "observations": [
+            {
+              "symbol": "NVDA",
+              "source": "--",
+              "hero": "$381.93",
+              "delta": "-0.14  (-0.04%)"
+            },
+            {
+              "symbol": "NVDA",
+              "source": "$152.38",
+              "hero": "$152.38",
+              "delta": "-229.55  (-60.10%)"
+            },
+            {
+              "symbol": "NVDA",
+              "source": "$152.34",
+              "hero": "$152.34",
+              "delta": "-0.04  (-0.03%)"
+            }
+          ],
+          "firstQuote": {
+            "symbol": "NVDA",
+            "source": "$152.38",
+            "hero": "$152.38",
+            "delta": "-229.55  (-60.10%)"
+          },
+          "firstQuoteHasNoCrossAssetDelta": false,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [
+            {
+              "symbol": "NVDA",
+              "source": "--",
+              "hero": "$381.93",
+              "delta": "-0.14  (-0.04%)"
+            }
+          ],
+          "sameSymbolMoves": [
+            {
+              "previous": 152.38,
+              "current": 152.34,
+              "expected": "-0.04  (-0.03%)",
+              "actual": "-0.04  (-0.03%)",
+              "matches": true
+            }
+          ]
+        }
+      ],
+      "httpStatus": 200,
+      "screenshot": "private/baseline-hero.png"
+    },
+    {
+      "mode": "candidate",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "symbol": "COIN",
+          "observations": [
+            {
+              "symbol": "COIN",
+              "source": "--",
+              "hero": "--",
+              "delta": ""
+            },
+            {
+              "symbol": "COIN",
+              "source": "$103.43",
+              "hero": "$103.43",
+              "delta": ""
+            },
+            {
+              "symbol": "COIN",
+              "source": "$103.43",
+              "hero": "$103.43",
+              "delta": ""
+            }
+          ],
+          "firstQuote": {
+            "symbol": "COIN",
+            "source": "$103.43",
+            "hero": "$103.43",
+            "delta": ""
+          },
+          "firstQuoteHasNoCrossAssetDelta": true,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [],
+          "sameSymbolMoves": []
+        },
+        {
+          "symbol": "TSLA",
+          "observations": [
+            {
+              "symbol": "TSLA",
+              "source": "--",
+              "hero": "--",
+              "delta": ""
+            },
+            {
+              "symbol": "TSLA",
+              "source": "$382.075",
+              "hero": "$382.07",
+              "delta": ""
+            },
+            {
+              "symbol": "TSLA",
+              "source": "$381.93",
+              "hero": "$381.93",
+              "delta": "-0.14  (-0.04%)"
+            }
+          ],
+          "firstQuote": {
+            "symbol": "TSLA",
+            "source": "$382.075",
+            "hero": "$382.07",
+            "delta": ""
+          },
+          "firstQuoteHasNoCrossAssetDelta": true,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [],
+          "sameSymbolMoves": [
+            {
+              "previous": 382.075,
+              "current": 381.93,
+              "expected": "-0.14  (-0.04%)",
+              "actual": "-0.14  (-0.04%)",
+              "matches": true
+            }
+          ]
+        },
+        {
+          "symbol": "NVDA",
+          "observations": [
+            {
+              "symbol": "NVDA",
+              "source": "--",
+              "hero": "--",
+              "delta": ""
+            },
+            {
+              "symbol": "NVDA",
+              "source": "$152.38",
+              "hero": "$152.38",
+              "delta": ""
+            },
+            {
+              "symbol": "NVDA",
+              "source": "$152.34",
+              "hero": "$152.34",
+              "delta": "-0.04  (-0.03%)"
+            }
+          ],
+          "firstQuote": {
+            "symbol": "NVDA",
+            "source": "$152.38",
+            "hero": "$152.38",
+            "delta": ""
+          },
+          "firstQuoteHasNoCrossAssetDelta": true,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [],
+          "sameSymbolMoves": [
+            {
+              "previous": 152.38,
+              "current": 152.34,
+              "expected": "-0.04  (-0.03%)",
+              "actual": "-0.04  (-0.03%)",
+              "matches": true
+            }
+          ]
+        }
+      ],
+      "httpStatus": 200,
+      "screenshot": "private/candidate-hero.png"
+    }
+  ],
+  "browserVersion": "156.0.8078.4",
+  "finishedAt": "2026-11-24T17:22:56.266Z"
+}

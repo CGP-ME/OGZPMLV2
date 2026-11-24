@@ -1,0 +1,55 @@
+{
+  "run_id": "2026-11-24T17-25-08-185Z-eb6c4b53b456",
+  "created_at": "2026-11-24T17:25:08.185Z",
+  "verdict": "no_break_found",
+  "iterations": 20,
+  "latency_ms": 75590,
+  "run_tokens": {
+    "input": 655857,
+    "uncached_input": 494134,
+    "cached_input": 161723,
+    "output": 28721,
+    "total": 684578,
+    "complete": true,
+    "attempts_with_usage": 21,
+    "total_attempts": 21
+  },
+  "run_cost": {
+    "amount": 0.06076804,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 21,
+    "total_attempts": 21,
+    "cost_absences": []
+  },
+  "termination": "answer_given",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "unselectedReviewers": [
+    "astra",
+    "fable"
+  ],
+  "source": {
+    "createdAt": "2026-11-24T17:23:07.276591+00:00",
+    "reviewRef": "4c21f6cacecb68c5864cda2de4e3cd61e57ada3c",
+    "reviewBase": "1adf7a92a414aba18d9e1f4320dbced861fa2eab",
+    "reviewBaseTree": "e1e492ca670df67c58b5d5149f8dc893a022f14c",
+    "files": {
+      "public/unified-dashboard.html": "a4653b2c3fbb8e52fab01193f4541ad7078ca14822f040eab4815dc513312b38"
+    },
+    "harness": {
+      "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+      "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+    },
+    "regularIndexPaths": [],
+    "liveSourceChanged": false
+  },
+  "limitations": [
+    "Source-only review; actual browser verification is separate.",
+    "Coverage/whole-file/inherited-section metadata warnings remain.",
+    "The OHLC-hover producer is present at chart.js:441. It can replace currentPrice with historical OHLC; the hero parser then reads the first number (open). This is an existing separate producer defect, not repaired by the asset-comparison candidate. Author corrected an initial misreading of the neighboring no-candle branch before delivery.",
+    "Unavailable quote display deliberately mirrors the existing -- state; no invented price or trading-control failure is suppressed.",
+    "Existing delta remains a consecutive-price movement, with its pre-existing sub-cent display threshold; no period-return redesign."
+  ]
+}

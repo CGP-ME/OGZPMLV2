@@ -3409,7 +3409,9 @@
         const delta = document.getElementById('heroPriceDelta');
         if (!src || !dst) return;
 
+        const assetSelector = document.getElementById('assetSelector');
         let lastNum = null;
+        let lastSymbol = null;
         function parsePrice(text) {
             if (!text) return null;
             const m = String(text).match(/\$?([\d,]+\.?\d*)/);
@@ -3421,7 +3423,18 @@
         function tick() {
             const text = src.textContent || '';
             const num = parsePrice(text);
-            if (num == null || num <= 0) return;
+            const symbol = assetSelector.value;
+            if (symbol !== lastSymbol || num == null || num <= 0) {
+                lastNum = null;
+                delta.textContent = '';
+                delta.className = 'hero-price-delta';
+                dst.className = 'hero-price-main';
+            }
+            lastSymbol = symbol;
+            if (num == null || num <= 0) {
+                dst.textContent = '--';
+                return;
+            }
 
             // Only show price part — strip OHLC if currentPrice has it
             // (when crosshair is hovering the chart, #currentPrice may

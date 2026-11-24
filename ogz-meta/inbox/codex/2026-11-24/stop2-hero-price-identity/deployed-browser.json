@@ -1,0 +1,145 @@
+{
+  "startedAt": "2026-11-24T17:26:43.527Z",
+  "pages": [
+    {
+      "mode": "deployed",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "symbol": "COIN",
+          "observations": [
+            {
+              "symbol": "COIN",
+              "source": "--",
+              "hero": "--",
+              "delta": ""
+            },
+            {
+              "symbol": "COIN",
+              "source": "$103.4",
+              "hero": "$103.40",
+              "delta": ""
+            },
+            {
+              "symbol": "COIN",
+              "source": "$103.4",
+              "hero": "$103.40",
+              "delta": ""
+            }
+          ],
+          "firstQuote": {
+            "symbol": "COIN",
+            "source": "$103.4",
+            "hero": "$103.40",
+            "delta": ""
+          },
+          "firstQuoteHasNoCrossAssetDelta": true,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [],
+          "sameSymbolMoves": []
+        },
+        {
+          "symbol": "TSLA",
+          "observations": [
+            {
+              "symbol": "TSLA",
+              "source": "--",
+              "hero": "--",
+              "delta": ""
+            },
+            {
+              "symbol": "TSLA",
+              "source": "$383.08",
+              "hero": "$383.08",
+              "delta": ""
+            },
+            {
+              "symbol": "TSLA",
+              "source": "$383.13",
+              "hero": "$383.13",
+              "delta": "+0.05  (+0.01%)"
+            }
+          ],
+          "firstQuote": {
+            "symbol": "TSLA",
+            "source": "$383.08",
+            "hero": "$383.08",
+            "delta": ""
+          },
+          "firstQuoteHasNoCrossAssetDelta": true,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [],
+          "sameSymbolMoves": [
+            {
+              "previous": 383.08,
+              "current": 383.13,
+              "expected": "+0.05  (+0.01%)",
+              "actual": "+0.05  (+0.01%)",
+              "matches": true
+            }
+          ]
+        },
+        {
+          "symbol": "NVDA",
+          "observations": [
+            {
+              "symbol": "NVDA",
+              "source": "--",
+              "hero": "--",
+              "delta": ""
+            },
+            {
+              "symbol": "NVDA",
+              "source": "$153.1",
+              "hero": "$153.10",
+              "delta": ""
+            },
+            {
+              "symbol": "NVDA",
+              "source": "$153.15",
+              "hero": "$153.15",
+              "delta": "+0.05  (+0.03%)"
+            }
+          ],
+          "firstQuote": {
+            "symbol": "NVDA",
+            "source": "$153.1",
+            "hero": "$153.10",
+            "delta": ""
+          },
+          "firstQuoteHasNoCrossAssetDelta": true,
+          "unavailableObservations": 1,
+          "unavailableDisplayMismatches": [],
+          "sameSymbolMoves": [
+            {
+              "previous": 153.1,
+              "current": 153.15,
+              "expected": "+0.05  (+0.03%)",
+              "actual": "+0.05  (+0.03%)",
+              "matches": true
+            }
+          ]
+        }
+      ],
+      "httpStatus": 200,
+      "screenshot": "private/deployed-hero.png"
+    }
+  ],
+  "browserVersion": "156.0.8078.4",
+  "finishedAt": "2026-11-24T17:27:17.087Z"
+}
