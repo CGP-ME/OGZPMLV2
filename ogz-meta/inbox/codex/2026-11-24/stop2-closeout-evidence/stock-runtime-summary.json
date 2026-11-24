@@ -1,0 +1,744 @@
+{
+  "observedAt": "2026-11-24T17:06:00.542493+00:00",
+  "log": {
+    "path": "/home/linuxuser/.pm2/logs/ogz-prime-v2-out.log",
+    "start": 14674586143,
+    "end": 14683819035
+  },
+  "sourceHead": "b9df401ba7673d852176bfe6ab4b294db7037f30",
+  "nativeCandleCount": 940,
+  "frameCounts": {
+    "TSLA 1m": 145,
+    "NVDA 1m": 149,
+    "COIN 1m": 130,
+    "MARA 1m": 141,
+    "RIOT 1m": 146,
+    "RIOT 5m": 30,
+    "NVDA 5m": 29,
+    "COIN 5m": 29,
+    "TSLA 5m": 29,
+    "MARA 5m": 29,
+    "NVDA 15m": 9,
+    "RIOT 15m": 10,
+    "TSLA 15m": 9,
+    "MARA 15m": 9,
+    "COIN 15m": 9,
+    "MARA 30m": 4,
+    "MARA 1h": 2,
+    "NVDA 30m": 4,
+    "NVDA 1h": 2,
+    "COIN 30m": 4,
+    "TSLA 30m": 4,
+    "COIN 1h": 2,
+    "TSLA 1h": 2,
+    "RIOT 30m": 5,
+    "RIOT 1h": 3,
+    "RIOT 4h": 1,
+    "COIN 4h": 1,
+    "MARA 4h": 1,
+    "NVDA 4h": 1,
+    "TSLA 4h": 1
+  },
+  "producerConsumerMismatches": [],
+  "sourceEventStatuses": {
+    "on_time": 940
+  },
+  "firstCandleReceived": 1795530840023,
+  "lastCandleReceived": 1795539480558,
+  "gapCompletions": [
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795530660000,
+        "end": 1795530780000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 1
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795530660000,
+        "end": 1795530780000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 1
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795527120000,
+        "end": 1795530780000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 3
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795530600000,
+        "end": 1795530780000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 2
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795530600000,
+        "end": 1795530780000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 2
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795527000000,
+        "end": 1795530600000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795532160000,
+        "end": 1795532280000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795527000000,
+        "end": 1795530600000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795533300000,
+        "end": 1795533420000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795533600000,
+        "end": 1795533720000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795533900000,
+        "end": 1795534020000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795535520000,
+        "end": 1795535640000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795536780000,
+        "end": 1795536900000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795537020000,
+        "end": 1795537140000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795537560000,
+        "end": 1795537680000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795537620000,
+        "end": 1795537740000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795538280000,
+        "end": 1795538400000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795538280000,
+        "end": 1795538400000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795538640000,
+        "end": 1795538760000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795538640000,
+        "end": 1795538760000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795538820000,
+        "end": 1795538940000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795538940000,
+        "end": 1795539060000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795539060000,
+        "end": 1795539180000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "brokerId": "alpaca",
+      "reason": "completed",
+      "coverage": {
+        "start": 1795539120000,
+        "end": 1795539240000,
+        "complete": true,
+        "reason": null,
+        "source": "alpaca_bars_range",
+        "pagesExhausted": true
+      },
+      "recoveredCandles": 0
+    }
+  ],
+  "traceCounts": {
+    "CANDLE_ACCEPTED": 3059,
+    "BOOT_REST_HYDRATION_CANDLE": 2100,
+    "LAST_PRICE_INFLUENCE": 976,
+    "REST_HYDRATION_COMPLETE": 1,
+    "LIVENESS_REST_BACKFILL_CANDLE": 10,
+    "CANDLE_INGRESS": 940,
+    "CANDLE_NORMALIZED": 940,
+    "CANDLE_PROCESSOR_RECEIVED": 940,
+    "TRADING_CYCLE_TRIGGER": 911,
+    "ANALYSIS_START": 911,
+    "STRATEGY_DECISION": 911,
+    "DECISION_SKIP": 733,
+    "DECISION_AUTOPSY": 2321,
+    "EXECUTE_HANDOFF": 178,
+    "ORDER_EXECUTE_START": 178,
+    "ORDER_BLOCKED": 86,
+    "ORDER_PLAN": 47,
+    "EVAL_RULE_CHECK": 47,
+    "EXECUTE_RETURN": 178,
+    "STATE_MUTATION": 92,
+    "GAP_BACKFILL_REPLAY": 5,
+    "GAP_BACKFILL_COMPLETED": 24,
+    "EXIT_ONLY_START": 1410,
+    "CANDLE_OBSERVATION_ONLY": 21
+  },
+  "sessionEvents": [
+    {
+      "at": "2026-11-23T09:09:16.462Z",
+      "event": "SESSION_BROKER_RECONCILED",
+      "epoch": 459,
+      "from": "startup",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T09:09:16.462Z",
+      "event": "SESSION_PATTERN_MEMORY_HANDOFF",
+      "epoch": 459,
+      "from": "startup",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T09:09:16.462Z",
+      "event": "SESSION_TARGET_ACTIVATED",
+      "epoch": 459,
+      "from": "startup",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T14:30:57.899Z",
+      "event": "SESSION_TRANSITION_PLANNED",
+      "epoch": 460,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-23T14:30:57.899Z",
+      "event": "SESSION_FREEZE_SOURCE",
+      "epoch": 460,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-23T14:30:57.899Z",
+      "event": "SESSION_BROKER_RECONCILED",
+      "epoch": 460,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-23T14:30:57.899Z",
+      "event": "SESSION_PATTERN_MEMORY_HANDOFF",
+      "epoch": 460,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-23T14:30:57.899Z",
+      "event": "SESSION_ORDER_INTENT_RECORDED",
+      "epoch": 460,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-23T14:30:57.899Z",
+      "event": "SESSION_TARGET_ACTIVATED",
+      "epoch": 460,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ],
+      "scopeComplete": true,
+      "hydration": {
+        "status": "ready",
+        "pairs": 35,
+        "bars": 2100,
+        "unavailable": [],
+        "recoveryPending": []
+      }
+    },
+    {
+      "at": "2026-11-23T21:00:58.179Z",
+      "event": "SESSION_TRANSITION_PLANNED",
+      "epoch": 461,
+      "from": "stocks",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T21:00:58.179Z",
+      "event": "SESSION_FREEZE_SOURCE",
+      "epoch": 461,
+      "from": "stocks",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T21:00:58.179Z",
+      "event": "SESSION_BROKER_RECONCILED",
+      "epoch": 461,
+      "from": "stocks",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T21:00:58.179Z",
+      "event": "SESSION_PATTERN_MEMORY_HANDOFF",
+      "epoch": 461,
+      "from": "stocks",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T21:00:58.179Z",
+      "event": "SESSION_ORDER_INTENT_RECORDED",
+      "epoch": 461,
+      "from": "stocks",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ]
+    },
+    {
+      "at": "2026-11-23T21:00:58.179Z",
+      "event": "SESSION_TARGET_ACTIVATED",
+      "epoch": 461,
+      "from": "stocks",
+      "to": "crypto",
+      "brokerId": "kraken",
+      "symbols": [
+        "BTC-USD"
+      ],
+      "scopeComplete": true,
+      "hydration": {
+        "status": "ready",
+        "pairs": 7,
+        "bars": 420,
+        "unavailable": [],
+        "recoveryPending": []
+      }
+    },
+    {
+      "at": "2026-11-24T14:30:19.841Z",
+      "event": "SESSION_TRANSITION_PLANNED",
+      "epoch": 462,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-24T14:30:19.841Z",
+      "event": "SESSION_FREEZE_SOURCE",
+      "epoch": 462,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-24T14:30:19.841Z",
+      "event": "SESSION_BROKER_RECONCILED",
+      "epoch": 462,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-24T14:30:19.841Z",
+      "event": "SESSION_PATTERN_MEMORY_HANDOFF",
+      "epoch": 462,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-24T14:30:19.841Z",
+      "event": "SESSION_ORDER_INTENT_RECORDED",
+      "epoch": 462,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ]
+    },
+    {
+      "at": "2026-11-24T14:30:19.841Z",
+      "event": "SESSION_TARGET_ACTIVATED",
+      "epoch": 462,
+      "from": "crypto",
+      "to": "stocks",
+      "brokerId": "alpaca",
+      "symbols": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ],
+      "scopeComplete": true,
+      "hydration": {
+        "status": "ready",
+        "pairs": 35,
+        "bars": 2100,
+        "unavailable": [],
+        "recoveryPending": []
+      }
+    }
+  ],
+  "rowCount": 940,
+  "gapRecoveredCandles": 9,
+  "scope": "Observed trace correlation, not independent recomputation of strategies or order correctness."
+}

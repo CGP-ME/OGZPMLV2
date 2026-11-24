@@ -1,0 +1,133 @@
+{
+  "observedAt": "2026-11-24T17:18:25.181862+00:00",
+  "sourceHead": "254e3a16f74f0ce72507013b4d281377ca84ca0c",
+  "baselineHead": "b9df401ba7673d852176bfe6ab4b294db7037f30",
+  "sourceFilesChecked": 58,
+  "sourceDriftSinceActivation": [
+    "public/unified-dashboard.html",
+    "public/unified-dashboard-v2.html"
+  ],
+  "inheritedFilesChecked": 20,
+  "inheritedDriftExcludingOwnChangelogPrefix": [],
+  "frontendCandidateMatches": true,
+  "frontendFiles": {
+    "public/js/panels/asset-tf-card.js": "4c9c8171184eaeb43350e5e601e42728f364e197f41587b4014a6b37d6e1f140",
+    "public/unified-dashboard.html": "756744bd39670ad252781b77c742d1aa6c14d8f269e9d5aede90897dd4e29e23",
+    "public/unified-dashboard-v2.html": "66d6217730268a9f6ad756144bb734ba5a7cfc986859c531b3446502f7a8db7f"
+  },
+  "processesBefore": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3,
+      "uptime": 1795285977878
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5,
+      "uptime": 1795307302189
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3,
+      "uptime": 1795285977962
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2453304,
+      "status": "online",
+      "restarts": 11,
+      "uptime": 1795424952874
+    }
+  ],
+  "processesAfter": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3,
+      "uptime": 1795285977878
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5,
+      "uptime": 1795307302189
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3,
+      "uptime": 1795285977962
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2453304,
+      "status": "online",
+      "restarts": 11,
+      "uptime": 1795424952874
+    }
+  ],
+  "processChanges": [],
+  "routerBefore": {
+    "state": "TARGET_ACTIVATED",
+    "epoch": 462,
+    "freezeNewEntries": false,
+    "activeSession": "stocks",
+    "brokerId": "alpaca",
+    "symbols": [
+      "TSLA",
+      "NVDA",
+      "COIN",
+      "MARA",
+      "RIOT"
+    ],
+    "timeframe": "15m",
+    "runtimeScopeStatus": "complete",
+    "safeModeReason": null,
+    "lastEvent": "SESSION_TARGET_ACTIVATED",
+    "lastEventAt": "2026-11-24T14:30:19.841Z",
+    "updatedAt": "2026-11-24T14:33:36.395Z"
+  },
+  "routerAfter": {
+    "state": "TARGET_ACTIVATED",
+    "epoch": 462,
+    "freezeNewEntries": false,
+    "activeSession": "stocks",
+    "brokerId": "alpaca",
+    "symbols": [
+      "TSLA",
+      "NVDA",
+      "COIN",
+      "MARA",
+      "RIOT"
+    ],
+    "timeframe": "15m",
+    "runtimeScopeStatus": "complete",
+    "safeModeReason": null,
+    "lastEvent": "SESSION_TARGET_ACTIVATED",
+    "lastEventAt": "2026-11-24T14:30:19.841Z",
+    "updatedAt": "2026-11-24T14:33:36.395Z"
+  },
+  "configuration": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  }
+}

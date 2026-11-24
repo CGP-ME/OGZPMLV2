@@ -1,0 +1,42 @@
+{
+  "startedAt": "2026-11-24T16:47:08.268Z",
+  "finishedAt": "2026-11-24T16:50:08.325Z",
+  "finishReason": "observation_window_complete",
+  "counts": {
+    "auth_success": 1,
+    "state_update": 7,
+    "bot_thinking": 39,
+    "broker_status": 136,
+    "depth_update": 523,
+    "market_internals": 523,
+    "settings_result": 1,
+    "historical_candles": 35,
+    "price": 707,
+    "ticker_price": 688,
+    "cvd_update": 199,
+    "trace_event": 263,
+    "journal_snapshot": 6,
+    "bot_state": 3,
+    "divergence": 19,
+    "pattern_analysis": 19,
+    "narrator_event": 24,
+    "signal_analysis": 19,
+    "golden_setup_state": 19
+  },
+  "settings": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "errors": [],
+  "pending": []
+}

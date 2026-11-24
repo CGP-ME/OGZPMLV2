@@ -1,0 +1,814 @@
+{
+  "startedAt": "2026-11-24T16:49:30.220Z",
+  "mode": "served production files",
+  "browserVersion": "156.0.8078.4",
+  "finishedAt": "2026-11-24T16:50:53.811Z",
+  "pages": [
+    {
+      "page": "unified-dashboard-v2.html",
+      "symbol": "TSLA",
+      "httpStatus": 200,
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "frames": [
+        {
+          "frame": "1m",
+          "symbol": "TSLA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "1m",
+          "history": {
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 388.8,
+            "high": 389.05,
+            "low": 388.145,
+            "close": 388.465,
+            "time": 1795446480
+          },
+          "last": {
+            "open": 377.985,
+            "high": 378.05,
+            "low": 377.77,
+            "close": 378.05,
+            "time": 1795538880
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "5m",
+          "symbol": "TSLA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "5m",
+          "history": {
+            "symbol": "TSLA",
+            "timeframe": "5m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 378.375,
+            "high": 378.54,
+            "low": 377.47,
+            "close": 377.5,
+            "time": 1794853800
+          },
+          "last": {
+            "open": 377.81,
+            "high": 378.05,
+            "low": 377.23,
+            "close": 378.05,
+            "time": 1795538700
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "15m",
+          "symbol": "TSLA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "15m",
+          "history": {
+            "symbol": "TSLA",
+            "timeframe": "15m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 404.2,
+            "high": 404.685,
+            "low": 397.61,
+            "close": 400.31,
+            "time": 1793630700
+          },
+          "last": {
+            "open": 377.81,
+            "high": 378.05,
+            "low": 377.23,
+            "close": 378.05,
+            "time": 1795538700
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "30m",
+          "symbol": "TSLA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "30m",
+          "history": {
+            "symbol": "TSLA",
+            "timeframe": "30m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 372.35,
+            "high": 375.24,
+            "low": 371.41,
+            "close": 373.82,
+            "time": 1791898200
+          },
+          "last": {
+            "open": 377.035,
+            "high": 378.05,
+            "low": 375.665,
+            "close": 378.05,
+            "time": 1795537800
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "1h",
+          "symbol": "TSLA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "1h",
+          "history": {
+            "symbol": "TSLA",
+            "timeframe": "1h",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 347.05,
+            "high": 347.08,
+            "low": 345.23,
+            "close": 345.495,
+            "time": 1787940000
+          },
+          "last": {
+            "open": 379.1,
+            "high": 379.87,
+            "low": 375.665,
+            "close": 378.05,
+            "time": 1795536000
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "4h",
+          "symbol": "TSLA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "4h",
+          "history": {
+            "symbol": "TSLA",
+            "timeframe": "4h",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 400.96,
+            "high": 401.37,
+            "low": 394.08,
+            "close": 395.385,
+            "time": 1771862400
+          },
+          "last": {
+            "open": 379.1,
+            "high": 379.87,
+            "low": 375.665,
+            "close": 378.05,
+            "time": 1795536000
+          },
+          "visibleCanvases": 12
+        },
+        {
+          "frame": "1d",
+          "symbol": "TSLA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "1d",
+          "history": {
+            "symbol": "TSLA",
+            "timeframe": "1d",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 341.08,
+            "high": 346.96,
+            "low": 335.69,
+            "close": 338.19,
+            "time": 1732597200
+          },
+          "last": {
+            "open": 384.34,
+            "high": 389.865,
+            "low": 375.665,
+            "close": 378.05,
+            "time": 1795496400
+          },
+          "visibleCanvases": 12
+        }
+      ],
+      "scripts": [
+        "https://www.ogzprime.com/js/posthog-init.js",
+        "https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js",
+        "https://us-assets.i.posthog.com/static/array.js",
+        "https://us-assets.i.posthog.com/static/1.454.2/surveys.js",
+        "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+        "https://www.ogzprime.com/js/indicators.js?v=20261119-native-samples",
+        "https://www.ogzprime.com/js/websocket.js?v=20261118-native-mtf",
+        "https://www.ogzprime.com/js/drawing-tools.js?v=1776116744941",
+        "https://www.ogzprime.com/js/theme-customizer.js?v=1776116744941",
+        "https://www.ogzprime.com/js/command-palette.js?v=1777005166748",
+        "https://www.ogzprime.com/js/operator/trade-manager.js?v=1776116744941",
+        "https://www.ogzprime.com/js/panels/rail-resize.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/system-snapshot.js?v=1778705869178",
+        "https://www.ogzprime.com/js/panels/asset-tf-card.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/pattern-sparkline.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/confidence-heatbar.js?v=20261107-winner",
+        "https://www.ogzprime.com/js/panels/risk-gauge.js?v=1782700000000",
+        "https://www.ogzprime.com/js/panels/candle-countdown.js?v=1777005601913",
+        "https://www.ogzprime.com/js/panels/session-phase.js?v=1777945312788",
+        "https://www.ogzprime.com/js/panels/size-preview.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/strategy-leaderboard.js?v=1782860200000",
+        "https://www.ogzprime.com/js/panels/trade-log.js?v=1782670000000",
+        "https://www.ogzprime.com/js/panels/watchlist-strip.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/news-ticker.js?v=1780041905373",
+        "https://www.ogzprime.com/js/panels/pattern-card.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/header-strip.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/trai-brain.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/open-positions.js?v=1780008102308",
+        "https://www.ogzprime.com/js/panels/chain-of-thought.js?v=20261107-reasons",
+        "https://www.ogzprime.com/js/panels/gate-meter.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/live-report.js?v=1782680000000",
+        "https://www.ogzprime.com/js/panels/equity-curve.js?v=1782670000000",
+        "https://www.ogzprime.com/js/panels/system-health.js?v=1778257698025",
+        "https://www.ogzprime.com/js/panels/live-readouts.js?v=1782876600000",
+        "https://www.ogzprime.com/js/panels/celebration.js?v=1778309878156",
+        "https://www.ogzprime.com/js/panels/custom-alerts.js?v=1779478645349",
+        "https://www.ogzprime.com/js/panels/victory-animations.js?v=1779478645349",
+        "https://www.ogzprime.com/js/panels/loss-recovery.js?v=1779478645349",
+        "https://www.ogzprime.com/js/panels/milestone-effects.js?v=1782680000000",
+        "https://www.ogzprime.com/js/panels/voice-manager.js?v=1779478645353",
+        "https://www.ogzprime.com/js/panels/voice-fx.js?v=1779478645353",
+        "https://www.ogzprime.com/js/panels/ambient-fx.js?v=1779548927395",
+        "https://www.ogzprime.com/js/panels/layout-switcher.js?v=1779478645357",
+        "https://www.ogzprime.com/js/panels/chart-panel.js?v=20261119-analytics-selection2",
+        "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2",
+        "https://www.ogzprime.com/js/panels/trade-replay.js?v=1778310055065",
+        "https://www.ogzprime.com/js/run-frontend-empire-v2.js?v=1782680000000",
+        "https://www.ogzprime.com/trai-widget.js?v=1782860100000",
+        "https://www.ogzprime.com/js/panels/supervisor-recovery.js"
+      ],
+      "wire": {
+        "counts": {
+          "auth_success": 1,
+          "state_update": 4,
+          "bot_thinking": 21,
+          "broker_status": 61,
+          "price": 314,
+          "ticker_price": 304,
+          "historical_candles": 9,
+          "depth_update": 231,
+          "market_internals": 231,
+          "cvd_update": 78,
+          "trace_event": 131,
+          "journal_snapshot": 3,
+          "bot_state": 2,
+          "pong": 5,
+          "divergence": 10,
+          "pattern_analysis": 10,
+          "narrator_event": 15,
+          "signal_analysis": 10,
+          "golden_setup_state": 10
+        },
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "15m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "5m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "15m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "30m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "4h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1d"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          }
+        ],
+        "blocked": [],
+        "nativeCount": 10
+      },
+      "indicatorUpdates": [
+        {
+          "title": "EMA20",
+          "writesBefore": 26,
+          "writesAfter": 27,
+          "lastBefore": {
+            "time": 1795538880,
+            "value": 377.1524807054536
+          },
+          "lastAfter": {
+            "time": 1795538940,
+            "value": 377.2517682573152
+          }
+        },
+        {
+          "title": "EMA50",
+          "writesBefore": 26,
+          "writesAfter": 27,
+          "lastBefore": {
+            "time": 1795538880,
+            "value": 377.7946622615102
+          },
+          "lastAfter": {
+            "time": 1795538940,
+            "value": 377.81036178066665
+          }
+        },
+        {
+          "title": "EMA200",
+          "writesBefore": 26,
+          "writesAfter": 27,
+          "lastBefore": {
+            "time": 1795538880,
+            "value": 381.611532969795
+          },
+          "lastAfter": {
+            "time": 1795538940,
+            "value": 381.5775376168617
+          }
+        }
+      ],
+      "privateScreenshot": "private/served-v2.png"
+    },
+    {
+      "page": "unified-dashboard.html",
+      "symbol": "NVDA",
+      "httpStatus": 200,
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "frames": [
+        {
+          "frame": "1m",
+          "symbol": "NVDA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "1m",
+          "history": {
+            "symbol": "NVDA",
+            "timeframe": "1m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 168.455,
+            "high": 168.755,
+            "low": 168.21,
+            "close": 168.39,
+            "time": 1795449480
+          },
+          "last": {
+            "open": 151.43,
+            "high": 151.52,
+            "low": 151.21,
+            "close": 151.52,
+            "time": 1795538880
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "5m",
+          "symbol": "NVDA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "5m",
+          "history": {
+            "symbol": "NVDA",
+            "timeframe": "5m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 153.93,
+            "high": 155.13,
+            "low": 153.915,
+            "close": 154.9,
+            "time": 1794935700
+          },
+          "last": {
+            "open": 151.28,
+            "high": 151.52,
+            "low": 150.815,
+            "close": 151.52,
+            "time": 1795538700
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "15m",
+          "symbol": "NVDA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "15m",
+          "history": {
+            "symbol": "NVDA",
+            "timeframe": "15m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 206.97,
+            "high": 206.97,
+            "low": 206.28,
+            "close": 206.51,
+            "time": 1793735100
+          },
+          "last": {
+            "open": 151.28,
+            "high": 151.52,
+            "low": 150.815,
+            "close": 151.52,
+            "time": 1795538700
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "30m",
+          "symbol": "NVDA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "30m",
+          "history": {
+            "symbol": "NVDA",
+            "timeframe": "30m",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 224.61,
+            "high": 226.05,
+            "low": 224.42,
+            "close": 225.92,
+            "time": 1791905400
+          },
+          "last": {
+            "open": 151.46,
+            "high": 151.795,
+            "low": 150.5,
+            "close": 151.52,
+            "time": 1795537800
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "1h",
+          "symbol": "NVDA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "1h",
+          "history": {
+            "symbol": "NVDA",
+            "timeframe": "1h",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 220.18,
+            "high": 220.26,
+            "low": 219.13,
+            "close": 219.545,
+            "time": 1788195600
+          },
+          "last": {
+            "open": 152.13,
+            "high": 152.48,
+            "low": 150.5,
+            "close": 151.52,
+            "time": 1795536000
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "4h",
+          "symbol": "NVDA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "4h",
+          "history": {
+            "symbol": "NVDA",
+            "timeframe": "4h",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 174.29,
+            "high": 181.36,
+            "low": 174.25,
+            "close": 180.68,
+            "time": 1772452800
+          },
+          "last": {
+            "open": 152.13,
+            "high": 152.48,
+            "low": 150.5,
+            "close": 151.52,
+            "time": 1795536000
+          },
+          "visibleCanvases": 9
+        },
+        {
+          "frame": "1d",
+          "symbol": "NVDA",
+          "observedNativeCount": 500,
+          "renderedNativeDifferences": [],
+          "selected": "1d",
+          "history": {
+            "symbol": "NVDA",
+            "timeframe": "1d",
+            "count": 500,
+            "error": null
+          },
+          "renderedCandles": 500,
+          "first": {
+            "open": 137.68,
+            "high": 139.295,
+            "low": 135.68,
+            "close": 136.885,
+            "time": 1732597200
+          },
+          "last": {
+            "open": 159.095,
+            "high": 159.88,
+            "low": 150.5,
+            "close": 151.52,
+            "time": 1795496400
+          },
+          "visibleCanvases": 9
+        }
+      ],
+      "scripts": [
+        "https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js",
+        "https://www.ogzprime.com/js/core.js?v=20261119-observed-analytics",
+        "https://www.ogzprime.com/js/indicators.js?v=20261119-native-samples",
+        "https://www.ogzprime.com/js/websocket.js?v=20261118-native-mtf",
+        "https://www.ogzprime.com/js/chart.js?v=20261119-native-indicators",
+        "https://www.ogzprime.com/js/panels/rail-resize.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/system-snapshot.js?v=1778705869178",
+        "https://www.ogzprime.com/js/panels/trade-log.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/edge-analytics.js?v=20261119-observed-analytics",
+        "https://www.ogzprime.com/js/panels/edge-analytics-panel.js?v=20261119-analytics-selection2",
+        "https://www.ogzprime.com/js/panels/asset-tf-card.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/pattern-sparkline.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/bot-intelligence.js?v=1776116744941",
+        "https://www.ogzprime.com/js/drawing-tools.js?v=1776116744941",
+        "https://www.ogzprime.com/js/theme-customizer.js?v=1776116744941",
+        "https://www.ogzprime.com/js/panels/confidence-heatbar.js?v=20261107-winner",
+        "https://www.ogzprime.com/js/panels/risk-gauge.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/candle-countdown.js?v=1777005601913",
+        "https://www.ogzprime.com/js/panels/session-phase.js?v=1777945312788",
+        "https://www.ogzprime.com/js/panels/size-preview.js?v=1777847456749",
+        "https://www.ogzprime.com/js/panels/strategy-leaderboard.js?v=1780008152632",
+        "https://www.ogzprime.com/js/operator/trade-manager.js?v=1776116744941",
+        "https://www.ogzprime.com/js/command-palette.js?v=1777005166748",
+        "https://www.ogzprime.com/trai-widget.js?v=1781269500000",
+        "https://www.ogzprime.com/js/panels/supervisor-recovery.js"
+      ],
+      "wire": {
+        "counts": {
+          "auth_success": 1,
+          "state_update": 4,
+          "bot_thinking": 21,
+          "broker_status": 64,
+          "price": 323,
+          "ticker_price": 313,
+          "historical_candles": 11,
+          "cvd_update": 79,
+          "depth_update": 232,
+          "market_internals": 232,
+          "trace_event": 131,
+          "journal_snapshot": 3,
+          "bot_state": 2,
+          "pong": 5,
+          "divergence": 10,
+          "pattern_analysis": 10,
+          "narrator_event": 15,
+          "signal_analysis": 10,
+          "golden_setup_state": 10
+        },
+        "commands": [
+          {
+            "type": "auth"
+          },
+          {
+            "type": "identify"
+          },
+          {
+            "type": "asset_change",
+            "asset": "TSLA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "TSLA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "asset_change",
+            "asset": "NVDA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "5m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "15m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "30m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "1h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "4h"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "1d"
+          },
+          {
+            "type": "asset_change",
+            "asset": "NVDA"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "request_historical",
+            "asset": "NVDA",
+            "timeframe": "1m"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          },
+          {
+            "type": "ping"
+          }
+        ],
+        "blocked": [],
+        "nativeCount": 10
+      },
+      "indicatorUpdates": [
+        {
+          "title": "EMA20",
+          "writesBefore": 29,
+          "writesAfter": 32,
+          "lastBefore": {
+            "time": 1795538880,
+            "value": 151.18167537234388
+          },
+          "lastAfter": {
+            "time": 1795538940,
+            "value": 151.2381824797397
+          }
+        },
+        {
+          "title": "EMA50",
+          "writesBefore": 29,
+          "writesAfter": 32,
+          "lastBefore": {
+            "time": 1795538880,
+            "value": 151.55338539249402
+          },
+          "lastAfter": {
+            "time": 1795538940,
+            "value": 151.5620761614158
+          }
+        },
+        {
+          "title": "EMA200",
+          "writesBefore": 29,
+          "writesAfter": 32,
+          "lastBefore": {
+            "time": 1795538880,
+            "value": 154.88991943823575
+          },
+          "lastAfter": {
+            "time": 1795538940,
+            "value": 154.85892521496973
+          }
+        }
+      ],
+      "privateScreenshot": "private/served-legacy.png"
+    }
+  ]
+}

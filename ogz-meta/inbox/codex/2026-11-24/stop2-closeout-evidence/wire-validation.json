@@ -1,0 +1,230 @@
+{
+  "nativePackets": 19,
+  "nativePairs": {
+    "COIN 1m": 2,
+    "TSLA 1m": 3,
+    "NVDA 1m": 3,
+    "MARA 1m": 3,
+    "RIOT 1m": 3,
+    "TSLA 5m": 1,
+    "NVDA 5m": 1,
+    "RIOT 5m": 1,
+    "MARA 5m": 1,
+    "COIN 5m": 1
+  },
+  "packetIdentityDifferences": [],
+  "histories": [
+    {
+      "symbol": "TSLA",
+      "timeframe": "1m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "5m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "15m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "30m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "4h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "TSLA",
+      "timeframe": "1d",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "5m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "15m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "30m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "4h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "NVDA",
+      "timeframe": "1d",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "5m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "15m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "30m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "4h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "COIN",
+      "timeframe": "1d",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "5m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "15m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "30m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "4h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "MARA",
+      "timeframe": "1d",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "5m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "15m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "30m",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "4h",
+      "count": 60,
+      "errors": []
+    },
+    {
+      "symbol": "RIOT",
+      "timeframe": "1d",
+      "count": 60,
+      "errors": []
+    }
+  ],
+  "historicalBars": 2100,
+  "historyErrorCount": 0
+}

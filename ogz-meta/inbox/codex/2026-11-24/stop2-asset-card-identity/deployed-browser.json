@@ -1,0 +1,102 @@
+{
+  "startedAt": "2026-11-24T17:15:57.285Z",
+  "pages": [
+    {
+      "mode": "deployed",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "symbol": "NVDA",
+          "samples": 100,
+          "labelMismatches": 0,
+          "priceMismatches": 0,
+          "mismatchExamples": [],
+          "messages": {
+            "TSLA": 3,
+            "NVDA": 3,
+            "COIN": 3,
+            "BTC-USD": 20,
+            "MARA": 3,
+            "ETH-USD": 5,
+            "SOL-USD": 3,
+            "RIOT": 3
+          },
+          "last": {
+            "label": "NVDA",
+            "cardPrice": "$153.4",
+            "chartPrice": "$153.4"
+          }
+        },
+        {
+          "symbol": "COIN",
+          "samples": 100,
+          "labelMismatches": 0,
+          "priceMismatches": 0,
+          "mismatchExamples": [],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "BTC-USD": 19,
+            "MARA": 2,
+            "ETH-USD": 6,
+            "SOL-USD": 3,
+            "RIOT": 2
+          },
+          "last": {
+            "label": "COIN",
+            "cardPrice": "$103.66",
+            "chartPrice": "$103.66"
+          }
+        },
+        {
+          "symbol": "TSLA",
+          "samples": 100,
+          "labelMismatches": 0,
+          "priceMismatches": 0,
+          "mismatchExamples": [],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "BTC-USD": 14,
+            "MARA": 2,
+            "ETH-USD": 4,
+            "SOL-USD": 5,
+            "RIOT": 2
+          },
+          "last": {
+            "label": "TSLA",
+            "cardPrice": "$381.76",
+            "chartPrice": "$381.76"
+          }
+        }
+      ],
+      "httpStatus": 200,
+      "pill": {
+        "selector": "5m",
+        "active": [
+          "5m"
+        ]
+      },
+      "screenshot": "private/deployed-card.png"
+    }
+  ],
+  "browserVersion": "156.0.8078.4",
+  "finishedAt": "2026-11-24T17:16:31.251Z"
+}

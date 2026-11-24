@@ -1,0 +1,94 @@
+{
+  "sourceLog": "/home/linuxuser/.pm2/logs/ogz-prime-v2-out.log",
+  "startOffset": 13524872282,
+  "endOffset": 14683269184,
+  "timingNote": "Candle trace IDs provide bracketing observation times; messages without own time are not assigned an exact timestamp.",
+  "events": [
+    {
+      "offset": 13525204862,
+      "message": "[Alpaca] Disconnected",
+      "previousCandleObservation": "2026-11-23T09:09:12.180000+00:00",
+      "nextCandleObservation": "2026-11-23T09:09:18.422000+00:00"
+    },
+    {
+      "offset": 13846236196,
+      "message": "[Alpaca] Data stream authenticated (isReconnect=false)",
+      "previousCandleObservation": "2026-11-23T14:30:56.441000+00:00",
+      "nextCandleObservation": "2026-11-23T14:32:00.121000+00:00"
+    },
+    {
+      "offset": 13866575049,
+      "message": "[Alpaca] Reconnecting in 1000ms (attempt #1, infinite, capped 30s)",
+      "previousCandleObservation": "2026-11-23T20:59:01.009000+00:00",
+      "nextCandleObservation": "2026-11-23T21:01:15.323000+00:00"
+    },
+    {
+      "offset": 13866575176,
+      "message": "[Alpaca] Data stream authenticated (isReconnect=true)",
+      "previousCandleObservation": "2026-11-23T20:59:01.009000+00:00",
+      "nextCandleObservation": "2026-11-23T21:01:15.323000+00:00"
+    },
+    {
+      "offset": 13866575230,
+      "message": "[Alpaca] Replaying 5 pre-existing subscription(s)",
+      "previousCandleObservation": "2026-11-23T20:59:01.009000+00:00",
+      "nextCandleObservation": "2026-11-23T21:01:15.323000+00:00"
+    },
+    {
+      "offset": 14674586143,
+      "message": "[Alpaca] Data stream authenticated (isReconnect=false)",
+      "previousCandleObservation": "2026-11-24T14:30:18.629000+00:00",
+      "nextCandleObservation": "2026-11-24T14:34:00.021000+00:00"
+    },
+    {
+      "offset": 14675886120,
+      "message": "[Alpaca] Reconnecting in 1000ms (attempt #1, infinite, capped 30s)",
+      "previousCandleObservation": "2026-11-24T14:30:18.629000+00:00",
+      "nextCandleObservation": "2026-11-24T14:34:00.021000+00:00"
+    },
+    {
+      "offset": 14676220208,
+      "message": "[Alpaca] Data stream authenticated (isReconnect=true)",
+      "previousCandleObservation": "2026-11-24T14:30:18.629000+00:00",
+      "nextCandleObservation": "2026-11-24T14:34:00.021000+00:00"
+    },
+    {
+      "offset": 14676220262,
+      "message": "[Alpaca] Replaying 5 pre-existing subscription(s)",
+      "previousCandleObservation": "2026-11-24T14:30:18.629000+00:00",
+      "nextCandleObservation": "2026-11-24T14:34:00.021000+00:00"
+    }
+  ],
+  "traceCounts": {
+    "CANDLE_INGRESS": 529407,
+    "CANDLE_NORMALIZED": 529407,
+    "LAST_PRICE_INFLUENCE": 529492,
+    "CANDLE_PROCESSOR_RECEIVED": 529407,
+    "CANDLE_ACCEPTED": 534466,
+    "CANDLE_OBSERVATION_ONLY": 150375,
+    "EXIT_ONLY_START": 9040,
+    "DECISION_AUTOPSY": 13840,
+    "TRADING_CYCLE_TRIGGER": 4800,
+    "ANALYSIS_START": 4800,
+    "STRATEGY_DECISION": 4800,
+    "DECISION_SKIP": 4177,
+    "BOOT_REST_HYDRATION_CANDLE": 5040,
+    "REST_HYDRATION_COMPLETE": 4,
+    "ORDER_EXECUTE_START": 639,
+    "STATE_MUTATION": 266,
+    "EXECUTE_HANDOFF": 623,
+    "ORDER_PLAN": 134,
+    "EVAL_RULE_CHECK": 134,
+    "EXECUTE_RETURN": 623,
+    "SESSION_WIND_DOWN_SOFT_STOP": 3,
+    "SESSION_ROUTER_ENTRY_HALT": 250,
+    "SESSION_WIND_DOWN_WARN": 3,
+    "SESSION_WIND_DOWN_FORCE_FLATTEN": 3,
+    "SESSION_WIND_DOWN_FORCE_FLATTEN_ATTEMPT": 3,
+    "SESSION_WIND_DOWN_FORCE_FLATTEN_COMPLETE": 3,
+    "ORDER_BLOCKED": 373,
+    "GAP_BACKFILL_COMPLETED": 60,
+    "LIVENESS_REST_BACKFILL_CANDLE": 10,
+    "GAP_BACKFILL_REPLAY": 5
+  }
+}

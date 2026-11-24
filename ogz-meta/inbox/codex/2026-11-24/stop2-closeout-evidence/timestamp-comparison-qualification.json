@@ -1,0 +1,60 @@
+{
+  "sourceEvidence": [
+    "run-empire-v2.js:937-955",
+    "run-empire-v2.js:994-995",
+    "brokers/AlpacaAdapter.js:1245-1271"
+  ],
+  "initialObserver": "private/analyze-stock-runtime-initial.py",
+  "initialOutput": "private/initial-stock-runtime.json",
+  "checks": [
+    {
+      "traceId": "candle_1795536964373_wa8mtm",
+      "symbol": "COIN",
+      "timeframe": "15m",
+      "candleEndTime": 1795536900000,
+      "refreshTriggerEnd": 1795536960000,
+      "sourceEventKind": "alpaca_rest_refresh_trigger",
+      "matchingMinuteSourceTraceIds": [
+        "candle_1795536960287_4gobud"
+      ],
+      "interpretation": "Bar price time and REST-refresh observation time are distinct. The initial observer incorrectly required equality."
+    },
+    {
+      "traceId": "candle_1795536964719_h7f1o0",
+      "symbol": "COIN",
+      "timeframe": "5m",
+      "candleEndTime": 1795536900000,
+      "refreshTriggerEnd": 1795536960000,
+      "sourceEventKind": "alpaca_rest_refresh_trigger",
+      "matchingMinuteSourceTraceIds": [
+        "candle_1795536960287_4gobud"
+      ],
+      "interpretation": "Bar price time and REST-refresh observation time are distinct. The initial observer incorrectly required equality."
+    },
+    {
+      "traceId": "candle_1795538461331_op3jb2",
+      "symbol": "COIN",
+      "timeframe": "5m",
+      "candleEndTime": 1795538400000,
+      "refreshTriggerEnd": 1795538460000,
+      "sourceEventKind": "alpaca_rest_refresh_trigger",
+      "matchingMinuteSourceTraceIds": [
+        "candle_1795538460223_ybwedi"
+      ],
+      "interpretation": "Bar price time and REST-refresh observation time are distinct. The initial observer incorrectly required equality."
+    },
+    {
+      "traceId": "candle_1795538461526_uwkzcb",
+      "symbol": "MARA",
+      "timeframe": "5m",
+      "candleEndTime": 1795538400000,
+      "refreshTriggerEnd": 1795538460000,
+      "sourceEventKind": "alpaca_rest_refresh_trigger",
+      "matchingMinuteSourceTraceIds": [
+        "candle_1795538460603_jr0fam"
+      ],
+      "interpretation": "Bar price time and REST-refresh observation time are distinct. The initial observer incorrectly required equality."
+    }
+  ],
+  "changesToProduction": "none"
+}
