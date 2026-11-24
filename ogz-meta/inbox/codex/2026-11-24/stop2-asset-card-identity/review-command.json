@@ -1,0 +1,23 @@
+{
+  "startedAt": "2026-11-24T16:57:00.197813+00:00",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=2c118110f8250ba29c005ee1a21508b3255be478",
+    "--review-base=b9df401ba7673d852176bfe6ab4b294db7037f30",
+    "--change-path=public/js/panels/asset-tf-card.js",
+    "--change-path=public/unified-dashboard.html",
+    "--change-path=public/unified-dashboard-v2.html",
+    "Scope: the identity displayed by the asset/timeframe card during dashboard asset selection and incoming multi-asset price traffic. How does this fail or cost me money in production? Trace the relevant producers and consumers in the pinned source and cite current file:line evidence, including any evidence gaps."
+  ],
+  "reviewRef": "2c118110f8250ba29c005ee1a21508b3255be478",
+  "reviewBase": "b9df401ba7673d852176bfe6ab4b294db7037f30",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "iterationLimit": null
+}

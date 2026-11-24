@@ -1,0 +1,86 @@
+{
+  "recordedAt": "2026-11-24T17:10:11.244426+00:00",
+  "privateFiles": [
+    {
+      "path": "private/baseline-card.png",
+      "bytes": 283106,
+      "sha256": "005901adb86e96e2c9aef8dc751d266fe74bec26065358bcea39d8c221b091a4"
+    },
+    {
+      "path": "private/candidate-card.png",
+      "bytes": 283421,
+      "sha256": "f072a5a1badc5272e66dfb3e7a887fdb56a497896c682f8cdb2f4860b607b3ae"
+    },
+    {
+      "path": "private/exchange-completion.json",
+      "bytes": 72,
+      "sha256": "61c882a5aa714ab14724197dfedd978e1a234985f5abf17f1d46338bbd4f5628"
+    },
+    {
+      "path": "private/exchange-context-completion.json",
+      "bytes": 72,
+      "sha256": "0b745c599b7cd848764dc6891b3aeb49b36d0fab459a8cc7bd2c54dda5330dbc"
+    },
+    {
+      "path": "private/exchange-context.stderr",
+      "bytes": 9574,
+      "sha256": "55d8fe776d40172bec52d077533b2ddf52500dc975d153422e03def966b94c18"
+    },
+    {
+      "path": "private/exchange-context.stdout",
+      "bytes": 32231,
+      "sha256": "59b6c14fd587bceb2bea1bf1a4d88699c568a757f41ac320f26283634f919ebf"
+    },
+    {
+      "path": "private/exchange.stderr",
+      "bytes": 569,
+      "sha256": "02c5ab5b222b1d0e4d2570d002cbc0f8edb09e66ea2aaeb2b30efeb768703685"
+    },
+    {
+      "path": "private/exchange.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "private/observe-card.cjs",
+      "bytes": 5813,
+      "sha256": "3369ed52c4615cbfd34075137350c74cfb5b1eb254e5179ef19147eefb09b7e4"
+    },
+    {
+      "path": "private/paired-browser.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "private/paired-browser.stdout",
+      "bytes": 2847,
+      "sha256": "f16124d1c0b38f3191871cc69d057534dee55c08e48911263a47f90a149bc239"
+    },
+    {
+      "path": "private/review-completion.json",
+      "bytes": 72,
+      "sha256": "4ea64635313ad50361c9c49a85cacb7fe7ce2375055304acd358a16bd14c00ee"
+    },
+    {
+      "path": "private/review.index",
+      "bytes": 1296722,
+      "sha256": "43d33059bbc748b8b62bc38d9188d19861bea60b34558d16f43d3ea1b5ea13d6"
+    },
+    {
+      "path": "private/review.stderr",
+      "bytes": 6688,
+      "sha256": "7f32fc23cb32692a985dc987cc050ec83132355ce597f83b096c18e95548affc"
+    },
+    {
+      "path": "private/review.stdout",
+      "bytes": 28158,
+      "sha256": "ec71b5ed6c03004c04389adf9a3b6b8dc7cf1289140d5665db580b92bb74046d"
+    },
+    {
+      "path": "private/source-before.json",
+      "bytes": 319,
+      "sha256": "8734325b089a817b4c49c54db1a04bab7112a6c021923f855026c29ed7818f3f"
+    }
+  ],
+  "candidateSha256": "2bd18f92cb0b215d935f464dd9f4a10525e69d55b407dd21c7426ba6907dc760"
+}

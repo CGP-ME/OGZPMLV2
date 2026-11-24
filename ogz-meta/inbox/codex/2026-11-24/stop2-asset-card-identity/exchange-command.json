@@ -1,0 +1,29 @@
+{
+  "startedAt": "2026-11-24T17:01:16.062165+00:00",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=d567a39d9ef0ecbcb4d767fc91282a1fa1258e90",
+    "--review-base=b9df401ba7673d852176bfe6ab4b294db7037f30",
+    "--change-path=public/js/panels/asset-tf-card.js",
+    "--change-path=public/unified-dashboard.html",
+    "--change-path=public/unified-dashboard-v2.html",
+    "--evidence-source=ogz-meta/inbox/codex/2026-11-24/stop2-asset-card-identity/EVIDENCE-EXCHANGE.md:1-18",
+    "Evidence exchange on the same asset/timeframe card identity behavior: with the prior reviewer position, author position and captured live observations available in EVIDENCE-EXCHANGE.md, how does the candidate fail or cost me money in production? Investigate the disputed identity interpretation and cast one evidence-based code-outcome vote, preserving any unresolved disagreement."
+  ],
+  "reviewRef": "d567a39d9ef0ecbcb4d767fc91282a1fa1258e90",
+  "reviewBase": "b9df401ba7673d852176bfe6ab4b294db7037f30",
+  "productionFilesUnchanged": {
+    "public/js/panels/asset-tf-card.js": "4c9c8171184eaeb43350e5e601e42728f364e197f41587b4014a6b37d6e1f140",
+    "public/unified-dashboard.html": "756744bd39670ad252781b77c742d1aa6c14d8f269e9d5aede90897dd4e29e23",
+    "public/unified-dashboard-v2.html": "66d6217730268a9f6ad756144bb734ba5a7cfc986859c531b3446502f7a8db7f"
+  },
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "iterationLimit": null
+}

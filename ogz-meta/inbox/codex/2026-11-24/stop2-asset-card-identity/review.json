@@ -1,0 +1,83 @@
+{
+  "initial": {
+    "run_id": "2026-11-24T16-58-49-787Z-7fae053a138f",
+    "started_at": "2026-11-24T16:57:01.136Z",
+    "created_at": "2026-11-24T16:58:49.787Z",
+    "verdict": "found_break",
+    "iterations": 24,
+    "latency_ms": 91538,
+    "run_tokens": {
+      "input": 1185087,
+      "uncached_input": 952994,
+      "cached_input": 232093,
+      "output": 28983,
+      "total": 1214070,
+      "complete": true,
+      "attempts_with_usage": 25,
+      "total_attempts": 25
+    },
+    "run_cost": {
+      "amount": 0.10746784,
+      "currency": "USD",
+      "complete": true,
+      "priced_attempts": 25,
+      "total_attempts": 25,
+      "cost_absences": []
+    },
+    "termination": "answer_given"
+  },
+  "evidenceExchange": {
+    "run_id": "2026-11-24T17-06-36-401Z-da8c2128bef6",
+    "started_at": "2026-11-24T17:04:25.085Z",
+    "created_at": "2026-11-24T17:06:36.401Z",
+    "verdict": "no_break_found",
+    "iterations": 34,
+    "latency_ms": 114500,
+    "run_tokens": {
+      "input": 1543492,
+      "uncached_input": 1168357,
+      "cached_input": 375135,
+      "output": 32231,
+      "total": 1575723,
+      "complete": true,
+      "attempts_with_usage": 35,
+      "total_attempts": 35
+    },
+    "run_cost": {
+      "amount": 0.13152784,
+      "currency": "USD",
+      "complete": true,
+      "priced_attempts": 35,
+      "total_attempts": 35,
+      "cost_absences": []
+    },
+    "termination": "answer_given"
+  },
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "unselectedReviewers": [
+    "astra",
+    "fable"
+  ],
+  "finalReportedVote": {
+    "no_break_found": 1,
+    "found_break": 0
+  },
+  "historicalInitialVote": "found_break retained; same reviewer later returned no_break_found after tracing current multi-symbol producers",
+  "sourceTree": "2c118110f8250ba29c005ee1a21508b3255be478",
+  "productionCodeUnchangedBetweenReviews": true,
+  "inboxEvidenceAttempt": {
+    "result": "blocked_before_provider_dispatch",
+    "reason": "Explicit review evidence blocked by repository policy",
+    "policyChanged": false,
+    "nextRequest": "Current observations labeled as question context; same production source; independent source investigation requested"
+  },
+  "limitations": [
+    "Source-only Mercury review did not execute browser verification. Browser observations remain separate execution evidence.",
+    "Only Mercury selected; no full-panel approval.",
+    "Coverage, whole-file, inherited-section and substantive-resolution metadata warnings remain; old interpretation retained in full initial answer.",
+    "No monetary-loss estimate or RAG freshness claim."
+  ],
+  "estimatedUsd": 0.23899568
+}

@@ -1,0 +1,29 @@
+{
+  "startedAt": "2026-11-24T17:04:24.111601+00:00",
+  "argv": [
+    "node",
+    "trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--attack",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=2c118110f8250ba29c005ee1a21508b3255be478",
+    "--review-base=b9df401ba7673d852176bfe6ab4b294db7037f30",
+    "--change-path=public/js/panels/asset-tf-card.js",
+    "--change-path=public/unified-dashboard.html",
+    "--change-path=public/unified-dashboard-v2.html",
+    "Evidence exchange on one behavior: asset/timeframe-card identity under mixed-asset price traffic. How does this fail or cost me money in production?\nPrior independent Mercury position: this card should name the actively traded instrument, based on April comments; changing it to the chart selection is a regression. Author position: it labels the chart price and timeframe it displays. Neither position is a requested verdict.\nNew live observations supplied by the executing agent as question context, not as canonical repository evidence: the paper session is stocks with TSLA, NVDA, COIN, MARA and RIOT. The same dashboard connection also receives BTC-USD, ETH-USD and SOL-USD price packets. With NVDA selected, the served card displayed SOL-USD above NVDA's price. Paired browser samples across NVDA, COIN and TSLA found 300/300 baseline symbol mismatches and 0/300 candidate symbol mismatches; both price mirrors matched their chart readouts and both timeframe-pill controls worked. No order execution or monetary loss was tested.\nReassess the disputed interpretation using current source, trace which price producers denote trading scope versus display feeds, and cast one code-outcome vote with file:line evidence and any remaining uncertainty. The observation claims are not a substitute for your independent source investigation. Inbox/RAG exclusion policy remains intact."
+  ],
+  "reviewRef": "2c118110f8250ba29c005ee1a21508b3255be478",
+  "reviewBase": "b9df401ba7673d852176bfe6ab4b294db7037f30",
+  "productionFilesUnchanged": {
+    "public/js/panels/asset-tf-card.js": "4c9c8171184eaeb43350e5e601e42728f364e197f41587b4014a6b37d6e1f140",
+    "public/unified-dashboard.html": "756744bd39670ad252781b77c742d1aa6c14d8f269e9d5aede90897dd4e29e23",
+    "public/unified-dashboard-v2.html": "66d6217730268a9f6ad756144bb734ba5a7cfc986859c531b3446502f7a8db7f"
+  },
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "iterationLimit": null,
+  "previousAttempt": "Explicit inbox evidence source was rejected before dispatch by existing repository exclusions; no policy was changed or evidence relocated. Current observations are labeled query context, not host-attested canonical evidence."
+}

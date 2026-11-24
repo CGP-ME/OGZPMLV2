@@ -1,0 +1,245 @@
+{
+  "startedAt": "2026-11-24T16:56:00.084Z",
+  "pages": [
+    {
+      "mode": "baseline",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "symbol": "NVDA",
+          "samples": 100,
+          "labelMismatches": 100,
+          "priceMismatches": 0,
+          "mismatchExamples": [
+            {
+              "label": "SOL-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            },
+            {
+              "label": "SOL-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            },
+            {
+              "label": "SOL-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            }
+          ],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "MARA": 2,
+            "RIOT": 2,
+            "BTC-USD": 11,
+            "ETH-USD": 6,
+            "SOL-USD": 10
+          },
+          "last": {
+            "label": "SOL-USD",
+            "cardPrice": "$150.895",
+            "chartPrice": "$150.895"
+          }
+        },
+        {
+          "symbol": "COIN",
+          "samples": 100,
+          "labelMismatches": 100,
+          "priceMismatches": 0,
+          "mismatchExamples": [
+            {
+              "label": "BTC-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            },
+            {
+              "label": "BTC-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            },
+            {
+              "label": "BTC-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            }
+          ],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "MARA": 2,
+            "RIOT": 2,
+            "BTC-USD": 11,
+            "ETH-USD": 12,
+            "SOL-USD": 7
+          },
+          "last": {
+            "label": "BTC-USD",
+            "cardPrice": "$103.045",
+            "chartPrice": "$103.045"
+          }
+        },
+        {
+          "symbol": "TSLA",
+          "samples": 100,
+          "labelMismatches": 100,
+          "priceMismatches": 0,
+          "mismatchExamples": [
+            {
+              "label": "ETH-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            },
+            {
+              "label": "ETH-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            },
+            {
+              "label": "BTC-USD",
+              "cardPrice": "--",
+              "chartPrice": "--"
+            }
+          ],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "MARA": 2,
+            "RIOT": 2,
+            "BTC-USD": 24,
+            "ETH-USD": 13,
+            "SOL-USD": 5
+          },
+          "last": {
+            "label": "BTC-USD",
+            "cardPrice": "$377.755",
+            "chartPrice": "$377.755"
+          }
+        }
+      ],
+      "httpStatus": 200,
+      "pill": {
+        "selector": "5m",
+        "active": [
+          "5m"
+        ]
+      },
+      "screenshot": "private/baseline-card.png"
+    },
+    {
+      "mode": "candidate",
+      "pageErrors": [],
+      "httpErrors": [
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        },
+        {
+          "path": "/api/dashboard/session-ticket",
+          "status": 401
+        },
+        {
+          "path": "/api/supervisor/recovery",
+          "status": 401
+        }
+      ],
+      "blocked": [],
+      "cases": [
+        {
+          "symbol": "NVDA",
+          "samples": 100,
+          "labelMismatches": 0,
+          "priceMismatches": 0,
+          "mismatchExamples": [],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "MARA": 2,
+            "RIOT": 2,
+            "BTC-USD": 11,
+            "ETH-USD": 5,
+            "SOL-USD": 9
+          },
+          "last": {
+            "label": "NVDA",
+            "cardPrice": "$150.895",
+            "chartPrice": "$150.895"
+          }
+        },
+        {
+          "symbol": "COIN",
+          "samples": 100,
+          "labelMismatches": 0,
+          "priceMismatches": 0,
+          "mismatchExamples": [],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "MARA": 2,
+            "RIOT": 2,
+            "BTC-USD": 10,
+            "ETH-USD": 13,
+            "SOL-USD": 7
+          },
+          "last": {
+            "label": "COIN",
+            "cardPrice": "$103.045",
+            "chartPrice": "$103.045"
+          }
+        },
+        {
+          "symbol": "TSLA",
+          "samples": 100,
+          "labelMismatches": 0,
+          "priceMismatches": 0,
+          "mismatchExamples": [],
+          "messages": {
+            "TSLA": 2,
+            "NVDA": 2,
+            "COIN": 2,
+            "MARA": 2,
+            "RIOT": 2,
+            "BTC-USD": 24,
+            "ETH-USD": 12,
+            "SOL-USD": 5
+          },
+          "last": {
+            "label": "TSLA",
+            "cardPrice": "$377.755",
+            "chartPrice": "$377.755"
+          }
+        }
+      ],
+      "httpStatus": 200,
+      "pill": {
+        "selector": "5m",
+        "active": [
+          "5m"
+        ]
+      },
+      "screenshot": "private/candidate-card.png"
+    }
+  ],
+  "browserVersion": "156.0.8078.4",
+  "finishedAt": "2026-11-24T16:56:36.020Z"
+}
