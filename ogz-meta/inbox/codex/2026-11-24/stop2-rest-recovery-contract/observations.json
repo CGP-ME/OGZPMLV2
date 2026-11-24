@@ -1,0 +1,437 @@
+{
+  "capturedAt": "2026-11-24T19:05:26.617099+00:00",
+  "head": "2cd3e542827e8b62f934a9326c6404bad93761a5",
+  "runnerSha256": "0d5827cd4e200d1962e272f5c893b9a534ac51904968e8a005f950a3d1bf5324",
+  "fixtureSha256": "2f7a82692b84d4efc1f86b93201c09c718e092627e4bd3d301b1c3ef3b378f1a",
+  "command": [
+    "python3",
+    "scripts/test-isolated.py",
+    "--fixture",
+    "ogz-meta/inbox/codex/2026-11-24/stop2-rest-recovery-contract/fixtures/observe-liveness.cjs",
+    "--",
+    "node",
+    "ogz-meta/inbox/codex/2026-11-24/stop2-rest-recovery-contract/fixtures/observe-liveness.cjs"
+  ],
+  "exitCode": 0,
+  "verification": "Actual current runner methods extracted by AST, actual CandleProcessor and CandleStore in the isolation launcher. Synthetic broker responses, account and prices. No real broker connection failure, order, restart or live trading behavior was induced.",
+  "observations": {
+    "otherSymbolMissing": {
+      "requested": [],
+      "missingPairBars": 0
+    },
+    "otherSymbolStalled": {
+      "requested": [],
+      "primaryEndTime": 1795544040000,
+      "stalledEndTime": 1795543440000
+    },
+    "futureOnlyResponse": {
+      "requested": [
+        {
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "limit": 10
+        }
+      ],
+      "stored": [
+        {
+          "t": 1795543980000,
+          "etime": 1795544040000,
+          "o": 100,
+          "h": 102,
+          "l": 99,
+          "c": 101,
+          "v": 1000,
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "accountIdSource": "fixture",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "sessionRouterEpoch": 1,
+          "symbol": "TSLA",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "scopeKeyVersion": 2
+        },
+        {
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "t": 1795544040000,
+          "etime": 1795544100000,
+          "o": 100,
+          "h": 102,
+          "l": 99,
+          "c": 101,
+          "v": 1000,
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "accountIdSource": "fixture",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "sessionRouterEpoch": 1,
+          "traceId": "liveness_rest-1",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "scopeKeyVersion": 2
+        }
+      ],
+      "lastBrokerDataReceived": 1795544070000,
+      "receiptTime": 1795544070000,
+      "statePrice": null,
+      "traces": [
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043098,
+          "event": "CANDLE_ACCEPTED",
+          "traceId": "liveness_rest-1",
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "traceId": "liveness_rest-1",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "update": false,
+            "priceHistory": 2,
+            "close": 101,
+            "etime": 1795544100000,
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m"
+          }
+        },
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043099,
+          "event": "LIVENESS_REST_BACKFILL_CANDLE",
+          "traceId": "liveness_rest-1",
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "traceId": "liveness_rest-1",
+            "source": "liveness_rest_backfill",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "candleIndex": 1,
+            "candleCount": 1,
+            "close": 101,
+            "etime": 1795544100000,
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+            "acceptedAsNew": true
+          }
+        },
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043099,
+          "event": "LAST_PRICE_INFLUENCE",
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": null,
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "timeframe": "1m",
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "accountIdSource": "fixture",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "sessionRouterEpoch": 1,
+            "source": "liveness_rest_backfill",
+            "symbol": "TSLA",
+            "sourceTimeframe": "1m",
+            "close": null,
+            "eventTime": null,
+            "candleEndTime": 1795544100000,
+            "markUpdated": false,
+            "markAttempted": false,
+            "influence": "no_completed_rest_candle"
+          }
+        }
+      ]
+    },
+    "validThenDuplicate": {
+      "completedApplied": 1,
+      "duplicateApplied": 1,
+      "requested": [
+        {
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "limit": 10
+        },
+        {
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "limit": 10
+        }
+      ],
+      "traces": [
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043101,
+          "event": "CANDLE_ACCEPTED",
+          "traceId": "liveness_rest-2",
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "traceId": "liveness_rest-2",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "update": true,
+            "priceHistory": 2,
+            "close": 101,
+            "etime": 1795544040000,
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m"
+          }
+        },
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043102,
+          "event": "LIVENESS_REST_BACKFILL_CANDLE",
+          "traceId": "liveness_rest-2",
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "traceId": "liveness_rest-2",
+            "source": "liveness_rest_backfill",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "candleIndex": 1,
+            "candleCount": 1,
+            "close": 101,
+            "etime": 1795544040000,
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+            "acceptedAsNew": false
+          }
+        },
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043103,
+          "event": "LAST_PRICE_INFLUENCE",
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": null,
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "timeframe": "1m",
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "accountIdSource": "fixture",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "sessionRouterEpoch": 1,
+            "source": "liveness_rest_backfill",
+            "symbol": "TSLA",
+            "sourceTimeframe": "1m",
+            "close": 101,
+            "eventTime": 1795544040000,
+            "candleEndTime": 1795544040000,
+            "markUpdated": true,
+            "markAttempted": true,
+            "influence": "mark_updated"
+          }
+        },
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043104,
+          "event": "CANDLE_ACCEPTED",
+          "traceId": "liveness_rest-3",
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "traceId": "liveness_rest-3",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "update": true,
+            "priceHistory": 2,
+            "close": 101,
+            "etime": 1795544040000,
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m"
+          }
+        },
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043104,
+          "event": "LIVENESS_REST_BACKFILL_CANDLE",
+          "traceId": "liveness_rest-3",
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "traceId": "liveness_rest-3",
+            "source": "liveness_rest_backfill",
+            "symbol": "TSLA",
+            "timeframe": "1m",
+            "candleIndex": 1,
+            "candleCount": 1,
+            "close": 101,
+            "etime": 1795544040000,
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "scopeKey": "paper:alpaca:fixture-account:stocks:TSLA:1m",
+            "acceptedAsNew": false
+          }
+        },
+        {
+          "type": "trace_event",
+          "timestamp": 1795547043104,
+          "event": "LAST_PRICE_INFLUENCE",
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "scopeKey": null,
+          "action": null,
+          "positionEffect": null,
+          "fields": {
+            "timeframe": "1m",
+            "brokerId": "alpaca",
+            "accountId": "fixture-account",
+            "accountIdSource": "fixture",
+            "assetClass": "stocks",
+            "executionMode": "paper",
+            "sessionRouterEpoch": 1,
+            "source": "liveness_rest_backfill",
+            "symbol": "TSLA",
+            "sourceTimeframe": "1m",
+            "close": 101,
+            "eventTime": 1795544040000,
+            "candleEndTime": 1795544040000,
+            "markUpdated": true,
+            "markAttempted": true,
+            "influence": "mark_updated"
+          }
+        }
+      ]
+    },
+    "providerUnavailable": {
+      "requested": [
+        {
+          "symbol": "TSLA",
+          "timeframe": "1m",
+          "limit": 10
+        }
+      ],
+      "symbolHalted": false,
+      "traces": []
+    }
+  },
+  "limits": [
+    "Synthetic broker boundary does not verify provider HTTP behavior.",
+    "The forming-only case contains a legitimately timed forming bar; it proves no completed REST mark was available, not that all forming bars are invalid.",
+    "Duplicate bars can be legitimate revisions; a count of one processed bar does not prove one newly recovered interval.",
+    "No halt on one failed request is an observation, not alone proof of a confirmed dead connection.",
+    "The required policy choice between history repair and REST-driven entry decisions remains pending."
+  ],
+  "sourceIdentity": {
+    "run-empire-v2.js": "0d5827cd4e200d1962e272f5c893b9a534ac51904968e8a005f950a3d1bf5324",
+    "core/CandleProcessor.js": "5b37fb743dfdf33e15ffd4fba3be900c982274070864db36557892469f760e33",
+    "core/CandleStore.js": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+    "core/StateManager.js": "6721f98c3124fe81461cd6a8b4cc28535b73a95b70466ff0546abf4a4acfda9e",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "attempts": [
+    {
+      "file": "private/baseline.stdout",
+      "exitCode": 0,
+      "scope": "Initial observation; future case had a future candle start. Superseded for the quoted forming-bar claim by baseline-2, which starts before request time and ends after it."
+    },
+    {
+      "file": "private/baseline-2.stdout",
+      "exitCode": 0,
+      "scope": "Added already-hydrated but stalled secondary-symbol case; used an ordinary forming interval."
+    }
+  ]
+}
