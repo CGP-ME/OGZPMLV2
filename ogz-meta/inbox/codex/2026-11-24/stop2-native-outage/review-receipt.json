@@ -1,0 +1,52 @@
+{
+  "reviews": [
+    {
+      "runId": "2026-11-24t22-03-47-674z-2738352-1423a0bca635",
+      "verdict": "found_break",
+      "estimatedCostUsd": 0.157371,
+      "stdoutSha256": "9696627d115fcc0e2bd7baa6ddfa3f303e5c408ce45cd03d4b48e953704ef0c0",
+      "sourceTree": "79771f6855f2db41ee625dbc8b760d5de20eba66"
+    },
+    {
+      "runId": "2026-11-24t22-20-22-419z-2743935-532123a0f36f",
+      "verdict": "cannot_verify",
+      "estimatedCostUsd": 0.192894,
+      "stdoutSha256": "e8749a5b983b545b4d9ba1fd5c256c878c53145110204a5a5998d2a348aa1b23",
+      "sourceTree": "a24a71b2947ef2e88bda120be383ea05f3a4000d"
+    },
+    {
+      "runId": "2026-11-24t22-25-06-449z-2746142-14a0a0434160",
+      "verdict": "review_incomplete",
+      "estimatedCostUsd": 0.239561,
+      "stdoutSha256": "385fa8cfbeb8e2a6abfc92066a8833de4758b5df7b4a2a018d2ac232cba8eef3",
+      "sourceTree": "a24a71b2947ef2e88bda120be383ea05f3a4000d"
+    },
+    {
+      "runId": "2026-11-24t22-29-44-925z-2748180-c2864f013db4",
+      "verdict": "no_break_found",
+      "scope": "Current Kraken/Alpaca producer candles through the strict REST normalizer and unavailable-data consumer",
+      "estimatedCostUsd": 0.061355,
+      "stdoutSha256": "a83c69ab34f69932a792392113e455bbf96d013734cbb262ec2de13b0fe5dc2b",
+      "sourceTree": "a24a71b2947ef2e88bda120be383ea05f3a4000d"
+    }
+  ],
+  "qualifications": [
+    "Second review reported no positive reproducible defect and nonblocking cannot_verify; this is not a clean verdict.",
+    "Third review has no completed answer. Provider receipt reports length termination at configured 7750; no iteration ceiling was imposed.",
+    "Fourth dispatch is a focused investigation of supported adapter candles through the common normalizer.",
+    "No canonical ignore rules or RAG exclusions changed."
+  ],
+  "dispositions": {
+    "first_policy": "All seven frames are operator-required; affected-symbol flatten is the operator-selected outage action.",
+    "first_payload": "Actual supported adapters and 14 recorded provider lanes pass the normalizer; receipt and fixtures preserved.",
+    "first_opening_grace": "Confirmed 15m-primary delay; revised to shortest native window and observed missing input after that window.",
+    "first_hung_request": "Confirmed candle HTTP has no cancellation; caller-owned signal now reaches both adapters and closes their sockets in isolation.",
+    "root_startup": "Old tree reproduced premature saved-halt clearing during grace; final candidate requires observed native data."
+  },
+  "krakenTimestampVerification": {
+    "url": "https://docs.kraken.com/exchange/api-reference/spot-websocket-v1/ohlc",
+    "fact": "ohlc[0] epoc_last is candle last update time; ohlc[1] epoc_end is interval end. Second review described [0] as candle start, which is contradicted by the provider schema and current runtime source-event receipts."
+  },
+  "qualification": "Fourth focused review resolves the supported-producer validation gap; second review reports no positive reproducible defect but remains cannot_verify as recorded. Current paper crypto profile is BTC-USD only, and normal live ingress before activation covers all seven BTC-USD frames; future broker/symbol configurations are not certified.",
+  "estimateTotalUsd": 0.651181
+}

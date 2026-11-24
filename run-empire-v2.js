@@ -928,9 +928,6 @@ class OGZPrimeV14Bot {
           close: ohlcData[5],
           etime: ohlcData[1],
         });
-        this.lastBrokerDataReceived = Date.now();
-        this.lastBrokerDataSymbol = sym;
-        this.lastBrokerDataTimeframe = tf;
         const activeTf = this.candleTimeframe;
         const observationFrame = this.observationTimeframes.includes(tf);
         const evaluationFrame = this.evaluationTimeframes.includes(tf);
@@ -987,7 +984,6 @@ class OGZPrimeV14Bot {
           let decisionInput = closedCandle && eventData.candleClosed === false
             ? this.tradingLoop.captureDecisionInput(sym, tf)
             : null;
-          if (tf === activeTf) this._markActiveTimeframeData(sym, tf);
           if (tf === activeTf) this.syncDashboardRuntimeScope(sym, scopeEnvelope);
           const candleResult = this.handleMarketData({
             data: ohlcData,
@@ -1195,15 +1191,9 @@ class OGZPrimeV14Bot {
       console.log(`Signal modules synced (EMA states: ${Object.values(emaSnap.crossoverState).filter(s => s.side !== 'none').length}, SR swings: ${srSnap.swings?.length || 0})`);
     }
 
-    // Stale data tracking
-    // CHANGE 2026-01-16: Liveness watchdog - tracks last data arrival
-    this.lastDataReceived = null;  // Set when handleMarketData receives data
-    this.lastBrokerDataReceived = null;
-    this.lastBrokerDataSymbol = null;
-    this.lastBrokerDataTimeframe = null;
-    this.lastActiveTimeframeDataReceived = null;
-    this.lastActiveTimeframeSymbol = null;
-    this.lastActiveTimeframe = null;
+    // Native liveness is stored on each symbol/timeframe context. The epoch
+    // gives a newly activated broker its own subscription startup interval.
+    this.livenessEpoch = null;
     this.livenessWatchdogStartedAt = null;
     this.livenessCheckInterval = null;  // Periodic check for "no data at all"
     this.marketCalendar = getMarketCalendar(resolvedConfig.config.internals.marketCalendar);
@@ -1653,9 +1643,13 @@ class OGZPrimeV14Bot {
       h: Number(raw?.h ?? raw?.high),
       l: Number(raw?.l ?? raw?.low),
       c: Number(raw?.c ?? raw?.close),
-      v: Number(raw?.v ?? raw?.volume ?? 0)
+      v: Number(raw?.v ?? raw?.volume)
     };
-    if (![candle.o, candle.h, candle.l, candle.c, candle.v].every(Number.isFinite)) {
+    if (!Number.isInteger(t) || !Number.isInteger(etime) || etime !== t + timeframeMs
+        || ![candle.o, candle.h, candle.l, candle.c].every(value => Number.isFinite(value) && value > 0)
+        || !Number.isFinite(candle.v) || candle.v < 0
+        || candle.h < Math.max(candle.o, candle.c, candle.l)
+        || candle.l > Math.min(candle.o, candle.c, candle.h)) {
       return null;
     }
     return candle;
@@ -1681,12 +1675,16 @@ class OGZPrimeV14Bot {
     }
   }
 
-  async _quarantineRestHydrationSymbol(symbol, timeframe, reason, scopeEnvelope, status = 'unavailable') {
-    const traceId = createTraceId('rest_hydration_unavailable');
+  async _quarantineCandleDataSymbol(symbol, timeframe, reason, scopeEnvelope, status = 'unavailable',
+    { code = 'rest_hydration_unavailable', scopeIsCurrent, recoveryFrames = [], signal } = {}) {
+    const traceId = createTraceId(code);
+    const source = code === 'rest_hydration_unavailable' ? 'boot_rest_hydration' : 'native_feed_watchdog';
+    const eventPrefix = code === 'rest_hydration_unavailable' ? 'REST_HYDRATION' : 'NATIVE_FEED';
     const failure = {
       ...scopeEnvelope,
       traceId,
-      source: 'boot_rest_hydration',
+      source,
+      code,
       symbol,
       timeframe,
       status,
@@ -1697,12 +1695,12 @@ class OGZPrimeV14Bot {
       closedTrades: [],
       closeFailures: [],
     };
-    console.error(`[BOOT][REST-HYDRATE] ${symbol} @ ${timeframe} ${status}: ${reason}`);
-    emitTrace(this, 'REST_HYDRATION_SYMBOL_ALARM', failure);
+    console.error(`[CANDLE DATA] ${symbol} @ ${timeframe} ${status}: ${reason}`);
+    emitTrace(this, `${eventPrefix}_SYMBOL_ALARM`, failure);
 
     // Reuse the existing symbol entry halt. Do not overwrite another owner's halt.
-    const halt = await stateManager.haltSymbol(symbol, `REST hydration unavailable for ${symbol} @ ${timeframe}: ${reason}`, {
-      code: 'rest_hydration_unavailable',
+    const halt = await stateManager.haltSymbol(symbol, `Candle data unavailable for ${symbol} @ ${timeframe}: ${reason}`, {
+      code,
       source: failure.source,
       timeframe,
       traceId,
@@ -1717,43 +1715,58 @@ class OGZPrimeV14Bot {
     failure.symbolHalted = stateManager.isSymbolHalted(symbol);
     failure.haltCode = stateManager.getSymbolHaltCode(symbol);
 
-    // A saved mark is not proof of a current executable paper price. Preserve
-    // an unclosed position and report it if no timely symbol price is available.
-    const exitPrice = stateManager.getLastPrice(symbol);
-    const priceEventTimeMs = stateManager.state.lastPriceTimes?.get(symbol);
-    const priceAgeMs = Date.now() - priceEventTimeMs;
-    const currentPriceAvailable = Number.isFinite(exitPrice) && exitPrice > 0
-      && Number.isFinite(priceEventTimeMs) && priceAgeMs >= 0
-      && priceAgeMs <= this.config.dataFeed.staleDataMaxAgeMs;
-    failure.exitPriceEvidence = { price: Number.isFinite(exitPrice) ? exitPrice : null,
-      eventTimeMs: priceEventTimeMs ?? null, ageMs: Number.isFinite(priceAgeMs) ? priceAgeMs : null,
-      current: currentPriceAvailable };
-    for (const trade of stateManager.getTradesBySymbol(symbol)) {
-      const tradeId = trade.tradeId || trade.orderId || trade.id;
-      if (!currentPriceAvailable) {
-        failure.closeFailures.push({ tradeId, reason: 'current_exit_price_unavailable' });
-        console.error(`[REST HYDRATION] ${symbol} trade ${tradeId} remains open: current exit price unavailable`);
-        continue;
-      }
-      try {
-        const closed = await this.sessionRouter._closeSourceTradeThroughExecution(tradeId, trade, 'rest_hydration_unavailable', exitPrice);
-        failure.closedTrades.push(closed);
-      } catch (error) {
-        failure.closeFailures.push({ tradeId, reason: error.message });
-        console.error(`[BOOT][REST-HYDRATE] ${symbol} close unconfirmed for ${tradeId}: ${error.message}`);
-      }
+    // Close the entry route before awaiting provider recovery. A delayed REST
+    // request must not allow a different frame to open another affected trade.
+    for (const frame of recoveryFrames) {
+      if (!scopeIsCurrent()) break;
+      const recovered = await this._attemptLivenessBackfill(symbol, frame.timeframe, signal);
+      emitTrace(this, 'LIVENESS_REST_RESULT', { ...recovered, ...frame });
     }
+
+    // Settle already-running symbol work through its existing queue before
+    // reading positions. Entries queued after the halt cannot open a new trade.
+    await this.tradingLoop._enqueueSymbolOperation(symbol, async () => {
+      if (scopeIsCurrent && !scopeIsCurrent()) {
+        failure.closeFailures.push({ reason: 'session_changed' });
+        return;
+      }
+      // A saved mark is not proof of a current executable paper price. Preserve
+      // an unclosed position and report it if no timely symbol price is available.
+      const exitPrice = stateManager.getLastPrice(symbol);
+      const priceEventTimeMs = stateManager.state.lastPriceTimes?.get(symbol);
+      const priceAgeMs = Date.now() - priceEventTimeMs;
+      const currentPriceAvailable = Number.isFinite(exitPrice) && exitPrice > 0
+        && Number.isFinite(priceEventTimeMs) && priceAgeMs >= 0
+        && priceAgeMs <= this.config.dataFeed.staleDataMaxAgeMs;
+      failure.exitPriceEvidence = { price: Number.isFinite(exitPrice) ? exitPrice : null,
+        eventTimeMs: priceEventTimeMs ?? null, ageMs: Number.isFinite(priceAgeMs) ? priceAgeMs : null,
+        current: currentPriceAvailable };
+      for (const trade of stateManager.getTradesBySymbol(symbol)) {
+        const tradeId = trade.tradeId || trade.orderId || trade.id;
+        if (!currentPriceAvailable) {
+          failure.closeFailures.push({ tradeId, reason: 'current_exit_price_unavailable' });
+          console.error(`[CANDLE DATA] ${symbol} trade ${tradeId} remains open: current exit price unavailable`);
+          continue;
+        }
+        try {
+          const closed = await this.sessionRouter._closeSourceTradeThroughExecution(tradeId, trade, code, exitPrice);
+          failure.closedTrades.push(closed);
+        } catch (error) {
+          failure.closeFailures.push({ tradeId, reason: error.message });
+          console.error(`[CANDLE DATA] ${symbol} close unconfirmed for ${tradeId}: ${error.message}`);
+        }
+      }
+    });
     failure.remainingTradeIds = stateManager.getTradesBySymbol(symbol).map(trade => trade.tradeId || trade.orderId || trade.id);
     failure.operatorActionRequired = failure.remainingTradeIds.length > 0 || !failure.haltPersistenceSucceeded;
     failure.manualReconciliationRequired = failure.operatorActionRequired;
-    emitTrace(this, 'REST_HYDRATION_SYMBOL_HALT', failure);
+    emitTrace(this, `${eventPrefix}_SYMBOL_HALT`, failure);
     return failure;
   }
 
-  async _resolveRestHydrationHalt(symbol, frames, broker, scopeIsCurrent) {
-    const code = 'rest_hydration_unavailable';
+  async _resolveCandleDataHalt(symbol, frames, broker, scopeIsCurrent, code) {
     const scope = frames[0].scopeEnvelope;
-    const recovery = { ...scope, symbol, source: 'rest_hydration_recovery', status: 'pending',
+    const recovery = { ...scope, symbol, code, source: 'candle_data_recovery', status: 'pending',
       frames: frames.map(frame => frame.timeframe) };
     for (const frame of frames) {
       const completed = frame.candles.findLast(candle => candle.etime <= frame.restRequestStartedAt);
@@ -1772,8 +1785,8 @@ class OGZPrimeV14Bot {
     }
     // Finish the original symbol's flatten obligation before releasing its halt.
     if (stateManager.getTradesBySymbol(symbol).length > 0) {
-      recovery.flatten = await this._quarantineRestHydrationSymbol(symbol, this.candleTimeframe,
-        'history_restored_position_reconciliation_pending', scope, 'reconciling');
+      recovery.flatten = await this._quarantineCandleDataSymbol(symbol, this.candleTimeframe,
+        'history_restored_position_reconciliation_pending', scope, 'reconciling', { code, scopeIsCurrent });
       const currentHalt = stateManager._symbolHaltRecord(symbol);
       cause = (currentHalt?.causes || (currentHalt ? [currentHalt] : [])).find(item => item.code === code);
       if (!cause?.traceId) return { ...recovery, reason: 'halt_scope_unconfirmed' };
@@ -1785,6 +1798,9 @@ class OGZPrimeV14Bot {
       return { ...recovery, reason: 'broker_reconciliation_unavailable', error: error.message };
     }
     if (!scopeIsCurrent()) return { ...recovery, reason: 'session_changed' };
+    if (code === 'native_feed_unavailable' && this._getSilentNativeFrames(symbol, true).length) {
+      return { ...recovery, reason: 'native_feed_still_unavailable' };
+    }
     if (!snapshot.accountId || snapshot.accountId !== scope.accountId) {
       return { ...recovery, reason: 'broker_account_mismatch' };
     }
@@ -1811,7 +1827,7 @@ class OGZPrimeV14Bot {
       symbolStillHalted: stateManager.isSymbolHalted(symbol) };
   }
 
-  async hydrateActiveTimeframeFromRest(requestedSymbols) {
+  async hydrateActiveTimeframeFromRest(requestedSymbols, { signal } = {}) {
     if (this.config.enableBacktestMode ||
         resolvedConfig.config.mode.backtest ||
         resolvedConfig.config.mode.execution === 'backtest' ||
@@ -1849,24 +1865,25 @@ class OGZPrimeV14Bot {
         const restRequestStartedAt = Date.now();
         let rawCandles;
         try {
-          rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
+          rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit, null, { signal });
         } catch (error) {
           if (!scopeIsCurrent()) return { ...receipt, status: 'session_changed' };
-          unavailable = await this._quarantineRestHydrationSymbol(symbol, timeframe, error.message, scopeEnvelope);
+          unavailable = await this._quarantineCandleDataSymbol(symbol, timeframe, error.message, scopeEnvelope,
+            'unavailable', { scopeIsCurrent });
           break;
         }
         if (!scopeIsCurrent()) return { ...receipt, status: 'session_changed' };
         const candles = (Array.isArray(rawCandles) ? rawCandles : [])
-          .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
-          .filter(Boolean)
-          .sort((a, b) => a.etime - b.etime)
-          .slice(-hydrationLimit);
+          .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs));
 
-        if (candles.length === 0) {
-          unavailable = await this._quarantineRestHydrationSymbol(symbol, timeframe, 'no_usable_rest_candles', scopeEnvelope);
+        if (!candles.length || candles.some(candle => !candle)) {
+          unavailable = await this._quarantineCandleDataSymbol(symbol, timeframe,
+            candles.length ? 'invalid_rest_candles' : 'no_usable_rest_candles', scopeEnvelope,
+            'unavailable', { scopeIsCurrent });
           break;
         }
-        frames.push({ timeframe, timeframeMs, scopeEnvelope, restRequestStartedAt, candles });
+        candles.sort((a, b) => a.etime - b.etime);
+        frames.push({ timeframe, timeframeMs, scopeEnvelope, restRequestStartedAt, candles: candles.slice(-hydrationLimit) });
       }
       if (unavailable) {
         receipt.unavailable.push(unavailable);
@@ -1917,7 +1934,9 @@ class OGZPrimeV14Bot {
           high: latest.h,
           low: latest.l
         };
-        if (timeframe === this.candleTimeframe) this.marketData = marketData;
+        if (symbol === normalizeRuntimeSymbol(this.tradingPair) && timeframe === this.candleTimeframe) {
+          this.marketData = marketData;
+        }
         const symCtx = this.getSymbolTimeframeContext(symbol, timeframe);
         if (symCtx) symCtx.marketData = marketData;
         if (stateManager && stateManager.updateLastPrice) {
@@ -1934,16 +1953,16 @@ class OGZPrimeV14Bot {
             influence: markCandle ? (markUpdated ? 'mark_updated' : 'mark_rejected') : 'no_completed_rest_candle',
           });
         }
-        if (timeframe === this.candleTimeframe) this._markActiveTimeframeData(symbol, timeframe);
-
         receipt.hydrated.push({ symbol, timeframe, candles: candles.length, latestEndTime: latest.etime });
         console.log(`[BOOT][REST-HYDRATE] symbol=${symbol} timeframe=${timeframe} candles=${candles.length} latest=${new Date(latest.etime).toISOString()} close=${latest.c}`);
       }
-      if (stateManager.isSymbolHalted(symbol, 'rest_hydration_unavailable')) {
-        const recovery = await this._resolveRestHydrationHalt(symbol, frames, broker, scopeIsCurrent);
+      for (const code of ['rest_hydration_unavailable', 'native_feed_unavailable']) {
+        if (!stateManager.isSymbolHalted(symbol, code)) continue;
+        const recovery = await this._resolveCandleDataHalt(symbol, frames, broker, scopeIsCurrent, code);
         if (recovery.status === 'recovered') receipt.recovered.push(recovery);
         else receipt.recoveryPending.push(recovery);
-        emitTrace(this, recovery.status === 'recovered' ? 'REST_HYDRATION_RECOVERED' : 'REST_HYDRATION_SYMBOL_ALARM', recovery);
+        const prefix = code === 'rest_hydration_unavailable' ? 'REST_HYDRATION' : 'NATIVE_FEED';
+        emitTrace(this, recovery.status === 'recovered' ? `${prefix}_RECOVERED` : `${prefix}_SYMBOL_ALARM`, recovery);
       }
     }
     receipt.status = receipt.unavailable.length || receipt.recoveryPending.length ? 'degraded' : 'ready';
@@ -2826,17 +2845,6 @@ class OGZPrimeV14Bot {
    * Liveness watchdog - detects when data feed goes completely silent
    * Uses ConfigLoader dataFeed thresholds for polling, silence, and recovery.
    */
-  _getLivenessSymbol() {
-    return normalizeRuntimeSymbol(this.sessionRouter?.activeSession === 'crypto'
-      ? this.sessionRouter?.cryptoSymbols?.[0]
-      : this.tradingPair);
-  }
-
-  _getLivenessTimeframe() {
-    const timeframe = this.candleTimeframe;
-    return typeof timeframe === 'string' && timeframe.trim() ? timeframe.trim() : null;
-  }
-
   _activeTimeframeSilenceLimitMs(timeframeMs) {
     const feed = this.config.dataFeed;
     if (!feed) {
@@ -2851,15 +2859,18 @@ class OGZPrimeV14Bot {
     );
   }
 
-  _markActiveTimeframeData(symbol, timeframe) {
-    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
-    const activeTimeframe = this._getLivenessTimeframe();
-    if (!canonicalSymbol || timeframe !== activeTimeframe) return;
-    this.lastActiveTimeframeDataReceived = Date.now();
-    this.lastActiveTimeframeSymbol = canonicalSymbol;
-    this.lastActiveTimeframe = activeTimeframe;
-    this._recoverDataFeedPauseIfFresh(canonicalSymbol, activeTimeframe).catch(error => {
-      console.error(`[WATCHDOG] failed to recover data-feed pause | symbol=${canonicalSymbol} timeframe=${activeTimeframe}: ${error.message}`);
+  _getSilentNativeFrames(symbol, requireObserved = false) {
+    const now = Date.now();
+    return this.observationTimeframes.flatMap(timeframe => {
+      const scope = this.getCandleScopeEnvelope({ timeframe });
+      const native = this.getSymbolTimeframeContext(symbol, timeframe)?.lastNativeData;
+      const currentOwner = native?.sessionRouterEpoch === this.sessionRouter.activeCallbackEpoch
+        && native?.brokerId === scope.brokerId && native?.accountId === scope.accountId;
+      const lastEventTime = currentOwner ? native.eventTimeMs : null;
+      const silenceMs = now - Math.max(lastEventTime ?? this.livenessWatchdogStartedAt, this.livenessWatchdogStartedAt);
+      const limitMs = this._activeTimeframeSilenceLimitMs(this.candleAggregator.getIntervalMs(timeframe));
+      return (requireObserved && !currentOwner) || silenceMs > limitMs
+        ? [{ timeframe, lastEventTime, silenceMs, limitMs }] : [];
     });
   }
 
@@ -2867,10 +2878,9 @@ class OGZPrimeV14Bot {
     if (!stateManager.isPaused()) return;
     if (typeof stateManager.resumeTradingIfPausedBy !== 'function') return;
 
-    const timeframeMs = timeframe ? this.candleAggregator?.getIntervalMs(timeframe) : null;
-    const activeLimitMs = this._activeTimeframeSilenceLimitMs(timeframeMs);
-    const activeSilenceDuration = Date.now() - (this.lastActiveTimeframeDataReceived || 0);
-    if (activeSilenceDuration > activeLimitMs) return;
+    // This only retires historical data-feed-owned global pauses. Current
+    // outages use symbol halts; one healthy asset cannot clear another's pause.
+    if (this._getBootHydrationSymbols().some(asset => this._getSilentNativeFrames(asset, true).length)) return;
 
     const result = await stateManager.resumeTradingIfPausedBy('data_feed_liveness', {
       scope: {
@@ -2926,40 +2936,47 @@ class OGZPrimeV14Bot {
     return true;
   }
 
-  async _attemptLivenessBackfill(symbol, timeframe) {
+  async _attemptLivenessBackfill(symbol, timeframe, signal) {
     const broker = this.sessionRouter?.activeBroker;
-    if (!broker || typeof broker.getCandles !== 'function') {
-      throw new Error('active broker has no getCandles()');
-    }
-
     const feed = this.config.dataFeed;
+    const epoch = this.sessionRouter.activeCallbackEpoch;
+    const session = this.sessionRouter.activeSession;
+    const scopeIsCurrent = () => this.sessionRouter.activeBroker === broker
+      && this.sessionRouter.activeCallbackEpoch === epoch && this.sessionRouter.activeSession === session
+      && !this.sessionRouter.transitionInProgress && !this._shutdownRequested;
+    const scopeEnvelope = this._getRestRecoveryScopeEnvelope('liveness_rest_backfill', symbol, timeframe, {
+      brokerId: broker.getBrokerName(), sessionRouterEpoch: epoch,
+      sessionRouterTransitionId: this.sessionRouter.activeOhlcTransitionId,
+    });
+    const receipt = { ...scopeEnvelope, symbol, source: 'liveness_rest_backfill', processed: 0,
+      streamRecovered: false };
     const restRequestStartedAt = Date.now();
-    const rawCandles = await broker.getCandles(symbol, timeframe, feed.livenessBackfillLimit);
-    const timeframeMs = this.candleAggregator?.getIntervalMs(timeframe);
-    if (!Number.isFinite(timeframeMs) || timeframeMs <= 0) {
-      throw new Error(`invalid liveness timeframe ${timeframe}`);
+    const timeframeMs = this.candleAggregator.getIntervalMs(timeframe);
+    let rawCandles;
+    try {
+      rawCandles = await broker.getCandles(symbol, timeframe, feed.livenessBackfillLimit, null, { signal });
+    } catch (error) {
+      return { ...receipt, status: scopeIsCurrent() ? 'unavailable' : 'cancelled',
+        reason: 'rest_request_failed', error: error.message };
     }
+    if (!scopeIsCurrent()) return { ...receipt, status: 'cancelled', reason: 'session_changed' };
+    if (signal?.aborted) return { ...receipt, status: 'unavailable', reason: 'rest_request_cancelled', error: signal.reason?.message };
 
     const candles = (Array.isArray(rawCandles) ? rawCandles : [])
-      .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
-      .filter(Boolean)
-      .sort((a, b) => a.etime - b.etime);
-
-    if (candles.length === 0) {
-      return 0;
+      .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs));
+    if (!candles.length || candles.some(c => !c)) {
+      return { ...receipt, status: 'unavailable', reason: candles.length ? 'invalid_rest_candles' : 'no_usable_rest_candles' };
     }
-
+    candles.sort((a, b) => a.etime - b.etime);
     const latest = candles[candles.length - 1];
+    const markCandle = candles.findLast(candle => candle.etime <= restRequestStartedAt);
     const maxBackfillAgeMs = timeframeMs * feed.maxBackfillAgeMultiplier + feed.maxBackfillAgeSlackMs;
-    const latestAgeMs = Date.now() - latest.etime;
-    if (latestAgeMs > maxBackfillAgeMs) {
-      throw new Error(`latest REST candle is stale (${Math.round(latestAgeMs / 1000)}s old)`);
+    const ageMs = markCandle ? Date.now() - markCandle.etime : null;
+    if (ageMs === null || ageMs > maxBackfillAgeMs) {
+      return { ...receipt, status: 'unavailable', reason: 'completed_history_not_current', ageMs, maxBackfillAgeMs };
     }
 
     let applied = 0;
-    const scopeEnvelope = this._getRestRecoveryScopeEnvelope('liveness_rest_backfill', symbol, timeframe, {
-      brokerId: broker.getBrokerName(),
-    });
     for (let index = 0; index < candles.length; index += 1) {
       const traceId = createTraceId('liveness_rest');
       const candle = {
@@ -3003,12 +3020,13 @@ class OGZPrimeV14Bot {
         high: latest.h,
         low: latest.l
       };
-      this.marketData = marketData;
-      const symCtx = this.symbolContexts?.get(symbol);
+      if (symbol === normalizeRuntimeSymbol(this.tradingPair) && timeframe === this.candleTimeframe) {
+        this.marketData = marketData;
+      }
+      const symCtx = this.getSymbolTimeframeContext(symbol, timeframe);
       if (symCtx) symCtx.marketData = marketData;
       if (stateManager && stateManager.updateLastPrice) {
         // REST can include an unfinished interval with a future scheduled end.
-        const markCandle = candles.findLast(candle => candle.etime <= restRequestStartedAt);
         const markUpdated = markCandle
           ? stateManager.updateLastPrice(symbol, markCandle.c, markCandle.etime)
           : false;
@@ -3020,66 +3038,70 @@ class OGZPrimeV14Bot {
           influence: markCandle ? (markUpdated ? 'mark_updated' : 'mark_rejected') : 'no_completed_rest_candle',
         });
       }
-      this._markActiveTimeframeData(symbol, timeframe);
     }
 
-    return applied;
+    return { ...receipt, status: 'history_restored', processed: applied, latestCompletedTime: markCandle.etime };
   }
 
   startLivenessWatchdog() {
     const feed = this.config.dataFeed;
     this.livenessWatchdogStartedAt = Date.now();
+    this.livenessEpoch = this.sessionRouter.activeCallbackEpoch;
+    this.livenessQuietUntil = null;
 
     this.livenessCheckInterval = setInterval(() => {
       // The existing watchdog owns retries; keep at most one recovery pass active.
       if ([...this._runtimeOperations.values()].includes('liveness_check')) return;
       this._trackRuntimeOperation('liveness_check', async () => {
-      if (this._isExpectedMarketQuiet() || this._shutdownRequested
+      if (this._isExpectedMarketQuiet()) {
+        // Give the opening subscription its shortest native delivery window;
+        // a scheduled market closure is not a confirmed data outage.
+        this.livenessQuietUntil = Date.now() + this._activeTimeframeSilenceLimitMs(
+          Math.min(...this.observationTimeframes.map(frame => this.candleAggregator.getIntervalMs(frame))));
+        return;
+      }
+      if (this._shutdownRequested
         || this.sessionRouter.transitionInProgress || this.sessionRouter.failedSafeMode) {
         return;
       }
-      const recoveringSymbols = this._getBootHydrationSymbols()
-        .filter(symbol => stateManager.isSymbolHalted(symbol, 'rest_hydration_unavailable'));
-      if (recoveringSymbols.length) await this.hydrateActiveTimeframeFromRest(recoveringSymbols);
-
-      const symbol = this._getLivenessSymbol();
-      const timeframe = this._getLivenessTimeframe();
-      const timeframeMs = timeframe ? this.candleAggregator?.getIntervalMs(timeframe) : null;
-      const activeLimitMs = this._activeTimeframeSilenceLimitMs(timeframeMs);
-      const brokerSilenceDuration = Date.now() - (this.lastBrokerDataReceived || this.livenessWatchdogStartedAt);
-      const activeSilenceDuration = Date.now() - (this.lastActiveTimeframeDataReceived || this.lastDataReceived || this.livenessWatchdogStartedAt);
-      const brokerSilent = brokerSilenceDuration > feed.maxDataSilenceMs;
-      const activeTimeframeSilent = activeSilenceDuration > activeLimitMs;
-
-      if (brokerSilent || activeTimeframeSilent) {
-        if (!symbol || !timeframe) {
-          console.error(`[WATCHDOG] LIVENESS: missing symbol/timeframe (symbol=${symbol || '(missing)'} timeframe=${timeframe || '(missing)'}) - not pausing trading`);
-          return;
-        }
-
-        console.warn(`[WATCHDOG] LIVENESS: brokerSilent=${brokerSilent} brokerSilence=${Math.round(brokerSilenceDuration / 1000)}s activeTimeframeSilent=${activeTimeframeSilent} activeSilence=${Math.round(activeSilenceDuration / 1000)}s activeLimit=${Math.round(activeLimitMs / 1000)}s | symbol=${symbol} timeframe=${timeframe} lastBrokerSymbol=${this.lastBrokerDataSymbol || '(none)'} lastBrokerTimeframe=${this.lastBrokerDataTimeframe || '(none)'} lastActiveSymbol=${this.lastActiveTimeframeSymbol || '(none)'} lastActiveTimeframe=${this.lastActiveTimeframe || '(none)'} - attempting REST backfill`);
-
-        // Attempt backfill for observability/recovery; liveness cannot pause trading.
-        try {
-          const recovered = await this._attemptLivenessBackfill(symbol, timeframe);
-          if (recovered > 0) {
-            this.lastBrokerDataReceived = Date.now();
-            this.lastBrokerDataSymbol = symbol;
-            this.lastBrokerDataTimeframe = timeframe;
-            console.log(`[WATCHDOG] data feed recovered via REST backfill | symbol=${symbol} timeframe=${timeframe} candles=${recovered}`);
-            await this._recoverDataFeedPauseIfFresh(symbol, timeframe);
-            return; // Don't halt - we recovered
-          }
-        } catch (backfillError) {
-          console.error(`[WATCHDOG] REST backfill failed | symbol=${symbol} timeframe=${timeframe}:`, backfillError.message);
-        }
-
-        console.error(`[WATCHDOG] LIVENESS: backfill failed | symbol=${symbol} timeframe=${timeframe} - not pausing trading`);
+      if (this.livenessEpoch !== this.sessionRouter.activeCallbackEpoch) {
+        this.livenessEpoch = this.sessionRouter.activeCallbackEpoch;
+        this.livenessWatchdogStartedAt = Date.now();
+        this.livenessQuietUntil = null;
       }
+      if (this.livenessQuietUntil !== null && Date.now() < this.livenessQuietUntil) return;
+      const broker = this.sessionRouter.activeBroker;
+      const epoch = this.sessionRouter.activeCallbackEpoch;
+      const scopeIsCurrent = () => this.sessionRouter.activeBroker === broker
+        && this.sessionRouter.activeCallbackEpoch === epoch
+        && !this.sessionRouter.transitionInProgress && !this._shutdownRequested;
+      for (const symbol of this._getBootHydrationSymbols()) {
+        if (!scopeIsCurrent()) return;
+        // This pass must finish its candle requests before the next check is
+        // due. The adapter cancels HTTP itself; no abandoned background fetch.
+        const signal = AbortSignal.timeout(feed.livenessCheckIntervalMs);
+        const silentFrames = this._getSilentNativeFrames(symbol);
+        if (!silentFrames.length) {
+          if (stateManager.isSymbolHalted(symbol, 'rest_hydration_unavailable')
+              || stateManager.isSymbolHalted(symbol, 'native_feed_unavailable')) {
+            await this.hydrateActiveTimeframeFromRest([symbol], { signal });
+          }
+          continue;
+        }
+        const timeframe = silentFrames[0].timeframe;
+        const scope = this._getRestRecoveryScopeEnvelope('native_feed_watchdog', symbol, timeframe, {
+          brokerId: broker.getBrokerName(), sessionRouterEpoch: epoch,
+          sessionRouterTransitionId: this.sessionRouter.activeOhlcTransitionId,
+        });
+        await this._quarantineCandleDataSymbol(symbol, timeframe,
+          `native data unavailable beyond configured cadence: ${silentFrames.map(f => f.timeframe).join(', ')}`,
+          scope, 'unavailable', { code: 'native_feed_unavailable', scopeIsCurrent, recoveryFrames: silentFrames, signal });
+      }
+      if (scopeIsCurrent()) await this._recoverDataFeedPauseIfFresh(this.tradingPair, this.candleTimeframe);
       }, { reportFailure: true });
     }, feed.livenessCheckIntervalMs);
 
-    console.log(`Liveness watchdog started (checks every ${feed.livenessCheckIntervalMs}ms, attempts REST backfill, does not pause trading)`);
+    console.log(`Liveness watchdog started (checks every ${feed.livenessCheckIntervalMs}ms, native symbol/frame tracking, scoped outage recovery)`);
   }
 
   /**

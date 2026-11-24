@@ -160,7 +160,9 @@ class IBrokerAdapter extends EventEmitter {
      *   adapters return { candles, coverage: { start, end, complete, reason, ... } };
      *   complete requires provider coverage, never an assumed candle count.
      */
-    async getCandles(symbol, timeframe = '1m', limit = 100) {
+    // Native history keeps request cancellation owned by its caller. Adapters
+    // must pass options.signal to every HTTP page, including after pacing.
+    async getCandles(symbol, timeframe = '1m', limit = 100, range = null, options = {}) {
         throw new Error('getCandles() must be implemented');
     }
 

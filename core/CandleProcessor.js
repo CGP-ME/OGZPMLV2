@@ -1001,9 +1001,6 @@ class CandleProcessor {
       });
     }
 
-    // CHANGE 2026-01-16: Track when we last received ANY data (for liveness watchdog)
-    this.ctx.lastDataReceived = now;
-
     const staleAssetClass = wrappedInput?.assetClass || this.ctx.config?.assetClass;
     const staleBrokerId = wrappedInput?.brokerId || this.ctx.config?.brokerId;
     if (sourceEventStatus === 'unavailable' || sourceEventStatus === 'future_timestamp') {
@@ -1088,6 +1085,20 @@ class CandleProcessor {
 
     // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
     const acceptedAsNew = this.processNewCandle(candle, { traceId, source: 'handleMarketData' });
+
+    if (!isBacktesting && sourceEventStatus === 'on_time'
+        && (!frameCtx.lastNativeData
+          || frameCtx.lastNativeData.sessionRouterEpoch !== wrappedInput.sessionRouterEpoch
+          || sourceEventTimeMs > frameCtx.lastNativeData.eventTimeMs)) {
+      frameCtx.lastNativeData = {
+        eventTimeMs: sourceEventTimeMs,
+        receivedAt: now,
+        source: sourceEventKind,
+        brokerId: candle.brokerId,
+        accountId: candle.accountId,
+        sessionRouterEpoch: wrappedInput.sessionRouterEpoch,
+      };
+    }
 
     // A late correction replaces its historical bar without moving the current
     // market-data snapshot backward. Read the newest bar from the canonical store.

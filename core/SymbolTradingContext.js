@@ -98,6 +98,9 @@ class SymbolTradingContext {
         // CandleProcessor on each new candle. Per-symbol so consumers reading
         // `symCtx.marketData.price` get the right symbol's tick.
         this.marketData = null;
+        // Only native ingress advances this watermark. REST hydration repairs
+        // history without claiming that the active stream has recovered.
+        this.lastNativeData = null;
         // Last completed bar dispatched for this symbol/frame. REST hydration
         // and intrabar updates populate history without advancing this cursor.
         this.lastDecisionCandle = null;

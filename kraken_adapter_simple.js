@@ -315,11 +315,11 @@ class KrakenAdapterSimple {
    *   Its start is an already-observed candle, used to establish retained coverage.
    * @returns {Array|Object} Candles, or { candles, coverage } for a range request
    */
-  async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault'), range = null) {
+  async getHistoricalOHLC(pair, interval = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.intervalDefault'), count = ConfigLoader.getInternalsFileValue('broker.krakenHistorical.countDefault'), range = null, options = {}) {
     try {
       // One public request per configured one-second window for this pair.
       // Recheck after each wait: concurrent callers must not wake into a burst.
-      while (ohlcNextRequestAt.has(pair)) {
+      while (ohlcNextRequestAt.has(pair) && !options.signal?.aborted) {
         const waitMs = ohlcNextRequestAt.get(pair) - Date.now();
         if (waitMs <= 0) break;
         await new Promise(resolve => setTimeout(resolve, waitMs));
@@ -335,8 +335,8 @@ class KrakenAdapterSimple {
       const url = `${this.baseUrl}/0/public/OHLC?pair=${pair}&interval=${interval}&since=${since}`;
       console.log(`[Kraken REST] Fetching ${count} historical ${interval}m candles for ${pair}`);
 
-      ohlcNextRequestAt.set(pair, Date.now() + this.requestWindow);
-      const response = await axios.get(url);
+      if (!options.signal?.aborted) ohlcNextRequestAt.set(pair, Date.now() + this.requestWindow);
+      const response = await axios.get(url, { signal: options.signal });
 
       if (response.data.error && response.data.error.length > 0) {
         if (range) return { candles: [], coverage: { ...range, complete: false, reason: 'provider_error', error: response.data.error.join(', ') } };

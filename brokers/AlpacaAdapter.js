@@ -660,7 +660,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
     }
 
-    async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault'), range = null) {
+    async getCandles(symbol, timeframe = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.timeframeDefault'), limit = ConfigLoader.getInternalsFileValue('broker.alpacaHistorical.limitDefault'), range = null, options = {}) {
         try {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
@@ -689,6 +689,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                     `${this.dataUrl}/v2/stocks/${sym}/bars`,
                     {
                         headers: this._authHeaders(),
+                        signal: options.signal,
                         params
                     }
                 );
