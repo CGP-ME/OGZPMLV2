@@ -1,0 +1,164 @@
+{
+  "observedAt": "2026-11-24T22:35:18.094034+00:00",
+  "activatedHead": "00954a36bfc04b01f929807082983d15e0f0b35d",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restartDelta": 0,
+      "pidChanged": false,
+      "canonicalEnvironmentMatches": true,
+      "profile": null,
+      "alternateDotenvPathPresent": false
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restartDelta": 0,
+      "pidChanged": false,
+      "canonicalEnvironmentMatches": true,
+      "profile": null,
+      "alternateDotenvPathPresent": false
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restartDelta": 0,
+      "pidChanged": false,
+      "canonicalEnvironmentMatches": true,
+      "profile": null,
+      "alternateDotenvPathPresent": false
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2749836,
+      "status": "online",
+      "restartDelta": 1,
+      "pidChanged": true,
+      "canonicalEnvironmentMatches": true,
+      "profile": "paper",
+      "alternateDotenvPathPresent": false
+    }
+  ],
+  "sourceManifestChecked": 58,
+  "sourceDrift": [],
+  "configurationFilesUnchanged": true,
+  "inheritedDrift": [],
+  "positionsBefore": 0,
+  "positionsAfter": 0,
+  "closedTradeCountBefore": 1106,
+  "closedTradeCountAfter": 1106,
+  "pauseReason": null,
+  "symbolHaltCount": 0,
+  "transition": {
+    "state": "TARGET_ACTIVATED",
+    "freezeNewEntries": false,
+    "activeSession": "crypto"
+  },
+  "watchdogLoaded": true,
+  "liveCandleCounts": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "status": "on_time",
+      "count": 74
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "status": "on_time",
+      "count": 74
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "status": "on_time",
+      "count": 74
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "status": "on_time",
+      "count": 74
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "status": "on_time",
+      "count": 74
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "status": "on_time",
+      "count": 74
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "status": "on_time",
+      "count": 74
+    }
+  ],
+  "producerConsumerMismatchCount": 0,
+  "traceCounts": {
+    "CANDLE_INGRESS": 518,
+    "CANDLE_NORMALIZED": 518,
+    "LAST_PRICE_INFLUENCE": 525,
+    "CANDLE_PROCESSOR_RECEIVED": 518,
+    "CANDLE_ACCEPTED": 938,
+    "CANDLE_OBSERVATION_ONLY": 148,
+    "TRADING_CYCLE_TRIGGER": 4,
+    "ANALYSIS_START": 4,
+    "ANALYSIS_SKIP": 1,
+    "DECISION_AUTOPSY": 4,
+    "BOOT_REST_HYDRATION_CANDLE": 420,
+    "REST_HYDRATION_COMPLETE": 1,
+    "STRATEGY_DECISION": 3,
+    "DECISION_SKIP": 3
+  },
+  "configSourceReceiptCount": 1,
+  "configFingerprints": [
+    "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4"
+  ],
+  "historyPreserved": {
+    "data/candle-history.json": {
+      "exists": true,
+      "bytesBefore": 47274,
+      "bytesAfter": 47274
+    }
+  },
+  "limitations": [
+    "Normal paper traffic after activation; no live fault injection or real broker order.",
+    "Outage close, cancellation and recovery behavior are demonstrated in the isolated receipts.",
+    "Private reconciliation deadlines and live fill accounting remain separate open work."
+  ],
+  "wireReceipt": "wire-receipt.json",
+  "configuration": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "observedCandleCount": 518,
+  "observationStart": "2026-11-24T22:32:25.065641+00:00",
+  "configFingerprintMatchesDashboard": true,
+  "stderrObservation": {
+    "lines": 1,
+    "shutdownWebsocketNotice": 1,
+    "otherLines": []
+  },
+  "preexistingObservation": "A bounded pre-restart stderr tail contains ntfy HTTP 429 failures. No ntfy 429 was logged in this activation window; external alert delivery is not certified by this run.",
+  "closedTradeRowsPreservedExactly": true
+}

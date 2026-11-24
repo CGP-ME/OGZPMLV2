@@ -1,0 +1,123 @@
+{
+  "startedAt": "2026-11-24T22:33:03.404Z",
+  "finishedAt": "2026-11-24T22:34:38.465Z",
+  "endpoint": "wss://www.ogzprime.com/ws",
+  "counts": {
+    "auth_success": 1,
+    "state_update": 4,
+    "broker_status": 61,
+    "depth_update": 871,
+    "market_internals": 256,
+    "settings_result": 1,
+    "trace_event": 2592,
+    "price": 515,
+    "ticker_price": 186,
+    "cvd_update": 73,
+    "divergence": 25,
+    "historical_candles": 7,
+    "journal_snapshot": 2,
+    "bot_state": 1,
+    "pattern_analysis": 1,
+    "narrator_event": 1,
+    "signal_analysis": 1,
+    "bot_thinking": 2,
+    "golden_setup_state": 1
+  },
+  "nativeFrames": {
+    "BTC-USD 1m": 47,
+    "BTC-USD 5m": 47,
+    "BTC-USD 15m": 47,
+    "BTC-USD 30m": 47,
+    "BTC-USD 1h": 47,
+    "BTC-USD 4h": 47,
+    "BTC-USD 1d": 47
+  },
+  "errors": [],
+  "pending": [],
+  "settings": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "histories": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "count": 60,
+      "sentAt": 1795559583515,
+      "receivedAt": 1795559594769,
+      "durationMs": 11254,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "count": 60,
+      "sentAt": 1795559594769,
+      "receivedAt": 1795559595361,
+      "durationMs": 592,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "count": 60,
+      "sentAt": 1795559595361,
+      "receivedAt": 1795559596421,
+      "durationMs": 1060,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "count": 60,
+      "sentAt": 1795559596421,
+      "receivedAt": 1795559597436,
+      "durationMs": 1015,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "count": 60,
+      "sentAt": 1795559597436,
+      "receivedAt": 1795559598366,
+      "durationMs": 930,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "count": 60,
+      "sentAt": 1795559598366,
+      "receivedAt": 1795559599463,
+      "durationMs": 1097,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "count": 60,
+      "sentAt": 1795559599463,
+      "receivedAt": 1795559600385,
+      "durationMs": 922,
+      "error": null
+    }
+  ]
+}
