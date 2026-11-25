@@ -1,0 +1,572 @@
+{
+  "logical_change": "Run existing Claudito verification helpers through the existing isolation launcher; remove automatic Jest and report actual scope",
+  "captured_at_utc": "2026-11-25T21:36:14.112077+00:00",
+  "base_commit": "82ef68c3705aa7dd1509b54926554a0542bc7719",
+  "base_tree_and_unchanged_shared_index": "13667ad8f52ec559cb689d58b2c6671e283de528",
+  "base_source_sha256": "e9b30f94b39f7ad5b9ab1be308275f92ac3b654c427540d71e3b7ecf715c6b99",
+  "candidate_source": {
+    "path": "ogz-meta/slash-router.js",
+    "sha256": "cea4eef380fc2b7cffce223e698c3627b46dbffead20fd02384481d960a51044"
+  },
+  "candidate_patch": {
+    "path": "ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/candidate4.patch",
+    "sha256": "e3474b310fbcf0c7800c287e68f93f276f33f1ff3381b102fd5dc2f9821d5efa"
+  },
+  "fixture": {
+    "path": "ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs",
+    "sha256": "9f9ac4cc84fb8a910a3c809e283b59dda89a84129d0043c07ebed282cbb3835b"
+  },
+  "support_source_sha256": {
+    "scripts/test-isolated.py": "e8c670179485432d7b42652eea2197a6a1e9aa57d751a012e0520b31c222c7b5",
+    "test/helpers/require-isolation.cjs": "00d1527890e1658f67d40af562fd7397f7e3dd53fb37d41e08bf7480560672ee",
+    "ogz-meta/pipeline.js": "cecbe2ef77952c87555343ee13d4f23c20b6e70b2c66daaa001141fc1c230be0",
+    "ogz-meta/manifest-schema.js": "bd504477d4d38b80a4b0f32a81c89d3022d1a7cf21b9a57efdeb4c2a9455a33a",
+    "run-empire-v2.js": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35"
+  },
+  "commands": [
+    {
+      "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs --expect-repair",
+      "exit_code": 0,
+      "log": "candidate.log"
+    },
+    {
+      "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs --child-ok",
+      "exit_code": 0,
+      "log": "launcher-success.log"
+    },
+    {
+      "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs --child-fail",
+      "exit_code": 17,
+      "log": "launcher-failure.log"
+    }
+  ],
+  "candidate": {
+    "sourceMode": "candidate",
+    "observations": [
+      {
+        "name": "debugger_command_success",
+        "dispatch": [
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "bash",
+              "-c",
+              "node --check run-empire-v2.js"
+            ],
+            "timeoutMs": 30000
+          },
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "bash",
+              "-c",
+              "node ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs --child-ok"
+            ],
+            "timeoutMs": 30000
+          }
+        ],
+        "state": "CRITIC",
+        "stopped": {
+          "stop": false
+        },
+        "results": [
+          {
+            "test": "syntax_check",
+            "passed": true
+          },
+          {
+            "test": "forensics_check_0",
+            "passed": true
+          }
+        ]
+      },
+      {
+        "name": "debugger_command_failure",
+        "dispatch": [
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "bash",
+              "-c",
+              "node --check run-empire-v2.js"
+            ],
+            "timeoutMs": 30000
+          },
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "bash",
+              "-c",
+              "node ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs --child-fail"
+            ],
+            "timeoutMs": 30000
+          }
+        ],
+        "state": "HALTED",
+        "stopped": {
+          "stop": true,
+          "reason": "Verification tests failed"
+        },
+        "results": [
+          {
+            "test": "syntax_check",
+            "passed": true
+          },
+          {
+            "test": "forensics_check_0",
+            "passed": false,
+            "error": "Command failed: bash -c node ogz-meta/inbox/codex/2026-11-25/claudito-verification-isolation/fixtures/observe.cjs --child-fail"
+          }
+        ]
+      },
+      {
+        "name": "smoke_success",
+        "dispatch": [
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "node",
+              "/opt/ogzprime/OGZPMLV2/scripts/smoke-test.js"
+            ],
+            "timeoutMs": 60000
+          }
+        ],
+        "state": "INIT",
+        "stopped": {
+          "stop": false
+        },
+        "fixer": {
+          "timestamp": "2026-11-25T21:35:18.366Z",
+          "changes_applied": [
+            {
+              "file": "test/fixtures/claudito-verification-runtime/target.js",
+              "type": "REPLACE",
+              "lines": "1-1",
+              "backup": "/opt/ogzprime/OGZPMLV2/test/fixtures/claudito-verification-runtime/target.js.pre-brainbug-1795642518138"
+            }
+          ],
+          "plan": {},
+          "proposal_path": null,
+          "edits": [
+            {
+              "file": "test/fixtures/claudito-verification-runtime/target.js",
+              "line_start": 1,
+              "line_end": 1,
+              "current_code": "module.exports = 1;",
+              "new_code": "module.exports = 2;"
+            }
+          ],
+          "execute_mode": true
+        },
+        "content": "module.exports = 2;\n"
+      },
+      {
+        "name": "smoke_failure",
+        "dispatch": [
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "node",
+              "/opt/ogzprime/OGZPMLV2/scripts/smoke-test.js"
+            ],
+            "timeoutMs": 60000
+          }
+        ],
+        "state": "HALTED",
+        "stopped": {
+          "stop": true,
+          "reason": "Verification tests failed"
+        },
+        "fixer": {
+          "timestamp": "2026-11-25T21:35:18.664Z",
+          "changes_applied": [],
+          "plan": {},
+          "proposal_path": null,
+          "edits": [
+            {
+              "file": "test/fixtures/claudito-verification-runtime/target.js",
+              "line_start": 1,
+              "line_end": 1,
+              "current_code": "module.exports = 1;",
+              "new_code": "module.exports = 2;"
+            }
+          ],
+          "error": "Smoke test failed after Mercury edits",
+          "rollback": true
+        },
+        "content": "module.exports = 1;\n"
+      },
+      {
+        "name": "smoke_missing",
+        "dispatch": [],
+        "state": "HALTED",
+        "stopped": {
+          "stop": true,
+          "reason": "Verification tests failed"
+        },
+        "fixer": {
+          "timestamp": "2026-11-25T21:35:18.667Z",
+          "changes_applied": [],
+          "plan": {},
+          "proposal_path": null,
+          "edits": [
+            {
+              "file": "test/fixtures/claudito-verification-runtime/target.js",
+              "line_start": 1,
+              "line_end": 1,
+              "current_code": "module.exports = 1;",
+              "new_code": "module.exports = 2;"
+            }
+          ],
+          "error": "Smoke test failed after Mercury edits",
+          "rollback": true
+        },
+        "content": "module.exports = 1;\n"
+      },
+      {
+        "name": "cicd_syntax",
+        "dispatch": [
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "node",
+              "--check",
+              "run-empire-v2.js"
+            ],
+            "timeoutMs": null
+          }
+        ],
+        "state": "COMMIT",
+        "stopped": {
+          "stop": false
+        },
+        "result": {
+          "timestamp": "2026-11-25T21:35:18.930Z",
+          "build_result": "PASS",
+          "test_result": "NOT_RUN"
+        },
+        "finalState": "COMPLETE",
+        "wardenApproved": true
+      },
+      {
+        "name": "cicd_failure_stays_halted",
+        "dispatch": [
+          {
+            "kind": "isolated_dispatch",
+            "executable": "python3",
+            "args": [
+              "/opt/ogzprime/OGZPMLV2/scripts/test-isolated.py",
+              "--",
+              "node",
+              "--check",
+              "run-empire-v2.js"
+            ],
+            "timeoutMs": null
+          }
+        ],
+        "state": "HALTED",
+        "stopped": {
+          "stop": true,
+          "reason": "CI/CD build failed"
+        },
+        "result": {
+          "timestamp": "2026-11-25T21:35:19.135Z",
+          "build_result": "FAIL",
+          "test_result": "NOT_RUN"
+        },
+        "finalState": "HALTED",
+        "wardenApproved": false
+      },
+      {
+        "name": "pipeline_completion_consumer",
+        "state": "COMPLETE",
+        "stopped": {
+          "stop": false
+        },
+        "cicd": {
+          "timestamp": "2026-11-25T21:35:19.553Z",
+          "build_result": "PASS",
+          "test_result": "NOT_RUN"
+        },
+        "debugger": {
+          "timestamp": "2026-11-25T21:35:19.341Z",
+          "tests_run": [
+            "syntax_check"
+          ],
+          "results": [
+            {
+              "test": "syntax_check",
+              "passed": true
+            }
+          ]
+        },
+        "successPrinted": true
+      }
+    ],
+    "boundaries": "Real router, writer, smoke/debugger/CICD handlers, Warden, pipeline final report and manifest; harmless real child commands inside outer isolation. Nested launcher dispatch instrumented, automatic Jest request recorded without executing it, smoke program synthetic. Completion control has a valid approved no-change mission with synthetic role answers and branch identity. No models or trading imports."
+  },
+  "launcher_controls": {
+    "launcher-success.log": [
+      "[helper isolation] disposable source snapshot; host runtime, credentials and network excluded",
+      "CHILD_OBSERVATION={\"namespacesVerified\":true,\"operatorHomeAbsent\":true,\"gitAbsent\":true}"
+    ],
+    "launcher-failure.log": [
+      "[helper isolation] disposable source snapshot; host runtime, credentials and network excluded",
+      "CHILD_OBSERVATION={\"namespacesVerified\":true,\"operatorHomeAbsent\":true,\"gitAbsent\":true}"
+    ]
+  },
+  "behavior_change": [
+    "Smoke/debugger/CICD dispatch python3 scripts/test-isolated.py via argument array; recommended shell commands run inside that launcher.",
+    "Debugger no longer schedules npm test/Jest or declares an optional sweep. Existing 30000ms debugger and 60000ms smoke bounds remain.",
+    "Missing or failed smoke returns failure; the normal verified-edit writer restores original content, reports no applied changes and HALTED.",
+    "CI syntax success records build_result PASS and test_result NOT_RUN. Actual Warden and pipeline final-report consumers preserve valid completion; failed syntax stays HALTED and refuses Warden."
+  ],
+  "independent_review": {
+    "status": "complete_with_no_positive_defect_in_bounded_change",
+    "reviewer": "/root/claudito_candidate_review",
+    "recorded_at_utc": "2026-11-25T21:38:34.798339+00:00",
+    "execution": "Independently reran supplied isolated fixture once: exit0; eight observations matched. Verified source/patch/fixture/support hashes and staged candidate3 source; host manifest preserved.",
+    "scope": "Existing launcher dispatch, helper failure propagation, smoke rollback and CI NOT_RUN through Warden and real pipeline final report.",
+    "limits": "Nested launcher dispatch instrumented. Real launcher controls read as source/log evidence; independent reviewer did not repeat real smoke or provider calls. Synthetic smoke/provider/branch and inherited untyped writer routes excluded. Current real smoke dependency fails, so no full-workflow readiness claim."
+  },
+  "mercury_review": {
+    "status": "completed_answer_with_disputed_missing_file_premise_and_unresolved_coverage",
+    "request": "review-request.json",
+    "log": "review.log",
+    "source_candidate_tree": "bcf059179b28afd669da524cb682dc68350184e5",
+    "source_base_tree": "13667ad8f52ec559cb689d58b2c6671e283de528",
+    "harness_worktree_sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "seats": [
+      "mercury"
+    ],
+    "max_tokens": 7750,
+    "iteration_cap": null,
+    "retries": 0,
+    "scope": "Only incremental existing verification caller/reporting behavior. No fixture result or diagnosis in initial question. Third dependency is not delivered or re-reviewed by this question.",
+    "run_id": "2026-11-25T21-40-30-022Z-9d23d010c612",
+    "verdict": "found_break",
+    "termination": "answer_given",
+    "iterations": 17,
+    "run_tokens": {
+      "input": 486933,
+      "uncached_input": 341145,
+      "cached_input": 145788,
+      "output": 16645,
+      "total": 503578,
+      "complete": true,
+      "attempts_with_usage": 18,
+      "total_attempts": 18
+    },
+    "run_cost": {
+      "amount": 0.04090543,
+      "currency": "USD",
+      "complete": true,
+      "priced_attempts": 18,
+      "total_attempts": 18,
+      "cost_absences": []
+    },
+    "source_refs": {
+      "current_change_evidence_bundle": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t21-39-37-193z-2941373-329e4ff76c2a/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t21-39-37-193z-2941373-329e4ff76c2a/current-change-evidence.txt:1",
+        "sha256": "a8418d86abe255a2c6c76de14da18940d49ff44c670eaee7267f661231529109",
+        "bytes": 147568,
+        "lines": 3166,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t21-39-37-193z-2941373-329e4ff76c2a/manifest.json",
+        "manifest_sha256": "9c3681d9936c381fe829c8c85025fe08c97a6dfcb6858b83a88c84ad1747ee0b",
+        "manifest_bytes": 8328
+      },
+      "supplied_evidence": [],
+      "auto_blast_radius_source": "current_changes",
+      "auto_blast_radius_files": [
+        {
+          "file": "ogz-meta/slash-router.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        }
+      ],
+      "auto_blast_radius_errors": [],
+      "changed_files": [
+        "ogz-meta/slash-router.js"
+      ],
+      "changed_file_count": 1,
+      "reference_names": [],
+      "reference_scans": []
+    },
+    "full_answer": "review-answer.md",
+    "source_verification": "pinned-file-presence.json proves identical launcher and smoke blobs in HEAD, base and candidate. Reviewer tool transcript reports blocked by mercury.ignore, not absent git objects. Baseline CI only hard-coded test_result PASS and ran node --check.",
+    "disposition": "Factual allegations resolved by the one completed evidence exchange; original report retained. Bounded caller question ends no_break_found with helper implementation coverage gap, not full-workflow certification.",
+    "policy_refusal_origin": {
+      "source": "trai_brain/repository-policy.js:52-66",
+      "tool_label_source": "trai_brain/mercury-bridge/tool-adapter.js:239-257",
+      "finding": "scripts/ is not excluded by directory. Existing isTestFixturePath basename patterns intentionally exclude test-isolated.py and smoke-test.js; the tool labels this shared-policy refusal blocked by mercury.ignore."
+    },
+    "source_manifest": {
+      "source": "explicit_change_paths",
+      "paths": [
+        "ogz-meta/slash-router.js"
+      ],
+      "tree": "bcf059179b28afd669da524cb682dc68350184e5",
+      "baseTree": "13667ad8f52ec559cb689d58b2c6671e283de528",
+      "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-25T21-39-37-193Z-2941373-329e4ff76c2a/source-W8OZCX.json",
+      "manifestSha256": "406cd4338c6f89827f1585aaa01fd9949df0687610350fc1a2bb8a306c244915"
+    }
+  },
+  "limits": [
+    "Nested launcher execution is instrumented in the router fixture because the real outer launcher removes git metadata and disables nested user namespaces. Harmless requested child commands actually execute inside outer isolation. Separate controls exercise the real launcher and namespace/exclusion checks.",
+    "Smoke fixture uses a synthetic harmless verifier program in disposable storage. Root separately ran real scripts/smoke-test.js through the launcher; it failed with missing isolated synthetic configuration. The workflow is not fully functional until that real dependency is addressed.",
+    "Final pipeline-report control resumes a valid synthetic approved no-change bugfix mission. Role answers and branch identity are synthetic, no paid model calls or real human approval occurred. This does not prove a live provider authoring workflow or bot trading behavior.",
+    "The source snapshot contains tracked working bytes, including unrelated dirty files. Runner verification is syntax-only and never imports the trading runner.",
+    "Generic approval hash binding, completed-answer parser adequacy, legacy untyped writer routes, crash/concurrent writes and unrelated subprocesses remain outside this change.",
+    "This fourth source patch was observed and reviewed on frozen candidate3. Candidate3 subsequently delivered as 74a424edd2e3ab26e40794232498e1c84b567a19 with identical source; only its changelog/receipt accounting differs from the frozen review base. Root separately owns the existing smoke-script producer correction. No bot runtime activation or host mission mutation."
+  ],
+  "host_preservation": {
+    "current_manifest_sha256": "97c793a43949dae932606a73e93845edf82a1681d5a97fe215db57b661af5af4",
+    "current_manifest_mtime_utc": "2026-10-15T15:32:05.060840+00:00",
+    "synthetic_target_directory_present": false,
+    "shared_index_preserved": true
+  },
+  "real_existing_smoke": {
+    "observer": "root",
+    "command": "python3 scripts/test-isolated.py -- node scripts/smoke-test.js",
+    "exit_code": 1,
+    "log": "real-existing-smoke.log",
+    "log_sha256": "f617cfe2b4cc3a319c2113cbee43b9d499c791abae32f760b76023ca80f065d3",
+    "result": "2 reported passed, 11 failed, 1 warning. All 11 failures were missing dashboard token and Alpaca/Kraken configuration deliberately excluded by the launcher. Bombardier warned _loadCache is not a function. Exit check reported success while logging missing trade direction, so pass count does not certify exit behavior.",
+    "interpretation": "Normal real smoke remains a concrete functional blocker. The fourth patch isolates callers and truthfully fails; it does not repair smoke data producers."
+  },
+  "real_existing_smoke_with_guarded_preload": {
+    "observer": "root",
+    "command": "python3 scripts/test-isolated.py -- node -r ./test/fixtures/alpaca-test-env.cjs scripts/smoke-test.js",
+    "exit_code": 1,
+    "log": "real-existing-smoke-with-fixture.log",
+    "log_sha256": "0515c1661b91ab8195f90e872155dda2787978fa1f0b90ee9521bd130ba5e64f",
+    "result": "4 reported passed, 9 failed. First loads initialize with the existing guarded synthetic helper; circular-dependency check then deletes ConfigLoader require cache and later implicit loads lack persistent fixture dotenv. IndicatorEngine lacks required smaPeriods; exit mock lacks direction; Bombardier calls unavailable _loadCache API.",
+    "interpretation": "Stale smoke input/contracts, not demonstrated production defects. Root owns read-only mapping for a separate minimal script-only producer correction; fourth source remains frozen."
+  },
+  "mercury_evidence_exchange": {
+    "status": "completed_no_break_found_in_caller_behavior_with_named_coverage_gap",
+    "request": "review-exchange-request.json",
+    "log": "review-exchange.log",
+    "count": 1,
+    "source_unchanged": true,
+    "excluded_helper_contents_supplied": false,
+    "evidence": "Exact pinned git object presence; baseline CI source; existing basename-rule excerpt. No requested outcome; canonical exclusions unchanged.",
+    "run_id": "2026-11-25T21-44-49-348Z-c08563d36655",
+    "verdict": "no_break_found",
+    "termination": "answer_given",
+    "iterations": 5,
+    "run_tokens": {
+      "input": 123532,
+      "uncached_input": 77462,
+      "cached_input": 46070,
+      "output": 14029,
+      "total": 137561,
+      "complete": true,
+      "attempts_with_usage": 6,
+      "total_attempts": 6
+    },
+    "run_cost": {
+      "amount": 0.01263299,
+      "currency": "USD",
+      "complete": true,
+      "priced_attempts": 6,
+      "total_attempts": 6,
+      "cost_absences": []
+    },
+    "source_refs": {
+      "current_change_evidence_bundle": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t21-44-07-509z-2943424-1bd046c44cda/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t21-44-07-509z-2943424-1bd046c44cda/current-change-evidence.txt:1",
+        "sha256": "664b71b07504a1c7160b3d2330478522ed4b4d7c0836b0825185ef4d8e731d55",
+        "bytes": 147568,
+        "lines": 3166,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t21-44-07-509z-2943424-1bd046c44cda/manifest.json",
+        "manifest_sha256": "7a5a7321b7130b08308177cbf5ae577f01fdbba8a8be0088488db7f24d7d17ee",
+        "manifest_bytes": 8328
+      },
+      "supplied_evidence": [
+        {
+          "path": "trai_brain/repository-policy.js",
+          "sha256": "6e4c6f750066ded8afd626a0ba9a0ff48421fe213864a4af3093e15b960753b6",
+          "bytes": 810,
+          "excerpt": "function isTestFixturePath(pathLike) {\n  if (!pathLike || typeof pathLike !== 'string') return false;\n  const normalized = pathLike.replace(/\\\\/g, '/');\n  const parts = normalized.split('/').filter(Boolean);\n  if (parts.some(part => TEST_FIXTURE_DIRS.has(part.toLowerCase()))) return true;\n  const basename = parts[parts.length - 1] || '';\n  return /(?:^|\\.)(?:test|spec|fixture)\\.[^.]+$/i.test(basename)\n    || /^(?:test[-_.]|smoke[-_.]?test(?:\\.|$))/i.test(basename);\n}\n\nfunction isPathIgnoredByMercury(pathLike, skipDirs = SKIP_DIRS) {\n  if (!pathLike || typeof pathLike !== 'string') return false;\n  const normalized = pathLike.replace(/\\\\/g, '/').replace(/^\\.\\//, '');\n  const parts = normalized.split('/').filter(Boolean);\n  return parts.some(part => skipDirs.has(part)) || isTestFixturePath(pathLike);\n}",
+          "artifact_sha256": "89ae0b79aecfe6e9bd5d23c95bb048a91935f3a668f697d7bd5e3907d6c2abde",
+          "artifact_bytes": 3014,
+          "line_start": 52,
+          "line_end": 67,
+          "excerpt_sha256": "6e4c6f750066ded8afd626a0ba9a0ff48421fe213864a4af3093e15b960753b6",
+          "excerpt_bytes": 810
+        }
+      ],
+      "auto_blast_radius_source": "current_changes",
+      "auto_blast_radius_files": [
+        {
+          "file": "ogz-meta/slash-router.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        }
+      ],
+      "auto_blast_radius_errors": [],
+      "changed_files": [
+        "ogz-meta/slash-router.js"
+      ],
+      "changed_file_count": 1,
+      "reference_names": [],
+      "reference_scans": []
+    },
+    "full_answer": "review-exchange-answer.md",
+    "resolution": "Same selected Mercury seat retracts absent-file and baseline-test claims; no alternative supported caller defect. Initial answer remains preserved.",
+    "coverage": "7/8 examined; launcher/smoke implementation internals intentionally unread. Receipt retains coverage_insufficient, coverage_unresolved, whole_file_read_absent, inherited_section_incomplete. No Mercury execution occurred; single-seat outcome, not multi-model consensus.",
+    "source_manifest": {
+      "source": "explicit_change_paths",
+      "paths": [
+        "ogz-meta/slash-router.js"
+      ],
+      "tree": "bcf059179b28afd669da524cb682dc68350184e5",
+      "baseTree": "13667ad8f52ec559cb689d58b2c6671e283de528",
+      "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-25T21-44-07-509Z-2943424-1bd046c44cda/source-5Az9PS.json",
+      "manifestSha256": "46ed560f856e9588e38c1b3c9f273f11afb8a16d56efe68a8639c635da318c70"
+    }
+  },
+  "delivery": {
+    "classification": "non-production authoring helper",
+    "applicable_rules": [
+      "ogz-meta/AGENTS.md:232",
+      "ogz-meta/AGENTS.md:274",
+      "AGENTS.md:141-143"
+    ],
+    "dependency_commit": "74a424edd2e3ab26e40794232498e1c84b567a19",
+    "review_dependency_tree": "13667ad8f52ec559cb689d58b2c6671e283de528",
+    "difference_from_review_dependency": [
+      "CHANGELOG.md",
+      "ogz-meta/inbox/codex/2026-11-25/claudito-approved-route/behavior-receipt.json"
+    ],
+    "required_evidence": "Independent exact-source review and real isolated consumer observations complete. Optional Mercury same-source exchange ended no_break_found with explicit unread helper internals; original answer and narrower resolution retained.",
+    "source_sha256": "cea4eef380fc2b7cffce223e698c3627b46dbffead20fd02384481d960a51044",
+    "runtime_activation": "none"
+  }
+}
