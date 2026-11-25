@@ -95,21 +95,12 @@ const REFACTOR_PIPELINE = [
   '/warden'
 ];
 
-const EXECUTE_PIPELINE = [
-  '/commander',
-  '/branch',
-  '/architect',
-  '/warden',
-  '/fixer',
-  '/entomologist',
-  '/forensics',
-  '/critic',
-  '/forensics',
-  '/critic',
-  '/warden',
+// Resume the recorded proposal at its intended writer, once. Authoring stages
+// belong to the advisory run; the existing verification/completion tail follows.
+const EXECUTE_PIPELINE = BUGFIX_PIPELINE.slice(BUGFIX_PIPELINE.lastIndexOf('/exterminator'));
+const REFACTOR_EXECUTE_PIPELINE = [
   '/locator',
-  '/fixer --execute',
-  '/janitor'
+  ...REFACTOR_PIPELINE.slice(REFACTOR_PIPELINE.indexOf('/fixer'))
 ];
 
 // Detect mode from issue prefix or CLI flags
@@ -223,6 +214,20 @@ async function execute(issue, specSource) {
         } else if (specSource && JSON.stringify(specSource) !== JSON.stringify(manifest.spec_source)) {
           console.error('Execution refused: a different spec operation requires its own advisory mission and approval');
           return null;
+        } else if (['bugfix', 'refactor'].includes(manifest.pipeline_type)) {
+          if (manifest.mode !== 'ADVISORY' || (cleanIssue && cleanIssue !== manifest.issue) ||
+              (pipelineType !== 'execute' && pipelineType !== manifest.pipeline_type)) {
+            console.error('Execution refused: resume the recorded advisory mission once; a different or repeated operation requires a new proposal and approval');
+            return null;
+          }
+          pipelineType = manifest.pipeline_type;
+          pipeline = pipelineType === 'refactor' ? [...REFACTOR_EXECUTE_PIPELINE] : [...EXECUTE_PIPELINE];
+        } else if (manifest.pipeline_type === 'mark-fixed') {
+          pipelineType = 'mark-fixed';
+          pipeline = [...MARK_FIXED_PIPELINE];
+        } else {
+          console.error('Execution refused: the approved mission has no supported recorded pipeline type; generate a new advisory proposal');
+          return null;
         }
         console.log(`\nLoaded approved mission: ${manifest.mission_id}`);
         manifest.mode = 'EXECUTE';  // Ensure execute mode
@@ -246,9 +251,9 @@ async function execute(issue, specSource) {
     // can find the verbatim target/replacement blocks deterministically.
     if (specSource) {
       manifest.spec_source = specSource;
-      const { saveManifest } = require('./manifest-schema');
-      saveManifest(manifest, require('path').join(__dirname, 'manifests', 'current.json'));
     }
+    const { saveManifest } = require('./manifest-schema');
+    saveManifest(manifest, require('path').join(__dirname, 'manifests', 'current.json'));
   }
 
   console.log(`\n📋 Mission: ${manifest.mission_id}`);

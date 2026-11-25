@@ -1,0 +1,640 @@
+{
+  "recorded_at": "2026-11-25T21:20:40.058814+00:00",
+  "candidate": {
+    "base_commit": "82ef68c3705aa7dd1509b54926554a0542bc7719",
+    "source_sha256": {
+      "ogz-meta/pipeline.js": "cecbe2ef77952c87555343ee13d4f23c20b6e70b2c66daaa001141fc1c230be0",
+      "ogz-meta/slash-router.js": "e9b30f94b39f7ad5b9ab1be308275f92ac3b654c427540d71e3b7ecf715c6b99"
+    },
+    "patch_sha256": "8cb24466f5d41036cc3c0d2c8f40a78d069b15253ea7bb121c6f0042929e340f",
+    "fixture_sha256": "cdea84a1e736d485e4d493c1f9a51bc267e6bdaace9cb7a619ec99361e6f4b79"
+  },
+  "logical_change": "Resume the recorded approved generic mission at one intended writer, consume its stored proposal and preserve verification failure through completion.",
+  "baseline": {
+    "sourceMode": "baseline",
+    "realModelCalls": 0,
+    "realApprovals": 0,
+    "externalBoundaries": "synthetic provider, commander context, RAG, AST, branch, smoke verification and ledger/context subprocesses; actual syntax-only check; no Jest",
+    "observations": [
+      {
+        "scenario": "refactor",
+        "advisoryExit": 0,
+        "advisoryType": null,
+        "advisoryState": "COMPLETE",
+        "approvalExit": 0,
+        "executeExit": 1,
+        "approvedPlan": {
+          "summary": "advisory synthetic approved plan",
+          "files": [
+            {
+              "path": "test/fixtures/claudito-approved-route-runtime/refactor.js",
+              "changes": [],
+              "dependencies": [],
+              "test": ""
+            }
+          ],
+          "ordering": [
+            "test/fixtures/claudito-approved-route-runtime/refactor.js"
+          ],
+          "verification": "synthetic smoke boundary"
+        },
+        "finalPlan": {
+          "summary": "execute synthetic approved plan",
+          "files": [
+            {
+              "path": "test/fixtures/claudito-approved-route-runtime/refactor.js",
+              "changes": [],
+              "dependencies": [],
+              "test": ""
+            }
+          ],
+          "ordering": [
+            "test/fixtures/claudito-approved-route-runtime/refactor.js"
+          ],
+          "verification": "synthetic smoke boundary"
+        },
+        "finalType": "execute",
+        "finalState": "WARDEN",
+        "stopped": {
+          "stop": false
+        },
+        "successPrinted": false,
+        "stages": [
+          "/commander",
+          "/branch",
+          "/architect",
+          "/warden",
+          "/fixer",
+          "/entomologist",
+          "/forensics",
+          "/critic",
+          "/forensics",
+          "/critic",
+          "/warden",
+          "/locator",
+          "/fixer",
+          "/janitor"
+        ],
+        "providerRoles": [
+          "architect",
+          "entomologist"
+        ],
+        "writes": 2,
+        "content": "module.exports = 1;\n// synthetic approved note\n// synthetic approved note\n",
+        "fixes": []
+      },
+      {
+        "scenario": "bugfix",
+        "advisoryExit": 0,
+        "advisoryType": null,
+        "advisoryState": "COMPLETE",
+        "approvalExit": 0,
+        "executeExit": 1,
+        "approvedPlan": {
+          "summary": "advisory synthetic approved plan",
+          "files": [
+            {
+              "path": "test/fixtures/claudito-approved-route-runtime/bugfix.js",
+              "changes": [],
+              "dependencies": [],
+              "test": ""
+            }
+          ],
+          "ordering": [
+            "test/fixtures/claudito-approved-route-runtime/bugfix.js"
+          ],
+          "verification": "synthetic smoke boundary"
+        },
+        "finalPlan": {
+          "summary": "execute synthetic approved plan",
+          "files": [
+            {
+              "path": "test/fixtures/claudito-approved-route-runtime/bugfix.js",
+              "changes": [],
+              "dependencies": [],
+              "test": ""
+            }
+          ],
+          "ordering": [
+            "test/fixtures/claudito-approved-route-runtime/bugfix.js"
+          ],
+          "verification": "synthetic smoke boundary"
+        },
+        "finalType": "execute",
+        "finalState": "WARDEN",
+        "stopped": {
+          "stop": false
+        },
+        "successPrinted": false,
+        "stages": [
+          "/commander",
+          "/branch",
+          "/architect",
+          "/warden",
+          "/fixer",
+          "/entomologist",
+          "/forensics",
+          "/critic",
+          "/forensics",
+          "/critic",
+          "/warden",
+          "/locator",
+          "/fixer",
+          "/janitor"
+        ],
+        "providerRoles": [
+          "architect",
+          "entomologist",
+          "forensics",
+          "critic",
+          "forensics",
+          "critic"
+        ],
+        "writes": 0,
+        "content": "module.exports = 1;\n",
+        "fixes": []
+      },
+      {
+        "scenario": "approved_bugfix_consumer",
+        "exitCode": 1,
+        "undefinedProposals": true,
+        "content": "module.exports = 1;\n",
+        "persisted": {
+          "timestamp": "2026-11-25T21:09:33.632Z",
+          "fixes_applied": [],
+          "patches": [],
+          "proposals": [
+            {
+              "bug_id": "CODE_SCAN",
+              "location": "test/fixtures/claudito-approved-route-runtime/bugfix.js:1",
+              "description": "Synthetic constant correction",
+              "proposed_fix": "module.exports = 2;",
+              "code": "module.exports = 1;",
+              "newCode": "module.exports = 2;",
+              "replacement_block": "module.exports = 2;",
+              "status": "READY_TO_APPLY",
+              "side_effects": [],
+              "tests_needed": []
+            }
+          ]
+        }
+      }
+    ],
+    "base_commit": "82ef68c3705aa7dd1509b54926554a0542bc7719",
+    "source_sha256": {
+      "ogz-meta/pipeline.js": "1a3444934138add44cfa8b2a61d6683cf9f99480978877bb4ce238647a7c8605",
+      "ogz-meta/slash-router.js": "cf31af1027bd01ed4f67978b0bbd87b636c0d95ea62bfd723c628708f1117608"
+    },
+    "recorded_at": "2026-11-25T21:09:50.182017+00:00"
+  },
+  "verification": {
+    "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-25/claudito-approved-route/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-25/claudito-approved-route/fixtures/observe.cjs --expect-repair",
+    "exit_code": 0,
+    "result": {
+      "sourceMode": "candidate",
+      "realModelCalls": 0,
+      "realApprovals": 0,
+      "externalBoundaries": "synthetic provider, commander context, RAG, AST, branch, smoke verification and ledger/context subprocesses; actual syntax-only check; no Jest",
+      "observations": [
+        {
+          "scenario": "refactor",
+          "advisoryExit": 0,
+          "advisoryType": "refactor",
+          "advisoryState": "COMPLETE",
+          "approvalExit": 0,
+          "executeExit": 0,
+          "approvedPlan": {
+            "summary": "advisory synthetic approved plan",
+            "files": [
+              {
+                "path": "test/fixtures/claudito-approved-route-runtime/refactor.js",
+                "changes": [],
+                "dependencies": [],
+                "test": ""
+              }
+            ],
+            "ordering": [
+              "test/fixtures/claudito-approved-route-runtime/refactor.js"
+            ],
+            "verification": "synthetic smoke boundary"
+          },
+          "finalPlan": {
+            "summary": "advisory synthetic approved plan",
+            "files": [
+              {
+                "path": "test/fixtures/claudito-approved-route-runtime/refactor.js",
+                "changes": [],
+                "dependencies": [],
+                "test": ""
+              }
+            ],
+            "ordering": [
+              "test/fixtures/claudito-approved-route-runtime/refactor.js"
+            ],
+            "verification": "synthetic smoke boundary"
+          },
+          "finalType": "refactor",
+          "finalState": "COMPLETE",
+          "stopped": {
+            "stop": false
+          },
+          "successPrinted": true,
+          "stages": [
+            "/locator",
+            "/fixer",
+            "/debugger",
+            "/critic",
+            "/validator",
+            "/forensics",
+            "/debugger",
+            "/scribe",
+            "/janitor",
+            "/warden"
+          ],
+          "providerRoles": [],
+          "writes": 1,
+          "content": "module.exports = 1;\n// synthetic approved note\n",
+          "fixes": []
+        },
+        {
+          "scenario": "refactor_repeat_refused",
+          "exitCode": 1,
+          "eventsAdded": 0,
+          "contentUnchanged": true
+        },
+        {
+          "scenario": "refactor_writer_verification_failure",
+          "exitCode": 1,
+          "state": "HALTED",
+          "stopped": {
+            "stop": true,
+            "reason": "Verification tests failed"
+          },
+          "stages": [
+            "/locator",
+            "/fixer"
+          ],
+          "content": "module.exports = 1;\n",
+          "successPrinted": false
+        },
+        {
+          "scenario": "unidentified_approved_route_refused",
+          "exitCode": 1,
+          "eventsAdded": 0,
+          "mode": "ADVISORY"
+        },
+        {
+          "scenario": "bugfix",
+          "advisoryExit": 0,
+          "advisoryType": "bugfix",
+          "advisoryState": "COMPLETE",
+          "approvalExit": 0,
+          "executeExit": 0,
+          "approvedPlan": {
+            "summary": "advisory synthetic approved plan",
+            "files": [
+              {
+                "path": "test/fixtures/claudito-approved-route-runtime/bugfix.js",
+                "changes": [],
+                "dependencies": [],
+                "test": ""
+              }
+            ],
+            "ordering": [
+              "test/fixtures/claudito-approved-route-runtime/bugfix.js"
+            ],
+            "verification": "synthetic smoke boundary"
+          },
+          "finalPlan": {
+            "summary": "advisory synthetic approved plan",
+            "files": [
+              {
+                "path": "test/fixtures/claudito-approved-route-runtime/bugfix.js",
+                "changes": [],
+                "dependencies": [],
+                "test": ""
+              }
+            ],
+            "ordering": [
+              "test/fixtures/claudito-approved-route-runtime/bugfix.js"
+            ],
+            "verification": "synthetic smoke boundary"
+          },
+          "finalType": "bugfix",
+          "finalState": "COMPLETE",
+          "stopped": {
+            "stop": false
+          },
+          "successPrinted": true,
+          "stages": [
+            "/exterminator",
+            "/debugger",
+            "/validator",
+            "/forensics",
+            "/cicd",
+            "/scribe",
+            "/janitor",
+            "/warden"
+          ],
+          "providerRoles": [
+            "forensics"
+          ],
+          "writes": 1,
+          "content": "module.exports = 2;\n",
+          "fixes": [
+            {
+              "file": "test/fixtures/claudito-approved-route-runtime/bugfix.js",
+              "type": "REPLACE",
+              "lines": "1-1",
+              "backup": "/opt/ogzprime/OGZPMLV2/test/fixtures/claudito-approved-route-runtime/bugfix.js.pre-brainbug-1795641622741",
+              "applied": true,
+              "patch": "REPLACE"
+            }
+          ]
+        },
+        {
+          "scenario": "bugfix_repeat_refused",
+          "exitCode": 1,
+          "eventsAdded": 0,
+          "contentUnchanged": true
+        },
+        {
+          "scenario": "bugfix_writer_verification_failure",
+          "exitCode": 1,
+          "state": "HALTED",
+          "stopped": {
+            "stop": true,
+            "reason": "Verification tests failed"
+          },
+          "stages": [
+            "/exterminator"
+          ],
+          "content": "module.exports = 1;\n",
+          "successPrinted": false
+        },
+        {
+          "scenario": "same_file_multiple_edits_rollback",
+          "exitCode": 1,
+          "state": "HALTED",
+          "stopped": {
+            "stop": true,
+            "reason": "Verification tests failed"
+          },
+          "original": "const first = 1;\nconst second = 1;\nmodule.exports = { first, second };\n",
+          "content": "const first = 1;\nconst second = 1;\nmodule.exports = { first, second };\n",
+          "reportedApplied": [],
+          "restoredOriginal": true
+        }
+      ]
+    },
+    "exact_write_regression": {
+      "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-25/claudito-completion/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-25/claudito-completion/fixtures/observe.cjs --expect-repair",
+      "exit_code": 0,
+      "fixture_sha256": "b87efbd5cac4a002f25e586516e83f13d0973678811877458908f54e28ccaf4c",
+      "full_observation_count": 21,
+      "write_observations": [
+        {
+          "name": "failed-write-review",
+          "exitCode": 1,
+          "state": "HALTED",
+          "successPrinted": false,
+          "stopped": {
+            "stop": true,
+            "reason": "Mercury review did not complete: Synthetic provider unavailable"
+          },
+          "review": {
+            "error": "Synthetic provider unavailable",
+            "dispatched": false
+          },
+          "report": null,
+          "target": "module.exports = 'after';\n",
+          "providerCalls": 1,
+          "wardenReached": false,
+          "finalApproval": false,
+          "debuggerReached": false
+        },
+        {
+          "name": "returned-error-write-review",
+          "exitCode": 1,
+          "state": "HALTED",
+          "successPrinted": false,
+          "stopped": {
+            "stop": true,
+            "reason": "Mercury review did not complete: Mercury returned no completed answer (error)"
+          },
+          "review": {
+            "dispatched": true,
+            "completed": false,
+            "termination": "error",
+            "error": "Mercury returned no completed answer (error)",
+            "targets": [
+              "test/fixtures/claudito-completion-runtime/returned-error-write-review.js"
+            ],
+            "iterations": 1,
+            "elapsedMs": 1,
+            "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-returned-error-write-review-attack-2026-11-25T21-20-53-111Z.md",
+            "findingsCount": 0,
+            "blastRadius": [
+              {
+                "file": "test/fixtures/claudito-completion-runtime/returned-error-write-review.js",
+                "callerCount": 0,
+                "riskLevel": "fixture",
+                "latencyMs": 0,
+                "summary": "Synthetic external boundary"
+              }
+            ]
+          },
+          "report": null,
+          "target": "module.exports = 'after';\n",
+          "providerCalls": 1,
+          "wardenReached": false,
+          "finalApproval": false,
+          "debuggerReached": false
+        },
+        {
+          "name": "successful-write-review",
+          "exitCode": 0,
+          "state": "COMPLETE",
+          "successPrinted": true,
+          "stopped": {
+            "stop": false
+          },
+          "review": {
+            "dispatched": true,
+            "completed": true,
+            "termination": "answer_given",
+            "targets": [
+              "test/fixtures/claudito-completion-runtime/successful-write-review.js"
+            ],
+            "iterations": 20,
+            "elapsedMs": 0,
+            "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-successful-write-review-attack-2026-11-25T21-20-54-469Z.md",
+            "findingsCount": 0,
+            "blastRadius": [
+              {
+                "file": "test/fixtures/claudito-completion-runtime/successful-write-review.js",
+                "callerCount": 0,
+                "riskLevel": "fixture",
+                "latencyMs": 0,
+                "summary": "Synthetic external boundary"
+              }
+            ]
+          },
+          "report": {
+            "gate": "clean",
+            "reason": "No findings, no infra error, no truncation suspicion",
+            "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-successful-write-review-attack-2026-11-25T21-20-54-469Z.md",
+            "findingsScore": 0,
+            "breakdown": {
+              "numberedBullets": 0,
+              "tableRows": 0,
+              "adversarialHits": 0,
+              "fileLineCitations": 0
+            },
+            "verdictBodyLength": 62,
+            "iterations": 20,
+            "report_required": true,
+            "timestamp": "2026-11-25T21:20:54.472Z"
+          },
+          "target": "module.exports = 'after';\n",
+          "providerCalls": 1,
+          "wardenReached": true,
+          "finalApproval": true,
+          "debuggerReached": true
+        }
+      ],
+      "source_sha256": {
+        "ogz-meta/pipeline.js": "cecbe2ef77952c87555343ee13d4f23c20b6e70b2c66daaa001141fc1c230be0",
+        "ogz-meta/slash-router.js": "e9b30f94b39f7ad5b9ab1be308275f92ac3b654c427540d71e3b7ecf715c6b99"
+      }
+    }
+  },
+  "host_preservation": {
+    "current_manifest_sha256": "97c793a43949dae932606a73e93845edf82a1681d5a97fe215db57b661af5af4",
+    "current_manifest_mtime": "2026-10-15T15:32:05.060840+00:00",
+    "synthetic_targets_exist": false
+  },
+  "limits": [
+    "All authoring/role provider replies were synthetic. No live authoring model calls, production writes, real operator approvals, Jest or PM2 operations.",
+    "Smoke verification and ledger/context subprocesses were explicit synthetic boundaries. The syntax-only check ran in isolation. Debugger host subprocess isolation and its inherited broad npm/Jest sweep remain a separate concrete repair.",
+    "Generic approval still has no immutable proposal/source hash binding; the exact-spec binding is unchanged. No full live swarm certification.",
+    "Existing content matching uses normalized whitespace and bounded line relocation; transactional crash/concurrency behavior and malformed completed model answers were not certified.",
+    "Legacy replacement application remains callable through direct exterminator on legacy untyped manifests without proposals; it is not the normal typed approved route. No broad cleanup."
+  ],
+  "reviews": {
+    "independent": {
+      "reviewer": "/root/claudito_candidate_review",
+      "outcome": "No further positive finding within corrected bounded scope",
+      "finding": "Same-file multiple-edit rollback restored intermediate source while reporting no applied fixes.",
+      "resolution": "One original backup per joined target path.",
+      "verification": "Independently matched exact source, patch and fixture hashes and reran supplied isolated fixture; exit0; all eight source/persistence observations satisfied.",
+      "remaining_limits": "Synthetic providers/smoke, generic immutable approval binding, malformed completed model answers, debugger policy, live provider behavior, crash/concurrent writes remain excluded."
+    },
+    "mercury": {
+      "run_id": "2026-11-25T21-25-17-323Z-6c764e09bad7",
+      "candidate_tree": "13667ad8f52ec559cb689d58b2c6671e283de528",
+      "base_commit": "82ef68c3705aa7dd1509b54926554a0542bc7719",
+      "base_tree": "dbf1de44bb6f9da6faf47ccbbcbf35ac65e78785",
+      "source_manifest": {
+        "source": "explicit_change_paths",
+        "paths": [
+          "ogz-meta/pipeline.js",
+          "ogz-meta/slash-router.js"
+        ],
+        "tree": "13667ad8f52ec559cb689d58b2c6671e283de528",
+        "baseTree": "dbf1de44bb6f9da6faf47ccbbcbf35ac65e78785",
+        "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-25T21-22-46-679Z-2935787-597d04fd1ee7/source-e7LwJf.json",
+        "manifestSha256": "e9232512b269a7592c6085275171842f777e2605979eed56dab1e2b60b4af84e"
+      },
+      "provider": "mercury",
+      "requested_model": "mercury-3",
+      "applied_models": [
+        "mercury-3"
+      ],
+      "max_tokens": 7750,
+      "max_iterations": null,
+      "iterations": 25,
+      "termination": "error",
+      "verdict": "review_incomplete",
+      "seat_status": "failed",
+      "absence": "reviewer_answer_absent",
+      "stopped_because": "length: hit 7750-token cap",
+      "answer": "(Mercury call failed: Provider response terminated before completion)",
+      "tool_calls": 34,
+      "tool_failures": 0,
+      "run_checks": 0,
+      "run_cost": {
+        "amount": 0.12196554,
+        "currency": "USD",
+        "complete": true,
+        "priced_attempts": 27,
+        "total_attempts": 27,
+        "cost_absences": []
+      },
+      "run_tokens": {
+        "input": 1291506,
+        "uncached_input": 1045458,
+        "cached_input": 246048,
+        "output": 42980,
+        "total": 1334486,
+        "complete": true,
+        "attempts_with_usage": 27,
+        "total_attempts": 27
+      },
+      "inherited_harness": {
+        "path": "trai_brain/mercury-bridge/react-loop.js",
+        "sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+      },
+      "full_log_read": true,
+      "repeat_dispatches": 0
+    }
+  },
+  "runtime_activation": "none",
+  "review_correction": {
+    "finding": "Two proposals for one file followed by smoke failure restored an intermediate edit while reporting no applied fixes.",
+    "pre_correction_observation": {
+      "scenario": "same_file_multiple_edits_rollback",
+      "exitCode": 1,
+      "state": "HALTED",
+      "stopped": {
+        "stop": true,
+        "reason": "Verification tests failed"
+      },
+      "original": "const first = 1;\nconst second = 1;\nmodule.exports = { first, second };\n",
+      "content": "const first = 1;\nconst second = 2;\nmodule.exports = { first, second };\n",
+      "reportedApplied": [],
+      "restoredOriginal": false,
+      "source_sha256": {
+        "ogz-meta/pipeline.js": "cecbe2ef77952c87555343ee13d4f23c20b6e70b2c66daaa001141fc1c230be0",
+        "ogz-meta/slash-router.js": "fb0063ff0b916f7efbc73bba4af8dc69a72c9accffeb6259fa4cc3bcc4a316a1"
+      },
+      "fixture_sha256": "cdea84a1e736d485e4d493c1f9a51bc267e6bdaace9cb7a619ec99361e6f4b79"
+    },
+    "change": "Existing verified-edit writer retains one original backup per target for the invocation.",
+    "post_correction_observation": {
+      "scenario": "same_file_multiple_edits_rollback",
+      "exitCode": 1,
+      "state": "HALTED",
+      "stopped": {
+        "stop": true,
+        "reason": "Verification tests failed"
+      },
+      "original": "const first = 1;\nconst second = 1;\nmodule.exports = { first, second };\n",
+      "content": "const first = 1;\nconst second = 1;\nmodule.exports = { first, second };\n",
+      "reportedApplied": [],
+      "restoredOriginal": true
+    }
+  },
+  "delivery": {
+    "classification": "non-production authoring helper",
+    "applicable_rules": [
+      "ogz-meta/AGENTS.md:232",
+      "ogz-meta/AGENTS.md:274",
+      "AGENTS.md:141-143",
+      "AGENTS.md:186-191"
+    ],
+    "required_evidence": "Exact-source independent review and actual isolated behavior verification completed. Existing approval/manifest/staging/Mercury workflow gates remain preserved.",
+    "mercury_accounting": "The optional focused Mercury call remained incomplete with an absent answer. The earlier delivery hold overapplied the production rule; no clean-review claim or policy exception is used.",
+    "runtime_activation": "none"
+  }
+}

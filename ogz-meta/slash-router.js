@@ -866,10 +866,11 @@ function runSmokeTest() {
 async function exterminator(manifest, params) {
   const bugs = manifest.entomologist.bugs_found || [];
   const fixes = [];
+  let proposals = manifest.exterminator.proposals || [];
 
   // ADVISORY MODE (default): Call Mercury for intelligent fix proposals
   if (manifest.mode === 'ADVISORY' || !manifest.mode) {
-    let proposals = [];
+    proposals = [];
 
     if (bugs.length > 0) {
       const { callMercury } = require('./cognition/mercury-bridge');
@@ -893,6 +894,7 @@ async function exterminator(manifest, params) {
         proposals = (result.data.proposals || []).map(p => ({
           bug_id: p.bug_id,
           location: `${p.file}:${p.line_start}`,
+          line_end: p.line_end || p.line_start + p.current_code.split('\n').length - 1,
           description: p.rationale,
           proposed_fix: p.proposed_code,
           code: p.current_code,
@@ -938,6 +940,50 @@ async function exterminator(manifest, params) {
     if (manifest.approval?.status !== 'APPROVED') {
       console.log(`🛑 Exterminator: BLOCKED - requires human approval first`);
       manifest.stop_conditions.warden_blocked = true;
+      return manifest;
+    }
+
+    // Execute the recorded proposal with the existing verified-edit writer.
+    // Keep that writer's local result separate from the mission's fixer role.
+    if (proposals.length > 0 || manifest.pipeline_type === 'bugfix') {
+      if (proposals.length === 0) {
+        if (bugs.length > 0) manifest.stop_conditions.manifest_mismatch = true;
+        updateSection(manifest, 'exterminator', {
+          fixes_applied: [], patches: [], proposals,
+          error: bugs.length > 0 ? 'Recorded bugs have no approved proposals to execute' : null,
+          smoke_test: 'SKIPPED'
+        });
+        return manifest;
+      }
+      const execution = {
+        ...manifest,
+        fixer: {
+          edits: proposals.map(proposal => {
+            const separator = proposal.location.lastIndexOf(':');
+            const lineStart = Number(proposal.location.slice(separator + 1));
+            return {
+              file: proposal.location.slice(0, separator),
+              line_start: lineStart,
+              line_end: proposal.line_end || lineStart + proposal.code.split('\n').length - 1,
+              current_code: proposal.code,
+              new_code: proposal.proposed_fix
+            };
+          })
+        }
+      };
+      await fixer(execution, params);
+      const applied = execution.fixer.changes_applied || [];
+      const error = execution.fixer.error || (applied.length !== proposals.length ? 'Not every recorded proposal was applied' : null);
+      if (error) manifest.stop_conditions.verification_failed = true;
+      manifest.artifacts.files_modified = [...new Set([
+        ...manifest.artifacts.files_modified, ...applied.map(change => change.file)
+      ])];
+      updateSection(manifest, 'exterminator', {
+        fixes_applied: applied.map(change => ({ ...change, applied: true, patch: change.type })),
+        patches: applied.map(change => change.type), proposals, error,
+        smoke_test: error ? 'FAILED' : 'PASSED'
+      });
+      console.log(`Exterminator: Applied ${applied.length}/${proposals.length} recorded proposals`);
       return manifest;
     }
 
@@ -1278,6 +1324,7 @@ async function fixer(manifest, params) {
   if (mercuryEdits.length > 0) {
     console.log(`🧠 Fixer: Applying ${mercuryEdits.length} Mercury-verified edits`);
     const appliedChanges = [];
+    const originalBackups = new Map();
 
     // Group edits by file and sort descending by line_start
     // so earlier edits don't shift later edits' positions
@@ -1304,17 +1351,22 @@ async function fixer(manifest, params) {
             console.log(`   ↩️  Rolled back: ${prev.file}`);
           }
         }
+        manifest.stop_conditions.verification_failed = true;
         updateSection(manifest, 'fixer', { changes_applied: [], error: `File not found: ${edit.file}`, rollback: true });
         return manifest;
       }
 
-      // Backup before edit
-      const backupPath = filePath + '.pre-brainbug-' + Date.now();
-      fs.copyFileSync(filePath, backupPath);
+      // Every edit to a target shares its original pre-write backup.
+      let backupPath = originalBackups.get(filePath);
+      if (!backupPath) {
+        backupPath = filePath + '.pre-brainbug-' + Date.now();
+        fs.copyFileSync(filePath, backupPath);
+        originalBackups.set(filePath, backupPath);
+      }
 
       let content = fs.readFileSync(filePath, 'utf8');
-      const before = (edit.current_code || '').trim();
-      const after = (edit.new_code || '').trim();
+      const before = edit.current_code || '';
+      const after = edit.new_code || '';
 
       if (!before || !after) {
         // New code insertion (no before block) — append after the file's last line matching context
@@ -1410,6 +1462,7 @@ async function fixer(manifest, params) {
             console.log(`   ↩️  Rolled back: ${prev.file}`);
           }
         }
+        manifest.stop_conditions.verification_failed = true;
         updateSection(manifest, 'fixer', { changes_applied: [], error: `Content mismatch at ${edit.file}:${lineStart}-${lineEnd}`, rollback: true });
         return manifest;
       }
@@ -1430,6 +1483,7 @@ async function fixer(manifest, params) {
             console.log(`   ↩️  Rolled back: ${change.file}`);
           }
         }
+        manifest.stop_conditions.verification_failed = true;
         updateSection(manifest, 'fixer', { changes_applied: [], error: 'Smoke test failed after Mercury edits', rollback: true });
         return manifest;
       }
