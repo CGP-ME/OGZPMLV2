@@ -1,0 +1,94 @@
+{
+  "capturedAt": "2026-11-25T21:51:56.998620+00:00",
+  "scope": "Repair existing isolated smoke helper inputs and claims; no runtime source or configuration edits",
+  "headAtObservation": "82ef68c3705aa7dd1509b54926554a0542bc7719",
+  "sourceKind": "tracked working-tree bytes copied by existing isolation launcher; inherited production edits are present and not certified by this helper",
+  "sourceHashes": {
+    "scripts/smoke-test.js": "e3328d8cc32630935b3653fda06cc75c78bf517e31ade24a91dfe312f809647b",
+    "scripts/test-isolated.py": "e8c670179485432d7b42652eea2197a6a1e9aa57d751a012e0520b31c222c7b5",
+    "test/helpers/require-isolation.cjs": "00d1527890e1658f67d40af562fd7397f7e3dd53fb37d41e08bf7480560672ee",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+    "core/StrategyOrchestrator.js": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b",
+    "core/TradingLoop.js": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81",
+    "core/indicators/IndicatorEngine.js": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3",
+    "core/ExitContractManager.js": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf",
+    "modules/MultiTimeframeAdapter.js": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+    "modules/MADynamicSR.js": "3ffcd8c3eb4b06520f2567848b42bdd9d50cc4d8852bcf0230e8519d354cee1a",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "baseline": {
+    "capturedAt": "2026-11-25T21:41:59.625242+00:00",
+    "path": "scripts/smoke-test.js",
+    "sha256": "19416e0cb52d34c0a425921349903fbedf926b49ef149e993f10c712222fc9b0",
+    "observations": [
+      "../claudito-verification-isolation/real-existing-smoke.log",
+      "../claudito-verification-isolation/real-existing-smoke-with-fixture.log"
+    ]
+  },
+  "command": "python3 scripts/test-isolated.py -- node scripts/smoke-test.js",
+  "actualResult": {
+    "exitCode": 0,
+    "requiredObservationsPassed": 12,
+    "failed": 0,
+    "optionalSkipped": 1,
+    "warnings": 0,
+    "logSha256": "dab8a112e1963fe088908d61816241cb32e817589b2116de2320b36a8dde9784",
+    "logLocalOnly": "candidate-final.log"
+  },
+  "observedBehavior": [
+    "Existing isolation guard runs before module imports or synthetic dotenv creation.",
+    "Only disposable snapshot receives explicit synthetic paper credentials, candles and positions; canonical config values are read without test overrides.",
+    "Selected production modules load in specified require orders. This does not prove an acyclic dependency graph.",
+    "Indicator snapshot contains finite RSI and EMA and positive finite ATR.",
+    "EMA, MA dynamic support/resistance and liquidity-sweep modules process deterministic 15m history using current constructor contracts.",
+    "Orchestrator consumes its own captured MTF snapshot from that 15m history and returns HOLD; no strategy-unavailable errors were emitted in this observation.",
+    "A separately specified synthetic long with an EMA-owned exit contract requests stop_loss when the supplied price crosses its configured stop.",
+    "Missing optional Bombardier cache is SKIPPED, not counted as a passed orphan-code inspection."
+  ],
+  "producerEvidence": {
+    "indicatorConfig": "run-empire-v2.js:426-430",
+    "emaConfig": "core/StrategyOrchestrator.js:459-465",
+    "maConfigProvider": "core/StrategyOrchestrator.js:848-850",
+    "mtfSnapshot": "core/TradingLoop.js:1038 and :1360; core/StrategyOrchestrator.js:985-1004",
+    "exitContract": "core/ExitContractManager.js:267 and :329",
+    "feeSigns": "foundation/ConfigLoader.js:1867-1874",
+    "configuredExitSigns": "foundation/ConfigLoader.js:2615 and :2664"
+  },
+  "limits": [
+    "Synthetic 15m history only; higher-frame readiness and live broker delivery are not certified.",
+    "No entry order was placed; existing-position stop request is a separate observation, not a demonstrated full trade lifecycle.",
+    "No learned pattern banks, live credentials, host state, real journal, network or PM2 access in helper sandbox.",
+    "No complete strategy audit, live exit execution, broker reconciliation, exhaustive cycle analysis or Stop 2 acceptance claim.",
+    "Optional cached graph inspection unavailable; no graph build or orphan-code certification.",
+    "Baseline source and raw local observations remain outside the commit."
+  ],
+  "independentReview": {
+    "status": "complete",
+    "conclusion": "No remaining positive scoped defect after the reporting corrections",
+    "sourceSha256": "e3328d8cc32630935b3653fda06cc75c78bf517e31ade24a91dfe312f809647b",
+    "receipt": "independent-review.json",
+    "receiptSha256": "cc3be099db008fe33576355c167366bc3264fb15a273e586101357b7be49e37b",
+    "failurePropagation": {
+      "helper_exit_code": 1,
+      "passed": 10,
+      "failed": 2,
+      "skipped": 1,
+      "warnings": 0,
+      "induced_refusals": 2,
+      "completion_banner_printed": false,
+      "failed_observations": [
+        "ExitContractManager requests a stop for a fully specified long position",
+        "Strategy evaluation and an explicitly owned position produce separate outcomes"
+      ]
+    },
+    "changesFromInitialReview": "Corrected signal/config labels to match actual assertions and removed obsolete diagnostics assertion."
+  },
+  "delivery": {
+    "kind": "non-production authoring helper",
+    "applicableRule": "ogz-meta/AGENTS.md:232,274",
+    "state": "verified; atomic commit and remote confirmation next"
+  },
+  "runtimeActivation": "not applicable to helper; no PM2 operation performed",
+  "headAtDeliveryPreparation": "ae559fca61c93389911f77cacc45b5024e544405"
+}

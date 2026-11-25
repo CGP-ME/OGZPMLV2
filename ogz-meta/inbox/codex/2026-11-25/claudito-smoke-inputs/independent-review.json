@@ -1,0 +1,100 @@
+{
+  "recorded_at_utc": "2026-11-25T21:50:45Z",
+  "reviewer": "/root/claudito_candidate_review",
+  "scope": "Independent review of scripts/smoke-test.js inputs, reporting and host containment through the existing isolation launcher",
+  "final_source_sha256": "e3328d8cc32630935b3653fda06cc75c78bf517e31ade24a91dfe312f809647b",
+  "conclusion": "No remaining positive scoped defect after the reporting corrections",
+  "induced_refusal": {
+    "cwd": "/opt/ogzprime/OGZPMLV2",
+    "exact_command_argv": [
+      "python3",
+      "scripts/test-isolated.py",
+      "--",
+      "node",
+      "-e",
+      "\nrequire('./test/helpers/require-isolation.cjs')();\nconst Module = require('module');\nconst path = require('path');\nconst load = Module._load;\nconst target = path.resolve('core/ExitContractManager');\nlet refusals = 0;\nModule._load = function(request, parent, isMain) {\n  const loaded = load.apply(this, arguments);\n  if (request !== target) return loaded;\n  return { ...loaded, getInstance(...args) {\n    const manager = loaded.getInstance(...args);\n    return {\n      getDefaultContract: manager.getDefaultContract.bind(manager),\n      checkExitConditions(trade, ...rest) {\n        if (trade && String(trade.id).startsWith('synthetic-smoke-')) {\n          refusals++;\n          return { shouldExit: false, exitReason: null, details: 'Review-induced refusal for synthetic smoke position' };\n        }\n        return manager.checkExitConditions(trade, ...rest);\n      }\n    };\n  } };\n};\nprocess.on('exit', code => console.log('REVIEW_EXIT_CONTROL=' + JSON.stringify({refusals, exitCode: code})));\nrequire('./scripts/smoke-test.js');\n"
+    ],
+    "started_at_utc": null,
+    "completed_at_utc": null,
+    "timestamp_limit": "The completed run did not record exact start or finish timestamps. This receipt records its creation time; no test was repeated to manufacture execution timestamps.",
+    "execution_receipt": {
+      "session_id": 62614,
+      "completion_chunk_id": "c81702"
+    },
+    "result": {
+      "helper_exit_code": 1,
+      "passed": 10,
+      "failed": 2,
+      "skipped": 1,
+      "warnings": 0,
+      "induced_refusals": 2,
+      "completion_banner_printed": false,
+      "failed_observations": [
+        "ExitContractManager requests a stop for a fully specified long position",
+        "Strategy evaluation and an explicitly owned position produce separate outcomes"
+      ]
+    },
+    "boundary": "Only the two named synthetic smoke positions received an induced refusal. Canonical getDefaultContract remained real; other module and indicator observations ran inside the actual launcher."
+  },
+  "containment_evidence": {
+    "guard": {
+      "source": "scripts/smoke-test.js:13",
+      "helper": "test/helpers/require-isolation.cjs",
+      "helper_sha256": "00d1527890e1658f67d40af562fd7397f7e3dd53fb37d41e08bf7480560672ee",
+      "observation": "The existing guard verifies the marker, project cwd and distinct mount, network and PID namespaces before synthetic dotenv creation or production module imports. The induced-refusal command also invokes it before installing its sandbox-only interception."
+    },
+    "source_sha256_before_and_after_run": "e3328d8cc32630935b3653fda06cc75c78bf517e31ade24a91dfe312f809647b",
+    "host_files_unchanged_during_run": true,
+    "invariance_method": "The host wrapper compared SHA-256 and modification time before and after the run for .env and ogz-meta/manifests/current.json; it printed HOST_FILES_UNCHANGED True. Per-file digest values were not printed during that run.",
+    "host_sha256_recorded_at_utc": "2026-11-25T21:50:45Z",
+    "host_sha256_at_receipt_creation": {
+      ".env": "4e20778eebb023e7256bfc959d9fa11f0c0a56e99a534207db80e7d1e55a01ec",
+      "ogz-meta/manifests/current.json": "97c793a43949dae932606a73e93845edf82a1681d5a97fe215db57b661af5af4"
+    },
+    "content_limit": "No raw dotenv or manifest content is included."
+  },
+  "reporting_findings_and_resolution": [
+    {
+      "finding": "MADynamicSR observation claimed swing data, but its conditional diagnostics.swingCount assertion read a field absent from update results.",
+      "evidence": [
+        "scripts/smoke-test.js:256",
+        "modules/MADynamicSR.js:1110",
+        "modules/MADynamicSR.js:1130"
+      ],
+      "resolution": "Label now states that candles are processed and a result returned; obsolete conditional assertion removed."
+    },
+    {
+      "finding": "LiquiditySweep observation claimed level tracking while checking only returned signal availability.",
+      "evidence": [
+        "scripts/smoke-test.js:271"
+      ],
+      "resolution": "Label now states that candles are processed and signal availability returned."
+    },
+    {
+      "finding": "Configured-key observation wording overstated its existence-only assertions.",
+      "evidence": [
+        "scripts/smoke-test.js:166"
+      ],
+      "resolution": "Label now states that selected configured strategies expose required keys."
+    }
+  ],
+  "normal_run_evidence_read": {
+    "observer": "root",
+    "log": "candidate-final.log",
+    "result": "12 required observations passed, 0 failed, 1 optional graph skip, 0 warnings; strategy HOLD and independent stop_loss request observed"
+  },
+  "limits": [
+    "Synthetic 15m history, credentials and positions only; no live order, broker reconciliation, native-feed readiness, complete strategy correctness or full trade lifecycle claim.",
+    "An existing-position stop request is independent of the strategy HOLD observation; no entry execution was demonstrated.",
+    "Optional graph inspection was skipped and no orphan-code or complete dependency-cycle proof was produced.",
+    "The normal final run was read from root's log; the independent execution was the single induced-refusal control described above.",
+    "Working source snapshot includes inherited production edits; this helper review does not certify those edits.",
+    "The isolation guard is enforced through the existing launcher; this is not a claim against an operator deliberately bypassing host controls."
+  ],
+  "actions": {
+    "further_tests_for_receipt": false,
+    "production_source_or_index_changes": false,
+    "model_calls": false,
+    "sole_output": "ogz-meta/inbox/codex/2026-11-25/claudito-smoke-inputs/independent-review.json"
+  }
+}
