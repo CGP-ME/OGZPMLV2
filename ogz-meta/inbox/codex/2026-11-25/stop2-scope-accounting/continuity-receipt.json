@@ -1,0 +1,394 @@
+{
+  "checkedAt": "2026-11-25T20:09:53.938733+00:00",
+  "head": "4b8ddd7d1d6c95dde71f7de3f06dc05b72ef6653",
+  "branch": "codex/archive-legacy-env",
+  "activationBaseline": "ogz-meta/inbox/codex/2026-11-24/stop2-native-outage/preflight.json",
+  "sourceFilesChecked": 58,
+  "sourceDrift": [],
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restartCount": 3,
+      "startedEpochMs": 1795285977878
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restartCount": 5,
+      "startedEpochMs": 1795307302189
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restartCount": 3,
+      "startedEpochMs": 1795285977962
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2749836,
+      "status": "online",
+      "restartCount": 12,
+      "startedEpochMs": 1795559571579
+    }
+  ],
+  "manifest": [
+    {
+      "path": "TierFeatureFlags.js",
+      "expected": "273c3be752a94d47244596c8b0cc0961d291c53a3390d305813abb81d01f3d55",
+      "actual": "273c3be752a94d47244596c8b0cc0961d291c53a3390d305813abb81d01f3d55",
+      "matches": true
+    },
+    {
+      "path": "brokers/AlpacaAdapter.js",
+      "expected": "87f773804050212565aec95bb55baef33e936d5cd939fb535f9288c621cc1e68",
+      "actual": "87f773804050212565aec95bb55baef33e936d5cd939fb535f9288c621cc1e68",
+      "matches": true
+    },
+    {
+      "path": "brokers/IBrokerAdapter.js",
+      "expected": "b6d7f6bc4be2a966138f374dd0335afb7b9ce11214af262874cf77833774cd8b",
+      "actual": "b6d7f6bc4be2a966138f374dd0335afb7b9ce11214af262874cf77833774cd8b",
+      "matches": true
+    },
+    {
+      "path": "brokers/KrakenIBrokerAdapter.js",
+      "expected": "d5ca07e3fb010ab4e3354562218a4dd7cb98dca860852b5735ca0aa9ff0e2398",
+      "actual": "d5ca07e3fb010ab4e3354562218a4dd7cb98dca860852b5735ca0aa9ff0e2398",
+      "matches": true
+    },
+    {
+      "path": "config/internals.json",
+      "expected": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+      "actual": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+      "matches": true
+    },
+    {
+      "path": "config/settings.json",
+      "expected": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+      "actual": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+      "matches": true
+    },
+    {
+      "path": "core/BacktestRunner.js",
+      "expected": "251a095951d2b2fe686df147461d2dcc14d52b1b0b11178e5c71f2b8d2fc9d0e",
+      "actual": "251a095951d2b2fe686df147461d2dcc14d52b1b0b11178e5c71f2b8d2fc9d0e",
+      "matches": true
+    },
+    {
+      "path": "core/CandleProcessor.js",
+      "expected": "76a36c198ffc850542d48946e0cfc785d15f0955bfa9b3faa0c4630b93aa2b37",
+      "actual": "76a36c198ffc850542d48946e0cfc785d15f0955bfa9b3faa0c4630b93aa2b37",
+      "matches": true
+    },
+    {
+      "path": "core/CandleStore.js",
+      "expected": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "actual": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0",
+      "matches": true
+    },
+    {
+      "path": "core/CryptoMarketFeed.js",
+      "expected": "62cf9a4840c9ea8519c752ac09bd6854aba0b4887c5bb336cec50194dd74b489",
+      "actual": "62cf9a4840c9ea8519c752ac09bd6854aba0b4887c5bb336cec50194dd74b489",
+      "matches": true
+    },
+    {
+      "path": "core/DashboardBroadcaster.js",
+      "expected": "bb3c6543e1de4a156617e65bf86b6dcce8d23b1f3fefe5f2d642592076542b0b",
+      "actual": "bb3c6543e1de4a156617e65bf86b6dcce8d23b1f3fefe5f2d642592076542b0b",
+      "matches": true
+    },
+    {
+      "path": "core/EnhancedPatternRecognition.js",
+      "expected": "750cbb3a7b40056a949d70ead9249af65d5566c1b0751179eeccbd940e2c862e",
+      "actual": "750cbb3a7b40056a949d70ead9249af65d5566c1b0751179eeccbd940e2c862e",
+      "matches": true
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "expected": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf",
+      "actual": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf",
+      "matches": true
+    },
+    {
+      "path": "core/FibonacciDetector.js",
+      "expected": "c8973ba0b14ae27a1e7dca771b6189d72bf01cca5b28d5a1a4d42d98e4330330",
+      "actual": "c8973ba0b14ae27a1e7dca771b6189d72bf01cca5b28d5a1a4d42d98e4330330",
+      "matches": true
+    },
+    {
+      "path": "core/OptimizedIndicators.js",
+      "expected": "4d267fd3fc955b05e42732e02f679bb34cbfe91627b0078dcf784c5058df7c76",
+      "actual": "4d267fd3fc955b05e42732e02f679bb34cbfe91627b0078dcf784c5058df7c76",
+      "matches": true
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "expected": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1",
+      "actual": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1",
+      "matches": true
+    },
+    {
+      "path": "core/PerformanceAnalyzer.js",
+      "expected": "c7c39eca75304124e1f9f197d0cd885759115dc7b3ade45c1ba0c5a5b8214ab2",
+      "actual": "c7c39eca75304124e1f9f197d0cd885759115dc7b3ade45c1ba0c5a5b8214ab2",
+      "matches": true
+    },
+    {
+      "path": "core/ReplayClosedCandleBoundary.js",
+      "expected": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+      "actual": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e",
+      "matches": true
+    },
+    {
+      "path": "core/SessionRouter.js",
+      "expected": "06b732ad3ca24ef6274c03f847de1413edd355fa478e1933aa3cd3bd60634644",
+      "actual": "06b732ad3ca24ef6274c03f847de1413edd355fa478e1933aa3cd3bd60634644",
+      "matches": true
+    },
+    {
+      "path": "core/StateManager.js",
+      "expected": "fd0d1aa72f3916557b042b5caf6d23b31d6ddc85296621342757e958f7db4710",
+      "actual": "fd0d1aa72f3916557b042b5caf6d23b31d6ddc85296621342757e958f7db4710",
+      "matches": true
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "expected": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b",
+      "actual": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b",
+      "matches": true
+    },
+    {
+      "path": "core/SymbolTradingContext.js",
+      "expected": "b51a97564d335c1d1687f58de52abeadf80603ecc93def6f9d4792c7c73e117f",
+      "actual": "b51a97564d335c1d1687f58de52abeadf80603ecc93def6f9d4792c7c73e117f",
+      "matches": true
+    },
+    {
+      "path": "core/TRAIDecisionModule.js",
+      "expected": "b0f50bb1a43f353ce8608812815a24dc5a35f335bf69a08500b508b32209d701",
+      "actual": "b0f50bb1a43f353ce8608812815a24dc5a35f335bf69a08500b508b32209d701",
+      "matches": true
+    },
+    {
+      "path": "core/TradeJournalBridge.js",
+      "expected": "cbbb02e37d70cf1e55cff2a7b7b1323780c39c508b9b408d97ae71ac5654a752",
+      "actual": "cbbb02e37d70cf1e55cff2a7b7b1323780c39c508b9b408d97ae71ac5654a752",
+      "matches": true
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "expected": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81",
+      "actual": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81",
+      "matches": true
+    },
+    {
+      "path": "core/UnifiedPatternMemory.js",
+      "expected": "25129ac09fbf3f1e1c98e6d805cd6d2a8dce6e7165bb4eb0967bb58e9b15d712",
+      "actual": "25129ac09fbf3f1e1c98e6d805cd6d2a8dce6e7165bb4eb0967bb58e9b15d712",
+      "matches": true
+    },
+    {
+      "path": "core/WebSocketManager.js",
+      "expected": "318df3b733589c19862a36edd4e19189120e780e88ae8b8b8fe1a8777df7e98b",
+      "actual": "318df3b733589c19862a36edd4e19189120e780e88ae8b8b8fe1a8777df7e98b",
+      "matches": true
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "expected": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "actual": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "matches": true
+    },
+    {
+      "path": "core/indicators/IndicatorEngine.js",
+      "expected": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3",
+      "actual": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3",
+      "matches": true
+    },
+    {
+      "path": "core/persistent_llm_client.js",
+      "expected": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+      "actual": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+      "matches": true
+    },
+    {
+      "path": "core/trai_core.js",
+      "expected": "29d7f4df3e0380fd6875a8e8b26c6f0cce443a62692e62e9c749e768ab92e810",
+      "actual": "29d7f4df3e0380fd6875a8e8b26c6f0cce443a62692e62e9c749e768ab92e810",
+      "matches": true
+    },
+    {
+      "path": "ecosystem.config.js",
+      "expected": "26a2a68118ea16c2e3c06b75b51c3aed1fe89fc56fcb0912e5095fea9716b555",
+      "actual": "26a2a68118ea16c2e3c06b75b51c3aed1fe89fc56fcb0912e5095fea9716b555",
+      "matches": true
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "expected": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+      "actual": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+      "matches": true
+    },
+    {
+      "path": "foundation/IBrokerAdapter.js",
+      "expected": "9eeffd006e85cca9aa9dc8cdc2ec5d17a7b4d61a1bcb733d10c43741891d13eb",
+      "actual": "9eeffd006e85cca9aa9dc8cdc2ec5d17a7b4d61a1bcb733d10c43741891d13eb",
+      "matches": true
+    },
+    {
+      "path": "kraken_adapter_simple.js",
+      "expected": "2ceda5b63a87bc0e31ea9aecacfccde50022aaeacf190e8d9700e606eae9fc1d",
+      "actual": "2ceda5b63a87bc0e31ea9aecacfccde50022aaeacf190e8d9700e606eae9fc1d",
+      "matches": true
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "expected": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2",
+      "actual": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2",
+      "matches": true
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "expected": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+      "actual": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+      "matches": true
+    },
+    {
+      "path": "modules/MultiTimeframeAdapter.js",
+      "expected": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+      "actual": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a",
+      "matches": true
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "expected": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+      "actual": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+      "matches": true
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "expected": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+      "actual": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+      "matches": true
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "expected": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+      "actual": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+      "matches": true
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "expected": "0589e47ab9239a90e396a0764794ff1590e33ab6dbbbe146ebaacf7083874159",
+      "actual": "0589e47ab9239a90e396a0764794ff1590e33ab6dbbbe146ebaacf7083874159",
+      "matches": true
+    },
+    {
+      "path": "public/js/chart.js",
+      "expected": "b68f05a6242f73f414b1122091e5be2215f677b64af7fa23194597ce46f93b36",
+      "actual": "b68f05a6242f73f414b1122091e5be2215f677b64af7fa23194597ce46f93b36",
+      "matches": true
+    },
+    {
+      "path": "public/js/core.js",
+      "expected": "0470d22842d84762d4c117d8484f817dbd9819d5a6f4e9bbe515570a66942c90",
+      "actual": "0470d22842d84762d4c117d8484f817dbd9819d5a6f4e9bbe515570a66942c90",
+      "matches": true
+    },
+    {
+      "path": "public/js/indicators.js",
+      "expected": "0a6fbda2e5597ea36c35c61a58e9f10a35a25dddf43e93cf3a007dc45c357e1f",
+      "actual": "0a6fbda2e5597ea36c35c61a58e9f10a35a25dddf43e93cf3a007dc45c357e1f",
+      "matches": true
+    },
+    {
+      "path": "public/js/panels/chart-panel.js",
+      "expected": "9fdef0b1418f0713af349dad2b8b5cda9bbd927ff521e1f4e6463809134a3ae6",
+      "actual": "9fdef0b1418f0713af349dad2b8b5cda9bbd927ff521e1f4e6463809134a3ae6",
+      "matches": true
+    },
+    {
+      "path": "public/js/panels/edge-analytics-panel.js",
+      "expected": "5a72ee8a817539fbeace18eb61d480f4b494352beaff58d495951b3b6e2e9ee2",
+      "actual": "5a72ee8a817539fbeace18eb61d480f4b494352beaff58d495951b3b6e2e9ee2",
+      "matches": true
+    },
+    {
+      "path": "public/js/panels/edge-analytics.js",
+      "expected": "64b92db0f958ed406a70e5926aa268261899bc9c845b64139a332145148b3837",
+      "actual": "64b92db0f958ed406a70e5926aa268261899bc9c845b64139a332145148b3837",
+      "matches": true
+    },
+    {
+      "path": "public/js/websocket.js",
+      "expected": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532",
+      "actual": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532",
+      "matches": true
+    },
+    {
+      "path": "public/stripe-checkout.js",
+      "expected": "262a7b9a515f51539b71f13c6f53dfbcc102121800b591ac5641e199519203ef",
+      "actual": "262a7b9a515f51539b71f13c6f53dfbcc102121800b591ac5641e199519203ef",
+      "matches": true
+    },
+    {
+      "path": "public/unified-dashboard-v2.html",
+      "expected": "44ca3bb384237163220cdca0b92d6d4bd1082c571b260ded73c0e8be4e9c4f2f",
+      "actual": "44ca3bb384237163220cdca0b92d6d4bd1082c571b260ded73c0e8be4e9c4f2f",
+      "matches": true
+    },
+    {
+      "path": "public/unified-dashboard.html",
+      "expected": "9e81c19183d0d0b01464768f1abb5c78f61ac7945920ed2a1eaacbdcfbc3fcd4",
+      "actual": "9e81c19183d0d0b01464768f1abb5c78f61ac7945920ed2a1eaacbdcfbc3fcd4",
+      "matches": true
+    },
+    {
+      "path": "run-empire-v2.js",
+      "expected": "ac2d83efa4cbe0c7677dc0abeb443a9b3a63550cb9d402d825ef2ed076eb285f",
+      "actual": "ac2d83efa4cbe0c7677dc0abeb443a9b3a63550cb9d402d825ef2ed076eb285f",
+      "matches": true
+    },
+    {
+      "path": "scripts/supervisor-daemon.js",
+      "expected": "4da0a416174ab0aa9e4ef496215a4980db04cc5c82f91ab2a469e20e4cf4048c",
+      "actual": "4da0a416174ab0aa9e4ef496215a4980db04cc5c82f91ab2a469e20e4cf4048c",
+      "matches": true
+    },
+    {
+      "path": "server/dashboard-market-scope.js",
+      "expected": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c",
+      "actual": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c",
+      "matches": true
+    },
+    {
+      "path": "server/dashboard-stock-stream-config.js",
+      "expected": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+      "actual": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+      "matches": true
+    },
+    {
+      "path": "server/stock-data-adapter.js",
+      "expected": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6",
+      "actual": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6",
+      "matches": true
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "expected": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+      "actual": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+      "matches": true
+    }
+  ],
+  "limitations": [
+    "Source and process continuity only; PM2 online does not prove trading correctness.",
+    "Native data, browser and outage behavior rely on separately dated November 24 receipts linked in the changelog.",
+    "A bounded PM2 stdout scan returned no parseable recent structured trace rows; it is not presented as fresh candle-traffic evidence.",
+    "No new fault injection, runtime activation, order, config change, or production-source change by the root agent."
+  ]
+}
