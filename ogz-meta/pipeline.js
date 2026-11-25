@@ -295,11 +295,11 @@ async function execute(issue, specSource) {
 
   // Final report
   console.log('\n' + '=' .repeat(50));
-  console.log('📊 PIPELINE COMPLETE');
+  console.log('PIPELINE RESULT');
   console.log(`   Final state: ${manifest.state}`);
 
-  if (manifest.state === 'COMPLETE') {
-    console.log('   ✅ SUCCESS: Pipeline completed');
+  if (manifest.state === 'COMPLETE' && manifest.warden?.final_approval && !shouldStop(manifest).stop) {
+    console.log('   SUCCESS: Pipeline completed');
     if (manifest.pipeline_type === 'bugfix') {
       console.log(`   Bugs found: ${manifest.entomologist?.bugs_found?.length || 0}`);
       console.log(`   Fixes applied: ${manifest.exterminator?.fixes_applied?.length || 0}`);
@@ -321,7 +321,7 @@ async function execute(issue, specSource) {
     }
   } else {
     const stopCheck = shouldStop(manifest);
-    console.log(`   ⚠️  INCOMPLETE: ${stopCheck.reason || 'Unknown'}`);
+    console.log(`   INCOMPLETE: ${stopCheck.reason || 'Required stages or Warden approval are incomplete'}`);
   }
 
   return manifest;
@@ -387,7 +387,7 @@ if (require.main === module) {
   }
 
   execute(issue, specSource).then(manifest => {
-    if (!manifest || shouldStop(manifest).stop || manifest.state !== 'COMPLETE') {
+    if (!manifest || shouldStop(manifest).stop || manifest.state !== 'COMPLETE' || !manifest.warden?.final_approval) {
       process.exitCode = 1;
     }
   }).catch(error => {

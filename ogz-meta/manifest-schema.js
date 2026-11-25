@@ -265,10 +265,10 @@ function updateSection(manifest, agent, data) {
     'committer': 'SCRIBE',
     'scribe': 'JANITOR',
     'janitor': 'WARDEN',
-    'warden': 'COMPLETE'
+    'warden': manifest.warden.final_approval ? 'COMPLETE' : 'WARDEN'
   };
 
-  manifest.state = stateFlow[agent] || manifest.state;
+  manifest.state = shouldStop(manifest).stop ? 'HALTED' : (stateFlow[agent] || manifest.state);
 
   return manifest;
 }
@@ -278,6 +278,21 @@ function updateSection(manifest, agent, data) {
  */
 function shouldStop(manifest) {
   const stops = manifest.stop_conditions;
+
+  for (const role of ['architect', 'entomologist', 'exterminator', 'fixer', 'critic', 'forensics']) {
+    if (manifest[role]?.mercury_failed) {
+      return { stop: true, reason: `${role} model call failed: ${manifest[role].reason}` };
+    }
+  }
+
+  const review = manifest.critic?.mercury_attack;
+  if (review?.dispatched === false || review?.completed === false) {
+    return { stop: true, reason: `Mercury review did not complete: ${review.error}` };
+  }
+  const report = manifest.critic?.mercury_critic;
+  if (report?.gate === 'infra_issue') {
+    return { stop: true, reason: `Mercury review unavailable: ${report.reason}` };
+  }
 
   if (stops.critic_failures >= 2) {
     return { stop: true, reason: 'Critic failed twice' };

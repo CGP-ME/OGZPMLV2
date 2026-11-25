@@ -162,7 +162,7 @@ async function architect(manifest, params) {
   });
 
   if (!result.success) {
-    console.log(`⚠️  Architect: Mercury call failed (${result.reason})`);
+    console.error(`Architect: Mercury call failed (${result.reason})`);
     updateSection(manifest, 'architect', {
       plan: null,
       mercury_failed: true,
@@ -287,7 +287,7 @@ async function entomologist(manifest, params) {
   });
 
   if (!result.success) {
-    console.log(`⚠️  Entomologist: Mercury call failed (${result.reason})`);
+    console.error(`Entomologist: Mercury call failed (${result.reason})`);
     updateSection(manifest, 'entomologist', {
       bugs_found: [],
       mercury_failed: true,
@@ -904,17 +904,12 @@ async function exterminator(manifest, params) {
         }));
         console.log(`🧠 Exterminator: Mercury proposed ${proposals.length} fixes (${result.iterations} iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
       } else {
-        console.log(`⚠️  Exterminator: Mercury call failed (${result.reason}), falling back to template proposals`);
-        bugs.forEach(bug => {
-          proposals.push({
-            bug_id: bug.type,
-            location: bug.location,
-            description: bug.description,
-            proposed_fix: `Fix for ${bug.type} at ${bug.location}`,
-            status: 'PENDING_REVIEW',
-            code: bug.code,
-          });
+        console.error(`Exterminator: Mercury call failed (${result.reason})`);
+        updateSection(manifest, 'exterminator', {
+          mercury_failed: true,
+          reason: result.reason
         });
+        return manifest;
       }
     }
 
@@ -1231,6 +1226,15 @@ async function fixer(manifest, params) {
           missionId: manifest.mission_id
         }
       });
+    }
+
+    if (fixerResult && !fixerResult.success) {
+      console.error(`Fixer: Mercury call failed (${fixerResult.reason})`);
+      updateSection(manifest, 'fixer', {
+        mercury_failed: true,
+        reason: fixerResult.reason
+      });
+      return manifest;
     }
 
     // Build proposal from Mercury's verified edits or architect plan
@@ -1774,7 +1778,12 @@ async function critic(manifest, params) {
 
       console.log(`🧠 Critic: Mercury reviewed ${proposals.length} proposals → ${overallVerdict} (${result.iterations} iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
     } else {
-      console.log(`⚠️  Critic: Mercury call failed (${result.reason}), falling back to mechanical checks`);
+      console.error(`Critic: Mercury call failed (${result.reason})`);
+      updateSection(manifest, 'critic', {
+        mercury_failed: true,
+        reason: result.reason
+      });
+      return manifest;
     }
   }
 
@@ -1865,7 +1874,12 @@ async function forensics(manifest, params) {
 
       console.log(`🧠 Forensics: Mercury found ${risks.length} risks, ${silentBugs.length} silent bugs (${result.iterations} iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
     } else {
-      console.log(`⚠️  Forensics: Mercury call failed (${result.reason}), mechanical checks only`);
+      console.error(`Forensics: Mercury call failed (${result.reason})`);
+      updateSection(manifest, 'forensics', {
+        mercury_failed: true,
+        reason: result.reason
+      });
+      return manifest;
     }
   }
 
@@ -2630,15 +2644,17 @@ async function mercuryAttack(manifest, params) {
       quiet: true,  // Pipeline output stays readable; full trace in transcript
     });
   } catch (err) {
-    console.error(`❌ mercury-attack: dispatch failed — ${err.message}`);
-    // Don't halt pipeline on Mercury infrastructure failure — record and continue.
-    // /critic stage will still run on the applied code.
+    console.error(`mercury-attack: dispatch failed — ${err.message}`);
+    // Preserve the required review failure for shared stop/completion evaluation.
     updateSection(manifest, 'critic', {
       mercury_attack: { error: err.message, dispatched: false }
     });
     return manifest;
   }
   const elapsed = Date.now() - t0;
+  const { hasReviewerAnswer } = require('../trai_brain/mercury-bridge/reviewer-panel');
+  const completed = hasReviewerAnswer(result);
+  const termination = result?.termination || null;
 
   // Write transcript to repo-rooted cognition-history dir.
   const transcriptDir = path.join(__dirname, 'cognition-history', 'mercury-attacks');
@@ -2649,9 +2665,9 @@ async function mercuryAttack(manifest, params) {
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const transcriptPath = path.join(transcriptDir, `fix${fixId}-${fileBase}-attack-${ts}.md`);
 
-  const verdict = (result && typeof result === 'object' && result.answer)
+  const verdict = typeof result?.answer === 'string'
     ? result.answer
-    : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+    : (typeof result === 'string' ? result : JSON.stringify(result, null, 2) || '(Mercury returned no result)');
   const iterations = (result && result.iterations) || null;
 
   const transcriptBody = [
@@ -2687,6 +2703,9 @@ async function mercuryAttack(manifest, params) {
   updateSection(manifest, 'critic', {
     mercury_attack: {
       dispatched: true,
+      completed,
+      termination,
+      ...(!completed ? { error: `Mercury returned no completed answer (${termination || 'unknown termination'})` } : {}),
       targets: targetFiles,
       iterations: iterations,
       elapsedMs: elapsed,
@@ -2696,12 +2715,13 @@ async function mercuryAttack(manifest, params) {
     }
   });
 
-  console.log(`✅ Mercury-Attack: ${iterations || '?'} iterations, ~${findingsHeuristic} finding(s), transcript ${path.relative(process.cwd(), transcriptPath)}`);
+  console.log(`Mercury-Attack: ${completed ? 'answer received' : 'incomplete'}, ${iterations || '?'} iterations, ~${findingsHeuristic} finding(s), transcript ${path.relative(process.cwd(), transcriptPath)}`);
   return manifest;
 }
 
 /**
- * Mercury-Critic: report-only Mercury findings section.
+ * Mercury-Critic: records Mercury findings for operator review.
+ * Findings remain report-only; unavailable review evidence is a failed stage.
  *
  * Runs immediately after /mercury-attack. Reads ONLY the `## Mercury Verdict`
  * section of the transcript (never the prompt-scaffold above it), classifies
@@ -2726,7 +2746,7 @@ async function mercuryCritic(manifest, params) {
 
   const ma = manifest.critic && manifest.critic.mercury_attack ? manifest.critic.mercury_attack : null;
 
-  if (!ma || ma.dispatched === false) {
+  if (!ma || ma.dispatched === false || ma.completed === false) {
     const reason = ma && ma.error
       ? `Mercury dispatch failed: ${ma.error}`
       : 'Mercury attack stage did not run (no spec_source or unknown failure)';
@@ -2783,17 +2803,9 @@ async function mercuryCritic(manifest, params) {
     return manifest;
   }
 
-  // Case 3: Mercury infrastructure failure detected in the verdict body.
-  // The mercury-bridge returns stub answers like "(Mercury call failed: Request
-  // timeout)" when the Inception Labs API errors or hangs. These are NOT
-  // "Mercury found nothing."
-  const infraFailurePatterns = [
-    /Mercury call failed/i,
-    /Request timeout/i,
-    /\(Mercury .* failed:/i,
-    /termination:\s*error/i,
-  ];
-  const mercuryInfraError = infraFailurePatterns.some(function (re) { return re.test(verdict); });
+  // Older records lack provider completion metadata. Recognize only the exact
+  // legacy failure response, never error phrases quoted inside a real review.
+  const mercuryInfraError = ma.completed === undefined && /^\(Mercury call failed: [\s\S]*\)$/.test(verdict);
   if (mercuryInfraError) {
     const reason = `Mercury infrastructure failure — no real verdict produced. Verdict head: "${verdict.slice(0, 160).replace(/\s+/g, ' ')}…". Retry dispatch.`;
     updateSection(manifest, 'critic', {

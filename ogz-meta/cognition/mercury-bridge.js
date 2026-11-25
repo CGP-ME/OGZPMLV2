@@ -5,6 +5,7 @@ const fs = require('fs');
 
 const prompts = require('./prompts');
 const parsers = require('./parsers');
+const { hasReviewerAnswer } = require('../../trai_brain/mercury-bridge/reviewer-panel');
 
 const ACTIVITY_LOG = path.join(__dirname, '..', 'logs', 'ai-activity.jsonl');
 
@@ -72,6 +73,22 @@ async function callMercury({ role, task, target, outputFormat, options = {} }) {
       });
 
       const duration_ms = Date.now() - t0;
+
+      if (!hasReviewerAnswer(result)) {
+        const reason = `Mercury returned no completed answer (${result?.termination || 'unknown termination'})`;
+        logActivity({
+          timestamp: new Date().toISOString(),
+          actor: 'claudito',
+          stage: role,
+          task,
+          mission_id: options.missionId || null,
+          duration_ms,
+          event: 'mercury_failure',
+          error: reason,
+          termination: result?.termination || null,
+        });
+        return { success: false, reason, data: null, iterations: result?.iterations || 0, duration_ms, trace_id: null };
+      }
 
       // Parse Mercury's answer
       const parser = OUTPUT_PARSERS[outputFormat];

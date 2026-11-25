@@ -1,0 +1,850 @@
+{
+  "generatedAt": "2026-11-25T21:02:10.544779+00:00",
+  "baseCommit": "2507518c11782b75fb53ca35d33f721c87d6ec79",
+  "scope": "Existing required-role dispatch failures and truthful stage/completion reporting; no whole-workflow certification",
+  "sources": [
+    {
+      "path": "ogz-meta/cognition/mercury-bridge.js",
+      "baseSha256": "d01508bafcad80b49d10f5cad3976077608c0a9d20fae22f05aed80f483e1132",
+      "candidateSha256": "f29faa174ae4cf27fb81926f3fe45b2abba6e71ef7b52078b852fb7beca25193"
+    },
+    {
+      "path": "ogz-meta/manifest-schema.js",
+      "baseSha256": "8f8c5d561e5716f7176c238ff672553e09e3dacf981291b374a4295d0620f1dd",
+      "candidateSha256": "bd504477d4d38b80a4b0f32a81c89d3022d1a7cf21b9a57efdeb4c2a9455a33a"
+    },
+    {
+      "path": "ogz-meta/pipeline.js",
+      "baseSha256": "26788116b1e19733131304f3627f04b58699485b4a54dc6e342a837345eec724",
+      "candidateSha256": "1a3444934138add44cfa8b2a61d6683cf9f99480978877bb4ce238647a7c8605"
+    },
+    {
+      "path": "ogz-meta/slash-router.js",
+      "baseSha256": "51ccc90af97dd4fa5ea0a45e618fda4f8a61aac929b34bce5aaf13f151bbbc78",
+      "candidateSha256": "cf31af1027bd01ed4f67978b0bbd87b636c0d95ea62bfd723c628708f1117608"
+    }
+  ],
+  "unchangedCognitionImplementation": [
+    {
+      "path": "ogz-meta/cognition/parsers.js",
+      "sha256": "37182bd62f1b8ae005adcf8294fd0c3cb4c29b6b11167286ad0529ed4da74981"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/reviewer-panel.js",
+      "sha256": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+    }
+  ],
+  "isolationCommand": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-25/claudito-completion/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-25/claudito-completion/fixtures/observe.cjs --expect-repair",
+  "baseline": {
+    "sourceMode": "baseline",
+    "externalBoundaries": "synthetic provider, commander context, RAG, AST and branch observation; real router, bridge, parser, approval, writer, manifest and pipeline CLI",
+    "realModelCalls": 0,
+    "realApprovals": 0,
+    "observations": [
+      {
+        "name": "architect_provider_failure",
+        "exitCode": 0,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": false
+        },
+        "state": "ENTOMOLOGY",
+        "wardenExit": 0,
+        "finalState": "COMPLETE",
+        "finalApproval": true,
+        "providerCalls": 1
+      },
+      {
+        "name": "entomologist_provider_failure",
+        "exitCode": 0,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": false
+        },
+        "state": "EXTERMINATION",
+        "wardenExit": 0,
+        "finalState": "COMPLETE",
+        "finalApproval": true,
+        "providerCalls": 1
+      },
+      {
+        "name": "exterminator_provider_failure",
+        "exitCode": 0,
+        "roleFailureRecorded": false,
+        "reason": null,
+        "stopped": {
+          "stop": false
+        },
+        "state": "DEBUG",
+        "wardenExit": 0,
+        "finalState": "COMPLETE",
+        "finalApproval": true,
+        "providerCalls": 1
+      },
+      {
+        "name": "fixer_provider_failure",
+        "exitCode": 0,
+        "roleFailureRecorded": false,
+        "reason": null,
+        "stopped": {
+          "stop": false
+        },
+        "state": "INIT",
+        "wardenExit": 0,
+        "finalState": "COMPLETE",
+        "finalApproval": true,
+        "providerCalls": 1
+      },
+      {
+        "name": "critic_provider_failure",
+        "exitCode": 0,
+        "roleFailureRecorded": false,
+        "reason": null,
+        "stopped": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "wardenExit": 0,
+        "finalState": "COMPLETE",
+        "finalApproval": true,
+        "providerCalls": 1
+      },
+      {
+        "name": "forensics_provider_failure",
+        "exitCode": 0,
+        "roleFailureRecorded": false,
+        "reason": null,
+        "stopped": {
+          "stop": false
+        },
+        "state": "CICD",
+        "wardenExit": 0,
+        "finalState": "COMPLETE",
+        "finalApproval": true,
+        "providerCalls": 1
+      },
+      {
+        "name": "successful_role_handoff",
+        "exitCode": 0,
+        "state": "ENTOMOLOGY",
+        "plan": {
+          "summary": "Synthetic empty plan",
+          "files": [],
+          "ordering": [],
+          "verification": "fixture"
+        },
+        "stopped": {
+          "stop": false
+        }
+      },
+      {
+        "name": "blocked_warden_is_not_complete",
+        "exitCode": 1,
+        "state": "COMPLETE",
+        "finalApproval": false,
+        "stopped": {
+          "stop": true,
+          "reason": "Warden blocked execution"
+        }
+      },
+      {
+        "name": "substantive_findings_remain_report_only",
+        "exitCode": 0,
+        "gate": "findings",
+        "stopped": {
+          "stop": false
+        },
+        "wardenExit": 0,
+        "finalState": "COMPLETE"
+      },
+      {
+        "name": "failed-write-review",
+        "exitCode": 0,
+        "state": "COMPLETE",
+        "successPrinted": true,
+        "stopped": {
+          "stop": false
+        },
+        "review": {
+          "error": "Synthetic provider unavailable",
+          "dispatched": false
+        },
+        "report": {
+          "gate": "infra_issue",
+          "reason": "Mercury dispatch failed: Synthetic provider unavailable",
+          "report_required": true,
+          "timestamp": "2026-11-25T20:32:42.568Z"
+        },
+        "target": "module.exports = 'after';\n",
+        "providerCalls": 1,
+        "wardenReached": true,
+        "finalApproval": true,
+        "debuggerReached": true
+      },
+      {
+        "name": "successful-write-review",
+        "exitCode": 0,
+        "state": "COMPLETE",
+        "successPrinted": true,
+        "stopped": {
+          "stop": false
+        },
+        "review": {
+          "dispatched": true,
+          "targets": [
+            "test/fixtures/claudito-completion-runtime/successful-write-review.js"
+          ],
+          "iterations": 20,
+          "elapsedMs": 1,
+          "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-successful-write-review-attack-2026-11-25T20-32-44-522Z.md",
+          "findingsCount": 0,
+          "blastRadius": [
+            {
+              "file": "test/fixtures/claudito-completion-runtime/successful-write-review.js",
+              "callerCount": 0,
+              "riskLevel": "fixture",
+              "latencyMs": 0,
+              "summary": "Synthetic external boundary"
+            }
+          ]
+        },
+        "report": {
+          "gate": "clean",
+          "reason": "No findings, no infra error, no truncation suspicion",
+          "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-successful-write-review-attack-2026-11-25T20-32-44-522Z.md",
+          "findingsScore": 0,
+          "breakdown": {
+            "numberedBullets": 0,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 62,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-25T20:32:44.525Z"
+        },
+        "target": "module.exports = 'after';\n",
+        "providerCalls": 1,
+        "wardenReached": true,
+        "finalApproval": true,
+        "debuggerReached": true
+      }
+    ]
+  },
+  "candidate": {
+    "sourceMode": "candidate",
+    "externalBoundaries": "synthetic provider, commander context, RAG, AST and branch observation; real router, bridge, parser, approval, writer, manifest and pipeline CLI",
+    "realModelCalls": 0,
+    "realApprovals": 0,
+    "observations": [
+      {
+        "name": "architect_rejected_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": true,
+          "reason": "architect model call failed: Synthetic provider unavailable"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "entomologist_rejected_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": true,
+          "reason": "entomologist model call failed: Synthetic provider unavailable"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "exterminator_rejected_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": true,
+          "reason": "exterminator model call failed: Synthetic provider unavailable"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "fixer_rejected_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": true,
+          "reason": "fixer model call failed: Synthetic provider unavailable"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "critic_rejected_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": true,
+          "reason": "critic model call failed: Synthetic provider unavailable"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "forensics_rejected_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Synthetic provider unavailable",
+        "stopped": {
+          "stop": true,
+          "reason": "forensics model call failed: Synthetic provider unavailable"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "architect_returned_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "stopped": {
+          "stop": true,
+          "reason": "architect model call failed: Mercury returned no completed answer (error)"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "entomologist_returned_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "stopped": {
+          "stop": true,
+          "reason": "entomologist model call failed: Mercury returned no completed answer (error)"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "exterminator_returned_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "stopped": {
+          "stop": true,
+          "reason": "exterminator model call failed: Mercury returned no completed answer (error)"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "fixer_returned_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "stopped": {
+          "stop": true,
+          "reason": "fixer model call failed: Mercury returned no completed answer (error)"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "critic_returned_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "stopped": {
+          "stop": true,
+          "reason": "critic model call failed: Mercury returned no completed answer (error)"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "forensics_returned_provider_failure",
+        "exitCode": 1,
+        "roleFailureRecorded": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "stopped": {
+          "stop": true,
+          "reason": "forensics model call failed: Mercury returned no completed answer (error)"
+        },
+        "state": "HALTED",
+        "wardenExit": 1,
+        "finalState": "HALTED",
+        "finalApproval": false,
+        "providerCalls": 1
+      },
+      {
+        "name": "successful_role_handoff",
+        "exitCode": 0,
+        "state": "ENTOMOLOGY",
+        "plan": {
+          "summary": "Synthetic empty plan",
+          "files": [],
+          "ordering": [],
+          "verification": "fixture"
+        },
+        "stopped": {
+          "stop": false
+        }
+      },
+      {
+        "name": "blocked_warden_is_not_complete",
+        "exitCode": 1,
+        "state": "HALTED",
+        "finalApproval": false,
+        "stopped": {
+          "stop": true,
+          "reason": "Warden blocked execution"
+        }
+      },
+      {
+        "name": "substantive_findings_remain_report_only",
+        "exitCode": 0,
+        "gate": "findings",
+        "stopped": {
+          "stop": false
+        },
+        "wardenExit": 0,
+        "finalState": "COMPLETE"
+      },
+      {
+        "name": "quoted_error_remains_report_only",
+        "exitCode": 0,
+        "gate": "findings",
+        "state": "VALIDATE",
+        "stopped": {
+          "stop": false
+        }
+      },
+      {
+        "name": "legacy_failure_stub_stops",
+        "exitCode": 1,
+        "gate": "infra_issue",
+        "state": "HALTED",
+        "stopped": {
+          "stop": true,
+          "reason": "Mercury review unavailable: Mercury infrastructure failure \u2014 no real verdict produced. Verdict head: \"(Mercury call failed: Request timeout)\u2026\". Retry dispatch."
+        }
+      },
+      {
+        "name": "unavailable_review_evidence_is_incomplete",
+        "exitCode": 1,
+        "gate": "infra_issue",
+        "state": "HALTED",
+        "stopped": {
+          "stop": true,
+          "reason": "Mercury review unavailable: Mercury transcript missing at test/fixtures/claudito-completion-runtime/absent.md"
+        }
+      },
+      {
+        "name": "failed-write-review",
+        "exitCode": 1,
+        "state": "HALTED",
+        "successPrinted": false,
+        "stopped": {
+          "stop": true,
+          "reason": "Mercury review did not complete: Synthetic provider unavailable"
+        },
+        "review": {
+          "error": "Synthetic provider unavailable",
+          "dispatched": false
+        },
+        "report": null,
+        "target": "module.exports = 'after';\n",
+        "providerCalls": 1,
+        "wardenReached": false,
+        "finalApproval": false,
+        "debuggerReached": false
+      },
+      {
+        "name": "returned-error-write-review",
+        "exitCode": 1,
+        "state": "HALTED",
+        "successPrinted": false,
+        "stopped": {
+          "stop": true,
+          "reason": "Mercury review did not complete: Mercury returned no completed answer (error)"
+        },
+        "review": {
+          "dispatched": true,
+          "completed": false,
+          "termination": "error",
+          "error": "Mercury returned no completed answer (error)",
+          "targets": [
+            "test/fixtures/claudito-completion-runtime/returned-error-write-review.js"
+          ],
+          "iterations": 1,
+          "elapsedMs": 11,
+          "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-returned-error-write-review-attack-2026-11-25T20-47-12-007Z.md",
+          "findingsCount": 0,
+          "blastRadius": [
+            {
+              "file": "test/fixtures/claudito-completion-runtime/returned-error-write-review.js",
+              "callerCount": 0,
+              "riskLevel": "fixture",
+              "latencyMs": 0,
+              "summary": "Synthetic external boundary"
+            }
+          ]
+        },
+        "report": null,
+        "target": "module.exports = 'after';\n",
+        "providerCalls": 1,
+        "wardenReached": false,
+        "finalApproval": false,
+        "debuggerReached": false
+      },
+      {
+        "name": "successful-write-review",
+        "exitCode": 0,
+        "state": "COMPLETE",
+        "successPrinted": true,
+        "stopped": {
+          "stop": false
+        },
+        "review": {
+          "dispatched": true,
+          "completed": true,
+          "termination": "answer_given",
+          "targets": [
+            "test/fixtures/claudito-completion-runtime/successful-write-review.js"
+          ],
+          "iterations": 20,
+          "elapsedMs": 1,
+          "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-successful-write-review-attack-2026-11-25T20-47-13-513Z.md",
+          "findingsCount": 0,
+          "blastRadius": [
+            {
+              "file": "test/fixtures/claudito-completion-runtime/successful-write-review.js",
+              "callerCount": 0,
+              "riskLevel": "fixture",
+              "latencyMs": 0,
+              "summary": "Synthetic external boundary"
+            }
+          ]
+        },
+        "report": {
+          "gate": "clean",
+          "reason": "No findings, no infra error, no truncation suspicion",
+          "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-successful-write-review-attack-2026-11-25T20-47-13-513Z.md",
+          "findingsScore": 0,
+          "breakdown": {
+            "numberedBullets": 0,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 62,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-25T20:47:13.516Z"
+        },
+        "target": "module.exports = 'after';\n",
+        "providerCalls": 1,
+        "wardenReached": true,
+        "finalApproval": true,
+        "debuggerReached": true
+      }
+    ]
+  },
+  "hostPreservation": {
+    "currentManifestSha256": "97c793a43949dae932606a73e93845edf82a1681d5a97fe215db57b661af5af4",
+    "currentManifestMtimeUtc": "2026-10-15T15:32:05.060840+00:00",
+    "syntheticRuntimeTargetsExist": false
+  },
+  "review": {
+    "independent": {
+      "reviewer": "/root/claudito_candidate_review",
+      "initialCandidate": "Three-source candidate frozen in pre-correction-behavior-receipt.json; independently rerun at 2026-11-25T20:40:01Z",
+      "finding": "P2: treating every infra_issue as a stop activates an inherited unanchored verdict classifier. A completed review quoting Request timeout is falsely HALTED.",
+      "preCorrectionReproductionAt": "2026-11-25T20:42:47Z",
+      "preCorrectionObservations": [
+        {
+          "verdict": "1. The source at core/persistent_llm_client.js:799 contains the error text \"Request timeout\". This completed synthetic review cites that text as evidence.",
+          "gate": "infra_issue",
+          "state": "HALTED",
+          "shouldStop": true
+        },
+        {
+          "verdict": "(Mercury call failed: Request timeout)",
+          "gate": "infra_issue",
+          "state": "HALTED",
+          "shouldStop": true
+        }
+      ],
+      "resolution": "Existing hasReviewerAnswer validates returned model outcomes in the cognition bridge and post-write review producer; persisted completion metadata controls stops. Legacy records only recognize the entire known failure stub. Quoted prose remains report-only.",
+      "correctedCandidateStatus": "Prior P2 resolved; no new positive finding in the bounded correction. Four source hashes, exact patch, fixture and supplied candidate outcomes verified. Read-only re-review completed at 2026-11-25T20:49Z.",
+      "correctedExecutionScope": "The independent reviewer did not rerun the corrected fixture or add cases. It independently executed the pre-correction fixture and quoted-error reproduction, then inspected the corrected source and all supplied source-matched persisted outcomes."
+    },
+    "mercury": {
+      "baseCommit": "2507518c11782b75fb53ca35d33f721c87d6ec79",
+      "baseTree": "73f542a49c191e718570a7937c788f85e65ef611",
+      "reviewedCandidateTree": "bc99cdea32db4972a7fc45b25537236cf061f0ea",
+      "initialConsumerReview": {
+        "runId": "2026-11-25T20-55-53-227Z-032c7cfd2fd5",
+        "startedAt": "2026-11-25T20:54:12.722Z",
+        "reviewScope": {
+          "source": "explicit_change_paths",
+          "paths": [
+            "ogz-meta/manifest-schema.js",
+            "ogz-meta/pipeline.js",
+            "ogz-meta/slash-router.js"
+          ],
+          "tree": "bc99cdea32db4972a7fc45b25537236cf061f0ea",
+          "baseTree": "73f542a49c191e718570a7937c788f85e65ef611",
+          "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-25T20-54-12-722Z-2914664-2fa9b94596e7/source-grqEyd.json",
+          "manifestSha256": "fbcb9e26381c10bb132f66004c671246656fc471aa2fc835f98528f0a581e2c1"
+        },
+        "selectedReviewers": [
+          "mercury"
+        ],
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "verdict": "no_break_found",
+        "blocking": false,
+        "termination": "answer_given",
+        "selectedSeatStatus": "succeeded",
+        "iterations": 25,
+        "maxTokens": 7750,
+        "maxIterations": null,
+        "toolCalls": 45,
+        "toolFailures": 2,
+        "runtimeChecks": 0,
+        "namedAbsences": [
+          "coverage_insufficient",
+          "coverage_unresolved",
+          "whole_file_read_absent"
+        ],
+        "candidateCoverage": {
+          "expectedTotal": 3,
+          "unresolved": [],
+          "complete": false,
+          "authorityReady": false,
+          "fourthShapeAdditions": [],
+          "fourthShapeAdditionCount": 0
+        },
+        "providerReceiptCost": {
+          "amount": 0.12442906,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 26,
+          "total_attempts": 26,
+          "cost_absences": []
+        },
+        "evidenceBundle": {
+          "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-54-12-722z-2914664-2fa9b94596e7/current-change-evidence.txt",
+          "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-54-12-722z-2914664-2fa9b94596e7/current-change-evidence.txt:1",
+          "sha256": "dd0c7064dade07fca8c59f3cb01be3a87944b3426dd858700c542f60759f6930",
+          "bytes": 182410,
+          "lines": 4018,
+          "section_count": 11,
+          "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-54-12-722z-2914664-2fa9b94596e7/manifest.json",
+          "manifest_sha256": "0bb3a25799b576fada0ba195ecb63c443d1d7239ab7ae1b9d5e9fdd7b4284937",
+          "manifest_bytes": 16361
+        },
+        "fullAnswerLocalPath": "ogz-meta/inbox/codex/2026-11-25/claudito-completion/mercury-review.log",
+        "fullAnswerLogSha256": "896eba3938e6e47201c738e9abbf49134469781e46c0ad487d9850f79cb39861",
+        "scopeLimitation": "Only manifest-schema.js, pipeline.js and slash-router.js were captured as changed source. cognition/mercury-bridge.js was excluded by unchanged mercury.ignore. The initial no_break_found does not certify the four-file chain.",
+        "correction": "The answer incorrectly called the excluded cognition bridge behavior inherited. That file is changed in this candidate; the missing producer was separately supplied for the focused follow-up."
+      },
+      "focusedProducerFollowup": {
+        "runId": "2026-11-25T21-00-04-620Z-78e10567db6d",
+        "startedAt": "2026-11-25T20:59:01.597Z",
+        "reviewScope": {
+          "source": "explicit_change_paths",
+          "paths": [
+            "trai_brain/mercury-bridge/reviewer-panel.js"
+          ],
+          "tree": "bc99cdea32db4972a7fc45b25537236cf061f0ea",
+          "baseTree": "73f542a49c191e718570a7937c788f85e65ef611",
+          "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-25T20-59-01-597Z-2917056-b009b1d8a82a/source-zsu3BA.json",
+          "manifestSha256": "fbcb9e26381c10bb132f66004c671246656fc471aa2fc835f98528f0a581e2c1"
+        },
+        "selectedReviewers": [
+          "mercury"
+        ],
+        "requestedModel": "mercury-3",
+        "appliedModels": [
+          "mercury-3"
+        ],
+        "verdict": "no_break_found",
+        "blocking": false,
+        "termination": "answer_given",
+        "selectedSeatStatus": "succeeded",
+        "iterations": 14,
+        "maxTokens": 7750,
+        "maxIterations": null,
+        "toolCalls": 22,
+        "toolFailures": 0,
+        "runtimeChecks": 0,
+        "namedAbsences": [
+          "coverage_insufficient",
+          "coverage_unresolved",
+          "inherited_section_incomplete"
+        ],
+        "candidateCoverage": {
+          "expectedTotal": 1,
+          "unresolved": [],
+          "complete": false,
+          "authorityReady": false,
+          "fourthShapeAdditions": [],
+          "fourthShapeAdditionCount": 0
+        },
+        "providerReceiptCost": {
+          "amount": 0.04206277,
+          "currency": "USD",
+          "complete": true,
+          "priced_attempts": 15,
+          "total_attempts": 15,
+          "cost_absences": []
+        },
+        "evidenceBundle": {
+          "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-59-01-597z-2917056-b009b1d8a82a/current-change-evidence.txt",
+          "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-59-01-597z-2917056-b009b1d8a82a/current-change-evidence.txt:1",
+          "sha256": "0906c7c0d913d9c868d29c2f29f6b7864ac6a1d0082db15eae8dd3777a29e875",
+          "bytes": 71459,
+          "lines": 410,
+          "section_count": 5,
+          "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-59-01-597z-2917056-b009b1d8a82a/manifest.json",
+          "manifest_sha256": "043afe25cddbe8c974beb0a2cb8170251f1e3249d3581eec8092c4e0281e728a",
+          "manifest_bytes": 7656
+        },
+        "fullAnswerLocalPath": "ogz-meta/inbox/codex/2026-11-25/claudito-completion/mercury-producer-review.log",
+        "fullAnswerLogSha256": "0be992740bd12d265606fb4930e7b3d5b661b01a9e11595f52b3c40d332dff30",
+        "suppliedProducerEvidence": {
+          "path": "ogz-meta/cognition/mercury-bridge.js",
+          "sourceBlob": "44e9a4b261198e283568fea12579c29f99fddeb2",
+          "baseBlob": "ae218a09785cf8de4866e94359c706a7bf63205d",
+          "sourceSha256": "f29faa174ae4cf27fb81926f3fe45b2abba6e71ef7b52078b852fb7beca25193",
+          "baseSha256": "d01508bafcad80b49d10f5cad3976077608c0a9d20fae22f05aed80f483e1132",
+          "sourceLineStart": 51,
+          "sourceLineEnd": 157,
+          "excerptSha256": "000881277d1b6b65d8d85c14c47dbb3552149861489f2416c6e91d3ad46c83bb",
+          "diffSha256": "c2bc63b161ab4f0bbc2930bb4be3a15f0e4f1acb5626ad3048dee54ea847ffdb",
+          "evidenceMechanism": "Explicit operator-authorized verbatim query excerpt with immutable Git provenance; not --evidence-source attestation because cognition remains tool-excluded",
+          "questionSha256": "8e9e4f6896cc7e4eac4c273aff228008ca1dc4146317a772d82feb41982fd66f"
+        },
+        "scopeLimitation": "The follow-up covers the formerly unread callMercury producer and direct helper/consumer consequences. Its tool target is unchanged reviewer-panel.js; the producer remained excluded from repository tools and was supplied verbatim in the query with pinned Git provenance. This is not canonical RAG admission or --evidence-source host attestation.",
+        "citationCorrections": [
+          "The catch that preserves partial failed reviewer output is trai_brain/mercury-bridge/reviewer-panel.js:296-334, not ask.js:296-334 as the answer labels it. The resulting ask.js return path was verified at 1442-1465.",
+          "The answer describes review_receipt_incomplete as unproduced in the pinned source tree. That does not describe the inherited dirty live review harness, whose react-loop.js:1125 does produce it. Both the implementation hash and this distinction are retained."
+        ]
+      },
+      "inheritedDirtyReviewHarness": {
+        "path": "trai_brain/mercury-bridge/react-loop.js",
+        "sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+      },
+      "assessment": "Both complete answers were read, relevant citations verified, and no reachable defect remained in this bounded required-model-result propagation behavior. The first review source gap was completed by an expressly authorized producer-only evidence follow-up. All four source files and the fixture stayed byte-identical across both runs. No full-file/full-workflow certification or multi-model consensus is claimed.",
+      "reviewCompleteness": "Completed one selected Mercury seat in each focused dispatch. Coverage diagnostics remain recorded as evidence limits; no additional paid review was run after the scoped producer answer.",
+      "testAuthority": "Mercury ran no tests. Actual behavior evidence is the separately source-matched native isolated exercise; independent reviewer executed the initial reproduction and reviewed corrected source/outcomes."
+    }
+  },
+  "limits": [
+    "Provider, commander context, RAG, AST and branch observation are explicit synthetic fixture boundaries. No real model role or operator approval was exercised by the fixture.",
+    "The successful exact-spec write control executes the complete existing write pipeline stage sequence through the real CLI. External dependencies are synthetic and the package test script is disabled inside the fixture; this does not certify live provider, PM2/context, Jest, or the generic authoring pipeline.",
+    "A post-write review failure preserves the applied source, transcript if a result returned, and failure record. This change does not roll back the write or authorize reuse of the expired approval.",
+    "hasReviewerAnswer establishes delivery of an answer, not substantive review adequacy. Parser defaults for malformed completed answers, role prompt/iteration options, debugger command isolation and generic execution ordering remain separate paths outside this repair.",
+    "The existing truncation heuristic and substantive Mercury findings remain report-only; no acknowledgment or automatic commit gate was added.",
+    "Provider failure simulation covers rejected promises and the actual error-termination response shape; it does not call a production provider or simulate every network lifecycle failure."
+  ],
+  "verificationExitCode": 0,
+  "fixtureSha256": "b87efbd5cac4a002f25e586516e83f13d0973678811877458908f54e28ccaf4c",
+  "pipelineStageEvidence": [
+    {
+      "scenario": "failed-write-review",
+      "emittedExecutingStages": [
+        "/commander",
+        "/branch",
+        "/architect-verify",
+        "/fixer-write",
+        "/mercury-attack"
+      ],
+      "source": "candidate.log from the source-matched isolated run; external boundaries remain synthetic"
+    },
+    {
+      "scenario": "returned-error-write-review",
+      "emittedExecutingStages": [
+        "/commander",
+        "/branch",
+        "/architect-verify",
+        "/fixer-write",
+        "/mercury-attack"
+      ],
+      "source": "candidate.log from the source-matched isolated run; external boundaries remain synthetic"
+    },
+    {
+      "scenario": "successful-write-review",
+      "emittedExecutingStages": [
+        "/commander",
+        "/branch",
+        "/architect-verify",
+        "/fixer-write",
+        "/mercury-attack",
+        "/mercury-critic",
+        "/debugger",
+        "/critic",
+        "/validator",
+        "/forensics",
+        "/debugger",
+        "/scribe",
+        "/janitor",
+        "/warden"
+      ],
+      "source": "candidate.log from the source-matched isolated run; external boundaries remain synthetic"
+    }
+  ],
+  "deliverySourceIdentity": "Only the changelog entry and this receipt are finalized after Mercury; all four source hashes and the fixture are unchanged from the pinned review tree."
+}
