@@ -175,6 +175,68 @@ function saveManifest(manifest, path) {
 }
 
 /**
+ * Identify the exact spec and target bytes shown by a write proposal.
+ * File and parser failures are reported to the caller before approval or writes.
+ */
+function captureWriteScope(manifest) {
+  const fs = require('fs');
+  const path = require('path');
+  const { createHash } = require('crypto');
+  const { parseFix } = require('./spec-parser');
+  const spec = manifest.spec_source;
+  if (!spec?.path || !spec.fixId) {
+    return { ok: false, reason: 'Write mission requires spec_source.path and fixId' };
+  }
+
+  try {
+    const root = fs.realpathSync(path.resolve(__dirname, '..'));
+    const identify = name => {
+      const absolute = path.resolve(root, name);
+      const relative = path.relative(root, absolute).split(path.sep).join('/');
+      if (!relative || relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) {
+        return { ok: false, reason: `Write scope is outside the repository: ${name}` };
+      }
+      if (fs.realpathSync(absolute) !== absolute || !fs.statSync(absolute).isFile()) {
+        return { ok: false, reason: `Write scope requires a regular file without symlinks: ${name}` };
+      }
+      return {
+        ok: true,
+        path: relative,
+        sha256: createHash('sha256').update(fs.readFileSync(absolute)).digest('hex')
+      };
+    };
+
+    const specFile = identify(spec.path);
+    if (!specFile.ok) return specFile;
+    const parsed = parseFix(path.join(root, specFile.path), spec.fixId);
+    const files = [];
+    for (const entry of parsed.files) {
+      const file = identify(entry.file);
+      if (!file.ok) return file;
+      files.push({ path: file.path, sha256: file.sha256 });
+    }
+    return {
+      ok: true,
+      parsed,
+      scope: {
+        mission_id: manifest.mission_id,
+        issue: manifest.issue,
+        pipeline_type: manifest.pipeline_type || 'write',
+        spec_source: { path: specFile.path, fixId: parsed.fixId, sha256: specFile.sha256 },
+        files,
+        edits_sha256: createHash('sha256').update(JSON.stringify(parsed.files)).digest('hex')
+      }
+    };
+  } catch (error) {
+    return { ok: false, reason: `Cannot identify write scope: ${error.message}` };
+  }
+}
+
+function sameWriteScope(left, right) {
+  return Boolean(left && right && JSON.stringify(left) === JSON.stringify(right));
+}
+
+/**
  * Update manifest section (agent-specific)
  */
 function updateSection(manifest, agent, data) {
@@ -244,6 +306,8 @@ module.exports = {
   createManifest,
   loadManifest,
   saveManifest,
+  captureWriteScope,
+  sameWriteScope,
   updateSection,
   shouldStop
 };

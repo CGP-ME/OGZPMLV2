@@ -1,0 +1,376 @@
+{
+  "generatedAt": "2026-11-25T20:17:45.869792+00:00",
+  "baseCommit": "0764c45cbe59f7a2dab5e474e0f7719dc8fc2458",
+  "branch": "codex/archive-legacy-env",
+  "scope": "Exact-spec Claudito approval and deterministic write handoff; full pipeline completion is not certified",
+  "sources": [
+    {
+      "path": "ogz-meta/approve.js",
+      "baseSha256": "b613bd2228761bb5474859b89e0cdfb6edd6caa260aae848ebbf8809d431e981",
+      "candidateSha256": "2100d76bf88f78ca2196cbf33d5e7a26657a8d3f25b445bfe271c58f8f0bc824"
+    },
+    {
+      "path": "ogz-meta/manifest-schema.js",
+      "baseSha256": "2ec067933a58012f8eb20eddc0a5bd640694fae6be6dd8245ecbc3a83edf59ee",
+      "candidateSha256": "8f8c5d561e5716f7176c238ff672553e09e3dacf981291b374a4295d0620f1dd"
+    },
+    {
+      "path": "ogz-meta/pipeline.js",
+      "baseSha256": "44656597c9a28fce26ad9509c1fa8fed3e9fc7f22b6ac4b082a0b56526c21156",
+      "candidateSha256": "26788116b1e19733131304f3627f04b58699485b4a54dc6e342a837345eec724"
+    },
+    {
+      "path": "ogz-meta/slash-router.js",
+      "baseSha256": "ada09c7724ef584a0c8fa3c97cabfb6e1acf91becde27b3b07d3f70fed61fe43",
+      "candidateSha256": "51ccc90af97dd4fa5ea0a45e618fda4f8a61aac929b34bce5aaf13f151bbbc78"
+    }
+  ],
+  "isolationCommand": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-25/claudito-approved-write/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-25/claudito-approved-write/fixtures/observe.cjs --expect-repair",
+  "baseline": {
+    "sourceMode": "baseline",
+    "providerCalls": 0,
+    "realApprovals": 0,
+    "targets": "test/fixtures/claudito-approval-observation-runtime",
+    "observations": [
+      {
+        "name": "wrong_mission_id",
+        "exitCode": 0,
+        "unchanged": false,
+        "status": "APPROVED"
+      },
+      {
+        "name": "unapproved_direct_write",
+        "exitCode": 0,
+        "target": "module.exports = 'after';\n",
+        "stopped": {
+          "critic_failures": 0,
+          "verification_failed": false,
+          "cicd_failed": false,
+          "manifest_mismatch": false,
+          "warden_blocked": false
+        }
+      },
+      {
+        "name": "approved_spec_substitution",
+        "exitCode": 0,
+        "originalSpec": "test/fixtures/claudito-approval-observation-runtime/spec-substitution.md",
+        "persistedSpec": "test/fixtures/claudito-approval-observation-runtime/other-missing-spec.md",
+        "unchanged": false
+      },
+      {
+        "name": "execution_preserves_stop",
+        "exitCode": 0,
+        "verificationFailed": false,
+        "unchanged": false
+      },
+      {
+        "name": "approved_source_drift",
+        "exitCode": 0,
+        "unchanged": false
+      },
+      {
+        "name": "approved_spec_content_drift",
+        "exitCode": 0,
+        "unchanged": false
+      },
+      {
+        "name": "approved_stage_handoff",
+        "exitCode": 0,
+        "target": "module.exports = 'after';\n",
+        "changedPaths": [
+          "test/fixtures/claudito-approval-observation-runtime/valid-handoff.js"
+        ],
+        "edits": [
+          {
+            "files": [
+              "test/fixtures/claudito-approval-observation-runtime/valid-handoff.js"
+            ],
+            "fixId": "1",
+            "title": "Isolated workflow source change",
+            "editCount": 1,
+            "totalSitesReplaced": 1,
+            "perEditResults": [
+              {
+                "file": "test/fixtures/claudito-approval-observation-runtime/valid-handoff.js",
+                "fileIndex": 0,
+                "editIndex": 0,
+                "index": 0,
+                "occurrencesReplaced": 1
+              }
+            ],
+            "spec_driven": true
+          }
+        ],
+        "hook": {
+          "command": "/fixer-write",
+          "state": "ENTOMOLOGY",
+          "timestamp": "2026-11-25T20:09:05.598Z"
+        },
+        "approvalScopePresent": false
+      },
+      {
+        "name": "missing_manifest_cli",
+        "exitCode": 0
+      }
+    ]
+  },
+  "candidate": {
+    "sourceMode": "candidate",
+    "liveProviderAccess": "excluded by helper network and credential isolation; no model stage reached",
+    "realApprovals": 0,
+    "targets": "test/fixtures/claudito-approval-observation-runtime",
+    "observations": [
+      {
+        "name": "wrong_mission_id",
+        "exitCode": 1,
+        "unchanged": true,
+        "status": "PENDING"
+      },
+      {
+        "name": "unapproved_direct_write",
+        "exitCode": 1,
+        "target": "module.exports = 'before';\n",
+        "stopped": {
+          "critic_failures": 0,
+          "verification_failed": false,
+          "cicd_failed": false,
+          "manifest_mismatch": false,
+          "warden_blocked": true
+        }
+      },
+      {
+        "name": "approved_spec_substitution",
+        "exitCode": 1,
+        "originalSpec": "test/fixtures/claudito-approval-observation-runtime/spec-substitution.md",
+        "persistedSpec": "test/fixtures/claudito-approval-observation-runtime/spec-substitution.md",
+        "unchanged": true
+      },
+      {
+        "name": "execution_preserves_stop",
+        "exitCode": 1,
+        "verificationFailed": true,
+        "unchanged": true
+      },
+      {
+        "name": "approved_source_drift",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "approved_spec_content_drift",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "approved_stage_handoff",
+        "exitCode": 0,
+        "target": "module.exports = 'after';\n",
+        "changedPaths": [
+          "test/fixtures/claudito-approval-observation-runtime/valid-handoff.js"
+        ],
+        "edits": [
+          {
+            "files": [
+              "test/fixtures/claudito-approval-observation-runtime/valid-handoff.js"
+            ],
+            "fixId": "1",
+            "title": "Isolated workflow source change",
+            "editCount": 1,
+            "totalSitesReplaced": 1,
+            "perEditResults": [
+              {
+                "file": "test/fixtures/claudito-approval-observation-runtime/valid-handoff.js",
+                "fileIndex": 0,
+                "editIndex": 0,
+                "index": 0,
+                "occurrencesReplaced": 1
+              }
+            ],
+            "spec_driven": true
+          }
+        ],
+        "hook": {
+          "command": "/fixer-write",
+          "state": "ENTOMOLOGY",
+          "timestamp": "2026-11-25T20:17:34.592Z"
+        },
+        "approvalScopePresent": true
+      },
+      {
+        "name": "missing_manifest_cli",
+        "exitCode": 1
+      },
+      {
+        "name": "approve_active_copy_of_named_mission",
+        "exitCode": 0,
+        "activeStatus": "APPROVED",
+        "savedCopyUnchanged": true
+      },
+      {
+        "name": "proposal_changed_before_approval",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "target_changed_before_approval",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "legacy_unbound_approval",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "approved_target_independent_of_cwd",
+        "exitCode": 0,
+        "target": "module.exports = 'after';\n",
+        "artifact": [
+          "test/fixtures/claudito-approval-observation-runtime/other-working-directory.js"
+        ]
+      },
+      {
+        "name": "already_applied_scope_not_reused",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "literal_backslash_keeps_exact_target_identity",
+        "exitCode": 0,
+        "target": "module.exports = 'after';\n",
+        "otherFileUnchanged": true,
+        "artifacts": [
+          "test/fixtures/claudito-approval-observation-runtime/literal\\source.js"
+        ]
+      },
+      {
+        "name": "outside_repository_source",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "symlink_source",
+        "exitCode": 1,
+        "unchanged": true
+      },
+      {
+        "name": "later_edit_failure_leaves_all_targets_untouched",
+        "exitCode": 1,
+        "targetsBefore": [
+          "274447fb72c409f8cda5f5fae0ba38b7bb23c76d640eac1eeebf1cc516f03d82",
+          "274447fb72c409f8cda5f5fae0ba38b7bb23c76d640eac1eeebf1cc516f03d82"
+        ],
+        "targetsAfter": [
+          "274447fb72c409f8cda5f5fae0ba38b7bb23c76d640eac1eeebf1cc516f03d82",
+          "274447fb72c409f8cda5f5fae0ba38b7bb23c76d640eac1eeebf1cc516f03d82"
+        ]
+      }
+    ]
+  },
+  "hostPreservation": {
+    "currentManifestSha256": "97c793a43949dae932606a73e93845edf82a1681d5a97fe215db57b661af5af4",
+    "currentManifestMtimeUtc": "2026-10-15T15:32:05.060840+00:00",
+    "currentMission": "MISSION-1792078202677",
+    "exerciseRuntimeTargetsExistOnHost": false
+  },
+  "review": {
+    "independent": {
+      "reviewer": "/root/claudito_candidate_review",
+      "source": "Direct final message from /root/claudito_candidate_review",
+      "result": "No positive defect found in exact-spec approval/write behavior",
+      "sourceVerification": "Four candidate hashes and scoped diff verified",
+      "behaviorVerification": "Independent rerun of isolated native fixture",
+      "boundary": "Direct writer success reaches ENTOMOLOGY; full workflow completion remains unverified",
+      "separateFinding": "Inherited downstream Mercury failure can become infra_issue then Warden COMPLETE/SUCCESS with exit 0; reserved for next change",
+      "completionEvidence": [
+        "ogz-meta/slash-router.js:2632",
+        "ogz-meta/slash-router.js:2729",
+        "ogz-meta/manifest-schema.js:268",
+        "ogz-meta/pipeline.js:301",
+        "ogz-meta/pipeline.js:389"
+      ]
+    },
+    "mercury": {
+      "runId": "2026-11-25T20-26-32-672Z-96b638def153",
+      "query": "Scope: the exact-spec Claudito write approval handoff from ogz-meta/approve.js through pipeline resume and direct /fixer-write. Source: candidate tree a0c85fb1212d96c7dc7e66f057ad8e63a51fd8f0, compared with base commit 0764c45cbe59f7a2dab5e474e0f7719dc8fc2458. How does this fail or cost me money in production? Investigate reachable producer and consumer paths, cite current file:line evidence for any trigger and consequence, and name verification gaps.",
+      "reviewScope": {
+        "source": "explicit_change_paths",
+        "paths": [
+          "ogz-meta/approve.js",
+          "ogz-meta/manifest-schema.js",
+          "ogz-meta/pipeline.js",
+          "ogz-meta/slash-router.js"
+        ],
+        "tree": "a0c85fb1212d96c7dc7e66f057ad8e63a51fd8f0",
+        "baseTree": "182a53d6f0cccac4551d1dd13b9104d9d73680ff",
+        "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-25T20-24-59-247Z-2901167-cd408d2ab624/source-ntkNj3.json",
+        "manifestSha256": "7dcc3526e26874db599ef558d26da65232b0893f788f9f91e64fb6701e34079e"
+      },
+      "baseCommit": "0764c45cbe59f7a2dab5e474e0f7719dc8fc2458",
+      "harnessDirtyFiles": [
+        {
+          "path": "trai_brain/mercury-bridge/react-loop.js",
+          "sha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+        }
+      ],
+      "selectedReviewers": [
+        "mercury"
+      ],
+      "requestedAndAppliedModel": "mercury-3",
+      "maxTokens": 7750,
+      "maxIterations": null,
+      "verdict": "no_break_found",
+      "blocking": false,
+      "selectedSeatCompleted": true,
+      "iterations": 14,
+      "toolCalls": 25,
+      "toolFailures": 0,
+      "runtimeChecks": 0,
+      "namedAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "whole_file_read_absent",
+        "inherited_section_incomplete"
+      ],
+      "candidateCoverage": {
+        "expectedTotal": 4,
+        "unresolved": [],
+        "complete": false,
+        "authorityReady": false,
+        "fourthShapeAdditions": [],
+        "fourthShapeAdditionCount": 0
+      },
+      "panelFinding": "insufficient_qualifying_seats: exactly one reviewer was selected; no multi-model consensus claim",
+      "providerReceiptCostUsd": 0.06094193,
+      "limitations": [
+        "Mercury read relevant role and source windows, not every router line.",
+        "Strict issue/spec equality can refuse paraphrased resumes; --execute alone retains stored scope.",
+        "Symlink sources are refused. This is new enforcement, correcting Mercury's inherited label.",
+        "Target hashes change after a successful write; approval cannot be reused.",
+        "architectVerify still resolves relative target paths from cwd.",
+        "Sequential write-time I/O failure, process crash, and concurrent source mutation after the final check remain untested."
+      ],
+      "adjudication": "No positive authorization-bypass finding. Cited gate/parser/source lines were inspected; independent native execution supplies behavior evidence. Coverage flags are preserved as review limitations, not erased or presented as whole-file approval.",
+      "fullAnswerLocalPath": "ogz-meta/inbox/codex/2026-11-25/claudito-approved-write/mercury-review.log",
+      "evidenceBundle": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-24-59-247z-2901167-cd408d2ab624/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-24-59-247z-2901167-cd408d2ab624/current-change-evidence.txt:1",
+        "sha256": "997d1547daf42001515e5cb1205bc739d2adf1d2690fb161751a201fe8a34f74",
+        "bytes": 198576,
+        "lines": 4441,
+        "section_count": 14,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-25/2026-11-25t20-24-59-247z-2901167-cd408d2ab624/manifest.json",
+        "manifest_sha256": "e55ceb613e765d5ae3801f194e361dd0970dc708bf5b28e71b8befa6e2552a01",
+        "manifest_bytes": 20155
+      }
+    },
+    "deliverySourceIdentity": "The final candidate changes only the changelog entry and this receipt after Mercury; all four reviewed source hashes and the native fixture remain identical."
+  },
+  "limits": [
+    "No paid model dispatch or full pipeline completion was exercised.",
+    "Only exact-spec write approvals are bound to source bytes by this change; generative role approval/completion remains separate repair scope.",
+    "No cross-file filesystem transaction or crash/power-loss recovery was established.",
+    "Approval files remain local operator-owned workflow records, not protection against a host user deliberately editing them."
+  ],
+  "selfReviewResolution": "Path separator conversion uses the operating-system separator; a Linux literal-backslash filename retains the exact approved target and leaves the slash-path sentinel unchanged."
+}

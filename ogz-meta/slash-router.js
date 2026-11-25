@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { createManifest, loadManifest, saveManifest, updateSection, shouldStop } = require('./manifest-schema');
+const { createManifest, loadManifest, saveManifest, updateSection, shouldStop, captureWriteScope, sameWriteScope } = require('./manifest-schema');
 const { ClauditoLogger } = require('./claudito-logger');
 
 const MANIFEST_DIR = path.join(__dirname, 'manifests');
@@ -46,8 +46,8 @@ async function route(command, args) {
   // Check stop conditions
   const stopCheck = shouldStop(manifest);
   if (stopCheck.stop) {
-    console.error(`🛑 STOP CONDITION: ${stopCheck.reason}`);
-    process.exit(1);
+    console.error(`STOP CONDITION: ${stopCheck.reason}`);
+    return manifest;
   }
 
   // Route to handler
@@ -2207,47 +2207,51 @@ async function architectVerify(manifest, params) {
  * Records the applied edit in manifest.fixer.
  */
 async function fixerWrite(manifest, params) {
-  const { parseFix } = require('./spec-parser');
   const fs = require('fs');
   const path = require('path');
+  const repoRoot = path.resolve(__dirname, '..');
 
   const spec = manifest.spec_source;
   if (!spec || !spec.path || !spec.fixId) {
-    console.error('❌ fixer-write: manifest.spec_source missing');
+    console.error('fixer-write: manifest.spec_source missing');
     manifest.stop_conditions.manifest_mismatch = true;
     return manifest;
   }
 
-  let parsed;
-  try {
-    parsed = parseFix(spec.path, spec.fixId);
-  } catch (err) {
-    console.error(`❌ fixer-write: spec parse failed — ${err.message}`);
+  const captured = captureWriteScope(manifest);
+  if (!captured.ok) {
+    console.error(`fixer-write: ${captured.reason}`);
     manifest.stop_conditions.manifest_mismatch = true;
     return manifest;
   }
+  const parsed = captured.parsed;
 
   const parsedFiles = parsed.files || [{ file: parsed.file, lineHint: parsed.lineHint, edits: parsed.edits }];
 
   if (manifest.mode === 'EXECUTE') {
+    if (manifest.approval?.status !== 'APPROVED' ||
+        !sameWriteScope(captured.scope, manifest.approval.write_scope)) {
+      console.error('fixer-write: execution requires approval of this exact mission, spec and target source');
+      manifest.stop_conditions.warden_blocked = true;
+      return manifest;
+    }
     const perEditResults = [];
     const filesWritten = [];
+    const preparedFiles = new Map();
 
-    // Apply each file's edits in order. Fail loud + abort if any target missing
-    // (architect-verify already checked, but re-check to catch concurrent edits
-    // and to detect cases where an earlier edit's replacement inadvertently
-    // removed a later edit's target).
+    // Prepare every edit before writing any file. An edit that removes a later
+    // target cannot leave earlier files changed without their handoff record.
     for (let fileIndex = 0; fileIndex < parsedFiles.length; fileIndex++) {
       const fileEntry = parsedFiles[fileIndex];
-      const filePath = path.isAbsolute(fileEntry.file)
-        ? fileEntry.file
-        : path.join(process.cwd(), fileEntry.file);
-      let fileContents = fs.readFileSync(filePath, 'utf8');
+      const filePath = path.join(repoRoot, captured.scope.files[fileIndex].path);
+      let fileContents = preparedFiles.has(filePath)
+        ? preparedFiles.get(filePath)
+        : fs.readFileSync(filePath, 'utf8');
 
       for (let editIndex = 0; editIndex < fileEntry.edits.length; editIndex++) {
         const edit = fileEntry.edits[editIndex];
         if (!fileContents.includes(edit.target)) {
-          console.error(`❌ fixer-write: ${fileEntry.file} edit[${editIndex}] target disappeared mid-apply (concurrent edit or earlier replacement clobbered it)`);
+          console.error(`fixer-write: ${fileEntry.file} edit[${editIndex}] target missing while preparing approved edits`);
           manifest.stop_conditions.verification_failed = true;
           return manifest;
         }
@@ -2262,14 +2266,24 @@ async function fixerWrite(manifest, params) {
         });
       }
 
-      fs.writeFileSync(filePath, fileContents, 'utf8');
-      filesWritten.push(fileEntry.file);
+      preparedFiles.set(filePath, fileContents);
+    }
+
+    // Re-read source identity after preparation, immediately before publication.
+    const beforeWrite = captureWriteScope(manifest);
+    if (!beforeWrite.ok || !sameWriteScope(beforeWrite.scope, manifest.approval.write_scope)) {
+      console.error(`fixer-write: ${beforeWrite.reason || 'approved source changed during preparation'}`);
+      manifest.stop_conditions.manifest_mismatch = true;
+      return manifest;
+    }
+    for (const [filePath, contents] of preparedFiles) {
+      fs.writeFileSync(filePath, contents, 'utf8');
+      filesWritten.push(path.relative(repoRoot, filePath).split(path.sep).join('/'));
     }
 
     // FIX 40/40A: /fixer-write must feed the operator review packet with a
     // canonical repo-relative path. Reject empty/outside-repo paths and
     // normalize separators before recording modified files.
-    const repoRoot = process.cwd();
     if (!manifest.artifacts) manifest.artifacts = {};
     if (!Array.isArray(manifest.artifacts.files_modified)) {
       manifest.artifacts.files_modified = [];
@@ -2279,13 +2293,7 @@ async function fixerWrite(manifest, params) {
     }
 
     for (const file of filesWritten) {
-      const artifactPath = path.relative(repoRoot, path.resolve(file)).replace(/\\/g, '/');
-      if (!artifactPath) {
-        throw new Error('fixer-write: parsed file resolved to empty artifact path');
-      }
-      if (artifactPath === '..' || artifactPath.startsWith('../') || path.isAbsolute(artifactPath)) {
-        throw new Error(`fixer-write: refusing outside-repo artifact path: ${file}`);
-      }
+      const artifactPath = file;
       if (
         !manifest.artifacts.files_modified.includes(artifactPath) &&
         !manifest.artifacts.files_created.includes(artifactPath)
@@ -2309,7 +2317,7 @@ async function fixerWrite(manifest, params) {
       plan: { spec_driven: true, fixId: parsed.fixId }
     });
 
-    console.log(`✅ Fixer-Write (EXECUTE): applied Fix ${parsed.fixId} to ${filesWritten.length} file(s) — ${perEditResults.length} edit(s), ${totalReplaced} site(s) replaced`);
+    console.log(`Fixer-Write (EXECUTE): applied Fix ${parsed.fixId} to ${filesWritten.length} file(s) — ${perEditResults.length} edit(s), ${totalReplaced} site(s) replaced`);
     perEditResults.forEach(r => {
       console.log(`   ${r.file} edit[${r.editIndex}] -> ${r.occurrencesReplaced} site(s)`);
     });
@@ -2340,7 +2348,7 @@ ${edit.replacement}
   const proposalBody = `# WRITE PROPOSAL: ${manifest.mission_id}
 Generated: ${new Date().toISOString()}
 
-## ⚠️ ADVISORY MODE — NO CHANGES MADE
+## ADVISORY MODE — NO CHANGES MADE
 This proposal is a deterministic application of spec block(s). Nothing has
 been modified. Re-run with --execute to apply.
 
@@ -2372,10 +2380,12 @@ node ogz-meta/reject.js ${manifest.mission_id} "<reason>"
 
   updateSection(manifest, 'fixer', {
     proposal_path: proposalPath,
+    proposal_sha256: require('crypto').createHash('sha256').update(proposalBody).digest('hex'),
+    write_scope: captured.scope,
     plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, files: parsedFiles.map(f => f.file) }
   });
 
-  console.log(`✅ Fixer-Write (ADVISORY): proposal written`);
+  console.log('Fixer-Write (ADVISORY): proposal written');
   console.log(`   ${proposalPath}`);
   return manifest;
 }
@@ -2918,10 +2928,16 @@ if (require.main === module) {
       console.log(`\n📋 State: ${manifest.state}`);
       const stopCheck = shouldStop(manifest);
       if (stopCheck.stop) {
-        console.log(`🛑 STOPPED: ${stopCheck.reason}`);
+        console.error(`STOPPED: ${stopCheck.reason}`);
+        process.exitCode = 1;
       }
+    } else {
+      process.exitCode = 1;
     }
-  }).catch(console.error);
+  }).catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });
 }
 
 module.exports = { route };

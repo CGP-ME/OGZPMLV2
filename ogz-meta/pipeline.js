@@ -20,7 +20,7 @@
  */
 
 const { route } = require('./slash-router');
-const { shouldStop } = require('./manifest-schema');
+const { shouldStop, captureWriteScope, sameWriteScope } = require('./manifest-schema');
 
 // Bug fix pipeline - hunts for bugs, applies fixes
 const BUGFIX_PIPELINE = [
@@ -170,7 +170,7 @@ const PIPELINE = BUGFIX_PIPELINE;
  * Execute full pipeline
  */
 async function execute(issue, specSource) {
-  const pipelineType = detectMode(issue);
+  let pipelineType = detectMode(issue);
   const executeMode = hasExecuteFlag(issue);
 
   // Clean issue text (remove all flags)
@@ -203,33 +203,39 @@ async function execute(issue, specSource) {
     if (fs.existsSync(currentPath)) {
       manifest = loadManifest(currentPath);
       if (manifest.approval?.status === 'APPROVED') {
-        console.log(`\n✅ Loaded approved mission: ${manifest.mission_id}`);
+        const stop = shouldStop(manifest);
+        if (stop.stop) {
+          console.error(`Execution refused: ${stop.reason}`);
+          return null;
+        }
+        if (manifest.pipeline_type === 'write' || manifest.approval.write_scope) {
+          const captured = captureWriteScope(manifest);
+          const requestedSpecMatches = !specSource ||
+            (specSource.path === manifest.spec_source?.path && String(specSource.fixId) === String(manifest.spec_source?.fixId));
+          if ((pipelineType !== 'write' && pipelineType !== 'execute') ||
+              (cleanIssue && cleanIssue !== manifest.issue) || !requestedSpecMatches ||
+              !captured.ok || !sameWriteScope(captured.scope, manifest.approval.write_scope)) {
+            console.error(`Execution refused: ${captured.reason || 'request or current source differs from the approved write scope'}`);
+            return null;
+          }
+          pipelineType = 'write';
+          pipeline = [...WRITE_PIPELINE];
+        } else if (specSource && JSON.stringify(specSource) !== JSON.stringify(manifest.spec_source)) {
+          console.error('Execution refused: a different spec operation requires its own advisory mission and approval');
+          return null;
+        }
+        console.log(`\nLoaded approved mission: ${manifest.mission_id}`);
         manifest.mode = 'EXECUTE';  // Ensure execute mode
         manifest.pipeline_type = pipelineType;  // Ensure correct pipeline type
-        // Spec_source persists from the advisory run; --write --execute reuses it.
-        // BUT --mark-fixed --execute (run AFTER a --write --execute) brings a
-        // different spec_source shape (fixMap instead of fixId). If a fresh
-        // specSource is passed on this invocation, overwrite the loaded one
-        // so the new operation sees its own shape, not the prior mission's.
-        if (specSource) {
-          manifest.spec_source = specSource;
-        }
-        // Reset stop conditions for fresh execute run
-        manifest.stop_conditions = {
-          critic_failures: 0,
-          verification_failed: false,
-          cicd_failed: false,
-          manifest_mismatch: false,
-          warden_blocked: false
-        };
+        // Approval belongs to the recorded mission. Keep its source and failures.
         saveManifest(manifest, currentPath);  // Save so all commands see EXECUTE mode
       } else {
-        console.log(`\n❌ Current mission not approved. Run: node ogz-meta/approve.js ${manifest.mission_id}`);
-        return;
+        console.error(`\nCurrent mission not approved. Run: node ogz-meta/approve.js ${manifest.mission_id}`);
+        return null;
       }
     } else {
-      console.log(`\n❌ No current mission found. Run pipeline in ADVISORY mode first.`);
-      return;
+      console.error('\nNo current mission found. Run pipeline in ADVISORY mode first.');
+      return null;
     }
   } else {
     // Start new mission in ADVISORY mode
@@ -380,7 +386,14 @@ if (require.main === module) {
     specSource = { path: writeFlags.specPath, fixMap: writeFlags.fixMap };
   }
 
-  execute(issue, specSource).catch(console.error);
+  execute(issue, specSource).then(manifest => {
+    if (!manifest || shouldStop(manifest).stop || manifest.state !== 'COMPLETE') {
+      process.exitCode = 1;
+    }
+  }).catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });
 }
 
 module.exports = { execute, PIPELINE, BUGFIX_PIPELINE, REFACTOR_PIPELINE, EXECUTE_PIPELINE, WRITE_PIPELINE, detectMode, parseWriteFlags };

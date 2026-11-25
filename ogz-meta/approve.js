@@ -9,7 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { loadManifest, saveManifest } = require('./manifest-schema');
+const { loadManifest, saveManifest, shouldStop, captureWriteScope, sameWriteScope } = require('./manifest-schema');
 
 const MANIFEST_DIR = path.join(__dirname, 'manifests');
 
@@ -17,36 +17,76 @@ function approve(missionId, notes) {
   const manifestPath = path.join(MANIFEST_DIR, `${missionId}.json`);
   const currentPath = path.join(MANIFEST_DIR, 'current.json');
 
-  // Try mission-specific first, then current
+  // Prefer the active copy of the requested mission over an older saved copy.
   let manifest;
   let usedPath;
+  const current = fs.existsSync(currentPath) ? loadManifest(currentPath) : null;
 
-  if (fs.existsSync(manifestPath)) {
+  if (current && (missionId === 'current' || current.mission_id === missionId)) {
+    manifest = current;
+    usedPath = currentPath;
+  } else if (fs.existsSync(manifestPath)) {
     manifest = loadManifest(manifestPath);
     usedPath = manifestPath;
-  } else if (fs.existsSync(currentPath)) {
-    manifest = loadManifest(currentPath);
+  } else if (current) {
+    manifest = current;
     usedPath = currentPath;
   } else {
-    console.error(`❌ No manifest found for mission: ${missionId}`);
+    console.error(`No manifest found for mission: ${missionId}`);
     console.log('\nAvailable manifests:');
-    fs.readdirSync(MANIFEST_DIR)
+    (fs.existsSync(MANIFEST_DIR) ? fs.readdirSync(MANIFEST_DIR) : [])
       .filter(f => f.endsWith('.json'))
       .forEach(f => console.log(`  - ${f}`));
-    process.exit(1);
+    process.exitCode = 1;
+    return null;
+  }
+
+  if (missionId !== 'current' && manifest.mission_id !== missionId) {
+    console.error(`Approval refused: requested ${missionId}, found ${manifest.mission_id}`);
+    process.exitCode = 1;
+    return null;
+  }
+
+  const stop = shouldStop(manifest);
+  if (stop.stop) {
+    console.error(`Approval refused: ${stop.reason}`);
+    process.exitCode = 1;
+    return null;
+  }
+
+  let writeScope;
+  if (manifest.pipeline_type === 'write' || manifest.fixer?.plan?.spec_driven) {
+    const captured = captureWriteScope(manifest);
+    const proposalPath = manifest.fixer?.proposal_path;
+    const proposalHash = proposalPath && fs.existsSync(proposalPath)
+      ? require('crypto').createHash('sha256').update(fs.readFileSync(proposalPath)).digest('hex')
+      : null;
+    if (!captured.ok || !manifest.architect?.spec_target_verified ||
+        !sameWriteScope(captured.scope, manifest.fixer?.write_scope) ||
+        !proposalHash || proposalHash !== manifest.fixer?.proposal_sha256) {
+      console.error(`Approval refused: ${captured.reason || 'write proposal, spec or target bytes changed; regenerate the proposal before approval'}`);
+      process.exitCode = 1;
+      return null;
+    }
+    writeScope = captured.scope;
   }
 
   // Check if already approved
   if (manifest.approval?.status === 'APPROVED') {
-    console.log(`⚠️  Mission ${manifest.mission_id} already approved`);
+    if (writeScope && !sameWriteScope(writeScope, manifest.approval.write_scope)) {
+      console.error('Approval refused: existing approval does not identify this write scope');
+      process.exitCode = 1;
+      return null;
+    }
+    console.log(`Mission ${manifest.mission_id} already approved`);
     console.log(`   Approved by: ${manifest.approval.approved_by}`);
     console.log(`   Approved at: ${manifest.approval.approved_at}`);
-    return;
+    return manifest;
   }
 
   // Show what's being approved
   console.log('\n' + '='.repeat(60));
-  console.log('🔍 APPROVAL REVIEW');
+  console.log('APPROVAL REVIEW');
   console.log('='.repeat(60));
   console.log(`\nMission: ${manifest.mission_id}`);
   console.log(`Issue: ${manifest.issue}`);
@@ -54,7 +94,11 @@ function approve(missionId, notes) {
   console.log(`\nProposals to approve:`);
 
   const proposals = manifest.exterminator?.proposals || [];
-  if (proposals.length === 0) {
+  if (writeScope) {
+    console.log(`  Exact write proposal: ${manifest.fixer.proposal_path}`);
+    console.log(`  Spec SHA-256: ${writeScope.spec_source.sha256}`);
+    writeScope.files.forEach(file => console.log(`  ${file.path}: ${file.sha256}`));
+  } else if (proposals.length === 0) {
     console.log('  (No proposals found)');
   } else {
     proposals.forEach((p, i) => {
@@ -70,18 +114,23 @@ function approve(missionId, notes) {
     approved_at: new Date().toISOString(),
     notes: notes || null
   };
+  if (writeScope) manifest.approval.write_scope = writeScope;
 
   // Save updated manifest
   saveManifest(manifest, usedPath);
 
   console.log('\n' + '='.repeat(60));
-  console.log('✅ APPROVED');
+  console.log('APPROVED');
   console.log('='.repeat(60));
   console.log(`\nMission ${manifest.mission_id} has been approved.`);
-  console.log(`\nTo execute the approved changes, run:`);
-  console.log(`  node ogz-meta/execute.js ${manifest.mission_id}`);
-  console.log('\nOr to continue the pipeline in execute mode:');
-  console.log(`  node ogz-meta/pipeline.js --execute "${manifest.issue}"`);
+  if (usedPath === currentPath) {
+    console.log('\nTo continue this approved mission, run:');
+    console.log('  node ogz-meta/pipeline.js --execute');
+  } else {
+    console.log(`Approved saved manifest: ${usedPath}`);
+    console.log('The active pipeline mission was not changed; --execute resumes only current.json.');
+  }
+  return manifest;
 }
 
 // CLI
@@ -100,7 +149,12 @@ if (require.main === module) {
     process.exit(0);
   }
 
-  approve(missionId, notes);
+  try {
+    approve(missionId, notes);
+  } catch (error) {
+    console.error(`Approval failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 }
 
 module.exports = { approve };
