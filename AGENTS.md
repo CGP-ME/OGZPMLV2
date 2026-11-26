@@ -198,6 +198,9 @@ Start with an alignment-only assignment and follow the parent verification
 requirements in `ogz-meta/AGENTS.md` under "Subagent Alignment". Inherited
 context, a document list, selected excerpts or truncated reads do not establish
 completion. The parent owns this check; Trey does not have to remind it.
+Every subagent must also read the full current Mercury usage guide at
+`trai_brain/mercury-bridge/README.md` and the current Mercury rules before task
+work, including agents assigned only to read or review.
 
 ## Cold-Start Checklist
 

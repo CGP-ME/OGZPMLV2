@@ -1,3 +1,9 @@
+## 2026-11-26 — Make Mercury instruction reading mandatory for every subagent
+
+**Instruction and change.** Trey clarified that complete subagent alignment includes Mercury's instructions and their actual reading. The previous wording required the Mercury guide before a Mercury assignment, leaving other readers and reviewers without the same explicit requirement. The root bootstrap and full agent instructions now require every delegated agent to read the entire current `trai_brain/mercury-bridge/README.md` and current Mercury rules before task work. Confirmation includes neutral production-risk framing, one behavior at a time, reading the complete answer, independent evidence, canonical exclusions, failure diagnosis and the current token/iteration rules. The parent verifies reading coverage and actual request scope.
+
+**Verification and limits.** Reviewed the scoped prose against Trey's clarification and the existing Mercury guide. Verified whitespace, exact staged paths and preservation of the existing dirty work and remaining changelog bytes. No executable behavior changed; no tests, paid Mercury calls or runtime activation were performed or required. This documents the operating requirement; it does not certify agent compliance or close the pending Mercury/Claudito and candle repairs. Delivered as its own atomic documentation commit and push on the selected branch.
+
 ## 2026-11-26 — Require complete alignment before delegated work
 
 **Instruction and problem.** Trey reaffirmed that every dispatched subagent must be completely aligned, with no reading shortcuts, because incorrect work and repairing it both interrupt the bot walk. The preceding accountability check found that some delegated readers had only partial alignment reads and that the parent had not verified completion before accepting work.

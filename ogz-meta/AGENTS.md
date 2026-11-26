@@ -108,11 +108,15 @@ Incorrect work and repairing it both stop forward progress.
   verification and delivery, and separate runtime-activation authority. Explain
   how those constraints apply to the assignment; a copied file list is not
   enough. Use the existing conversation/read records, not another packet.
-- Before a Mercury assignment, also read its current usage guide and explain
-  one neutral behavior per request, sequential dispatch, evidence independence,
+- Every subagent must also read the entire current Mercury usage guide at
+  `trai_brain/mercury-bridge/README.md` and the current Mercury rules before task
+  work, including agents assigned only to read or review. Explain the neutral
+  production-risk question, one behavior per request, sequential dispatch,
+  reading the complete answer before proceeding, evidence independence,
   canonical exclusions, request/receipt diagnosis before a paid retry, and the
-  current token and iteration rules. The parent verifies actual request scope
-  and coordinates dispatches as well as checking the agent's acknowledgment.
+  current token and iteration rules. The parent verifies those reads and actual
+  request scope, including supplied context, and coordinates dispatches as well
+  as checking the agent's acknowledgment.
 - The parent checks recorded read coverage, closes gaps, and only then releases
   the bounded task. Apply the same check before further work from a resumed
   agent whose alignment is incomplete; refresh changed instructions or lost
