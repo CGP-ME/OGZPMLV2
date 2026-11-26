@@ -190,6 +190,15 @@ work, build the pipeline capability, get operator sign-off, then resume.
 Do not bypass Mercury, manifest tracking, or commit staging discipline because
 a change appears obvious.
 
+## Subagent Alignment
+
+Trey's 2026-11-26 instruction applies to every delegated writer, reader and
+reviewer: complete alignment with no corners cut before assigned work begins.
+Start with an alignment-only assignment and follow the parent verification
+requirements in `ogz-meta/AGENTS.md` under "Subagent Alignment". Inherited
+context, a document list, selected excerpts or truncated reads do not establish
+completion. The parent owns this check; Trey does not have to remind it.
+
 ## Cold-Start Checklist
 
 1. Check `pwd`, `git branch --show-current`, `git status --short --branch`, and

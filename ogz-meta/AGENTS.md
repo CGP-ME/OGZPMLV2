@@ -85,6 +85,40 @@ Doc priority:
 4. `ogz-meta/ledger/` intake and half-specs; read on demand, never cite as canonical without curation/verification.
 5. `ogz-ledger/` superseded archive; read only if pointed there.
 
+## Subagent Alignment
+
+Trey, 2026-11-26: align dispatched subagents completely, with no corners cut.
+Incorrect work and repairing it both stop forward progress.
+
+- This applies to writers, readers and reviewers. The first assignment is
+  alignment-only; task work begins after the parent verifies completion.
+- Complete the existing cold-start checklist and required reading in full:
+  root `AGENTS.md`, this file, `ogz-meta/Alignment/README.md`, the master alignment,
+  `TREY-DOCTRINE-FABLE-LANE.md`, `TREY-RULINGS.md`, the newest dated master and
+  verified digest, and the current context required by that checklist. Verify
+  current instructions against live state and resolve historical conflicts.
+- Read long documents in manageable sections. Retrieve every omitted section
+  after truncated output. Headings, keyword matches, another agent's summary,
+  inherited conversation and an unsupported "aligned" do not prove completion.
+  Report missing or conflicting required context before proceeding; resolve it
+  from current authority or ask Trey when his decision is actually needed.
+- Confirm the files actually read and the applicable constraints in the task
+  conversation: current branch and dirty-work ownership, the authorized task and
+  file boundaries, read/write permissions, Fourth Shape, helper isolation,
+  verification and delivery, and separate runtime-activation authority. Explain
+  how those constraints apply to the assignment; a copied file list is not
+  enough. Use the existing conversation/read records, not another packet.
+- Before a Mercury assignment, also read its current usage guide and explain
+  one neutral behavior per request, sequential dispatch, evidence independence,
+  canonical exclusions, request/receipt diagnosis before a paid retry, and the
+  current token and iteration rules. The parent verifies actual request scope
+  and coordinates dispatches as well as checking the agent's acknowledgment.
+- The parent checks recorded read coverage, closes gaps, and only then releases
+  the bounded task. Apply the same check before further work from a resumed
+  agent whose alignment is incomplete; refresh changed instructions or lost
+  context before continuing. Checking actual conduct remains the parent's
+  responsibility. Do not rely on Trey to catch omissions or remind the team.
+
 ## Claude Persistent Memory
 - On the VPS, Claude Code keeps appended session memory under `/home/linuxuser/.claude/projects/-opt-ogzprime-OGZPMLV2/memory/`.
 - `MEMORY.md` is the index and is expected to load at Claude session start.

@@ -1,3 +1,13 @@
+## 2026-11-26 — Require complete alignment before delegated work
+
+**Instruction and problem.** Trey reaffirmed that every dispatched subagent must be completely aligned, with no reading shortcuts, because incorrect work and repairing it both interrupt the bot walk. The preceding accountability check found that some delegated readers had only partial alignment reads and that the parent had not verified completion before accepting work.
+
+**Changes.** The root bootstrap now points to a dedicated subagent-alignment rule in `ogz-meta/AGENTS.md`. The rule applies to writers, readers and reviewers; makes the first assignment alignment-only; requires the existing cold-start reading in full, including Trey Doctrine and Trey Rulings; and requires follow-up reads for missing or truncated sections. The parent checks the recorded reads and the agent's understanding of scope, permissions, Fourth Shape, isolation, delivery and Mercury request discipline before releasing the bounded task. Alignment confirmation stays in the task conversation, without a new packet or runtime mechanism.
+
+**Verification and review.** Reviewed the wording against Trey's instruction and the existing bootstrap, scope, delivery and Mercury rules. Checked the scoped diff and whitespace, verified that the staged change contains only these two instruction files and this entry, and preserved the pre-existing dirty files and remaining changelog bytes. This is a prose-only change; no executable tests or paid Mercury review are required or claimed.
+
+**Limits and runtime.** Written instructions are not mechanical enforcement or proof of past compliance. The parent remains responsible for verifying reads and actual task conduct, including Mercury inputs. This change does not certify or repair the pending Claudito/Mercury findings or the separate candle candidate. No production source, configuration, runtime state or PM2 process is changed. Delivery is one atomic documentation commit on Trey's selected branch, followed by a confirmed push.
+
 ## 2026-11-25 — Correct the existing Claudito smoke helper inputs and evidence claims
 
 **Problem.** Moving the workflow's verification calls into the existing isolation launcher exposed a stale helper: it assumed the operator's excluded credentials, omitted canonical indicator parameters and the MA configuration provider, did not supply the orchestrator's captured MTF input, supplied future candles to incremental signal updates, and used an incomplete position with the wrong contract field. Its exit check accepted a refusal as success. It also called a nonexistent Bombardier method and counted unavailable graph inspection as a pass, while advertising full system/strategy correctness that the observations could not establish.
