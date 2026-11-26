@@ -1,0 +1,239 @@
+{
+  "observedAt": "2026-11-26T18:02:50.002705+00:00",
+  "pid": 2749836,
+  "logs": {
+    "pm_out_log_path": {
+      "bytesRead": 16777216,
+      "fileBytes": 16178734550,
+      "byteOffset": 16161957334,
+      "eventCounts": {
+        "CANDLE_ACCEPTED": 12526,
+        "CANDLE_INGRESS": 5338,
+        "CANDLE_NORMALIZED": 5338,
+        "LAST_PRICE_INFLUENCE": 5485,
+        "CANDLE_PROCESSOR_RECEIVED": 5338,
+        "CANDLE_OBSERVATION_ONLY": 1526,
+        "TRADING_CYCLE_TRIGGER": 45,
+        "ANALYSIS_START": 45,
+        "STRATEGY_DECISION": 45,
+        "DECISION_SKIP": 45,
+        "DECISION_AUTOPSY": 45,
+        "BOOT_REST_HYDRATION_CANDLE": 6795,
+        "NATIVE_FEED_SYMBOL_ALARM": 38,
+        "REST_HYDRATION_COMPLETE": 16,
+        "LIVENESS_REST_BACKFILL_CANDLE": 342,
+        "LIVENESS_REST_RESULT": 39,
+        "NATIVE_FEED_SYMBOL_HALT": 22,
+        "GAP_BACKFILL_REPLAY": 9,
+        "GAP_BACKFILL_COMPLETED": 9,
+        "GAP_BACKFILL_RETRY_SCHEDULED": 3
+      },
+      "recentDataEvents": [
+        {
+          "event": "NATIVE_FEED_SYMBOL_ALARM",
+          "fields": {
+            "timeframe": "1m",
+            "symbol": "BTC-USD",
+            "code": "native_feed_unavailable",
+            "source": "candle_data_recovery",
+            "status": "pending",
+            "reason": "completed_history_not_current"
+          }
+        },
+        {
+          "event": "REST_HYDRATION_COMPLETE",
+          "fields": {
+            "traceId": "rest_hydration_1795714369883_z6mlf3",
+            "source": "boot_rest_hydration",
+            "status": "degraded",
+            "symbol": "TSLA",
+            "timeframe": "15m"
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_ALARM",
+          "fields": {
+            "timeframe": "1m",
+            "traceId": "native_feed_unavailable_1795714369910_mdhrme",
+            "source": "native_feed_watchdog",
+            "code": "native_feed_unavailable",
+            "symbol": "BTC-USD",
+            "status": "unavailable",
+            "reason": "native data unavailable beyond configured cadence: 1m, 5m",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": false,
+            "manualReconciliationRequired": false
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_HALT",
+          "fields": {
+            "timeframe": "1m",
+            "traceId": "native_feed_unavailable_1795714369910_mdhrme",
+            "source": "native_feed_watchdog",
+            "code": "native_feed_unavailable",
+            "symbol": "BTC-USD",
+            "status": "unavailable",
+            "reason": "native data unavailable beyond configured cadence: 1m, 5m",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": false,
+            "manualReconciliationRequired": false
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_ALARM",
+          "fields": {
+            "timeframe": "1m",
+            "symbol": "BTC-USD",
+            "code": "native_feed_unavailable",
+            "source": "candle_data_recovery",
+            "status": "pending",
+            "reason": "completed_history_not_current"
+          }
+        },
+        {
+          "event": "REST_HYDRATION_COMPLETE",
+          "fields": {
+            "traceId": "rest_hydration_1795715098952_kc8r38",
+            "source": "boot_rest_hydration",
+            "status": "degraded",
+            "symbol": "TSLA",
+            "timeframe": "15m"
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_ALARM",
+          "fields": {
+            "timeframe": "1m",
+            "traceId": "native_feed_unavailable_1795715098982_ne87um",
+            "source": "native_feed_watchdog",
+            "code": "native_feed_unavailable",
+            "symbol": "BTC-USD",
+            "status": "unavailable",
+            "reason": "native data unavailable beyond configured cadence: 1m, 5m",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": false,
+            "manualReconciliationRequired": false
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_HALT",
+          "fields": {
+            "timeframe": "1m",
+            "traceId": "native_feed_unavailable_1795715098982_ne87um",
+            "source": "native_feed_watchdog",
+            "code": "native_feed_unavailable",
+            "symbol": "BTC-USD",
+            "status": "unavailable",
+            "reason": "native data unavailable beyond configured cadence: 1m, 5m",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": false,
+            "manualReconciliationRequired": false
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_ALARM",
+          "fields": {
+            "timeframe": "1m",
+            "symbol": "BTC-USD",
+            "code": "native_feed_unavailable",
+            "source": "candle_data_recovery",
+            "status": "pending",
+            "reason": "completed_history_not_current"
+          }
+        },
+        {
+          "event": "REST_HYDRATION_COMPLETE",
+          "fields": {
+            "traceId": "rest_hydration_1795715899299_rljc8s",
+            "source": "boot_rest_hydration",
+            "status": "degraded",
+            "symbol": "TSLA",
+            "timeframe": "15m"
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_ALARM",
+          "fields": {
+            "timeframe": "1m",
+            "traceId": "native_feed_unavailable_1795715899339_scg50i",
+            "source": "native_feed_watchdog",
+            "code": "native_feed_unavailable",
+            "symbol": "BTC-USD",
+            "status": "unavailable",
+            "reason": "native data unavailable beyond configured cadence: 1m, 5m",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": false,
+            "manualReconciliationRequired": false
+          }
+        },
+        {
+          "event": "NATIVE_FEED_SYMBOL_HALT",
+          "fields": {
+            "timeframe": "1m",
+            "traceId": "native_feed_unavailable_1795715899339_scg50i",
+            "source": "native_feed_watchdog",
+            "code": "native_feed_unavailable",
+            "symbol": "BTC-USD",
+            "status": "unavailable",
+            "reason": "native data unavailable beyond configured cadence: 1m, 5m",
+            "entryBlockScope": "symbol",
+            "operatorActionRequired": false,
+            "manualReconciliationRequired": false
+          }
+        }
+      ],
+      "recentNativeCandles": [
+        {
+          "traceId": "candle_1795715971302_6t7rbn",
+          "symbol": "BTC-USD",
+          "timeframe": "15m",
+          "close": 60455,
+          "sourceEventTimeMs": 1795715970423,
+          "sourceEventStatus": "on_time"
+        },
+        {
+          "traceId": "candle_1795715971332_nm0fzn",
+          "symbol": "BTC-USD",
+          "timeframe": "30m",
+          "close": 60455,
+          "sourceEventTimeMs": 1795715970423,
+          "sourceEventStatus": "on_time"
+        },
+        {
+          "traceId": "candle_1795715971351_44mc5f",
+          "symbol": "BTC-USD",
+          "timeframe": "1h",
+          "close": 60455,
+          "sourceEventTimeMs": 1795715970423,
+          "sourceEventStatus": "on_time"
+        },
+        {
+          "traceId": "candle_1795715971366_89hxyn",
+          "symbol": "BTC-USD",
+          "timeframe": "4h",
+          "close": 60455,
+          "sourceEventTimeMs": 1795715970423,
+          "sourceEventStatus": "on_time"
+        },
+        {
+          "traceId": "candle_1795715971378_hoodpw",
+          "symbol": "BTC-USD",
+          "timeframe": "1d",
+          "close": 60455,
+          "sourceEventTimeMs": 1795715970423,
+          "sourceEventStatus": "on_time"
+        }
+      ]
+    },
+    "pm_err_log_path": {
+      "bytesRead": 16777216,
+      "fileBytes": 356041225,
+      "byteOffset": 339264009,
+      "eventCounts": {},
+      "recentDataEvents": [],
+      "recentNativeCandles": []
+    }
+  },
+  "boundary": "Bounded trailing log window, before activation. No fault injection, state clear or restart."
+}

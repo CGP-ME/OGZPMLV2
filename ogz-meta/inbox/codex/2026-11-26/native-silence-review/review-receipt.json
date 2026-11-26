@@ -1,0 +1,99 @@
+{
+  "runId": "2026-11-26T18-01-23-259Z-be29d128c7fd",
+  "outcome": "review_incomplete",
+  "termination": "error",
+  "codeVerdict": null,
+  "sourceScope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "core/CandleProcessor.js",
+      "run-empire-v2.js"
+    ],
+    "tree": "5d395615eab5d6f2f4f772048da7afd826708c98",
+    "baseTree": "2ece65111ec224259eedda421744c073ed0cfb58",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-26T18-00-40-729Z-3101818-bb677a7a3e14/source-rXLixh.json",
+    "manifestSha256": "f759458cd2bfe14c442c3333b85557e9d019d4fe728a45f22f988df4022f91b8"
+  },
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "indexFreshness": null,
+  "runUsage": {
+    "input": 63726,
+    "uncached_input": 35068,
+    "cached_input": 28658,
+    "output": 8581,
+    "total": 72307,
+    "complete": true,
+    "attempts_with_usage": 5,
+    "total_attempts": 5
+  },
+  "estimatedRunCost": {
+    "amount": 0.00669763,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 5,
+    "total_attempts": 5,
+    "cost_absences": []
+  },
+  "toolSummary": {
+    "succeeded": 6,
+    "failed": 0,
+    "readReviewReceipt": 2,
+    "openFile": 3,
+    "gitShow": 1
+  },
+  "lastProviderResponse": {
+    "model": "mercury-3",
+    "finishReason": "length",
+    "contentPresent": false,
+    "toolCallsPresent": false,
+    "usage": {
+      "prompt_tokens": 20855,
+      "completion_tokens": 7437,
+      "total_tokens": 28292,
+      "prompt_tokens_details": {
+        "cached_tokens": 9345
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 7437
+      }
+    },
+    "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-26/2026-11-26t18-00-40-729z-3101818-bb677a7a3e14/mercury_independent_source-4.raw",
+    "rawSha256": "5ad84a0d8d8ad99013b5496e26a0a1156b284f8e7c4d2b52556a87a89eb23f8a"
+  },
+  "requestRecord": "review-request.json",
+  "interpretation": [
+    "Provider returned no answer after six successful source-evidence reads. No code verdict exists.",
+    "The raw response reports 7437 completion tokens, all reasoning tokens, and finish_reason length. The configured request limit is 7750; these are distinct recorded facts.",
+    "This run used a pinned source snapshot, not embeddings or indexed RAG retrieval.",
+    "Changing the scope wording did not prevent this failure. Its deeper cause is not established.",
+    "The loop preserves provider assistant-message fields when compacting tool-call history; no loss of reasoning_details was identified in that function.",
+    "No repeated investigation, token-limit increase, review substitution, production commit or activation followed this run."
+  ],
+  "remaining": [
+    "The existing source-matched isolated behavior receipt and Astra review do not supply the missing Mercury verdict.",
+    "The previous Mercury disagreement and absent evidence-exchange votes remain in the earlier receipt.",
+    "BTC-USD was halted by the deployed native-feed watchdog during read-only observation; flat paper state and online processes do not establish healthy trading."
+  ],
+  "priorBehaviorReceipt": "ogz-meta/inbox/codex/2026-11-25/native-silence-confirmation/behavior-receipt.json",
+  "runtimeSnapshot": "readiness.json",
+  "runtimeLogObservation": "before-runtime-observation.json"
+}

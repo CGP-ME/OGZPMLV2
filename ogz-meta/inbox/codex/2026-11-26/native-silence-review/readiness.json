@@ -1,0 +1,68 @@
+{
+  "capturedAt": "2026-11-26T18:01:20.712501+00:00",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "cwdMatches": true,
+      "startedAt": 1795285977878
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "cwdMatches": true,
+      "startedAt": 1795307302189
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "cwdMatches": true,
+      "startedAt": 1795285977962
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2749836,
+      "status": "online",
+      "restarts": 12,
+      "profile": "paper",
+      "canonicalLaunchEnvironmentMatches": true,
+      "cwdMatches": true,
+      "startedAt": 1795559571579
+    }
+  ],
+  "activePositions": 0,
+  "pauseReason": null,
+  "symbolHalts": {
+    "BTC-USD": {
+      "reason": "Candle data unavailable for BTC-USD @ 1m: native data unavailable beyond configured cadence: 1m, 5m",
+      "haltedAt": 1795715899342,
+      "code": "native_feed_unavailable",
+      "source": "native_feed_watchdog",
+      "timeframe": "1m",
+      "traceId": "native_feed_unavailable_1795715899339_scg50i",
+      "brokerId": "kraken",
+      "entryBlockScope": "symbol",
+      "operatorActionRequired": false,
+      "manualReconciliationRequired": false,
+      "expiresAt": null
+    }
+  },
+  "transitionState": "TARGET_ACTIVATED",
+  "freezeNewEntries": false,
+  "sourceDriftSincePriorPreflight": [
+    "run-empire-v2.js"
+  ],
+  "boundary": "Read-only snapshot before any activation; process status is not behavioral acceptance."
+}
