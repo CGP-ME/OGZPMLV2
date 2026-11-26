@@ -293,6 +293,9 @@ function shouldStop(manifest) {
   if (report?.gate === 'infra_issue') {
     return { stop: true, reason: `Mercury review unavailable: ${report.reason}` };
   }
+  if (report?.gate === 'unverified') {
+    return { stop: true, reason: `Mercury review unresolved: ${report.reason}` };
+  }
 
   if (stops.critic_failures >= 2) {
     return { stop: true, reason: 'Critic failed twice' };

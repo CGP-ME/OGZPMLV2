@@ -2672,12 +2672,7 @@ async function mercuryAttack(manifest, params) {
 
   fs.writeFileSync(transcriptPath, transcriptBody, 'utf8');
 
-  // Attach summary to manifest. Findings count is a crude heuristic — count
-  // table rows or numbered bullets in the verdict text. The /critic stage
-  // (running after this) can read the transcript for detail.
-  const findingsHeuristic = (verdict.match(/^\|\s*\d+\s*\|/gm) || []).length
-    || (verdict.match(/^\s*\d+\.\s/gm) || []).length;
-
+  // Preserve the answer receipt; /mercury-critic reads its stated decision.
   updateSection(manifest, 'critic', {
     mercury_attack: {
       dispatched: true,
@@ -2689,12 +2684,11 @@ async function mercuryAttack(manifest, params) {
       elapsedMs: elapsed,
       transcript: path.relative(process.cwd(), transcriptPath),
       runLedger: result?.runLedger || null,
-      findingsCount: findingsHeuristic,
       blastRadius: blastMeta || null,
     }
   });
 
-  console.log(`Mercury-Attack: ${completed ? 'answer received' : 'incomplete'}, ${iterations || '?'} iterations, ~${findingsHeuristic} finding(s), transcript ${path.relative(process.cwd(), transcriptPath)}`);
+  console.log(`Mercury-Attack: ${completed ? 'answer received' : 'incomplete'}, ${iterations || '?'} iterations, transcript ${path.relative(process.cwd(), transcriptPath)}`);
   return manifest;
 }
 
@@ -2707,16 +2701,16 @@ async function mercuryAttack(manifest, params) {
  * the verdict into report states, and records the findings section for Trey.
  *
  * Gate states:
- *   clean            — no findings, no infra error, no truncation suspicion
+ *   clean            — explicit nonblocking no_break_found decision
  *   infra_issue      — Mercury dispatch failed or returned an error stub
- *   truncation_risk  — Mercury answered too quickly with too little content
+ *   unverified       — cannot_verify or no unambiguous supported decision
  *   findings         — Mercury surfaced findings for the operator report
  *
  * Skipped automatically in ADVISORY mode (no code applied → nothing to gate).
  */
 async function mercuryCritic(manifest, params) {
   if (manifest.mode !== 'EXECUTE') {
-    console.log('⏭️  Mercury-Critic: ADVISORY mode, no Mercury attack report — skipping');
+    console.log('Mercury-Critic: ADVISORY mode, no Mercury attack report — skipping');
     return manifest;
   }
 
@@ -2737,7 +2731,7 @@ async function mercuryCritic(manifest, params) {
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
+    console.log(`Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
   }
 
@@ -2751,17 +2745,14 @@ async function mercuryCritic(manifest, params) {
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
+    console.log(`Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
   }
 
   const transcriptAbs = path.resolve(process.cwd(), ma.transcript);
   const fullTranscript = fs.readFileSync(transcriptAbs, 'utf8');
 
-  // Extract ONLY the `## Mercury Verdict` section. Anything before that header
-  // is metadata + Claude's attack-prompt scaffolding. Counting bullets or
-  // citations in the prompt section is a critical bug — that text is by-design
-  // attack-shaped and would always look like findings.
+  // Read Mercury's answer, excluding the request and metadata above it.
   const verdictHeaderRe = /^## Mercury Verdict\s*$/m;
   const verdictMatch = fullTranscript.match(verdictHeaderRe);
   let verdict;
@@ -2778,7 +2769,7 @@ async function mercuryCritic(manifest, params) {
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
+    console.log(`Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
   }
 
@@ -2786,7 +2777,7 @@ async function mercuryCritic(manifest, params) {
   // legacy failure response, never error phrases quoted inside a real review.
   const mercuryInfraError = ma.completed === undefined && /^\(Mercury call failed: [\s\S]*\)$/.test(verdict);
   if (mercuryInfraError) {
-    const reason = `Mercury infrastructure failure — no real verdict produced. Verdict head: "${verdict.slice(0, 160).replace(/\s+/g, ' ')}…". Retry dispatch.`;
+    const reason = `Mercury infrastructure failure — no real verdict produced. Verdict head: "${verdict.slice(0, 160).replace(/\s+/g, ' ')}…". Inspect the failed request before another dispatch.`;
     updateSection(manifest, 'critic', {
       mercury_critic: {
         gate: 'infra_issue',
@@ -2797,77 +2788,38 @@ async function mercuryCritic(manifest, params) {
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
+    console.log(`Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
   }
 
-  // Heuristic finding detection on the VERDICT BODY ONLY.
-  const numberedBullets = (verdict.match(/^\s*\d+[.)]\s+\S/gm) || []).length;
-  // Markdown content rows: pipe-delimited lines that aren't separator (---|---).
-  // Mercury structures findings in tables with location-named rows, not
-  // numbered rows, so we count all non-separator content rows.
-  const tableRows = (verdict.match(/^\|(?!\s*[-:]+\s*\|)[^\n]*\|[^\n]*$/gm) || []).length;
-  // File:line citations: allow optional whitespace around the colon — Mercury
-  // sometimes writes `core/X.js : 123` with spaces.
-  const fileLineCitations = (verdict.match(/\b[a-zA-Z][\w./-]+\.js\s*:\s*\d+(?:[-\u2011]\d+)?/g) || []).length;
-  // Adversarial / exploit-confirmation keywords — broad vocabulary list to
-  // catch Mercury's varied phrasing ("diverge", "violating", "bypass", etc.).
-  const adversarialHits = (verdict.match(/\b(ATTACK SUCCEEDED|CRASH|BREAKS|LIES|corrupted|race condition|silent.*corruption|halt-not-hide|diverge|divergen|bypass|violat|out[- ]of[- ]sync|stale|inconsistent|incorrect|wrong)\b/gi) || []).length;
-  const findingsScore = numberedBullets + tableRows + adversarialHits;
-
-  // Case 5: Truncation suspect. Mercury self-terminated very early AND verdict
-  // body is short. Catches the Fix 30 V2 pattern.
-  const iters = ma.iterations || 0;
-  const truncationSuspect = iters > 0 && iters < 15 && verdict.length < 3000;
-  if (truncationSuspect && findingsScore === 0) {
-    const reason = `Suspected response truncation — iters=${iters}/60, body=${verdict.length} chars, findings=0. Re-dispatch with narrower scope.`;
-    updateSection(manifest, 'critic', {
-      mercury_critic: {
-        gate: 'truncation_risk',
-        reason: reason,
-        transcript: ma.transcript,
-        verdictBodyLength: verdict.length,
-        iterations: iters,
-        report_required: true,
-        timestamp: new Date().toISOString(),
-      }
-    });
-    console.log(`⚠️  Mercury-Critic: gate=truncation_risk — ${reason}`);
-    return manifest;
-  }
-
-  if (findingsScore > 0) {
-    const reason = `Mercury surfaced findings — score=${findingsScore} (bullets=${numberedBullets}, rows=${tableRows}, adversarial=${adversarialHits}, citations=${fileLineCitations}). Findings are bound to the operator review packet.`;
-    updateSection(manifest, 'critic', {
-      mercury_critic: {
-        gate: 'findings',
-        reason: reason,
-        transcript: ma.transcript,
-        findingsScore: findingsScore,
-        breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
-        verdictBodyLength: verdict.length,
-        report_required: true,
-        timestamp: new Date().toISOString(),
-      }
-    });
-    console.log(`⚠️  Mercury-Critic: gate=findings — ${reason}`);
-    return manifest;
-  }
+  const { parseAdversarialReviewAnswer } = require('../trai_brain/mercury-bridge/adversarial-review');
+  const { structuredPanelVerdict } = require('../trai_brain/mercury-bridge/reviewer-panel');
+  const parsed = parseAdversarialReviewAnswer(verdict);
+  const codeOutcome = structuredPanelVerdict(parsed);
+  const gate = codeOutcome === 'no_break_found' ? 'clean'
+    : codeOutcome === 'found_break' ? 'findings' : 'unverified';
+  const reason = codeOutcome === 'no_break_found'
+    ? 'Mercury explicitly reported no_break_found with nonblocking review status'
+    : codeOutcome === 'found_break'
+      ? 'Mercury explicitly reported found_break; preserve the findings for operator review'
+      : `Mercury review remains unverified (${codeOutcome}); inspect the answer and recorded parse warnings`;
 
   updateSection(manifest, 'critic', {
     mercury_critic: {
-      gate: 'clean',
-      reason: 'No findings, no infra error, no truncation suspicion',
+      gate,
+      codeOutcome,
+      reportedVerdict: parsed.verdict,
+      blocking: parsed.blocking,
+      parseWarnings: parsed.parseWarnings,
+      reason,
       transcript: ma.transcript,
-      findingsScore: 0,
-      breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
       verdictBodyLength: verdict.length,
-      iterations: iters,
+      iterations: ma.iterations,
       report_required: true,
       timestamp: new Date().toISOString(),
     }
   });
-  console.log(`Mercury-Critic: gate=clean — Mercury found nothing actionable (verdict body ${verdict.length} chars, ${iters} iterations)`);
+  console.log(`Mercury-Critic: gate=${gate} — ${reason}`);
   return manifest;
 }
 

@@ -1,3 +1,15 @@
+## 2026-11-26 — Fixed Claudito's inference of review outcomes from answer formatting
+
+**Problem:** The actual transcript reader labeled long `cannot_verify` and `found_break` answers `clean` when its bullet/keyword counters were zero. It labeled a short explicit clean answer `truncation_risk` and numbered evidence as findings. Missing and duplicated verdicts could also appear clean. These are reproduced receipt errors, not evidence of a model or billing failure.
+
+**Change:** The reader now uses the existing adversarial parser and panel decision normalizer. It records the stated code outcome, reported verdict, blocking status and parser warnings. Explicit nonblocking `no_break_found` is clean; `found_break` remains findings for operator review; `cannot_verify` and ambiguous/missing decisions are unverified and stop this tooling workflow. Removed the producer's invented bullet-based finding count and short-answer redispatch recommendation. Raw transcripts remain intact. No new trading guard, throw, config or model call was added.
+
+**Actual verification:** The isolated fixture exercised the real router, transcript reader, existing parsers and persisted manifest before and after this repair. Both clean formats stay clean; the declared finding stays a finding; cannot-verify, missing, duplicate and incomplete decision fields remain unresolved. Existing failed-provider dispatch is rejected before the critic runs. The first candidate run caught an incorrect fixture expectation about that pre-dispatch state; the corrected fixture passed without a source change. No Jest or paid provider calls. [Baseline, candidate, hashes and verification boundary](ogz-meta/inbox/codex/2026-11-26/claudito-review-outcome/behavior-receipt.json).
+
+**Review and limits:** The fully aligned independent reviewer traced the producer, parser, manifest and pipeline stop checks, found no grounded defect in this candidate, and reran the fixture once successfully. The full pipeline completion guards were source-inspected rather than executed. These labels describe the returned decision, not its correctness or whole-review completeness. Findings are still bound to the operator report and do not authorize a production commit. Old manifests were not rewritten; no claim is made about a live provider response or the pending Stop 2 review.
+
+**Delivery and activation:** One atomic tooling change on `codex/archive-legacy-env`, followed by push. No bot restart, environment or state change. Unrelated dirty source and existing changelog entries remain preserved.
+
 ## 2026-11-26 — Fixed hidden expansion and steering of focused Mercury questions
 
 **Problem and source:** The shared injected doctrine demanded every changed path and every inherited issue despite a one-behavior question. Claudito separately substituted an implementer's title/edit summary and five prescribed attack techniques for the approved mission's behavior. These were confirmed prompt conflicts, not proof of why an earlier provider response contained no final answer.

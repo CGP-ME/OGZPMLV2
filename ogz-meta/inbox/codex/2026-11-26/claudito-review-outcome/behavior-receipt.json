@@ -1,0 +1,436 @@
+{
+  "baseCommit": "73d8fde456ebe5180fb6e80f93bc2c284ada56ea",
+  "behavior": "Classify Mercury decisions from the stated structured verdict and preserve unresolved review status through the pipeline consumer",
+  "sourceSha256": {
+    "ogz-meta/slash-router.js": "d7a6c8d5b404dae234dd927d199e14ffa0186811427fab480f6b66fb7f8cda12",
+    "ogz-meta/manifest-schema.js": "ee5f4037bb68563552621f3a7fe53a5139f35ca22b9aa9191ac2253ade81f3b6",
+    "trai_brain/mercury-bridge/adversarial-review.js": "e2c2111c480396c50ed7c84335816071dd6c02b819ada15230a205d625b23e8f",
+    "trai_brain/mercury-bridge/reviewer-panel.js": "bbbf10624595229564d91872f800ec50ac6110ef66141a55a790aac5335aa43c"
+  },
+  "fixture": "ogz-meta/inbox/codex/2026-11-26/claudito-review-outcome/fixtures/observe.cjs",
+  "fixtureSha256": "e5c1bff618db8da3df6054b38a516561900fe46695b67b0d86aa312dd406cd3a",
+  "baseline": {
+    "mode": "baseline",
+    "realProviderCalls": 0,
+    "boundary": "Actual transcript reader, router, verdict parser and persisted manifest; synthetic provider transcripts",
+    "observations": [
+      {
+        "name": "short_clean",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 121,
+        "iterations": 2,
+        "report": {
+          "gate": "truncation_risk",
+          "reason": "Suspected response truncation \u2014 iters=2/60, body=121 chars, findings=0. Re-dispatch with narrower scope.",
+          "transcript": "test/fixtures/review-outcome-runtime/short_clean.md",
+          "verdictBodyLength": 121,
+          "iterations": 2,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:50:35.182Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "clean_with_bullets",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 115,
+        "iterations": 2,
+        "report": {
+          "gate": "findings",
+          "reason": "Mercury surfaced findings \u2014 score=2 (bullets=2, rows=0, adversarial=0, citations=0). Findings are bound to the operator review packet.",
+          "transcript": "test/fixtures/review-outcome-runtime/clean_with_bullets.md",
+          "findingsScore": 2,
+          "breakdown": {
+            "numberedBullets": 2,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 115,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:50:35.186Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "long_cannot_verify",
+        "declaredVerdict": "VERDICT: cannot_verify",
+        "bodyLength": 4116,
+        "iterations": 20,
+        "report": {
+          "gate": "clean",
+          "reason": "No findings, no infra error, no truncation suspicion",
+          "transcript": "test/fixtures/review-outcome-runtime/long_cannot_verify.md",
+          "findingsScore": 0,
+          "breakdown": {
+            "numberedBullets": 0,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 4115,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:50:35.188Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "long_found_break",
+        "declaredVerdict": "VERDICT: found_break",
+        "bodyLength": 4114,
+        "iterations": 20,
+        "report": {
+          "gate": "clean",
+          "reason": "No findings, no infra error, no truncation suspicion",
+          "transcript": "test/fixtures/review-outcome-runtime/long_found_break.md",
+          "findingsScore": 0,
+          "breakdown": {
+            "numberedBullets": 0,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 4113,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:50:35.189Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "missing_verdict",
+        "declaredVerdict": "Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. ",
+        "bodyLength": 4060,
+        "iterations": 20,
+        "report": {
+          "gate": "clean",
+          "reason": "No findings, no infra error, no truncation suspicion",
+          "transcript": "test/fixtures/review-outcome-runtime/missing_verdict.md",
+          "findingsScore": 0,
+          "breakdown": {
+            "numberedBullets": 0,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 4059,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:50:35.190Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "duplicate_verdict",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 4137,
+        "iterations": 20,
+        "report": {
+          "gate": "clean",
+          "reason": "No findings, no infra error, no truncation suspicion",
+          "transcript": "test/fixtures/review-outcome-runtime/duplicate_verdict.md",
+          "findingsScore": 0,
+          "breakdown": {
+            "numberedBullets": 0,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 4136,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:50:35.190Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "missing_blocking",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 4084,
+        "iterations": 20,
+        "report": {
+          "gate": "clean",
+          "reason": "No findings, no infra error, no truncation suspicion",
+          "transcript": "test/fixtures/review-outcome-runtime/missing_blocking.md",
+          "findingsScore": 0,
+          "breakdown": {
+            "numberedBullets": 0,
+            "tableRows": 0,
+            "adversarialHits": 0,
+            "fileLineCitations": 0
+          },
+          "verdictBodyLength": 4083,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:50:35.191Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "provider_failure",
+        "declaredVerdict": "(Mercury call failed: synthetic)",
+        "bodyLength": 32,
+        "iterations": 2,
+        "stop": {
+          "stop": true,
+          "reason": "Mercury review did not complete: synthetic provider failure"
+        },
+        "state": "INIT",
+        "transcriptPreserved": true
+      }
+    ]
+  },
+  "candidate": {
+    "mode": "candidate",
+    "realProviderCalls": 0,
+    "boundary": "Actual transcript reader, router, verdict parser and persisted manifest; synthetic provider transcripts",
+    "observations": [
+      {
+        "name": "short_clean",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 121,
+        "iterations": 2,
+        "report": {
+          "gate": "clean",
+          "codeOutcome": "no_break_found",
+          "reportedVerdict": "no_break_found",
+          "blocking": false,
+          "parseWarnings": [],
+          "reason": "Mercury explicitly reported no_break_found with nonblocking review status",
+          "transcript": "test/fixtures/review-outcome-runtime/short_clean.md",
+          "verdictBodyLength": 121,
+          "iterations": 2,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:54:59.653Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "clean_with_bullets",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 115,
+        "iterations": 2,
+        "report": {
+          "gate": "clean",
+          "codeOutcome": "no_break_found",
+          "reportedVerdict": "no_break_found",
+          "blocking": false,
+          "parseWarnings": [],
+          "reason": "Mercury explicitly reported no_break_found with nonblocking review status",
+          "transcript": "test/fixtures/review-outcome-runtime/clean_with_bullets.md",
+          "verdictBodyLength": 115,
+          "iterations": 2,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:54:59.656Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "long_cannot_verify",
+        "declaredVerdict": "VERDICT: cannot_verify",
+        "bodyLength": 4116,
+        "iterations": 20,
+        "report": {
+          "gate": "unverified",
+          "codeOutcome": "cannot_verify",
+          "reportedVerdict": "cannot_verify",
+          "blocking": true,
+          "parseWarnings": [],
+          "reason": "Mercury review remains unverified (cannot_verify); inspect the answer and recorded parse warnings",
+          "transcript": "test/fixtures/review-outcome-runtime/long_cannot_verify.md",
+          "verdictBodyLength": 4115,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:54:59.659Z"
+        },
+        "stop": {
+          "stop": true,
+          "reason": "Mercury review unresolved: Mercury review remains unverified (cannot_verify); inspect the answer and recorded parse warnings"
+        },
+        "state": "HALTED",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "long_found_break",
+        "declaredVerdict": "VERDICT: found_break",
+        "bodyLength": 4114,
+        "iterations": 20,
+        "report": {
+          "gate": "findings",
+          "codeOutcome": "found_break",
+          "reportedVerdict": "found_break",
+          "blocking": true,
+          "parseWarnings": [],
+          "reason": "Mercury explicitly reported found_break; preserve the findings for operator review",
+          "transcript": "test/fixtures/review-outcome-runtime/long_found_break.md",
+          "verdictBodyLength": 4113,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:54:59.660Z"
+        },
+        "stop": {
+          "stop": false
+        },
+        "state": "VALIDATE",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "missing_verdict",
+        "declaredVerdict": "Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. Source inspection was documented in the attached receipt. ",
+        "bodyLength": 4060,
+        "iterations": 20,
+        "report": {
+          "gate": "unverified",
+          "codeOutcome": "no_claim",
+          "reportedVerdict": "unknown",
+          "blocking": true,
+          "parseWarnings": [
+            "missing_adversarial_review_blocking_field",
+            "missing_adversarial_review_verdict"
+          ],
+          "reason": "Mercury review remains unverified (no_claim); inspect the answer and recorded parse warnings",
+          "transcript": "test/fixtures/review-outcome-runtime/missing_verdict.md",
+          "verdictBodyLength": 4059,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:54:59.661Z"
+        },
+        "stop": {
+          "stop": true,
+          "reason": "Mercury review unresolved: Mercury review remains unverified (no_claim); inspect the answer and recorded parse warnings"
+        },
+        "state": "HALTED",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "duplicate_verdict",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 4137,
+        "iterations": 20,
+        "report": {
+          "gate": "unverified",
+          "codeOutcome": "no_claim",
+          "reportedVerdict": "no_break_found",
+          "blocking": false,
+          "parseWarnings": [
+            "duplicate_decision_verdict"
+          ],
+          "reason": "Mercury review remains unverified (no_claim); inspect the answer and recorded parse warnings",
+          "transcript": "test/fixtures/review-outcome-runtime/duplicate_verdict.md",
+          "verdictBodyLength": 4136,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:54:59.662Z"
+        },
+        "stop": {
+          "stop": true,
+          "reason": "Mercury review unresolved: Mercury review remains unverified (no_claim); inspect the answer and recorded parse warnings"
+        },
+        "state": "HALTED",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "missing_blocking",
+        "declaredVerdict": "VERDICT: no_break_found",
+        "bodyLength": 4084,
+        "iterations": 20,
+        "report": {
+          "gate": "unverified",
+          "codeOutcome": "no_claim",
+          "reportedVerdict": "no_break_found",
+          "blocking": true,
+          "parseWarnings": [
+            "missing_adversarial_review_blocking_field"
+          ],
+          "reason": "Mercury review remains unverified (no_claim); inspect the answer and recorded parse warnings",
+          "transcript": "test/fixtures/review-outcome-runtime/missing_blocking.md",
+          "verdictBodyLength": 4083,
+          "iterations": 20,
+          "report_required": true,
+          "timestamp": "2026-11-26T17:54:59.663Z"
+        },
+        "stop": {
+          "stop": true,
+          "reason": "Mercury review unresolved: Mercury review remains unverified (no_claim); inspect the answer and recorded parse warnings"
+        },
+        "state": "HALTED",
+        "transcriptPreserved": true
+      },
+      {
+        "name": "provider_failure",
+        "declaredVerdict": "(Mercury call failed: synthetic)",
+        "bodyLength": 32,
+        "iterations": 2,
+        "stop": {
+          "stop": true,
+          "reason": "Mercury review did not complete: synthetic provider failure"
+        },
+        "state": "INIT",
+        "transcriptPreserved": true
+      }
+    ]
+  },
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-26/claudito-review-outcome/fixtures/observe.cjs --fixture ogz-meta/inbox/codex/2026-11-26/mercury-focused-request/fixtures/mercury-ignore.json -- node ogz-meta/inbox/codex/2026-11-26/claudito-review-outcome/fixtures/observe.cjs --expect-repair",
+  "verificationCorrection": "The first candidate run exercised all seven verdict cases successfully but failed a fixture expectation: an already-failed synthetic provider manifest is rejected before the critic runs, so dispatch preserves its supplied state rather than setting HALTED. The corrected fixture verifies that existing pre-dispatch stop and verifies HALTED after an unresolved critic result. No source change was made for this fixture correction.",
+  "limits": [
+    "Synthetic transcripts, no provider call or model-quality proof.",
+    "Findings remain operator report material; this label is not commit authorization or evidence that findings were repaired.",
+    "Old persisted manifests and transcripts are unchanged.",
+    "No trading-path, PM2, credentials, runtime configuration or position changes."
+  ],
+  "independentReview": {
+    "reviewer": "/root/claudito_candidate_review",
+    "result": "no grounded defect in scoped behavior",
+    "fixtureExitCode": 0,
+    "fixtureCompletedAt": "2026-11-26T17:57:30Z",
+    "sourceHashesVerified": true,
+    "consumerEvidence": [
+      "ogz-meta/slash-router.js:2795",
+      "ogz-meta/manifest-schema.js:271",
+      "ogz-meta/manifest-schema.js:288",
+      "ogz-meta/pipeline.js:287"
+    ],
+    "limits": [
+      "Synthetic decisions, no model reasoning or evidence adequacy proof.",
+      "Full pipeline completion guards source-inspected, not executed.",
+      "Findings remain report-only and are not commit authorization."
+    ]
+  }
+}
