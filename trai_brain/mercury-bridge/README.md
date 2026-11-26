@@ -146,6 +146,16 @@ The CLI and hook checks cannot mechanically prove that a question is focused or
 unbiased. The dispatching agent must inspect both its visible question and added
 context. Review completion and source/evidence checks remain required.
 
+Claudito's spec-driven review uses the approved mission issue as its behavior
+scope. Write that issue as one neutral, observable behavior; do not use the
+implementer's diagnosis, proposed fix or a work summary as the question. The
+stage asks “How does this fail or cost me money in production?” and supplies the
+spec's paths to the existing explicit-source review. Its receipt records current
+working source, not an isolated staged candidate. Before an atomic commit amid
+unrelated changes, the dispatching agent must still use the pinned staged-tree
+review procedure above. Source inventories and coverage diagnostics remain
+visible; a focused conclusion does not certify every path in that inventory.
+
 Architecture and planning are explicit synthesis modes:
 
 ```bash

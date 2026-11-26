@@ -1,0 +1,154 @@
+{
+  "sourceBase": "3ac49cc48c16d44c457d6fbc18ab781feab2a0f9",
+  "sourceSha256": {
+    "ogz-meta/slash-router.js": "192cc5b4219e887acc60eee2297eafe3930fee654072fc1067ab78a644d629e1",
+    "trai_brain/mercury-bridge/doctrine-review.js": "96e8563c9faf0a49932c258512d34636f139df8d6a81ac85dcf5a3518eaabd7a",
+    "trai_brain/mercury-bridge/README.md": "73813c9630d48b9b700c7f25b8281562b7408a906a61a4d5ecdd6a9e4ee95992"
+  },
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-26/mercury-focused-request/fixtures/observe.cjs --fixture ogz-meta/inbox/codex/2026-11-26/mercury-focused-request/fixtures/mercury-ignore.json -- node ogz-meta/inbox/codex/2026-11-26/mercury-focused-request/fixtures/observe.cjs",
+  "baseline": {
+    "realProviderCalls": 0,
+    "boundary": "Actual spec parser, router, prompt composition, transcript and diagnostic assessor; synthetic model and dependency discovery",
+    "issue": "Ownership of a queued candle when another candle arrives before processing.",
+    "request": {
+      "query": "Adversarial review of Fix 1 across 1 file(s).\nTitle: Implementer diagnosis must not become the review question\nFiles: core/CandleProcessor.js\nLine hints: core/CandleProcessor.js: ~1\nEdits applied: 1\n  core/CandleProcessor.js edit 1/1: before...\n\n## Your job \u2014 ATTACK, do not verify\n\nRead these files: core/CandleProcessor.js.\nThe change has ALREADY been applied. For each caller\nin the blast radius, hunt for a state where the new code BREAKS that\ncaller's contract or LIES to a downstream consumer. Construct concrete\nfailure modes with file:line citations.\n\nSpecific weapons to try:\n1. STATE that the new code's invariants DON'T cover \u2014 find an input\n   where the precondition holds but the postcondition is wrong.\n2. CALLER CONTRACT that the change broke silently \u2014 destructuring,\n   shape, ordering, side-effect timing, prototype chain.\n3. ENV / TIMING edge case \u2014 module-load vs. call-time evaluation,\n   dotenv ordering, empty-string vs. undefined env values.\n4. CONCURRENT MUTATION race \u2014 does the change introduce a window\n   where two callers observe inconsistent state?\n5. SCOPE GAP \u2014 are there other call-sites in the same file or repo\n   that should have received the same change but didn't?\n\nDo not verify \"is the fix correct\" \u2014 attack the fix. If no real bug\nexists, say so and explain why each weapon failed. Don't invent.",
+      "options": {
+        "blastRadius": "## core/CandleProcessor.js\nSynthetic dependency boundary; no source claim.",
+        "maxTokens": 7750,
+        "quiet": true
+      },
+      "composedPrompt": "MERCURY REVIEW RECEIPT.\nTOTALITY LAW: \"Thoroughly exhaust all sources when auditing. Do not roll with the first thing you come across \u2014 you want ALL of the possible answers before you decide, not just one answer. Audits aren't for speed. They're for totality. Thoroughness.\" Operationally: enumerate every candidate answer to the question (every file, every consumer, every changelog entry, every era of history that could speak) BEFORE ruling; a first hit is a lead, never a conclusion; stopping-at-first-hit is a named violation (the TFE miss, the CandleProcessor miss \u2014 both were this); the decision step is SEPARATE from and AFTER the collection step, and the report shows the full candidate set it decided over.\nThe word \u201call\u201d converts the work from point-fix work into a totality claim.\nA model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.\nReport missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Trey explicitly ruled that Astra executable-trust failures are recorded and dispatch continues. Repository-access protections and financial protections remain unchanged.\nFinal adversarial answers must deliver the fields the existing receipt parser and doctrine assessor read. Use literal headings followed by colons, not a prose-only conclusion.\nVERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Mercury, Astra and Fable use this same code-outcome vocabulary; agreement is recorded separately from the code outcome. Planning and architecture reviews retain their non-adversarial output contract.\nADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.\nCANDIDATE SET: examined N of M; enumerate the complete candidate inventory, including every changed path. These are evidence counts, not confidence estimates. Unread or unresolved evidence must remain named.\nAST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.\nINHERITED: identify each full repo-relative changed path and describe inherited fallback, swallowed error, environment bypass and silent default behavior, including unread areas. Use ordinary wording; category spellings are not evidence. Do not invent absence or zero findings.\nFOURTH SHAPE CLASSIFIER: classified N of M; classify every added throw, guard, gate or fallback with producer evidence. Review-tool restrictions are not bot-runtime authority. Do not introduce new bot gates.\nALLEGATIONS: explain each finding and cite its basis. Distinguish observed evidence from testimony in ordinary language; literal classification tags are not required and do not establish evidence.\nSUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none. Use none when no substantive dispute exists; retain unresolved disagreements and the actual seat positions.\nWHAT I DID: mechanically examined evidence. WHAT I DID NOT DO: named gaps. WHAT I ASSUMED: assumptions or none. WHY THIS VERDICT: reasoning. IF INCOMPLETE, WHY: actual reason or not incomplete. Put each heading on its own line.\n\nAdversarial review of Fix 1 across 1 file(s).\nTitle: Implementer diagnosis must not become the review question\nFiles: core/CandleProcessor.js\nLine hints: core/CandleProcessor.js: ~1\nEdits applied: 1\n  core/CandleProcessor.js edit 1/1: before...\n\n## Your job \u2014 ATTACK, do not verify\n\nRead these files: core/CandleProcessor.js.\nThe change has ALREADY been applied. For each caller\nin the blast radius, hunt for a state where the new code BREAKS that\ncaller's contract or LIES to a downstream consumer. Construct concrete\nfailure modes with file:line citations.\n\nSpecific weapons to try:\n1. STATE that the new code's invariants DON'T cover \u2014 find an input\n   where the precondition holds but the postcondition is wrong.\n2. CALLER CONTRACT that the change broke silently \u2014 destructuring,\n   shape, ordering, side-effect timing, prototype chain.\n3. ENV / TIMING edge case \u2014 module-load vs. call-time evaluation,\n   dotenv ordering, empty-string vs. undefined env values.\n4. CONCURRENT MUTATION race \u2014 does the change introduce a window\n   where two callers observe inconsistent state?\n5. SCOPE GAP \u2014 are there other call-sites in the same file or repo\n   that should have received the same change but didn't?\n\nDo not verify \"is the fix correct\" \u2014 attack the fix. If no real bug\nexists, say so and explain why each weapon failed. Don't invent."
+    },
+    "directPrompt": "MERCURY REVIEW RECEIPT.\nTOTALITY LAW: \"Thoroughly exhaust all sources when auditing. Do not roll with the first thing you come across \u2014 you want ALL of the possible answers before you decide, not just one answer. Audits aren't for speed. They're for totality. Thoroughness.\" Operationally: enumerate every candidate answer to the question (every file, every consumer, every changelog entry, every era of history that could speak) BEFORE ruling; a first hit is a lead, never a conclusion; stopping-at-first-hit is a named violation (the TFE miss, the CandleProcessor miss \u2014 both were this); the decision step is SEPARATE from and AFTER the collection step, and the report shows the full candidate set it decided over.\nThe word \u201call\u201d converts the work from point-fix work into a totality claim.\nA model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.\nReport missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Trey explicitly ruled that Astra executable-trust failures are recorded and dispatch continues. Repository-access protections and financial protections remain unchanged.\nFinal adversarial answers must deliver the fields the existing receipt parser and doctrine assessor read. Use literal headings followed by colons, not a prose-only conclusion.\nVERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Mercury, Astra and Fable use this same code-outcome vocabulary; agreement is recorded separately from the code outcome. Planning and architecture reviews retain their non-adversarial output contract.\nADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.\nCANDIDATE SET: examined N of M; enumerate the complete candidate inventory, including every changed path. These are evidence counts, not confidence estimates. Unread or unresolved evidence must remain named.\nAST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.\nINHERITED: identify each full repo-relative changed path and describe inherited fallback, swallowed error, environment bypass and silent default behavior, including unread areas. Use ordinary wording; category spellings are not evidence. Do not invent absence or zero findings.\nFOURTH SHAPE CLASSIFIER: classified N of M; classify every added throw, guard, gate or fallback with producer evidence. Review-tool restrictions are not bot-runtime authority. Do not introduce new bot gates.\nALLEGATIONS: explain each finding and cite its basis. Distinguish observed evidence from testimony in ordinary language; literal classification tags are not required and do not establish evidence.\nSUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none. Use none when no substantive dispute exists; retain unresolved disagreements and the actual seat positions.\nWHAT I DID: mechanically examined evidence. WHAT I DID NOT DO: named gaps. WHAT I ASSUMED: assumptions or none. WHY THIS VERDICT: reasoning. IF INCOMPLETE, WHY: actual reason or not incomplete. Put each heading on its own line.\n\nScope: ownership of a queued candle when another arrives before processing. How does this fail or cost me money in production?",
+    "diagnostics": {
+      "namedAbsences": [
+        "coverage_insufficient",
+        "ast_evidence_absent",
+        "whole_file_read_absent",
+        "inherited_section_incomplete"
+      ],
+      "namedBreaks": [],
+      "candidateSet": null,
+      "candidateCoverage": null,
+      "changedFileCount": 1,
+      "changedJsCount": 1,
+      "fourthShapeAdditionCount": 0,
+      "executionProvenance": {
+        "runChecks": []
+      }
+    },
+    "directPromptSha256": "e4ddca0178258b3592d94d3c5b2bd57a930ff95991c976bd65913f4cabc91488",
+    "receipt": {
+      "dispatched": true,
+      "completed": true,
+      "termination": "answer_given",
+      "targets": [
+        "core/CandleProcessor.js"
+      ],
+      "iterations": 1,
+      "elapsedMs": 0,
+      "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-CandleProcessor-attack-2026-11-26T17-37-13-900Z.md",
+      "findingsCount": 0,
+      "blastRadius": [
+        {
+          "file": "core/CandleProcessor.js",
+          "callerCount": 0,
+          "riskLevel": "synthetic",
+          "latencyMs": 0,
+          "summary": "Synthetic dependency boundary"
+        }
+      ]
+    }
+  },
+  "candidate": {
+    "realProviderCalls": 0,
+    "boundary": "Actual spec parser, router, prompt composition, transcript and diagnostic assessor; synthetic model and dependency discovery",
+    "issue": "Ownership of a queued candle when another candle arrives before processing.",
+    "request": {
+      "query": "Scope: Ownership of a queued candle when another candle arrives before processing.\nHow does this fail or cost me money in production?\nSource context: current working files for Fix 1: core/CandleProcessor.js. Use the captured source identities in the review receipt.\nInvestigate independently with tools. Follow the relevant producers, consumers and alternatives; these paths do not restrict that investigation or require an audit of unrelated changes.\nFor a finding, identify a reachable production trigger, its consequence and current file:line evidence. Report the supported conclusion and missing evidence without assuming that a defect exists.",
+      "options": {
+        "attack": true,
+        "changePaths": [
+          "core/CandleProcessor.js"
+        ],
+        "maxTokens": 7750,
+        "quiet": true
+      },
+      "composedPrompt": "MERCURY REVIEW RECEIPT.\nTOTALITY LAW: \"Thoroughly exhaust all sources when auditing. Do not roll with the first thing you come across \u2014 you want ALL of the possible answers before you decide, not just one answer. Audits aren't for speed. They're for totality. Thoroughness.\" Operationally: collect the plausible answers and contrary evidence relevant to the supplied question before deciding. Follow its producers, consumers and dependencies wherever the evidence leads. A first hit is a lead, never a conclusion. Exhaust the relevant alternatives; the presence of unrelated changed files or historical records does not turn one behavior question into a repository-wide audit. Report the evidence considered and the gaps that remain.\nAn adversarial dispatch asks one neutral question about one behavior: how does it fail or cost money in production? Choose the investigation yourself; do not assume a defect, diagnosis, preferred fix or desired verdict. A broader synthesis requires an explicit planning or architecture question.\nA source tree, diff or file inventory identifies evidence, not additional review assignments. A focused conclusion is not approval of every changed path. Keep unexamined or unrelated paths visible as coverage limits; never invent review coverage.\nA model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.\nReport missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Trey explicitly ruled that Astra executable-trust failures are recorded and dispatch continues. Repository-access protections and financial protections remain unchanged.\nFinal adversarial answers must deliver the fields the existing receipt parser and doctrine assessor read. Use literal headings followed by colons, not a prose-only conclusion.\nVERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Mercury, Astra and Fable use this same code-outcome vocabulary; agreement is recorded separately from the code outcome. Planning and architecture reviews retain their non-adversarial output contract.\nADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.\nCANDIDATE SET: examined N of M; enumerate the candidate explanations and source paths relevant to this behavior, including alternatives and contrary evidence. State what is being counted. These are evidence counts, not confidence estimates. Unread or unresolved relevant evidence must remain named.\nAST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.\nINHERITED: describe inherited behavior affecting the question, including relevant fallbacks, swallowed errors, environment bypasses and silent defaults. Cite the full repo-relative paths and lines actually examined. Identify unread areas as unread, not as clean or defective. Do not invent absence or zero findings.\nFOURTH SHAPE CLASSIFIER: classified N of M; classify added throws, guards, gates or fallbacks affecting this behavior with producer evidence. Name additions outside the examined scope as unreviewed. Review-tool restrictions are not bot-runtime authority. Do not introduce new bot gates.\nALLEGATIONS: explain each finding and cite its basis. Distinguish observed evidence from testimony in ordinary language; literal classification tags are not required and do not establish evidence.\nSUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none. Use none when no substantive dispute exists; retain unresolved disagreements and the actual seat positions.\nWHAT I DID: mechanically examined evidence. WHAT I DID NOT DO: named gaps. WHAT I ASSUMED: assumptions or none. WHY THIS VERDICT: reasoning. IF INCOMPLETE, WHY: actual reason or not incomplete. Put each heading on its own line.\n\nScope: Ownership of a queued candle when another candle arrives before processing.\nHow does this fail or cost me money in production?\nSource context: current working files for Fix 1: core/CandleProcessor.js. Use the captured source identities in the review receipt.\nInvestigate independently with tools. Follow the relevant producers, consumers and alternatives; these paths do not restrict that investigation or require an audit of unrelated changes.\nFor a finding, identify a reachable production trigger, its consequence and current file:line evidence. Report the supported conclusion and missing evidence without assuming that a defect exists."
+    },
+    "directPrompt": "MERCURY REVIEW RECEIPT.\nTOTALITY LAW: \"Thoroughly exhaust all sources when auditing. Do not roll with the first thing you come across \u2014 you want ALL of the possible answers before you decide, not just one answer. Audits aren't for speed. They're for totality. Thoroughness.\" Operationally: collect the plausible answers and contrary evidence relevant to the supplied question before deciding. Follow its producers, consumers and dependencies wherever the evidence leads. A first hit is a lead, never a conclusion. Exhaust the relevant alternatives; the presence of unrelated changed files or historical records does not turn one behavior question into a repository-wide audit. Report the evidence considered and the gaps that remain.\nAn adversarial dispatch asks one neutral question about one behavior: how does it fail or cost money in production? Choose the investigation yourself; do not assume a defect, diagnosis, preferred fix or desired verdict. A broader synthesis requires an explicit planning or architecture question.\nA source tree, diff or file inventory identifies evidence, not additional review assignments. A focused conclusion is not approval of every changed path. Keep unexamined or unrelated paths visible as coverage limits; never invent review coverage.\nA model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.\nReport missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Trey explicitly ruled that Astra executable-trust failures are recorded and dispatch continues. Repository-access protections and financial protections remain unchanged.\nFinal adversarial answers must deliver the fields the existing receipt parser and doctrine assessor read. Use literal headings followed by colons, not a prose-only conclusion.\nVERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Mercury, Astra and Fable use this same code-outcome vocabulary; agreement is recorded separately from the code outcome. Planning and architecture reviews retain their non-adversarial output contract.\nADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.\nCANDIDATE SET: examined N of M; enumerate the candidate explanations and source paths relevant to this behavior, including alternatives and contrary evidence. State what is being counted. These are evidence counts, not confidence estimates. Unread or unresolved relevant evidence must remain named.\nAST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.\nINHERITED: describe inherited behavior affecting the question, including relevant fallbacks, swallowed errors, environment bypasses and silent defaults. Cite the full repo-relative paths and lines actually examined. Identify unread areas as unread, not as clean or defective. Do not invent absence or zero findings.\nFOURTH SHAPE CLASSIFIER: classified N of M; classify added throws, guards, gates or fallbacks affecting this behavior with producer evidence. Name additions outside the examined scope as unreviewed. Review-tool restrictions are not bot-runtime authority. Do not introduce new bot gates.\nALLEGATIONS: explain each finding and cite its basis. Distinguish observed evidence from testimony in ordinary language; literal classification tags are not required and do not establish evidence.\nSUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none. Use none when no substantive dispute exists; retain unresolved disagreements and the actual seat positions.\nWHAT I DID: mechanically examined evidence. WHAT I DID NOT DO: named gaps. WHAT I ASSUMED: assumptions or none. WHY THIS VERDICT: reasoning. IF INCOMPLETE, WHY: actual reason or not incomplete. Put each heading on its own line.\n\nScope: ownership of a queued candle when another arrives before processing. How does this fail or cost me money in production?",
+    "diagnostics": {
+      "namedAbsences": [
+        "coverage_insufficient",
+        "ast_evidence_absent",
+        "whole_file_read_absent",
+        "inherited_section_incomplete"
+      ],
+      "namedBreaks": [],
+      "candidateSet": null,
+      "candidateCoverage": null,
+      "changedFileCount": 1,
+      "changedJsCount": 1,
+      "fourthShapeAdditionCount": 0,
+      "executionProvenance": {
+        "runChecks": []
+      }
+    },
+    "directPromptSha256": "8f047fe2288182f14da6f173405ee7698b6c90aa45866e43b586c1087cdac534",
+    "receipt": {
+      "dispatched": true,
+      "completed": true,
+      "termination": "answer_given",
+      "targets": [
+        "core/CandleProcessor.js"
+      ],
+      "iterations": 1,
+      "elapsedMs": 2,
+      "transcript": "ogz-meta/cognition-history/mercury-attacks/fix1-CandleProcessor-attack-2026-11-26T17-41-12-687Z.md",
+      "runLedger": null,
+      "findingsCount": 0,
+      "blastRadius": null
+    }
+  },
+  "review": {
+    "status": "no_candidate_induced_scope_regression",
+    "reviewer": "independent aligned Codex subagent /root/claudito_candidate_review",
+    "verifiedAtUtc": "2026-11-26T17:46:12Z",
+    "isolatedVerificationExitCode": 0,
+    "sourceHashesConfirmed": true,
+    "currentMercuryGuideFullReadingVerifiedByParent": true,
+    "findings": [],
+    "inheritedFinding": {
+      "location": "ogz-meta/slash-router.js:2804",
+      "behavior": "Mercury-Critic can label a long cannot_verify answer clean using text heuristics; short answers may be called truncation_risk",
+      "candidateIntroduced": false,
+      "disposition": "Separate reader repair pending; do not use these labels as commit approval"
+    },
+    "evidence": [
+      "ogz-meta/manifest-schema.js:223",
+      "ogz-meta/pipeline.js:203",
+      "ogz-meta/slash-router.js:2601",
+      "trai_brain/mercury-bridge/ask.js:1010",
+      "trai_brain/mercury-bridge/ask.js:1158",
+      "trai_brain/mercury-bridge/evidence-ingestion.js:627",
+      "trai_brain/mercury-bridge/adversarial-review.js:707",
+      "trai_brain/mercury-bridge/explicit-continuation.js:131",
+      "trai_brain/mercury-bridge/run-ledger.js:944",
+      "trai_brain/mercury-bridge/run-ledger.js:1028"
+    ],
+    "limits": [
+      "Model response substituted; no actual search, source capture or live ledger linkage",
+      "Captured WORKTREE review is not an isolated staged-tree review",
+      "Prompt wording cannot prove operator neutrality or model correctness"
+    ]
+  },
+  "limits": [
+    "Model response and dependency discovery were synthetic; no live provider call",
+    "No claim that prompt wording guarantees model correctness or reduced spending",
+    "Missing whole-file and inherited coverage diagnostics remain visible",
+    "Explicit change paths describe WORKTREE, not an isolated staged commit candidate",
+    "Initial probe lacked the isolation-excluded .ignore contract; corrected fixture supplies the captured non-secret policy only inside isolation",
+    "Tool import reports unavailable ripgrep inside isolation; this probe does not execute repository search"
+  ],
+  "runtimeActivation": "none"
+}

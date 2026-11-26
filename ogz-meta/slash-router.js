@@ -2563,9 +2563,9 @@ async function specUpdateStatus(manifest, params) {
  * file. Writes a timestamped transcript to ogz-meta/cognition-history/
  * mercury-attacks/ and attaches a verdict summary to manifest.mercury_attack.
  *
- * Per [Mercury Dispatch Law] memory rule: no default iteration ceiling,
- * --max-tokens=7750, attack framing only. Per [Mercury Attack Not Verify]: never use verification
- * framing ("is it correct?") — only adversarial ("find a state that LIES").
+ * Review the approved mission's one behavior with neutral production-risk
+ * framing, 7750 tokens and no default iteration ceiling. The mission issue
+ * supplies the behavior; a spec title or edit summary is not the question.
  */
 async function mercuryAttack(manifest, params) {
   if (manifest.mode !== 'EXECUTE') {
@@ -2597,73 +2597,23 @@ async function mercuryAttack(manifest, params) {
   const fixId = parsed.fixId;
   const fixTitle = parsed.title;
 
-  // Build attack-framed prompt. Include the spec's title + line hint + a
-  // synthesized description of the change so Mercury has the WHAT before
-  // it goes hunting for the failure mode.
-  const editSummary = parsedFiles.flatMap(fileEntry =>
-    fileEntry.edits.map((e, i) => {
-      const firstTarget = e.target.split('\n')[0].slice(0, 80);
-      return `  ${fileEntry.file} edit ${i + 1}/${fileEntry.edits.length}: ${firstTarget}...`;
-    })
-  ).join('\n');
-
+  // Keep the operator's behavior separate from the implementer's diagnosis.
   const attackPrompt = [
-    `Adversarial review of Fix ${fixId} across ${targetFiles.length} file(s).`,
-    `Title: ${fixTitle}`,
-    `Files: ${targetFiles.join(', ')}`,
-    `Line hints: ${parsedFiles.map(f => `${f.file}: ${f.lineHint || 'n/a'}`).join('; ')}`,
-    `Edits applied: ${parsedFiles.reduce((sum, f) => sum + f.edits.length, 0)}`,
-    editSummary,
-    ``,
-    `## Your job — ATTACK, do not verify`,
-    ``,
-    `Read these files: ${targetFiles.join(', ')}.`,
-    `The change has ALREADY been applied. For each caller`,
-    `in the blast radius, hunt for a state where the new code BREAKS that`,
-    `caller's contract or LIES to a downstream consumer. Construct concrete`,
-    `failure modes with file:line citations.`,
-    ``,
-    `Specific weapons to try:`,
-    `1. STATE that the new code's invariants DON'T cover — find an input`,
-    `   where the precondition holds but the postcondition is wrong.`,
-    `2. CALLER CONTRACT that the change broke silently — destructuring,`,
-    `   shape, ordering, side-effect timing, prototype chain.`,
-    `3. ENV / TIMING edge case — module-load vs. call-time evaluation,`,
-    `   dotenv ordering, empty-string vs. undefined env values.`,
-    `4. CONCURRENT MUTATION race — does the change introduce a window`,
-    `   where two callers observe inconsistent state?`,
-    `5. SCOPE GAP — are there other call-sites in the same file or repo`,
-    `   that should have received the same change but didn't?`,
-    ``,
-    `Do not verify "is the fix correct" — attack the fix. If no real bug`,
-    `exists, say so and explain why each weapon failed. Don't invent.`,
+    `Scope: ${manifest.issue}`,
+    'How does this fail or cost me money in production?',
+    `Source context: current working files for Fix ${fixId}: ${targetFiles.join(', ')}. Use the captured source identities in the review receipt.`,
+    'Investigate independently with tools. Follow the relevant producers, consumers and alternatives; these paths do not restrict that investigation or require an audit of unrelated changes.',
+    'For a finding, identify a reachable production trigger, its consequence and current file:line evidence. Report the supported conclusion and missing evidence without assuming that a defect exists.',
   ].join('\n');
 
-  // Serena blast radius (5s timeout fallback per spec)
-  let blastRadiusFormatted = null;
-  let blastMeta = [];
-  try {
-    const { getBlastRadius, formatForMercury } = require('../tools/serena-bridge');
-    const blastResults = [];
-    for (const targetFile of targetFiles) {
-      const br = await getBlastRadius(targetFile);
-      blastMeta.push({ file: targetFile, callerCount: br.callerCount, riskLevel: br.riskLevel, latencyMs: br.latencyMs, summary: br.summary });
-      blastResults.push(`## ${targetFile}\n${formatForMercury(br)}`);
-      console.log(`   Serena ${targetFile}: ${br.callerCount} caller(s), risk=${br.riskLevel}, ${br.latencyMs}ms`);
-    }
-    blastRadiusFormatted = blastResults.join('\n\n');
-  } catch (err) {
-    console.warn(`   Serena failed: ${err.message} — Mercury attacks without blast radius`);
-    blastMeta = null;
-  }
-
-  console.log(`🔍 Mercury-Attack: dispatching against ${targetFiles.join(', ')} (Fix ${fixId})...`);
+  console.log(`Mercury-Attack: dispatching against ${targetFiles.join(', ')} (Fix ${fixId})...`);
   const t0 = Date.now();
   let result;
   try {
     const { runAgentic } = require('../trai_brain/mercury-bridge/ask');
     result = await runAgentic(attackPrompt, {
-      blastRadius: blastRadiusFormatted,
+      attack: true,
+      changePaths: targetFiles,
       maxTokens: 7750,
       quiet: true,  // Pipeline output stays readable; full trace in transcript
     });
@@ -2679,6 +2629,8 @@ async function mercuryAttack(manifest, params) {
   const { hasReviewerAnswer } = require('../trai_brain/mercury-bridge/reviewer-panel');
   const completed = hasReviewerAnswer(result);
   const termination = result?.termination || null;
+  // The explicit-source review owns dependency discovery and its evidence.
+  const blastMeta = result?.serenaBlastRadius?.meta;
 
   // Write transcript to repo-rooted cognition-history dir.
   const transcriptDir = path.join(__dirname, 'cognition-history', 'mercury-attacks');
@@ -2704,11 +2656,13 @@ async function mercuryAttack(manifest, params) {
     `**Iterations:** ${iterations || 'n/a'}`,
     `**Elapsed:** ${elapsed}ms`,
     `**Mission:** ${manifest.mission_id}`,
+    `**Behavior:** ${manifest.issue}`,
+    `**Run ledger:** ${result?.runLedger?.citation || 'not returned'}`,
     ``,
     `## Serena Blast Radius`,
     Array.isArray(blastMeta)
       ? blastMeta.map(meta => `- ${meta.file}: callers ${meta.callerCount} / risk ${meta.riskLevel} / latency ${meta.latencyMs}ms\n  ${meta.summary}`).join('\n')
-      : `(Serena failed or timed out — Mercury attacked without blast radius)`,
+      : '(Dependency scan receipt not returned; coverage is unverified.)',
     ``,
     `## Mercury Verdict`,
     ``,
@@ -2734,6 +2688,7 @@ async function mercuryAttack(manifest, params) {
       iterations: iterations,
       elapsedMs: elapsed,
       transcript: path.relative(process.cwd(), transcriptPath),
+      runLedger: result?.runLedger || null,
       findingsCount: findingsHeuristic,
       blastRadius: blastMeta || null,
     }
