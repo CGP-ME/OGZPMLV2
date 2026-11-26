@@ -50,7 +50,6 @@ function logActivity(entry) {
  */
 async function callMercury({ role, task, target, outputFormat, options = {} }) {
   const t0 = Date.now();
-  const maxRetries = 3;
 
   // Build prompt from role template
   const buildPrompt = PROMPT_BUILDERS[role];
@@ -63,76 +62,19 @@ async function callMercury({ role, task, target, outputFormat, options = {} }) {
   // Load runAgentic lazily (avoid circular deps, heavy init)
   const { runAgentic } = require(path.join(__dirname, '..', '..', 'trai_brain', 'mercury-bridge', 'ask.js'));
 
-  // Retry loop with exponential backoff
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const result = await runAgentic(prompt, {
-        quiet: options.quiet ?? true,
-        maxIterations: options.maxIterations,
-        maxTokens: options.maxTokens ?? 7750,
-      });
+  // A stage dispatch owns one investigation. Return failures for inspection
+  // before another paid investigation is deliberately dispatched.
+  try {
+    const result = await runAgentic(prompt, {
+      quiet: options.quiet ?? true,
+      maxIterations: options.maxIterations,
+      maxTokens: options.maxTokens ?? 7750,
+    });
 
-      const duration_ms = Date.now() - t0;
+    const duration_ms = Date.now() - t0;
 
-      if (!hasReviewerAnswer(result)) {
-        const reason = `Mercury returned no completed answer (${result?.termination || 'unknown termination'})`;
-        logActivity({
-          timestamp: new Date().toISOString(),
-          actor: 'claudito',
-          stage: role,
-          task,
-          mission_id: options.missionId || null,
-          duration_ms,
-          event: 'mercury_failure',
-          error: reason,
-          termination: result?.termination || null,
-        });
-        return { success: false, reason, data: null, iterations: result?.iterations || 0, duration_ms, trace_id: null };
-      }
-
-      // Parse Mercury's answer
-      const parser = OUTPUT_PARSERS[outputFormat];
-      const data = parser ? parser(result.answer) : { raw: result.answer };
-
-      // Log activity
-      logActivity({
-        timestamp: new Date().toISOString(),
-        actor: 'claudito',
-        stage: role,
-        task,
-        mission_id: options.missionId || null,
-        duration_ms,
-        iterations: result.iterations,
-        termination: result.termination,
-        result_summary: summarizeResult(role, data),
-        files_touched: target.files || [],
-      });
-
-      return {
-        success: true,
-        data,
-        iterations: result.iterations,
-        duration_ms,
-        trace_id: null, // trace capture happens inside runAgentic
-      };
-
-    } catch (err) {
-      const isRetryable = err.message && (
-        err.message.includes('429') ||
-        err.message.includes('503') ||
-        err.message.includes('timeout') ||
-        err.message.includes('ECONNRESET')
-      );
-
-      if (isRetryable && attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
-        console.warn(`[COGNITION] Mercury ${role} attempt ${attempt + 1} failed (${err.message}), retrying in ${Math.round(delay)}ms`);
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-
-      const duration_ms = Date.now() - t0;
-
+    if (!hasReviewerAnswer(result)) {
+      const reason = `Mercury returned no completed answer (${result?.termination || 'unknown termination'})`;
       logActivity({
         timestamp: new Date().toISOString(),
         actor: 'claudito',
@@ -141,18 +83,60 @@ async function callMercury({ role, task, target, outputFormat, options = {} }) {
         mission_id: options.missionId || null,
         duration_ms,
         event: 'mercury_failure',
-        error: err.message,
+        error: reason,
+        termination: result?.termination || null,
       });
-
-      return {
-        success: false,
-        reason: err.message,
-        data: null,
-        iterations: 0,
-        duration_ms,
-        trace_id: null,
-      };
+      return { success: false, reason, data: null, iterations: result?.iterations || 0, duration_ms, trace_id: null };
     }
+
+    // Parse Mercury's answer
+    const parser = OUTPUT_PARSERS[outputFormat];
+    const data = parser ? parser(result.answer) : { raw: result.answer };
+
+    // Log activity
+    logActivity({
+      timestamp: new Date().toISOString(),
+      actor: 'claudito',
+      stage: role,
+      task,
+      mission_id: options.missionId || null,
+      duration_ms,
+      iterations: result.iterations,
+      termination: result.termination,
+      result_summary: summarizeResult(role, data),
+      files_touched: target.files || [],
+    });
+
+    return {
+      success: true,
+      data,
+      iterations: result.iterations,
+      duration_ms,
+      trace_id: null, // trace capture happens inside runAgentic
+    };
+
+  } catch (err) {
+    const duration_ms = Date.now() - t0;
+
+    logActivity({
+      timestamp: new Date().toISOString(),
+      actor: 'claudito',
+      stage: role,
+      task,
+      mission_id: options.missionId || null,
+      duration_ms,
+      event: 'mercury_failure',
+      error: err.message,
+    });
+
+    return {
+      success: false,
+      reason: err.message,
+      data: null,
+      iterations: 0,
+      duration_ms,
+      trace_id: null,
+    };
   }
 }
 

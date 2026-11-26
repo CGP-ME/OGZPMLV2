@@ -1,0 +1,291 @@
+{
+  "sourceBase": "d33ef66482c1674d1efe0788b534b2c08e85ea01",
+  "sourceSha256": {
+    "ogz-meta/cognition/mercury-bridge.js": "bd66fbb9aff6d116678259fbd6fdda040ca30683741e0093199e1d0fc588a094",
+    "ogz-meta/slash-router.js": "308adb2c7f83b735b2ace29521c6a74c8276710f688e6d93902c45ac21a831ec"
+  },
+  "fixtureSha256": "8d2eb278d18cd99b8c9755003b8c768b7b8f6fdc95823a48bb047e42eb2141ed",
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-26/claudito-dispatch-replay/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-26/claudito-dispatch-replay/fixtures/observe.cjs --expect-repair",
+  "baseline": {
+    "sourceMode": "baseline",
+    "realProviderCalls": 0,
+    "boundary": "synthetic runAgentic success, exception and incomplete answers; actual bridge, architect router, parser, failure activity and persisted manifest",
+    "observations": [
+      {
+        "scenario": "reset_then_success",
+        "wholeInvestigations": 2,
+        "state": "ENTOMOLOGY",
+        "stopped": false,
+        "reason": null,
+        "plan": {
+          "summary": "Synthetic completed plan",
+          "files": [],
+          "ordering": [],
+          "verification": ""
+        },
+        "activity": {
+          "timestamp": "2026-11-26T17:27:20.637Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-reset_then_success",
+          "duration_ms": 1018,
+          "iterations": 5,
+          "termination": "answer_given",
+          "result_summary": "Plan: 0 files, 0 ordering steps",
+          "files_touched": []
+        }
+      },
+      {
+        "scenario": "persistent_429",
+        "wholeInvestigations": 4,
+        "state": "HALTED",
+        "stopped": true,
+        "reason": "Synthetic 429 input_token_limit",
+        "plan": null,
+        "activity": {
+          "timestamp": "2026-11-26T17:27:28.801Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-persistent_429",
+          "duration_ms": 8161,
+          "event": "mercury_failure",
+          "error": "Synthetic 429 input_token_limit"
+        }
+      },
+      {
+        "scenario": "returned_failure",
+        "wholeInvestigations": 1,
+        "state": "HALTED",
+        "stopped": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "plan": null,
+        "activity": {
+          "timestamp": "2026-11-26T17:27:28.804Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-returned_failure",
+          "duration_ms": 0,
+          "event": "mercury_failure",
+          "error": "Mercury returned no completed answer (error)",
+          "termination": "error"
+        }
+      },
+      {
+        "scenario": "success",
+        "wholeInvestigations": 1,
+        "state": "ENTOMOLOGY",
+        "stopped": false,
+        "reason": null,
+        "plan": {
+          "summary": "Synthetic completed plan",
+          "files": [],
+          "ordering": [],
+          "verification": ""
+        },
+        "activity": {
+          "timestamp": "2026-11-26T17:27:28.806Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-success",
+          "duration_ms": 1,
+          "iterations": 5,
+          "termination": "answer_given",
+          "result_summary": "Plan: 0 files, 0 ordering steps",
+          "files_touched": []
+        }
+      }
+    ],
+    "calls": [
+      {
+        "scenario": "reset_then_success",
+        "attempt": 1,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "reset_then_success",
+        "attempt": 2,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "persistent_429",
+        "attempt": 1,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "persistent_429",
+        "attempt": 2,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "persistent_429",
+        "attempt": 3,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "persistent_429",
+        "attempt": 4,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "returned_failure",
+        "attempt": 1,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "success",
+        "attempt": 1,
+        "maxTokens": 7750
+      }
+    ]
+  },
+  "candidate": {
+    "sourceMode": "candidate",
+    "realProviderCalls": 0,
+    "boundary": "synthetic runAgentic success, exception and incomplete answers; actual bridge, architect router, parser, failure activity and persisted manifest",
+    "observations": [
+      {
+        "scenario": "reset_then_success",
+        "wholeInvestigations": 1,
+        "state": "HALTED",
+        "stopped": true,
+        "reason": "Synthetic ECONNRESET after investigation",
+        "plan": null,
+        "activity": {
+          "timestamp": "2026-11-26T17:36:09.064Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-reset_then_success",
+          "duration_ms": 3,
+          "event": "mercury_failure",
+          "error": "Synthetic ECONNRESET after investigation"
+        }
+      },
+      {
+        "scenario": "persistent_429",
+        "wholeInvestigations": 1,
+        "state": "HALTED",
+        "stopped": true,
+        "reason": "Synthetic 429 input_token_limit",
+        "plan": null,
+        "activity": {
+          "timestamp": "2026-11-26T17:36:09.067Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-persistent_429",
+          "duration_ms": 0,
+          "event": "mercury_failure",
+          "error": "Synthetic 429 input_token_limit"
+        }
+      },
+      {
+        "scenario": "returned_failure",
+        "wholeInvestigations": 1,
+        "state": "HALTED",
+        "stopped": true,
+        "reason": "Mercury returned no completed answer (error)",
+        "plan": null,
+        "activity": {
+          "timestamp": "2026-11-26T17:36:09.069Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-returned_failure",
+          "duration_ms": 0,
+          "event": "mercury_failure",
+          "error": "Mercury returned no completed answer (error)",
+          "termination": "error"
+        }
+      },
+      {
+        "scenario": "success",
+        "wholeInvestigations": 1,
+        "state": "ENTOMOLOGY",
+        "stopped": false,
+        "reason": null,
+        "plan": {
+          "summary": "Synthetic completed plan",
+          "files": [],
+          "ordering": [],
+          "verification": ""
+        },
+        "activity": {
+          "timestamp": "2026-11-26T17:36:09.071Z",
+          "actor": "claudito",
+          "stage": "architect",
+          "task": "design refactor plan for: Synthetic single behavior in fixture.js",
+          "mission_id": "FIXTURE-replay-success",
+          "duration_ms": 0,
+          "iterations": 5,
+          "termination": "answer_given",
+          "result_summary": "Plan: 0 files, 0 ordering steps",
+          "files_touched": []
+        }
+      }
+    ],
+    "calls": [
+      {
+        "scenario": "reset_then_success",
+        "attempt": 1,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "persistent_429",
+        "attempt": 1,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "returned_failure",
+        "attempt": 1,
+        "maxTokens": 7750
+      },
+      {
+        "scenario": "success",
+        "attempt": 1,
+        "maxTokens": 7750
+      }
+    ]
+  },
+  "review": {
+    "status": "no_grounded_defect_found",
+    "reviewer": "independent aligned Codex subagent /root/claudito_candidate_review",
+    "verifiedAtUtc": "2026-11-26T17:37:43Z",
+    "isolatedVerificationExitCode": 0,
+    "findings": [],
+    "consumerEvidence": [
+      "trai_brain/mercury-bridge/ask.js:1566",
+      "ogz-meta/cognition/mercury-bridge.js:65",
+      "ogz-meta/cognition/mercury-bridge.js:118",
+      "ogz-meta/slash-router.js:163",
+      "ogz-meta/slash-router.js:88",
+      "ogz-meta/manifest-schema.js:271",
+      "ogz-meta/pipeline.js:306",
+      "ogz-meta/pipeline.js:394"
+    ],
+    "limits": [
+      "No live provider or invoice measurement",
+      "Other five consumers and pipeline completion source-inspected",
+      "Underlying transport retries unchanged",
+      "Existing best-effort activity logging does not prove persistence under filesystem failure"
+    ]
+  },
+  "limits": [
+    "Model boundary is synthetic; no real provider calls or cost measurement",
+    "Underlying single-request transport retry policy is unchanged",
+    "No PM2 or trading runtime activation"
+  ],
+  "baselineSourceSha256": {
+    "ogz-meta/cognition/mercury-bridge.js": "8c04fbd569c6399351e6291c1249cf12cbe67bc167c7967ec664f7aa46d89829",
+    "ogz-meta/slash-router.js": "308adb2c7f83b735b2ace29521c6a74c8276710f688e6d93902c45ac21a831ec"
+  },
+  "iterationRegression": {
+    "fixture": "ogz-meta/inbox/codex/2026-11-26/claudito-iteration-policy/fixtures/observe.cjs",
+    "exitCode": 0,
+    "initialCommandError": "First command omitted --fixture; MODULE_NOT_FOUND before execution; corrected command passed"
+  }
+}

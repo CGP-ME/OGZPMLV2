@@ -1,3 +1,15 @@
+## 2026-11-26 — Fixed automatic replay of whole Claudito Mercury investigations
+
+**Problem and source:** The cognition bridge retried the entire `runAgentic` investigation up to three times after exceptions containing 429, 503, timeout or ECONNRESET. That could repeat already paid investigation work and replace the original failure with a later success before the agent inspected the failed request. The isolated baseline actually invoked two investigations for a reset followed by success, and four for persistent 429.
+
+**Change:** Removed that outer replay loop and its backoff. One stage dispatch now starts one investigation. Its first exception follows the existing failure return, activity record and persisted failed-stage path; another investigation requires deliberate dispatch. Normal answers, incomplete-answer handling and explicit iteration ownership remain intact. No runtime guard, throw or bot behavior was added.
+
+**Actual verification:** Parent and independent aligned reviewer each ran the real bridge/architect/router/manifest fixture inside the isolation launcher, exit 0. Reset and persistent-429 cases each made one investigation, persisted the original reason and `HALTED`; returned incomplete answers also halted, while a completed synthetic plan advanced normally. The previous six-role iteration fixture was rerun successfully. My first regression command omitted the explicit fixture argument and failed to load the fixture; the corrected isolated command passed. No Jest or real provider calls. [Behavior receipt and source identities](ogz-meta/inbox/codex/2026-11-26/claudito-dispatch-replay/behavior-receipt.json).
+
+**Review and limits:** The independent reviewer found no grounded defect in this behavior after tracing the producer, all six failure consumers and pipeline completion. Only the architect path was dynamically exercised for exception persistence. Existing best-effort activity logging does not prove durability under filesystem failure. Lower-level single-request transport retries remain unchanged; this does not claim all API retries are removed or explain the historical invoice. Prompt-scope cleanup and the required Stop 2 review remain pending.
+
+**Delivery and activation:** Separate atomic tooling commit on the current branch, followed by push. No PM2 restart, environment change, position/journal operation or bot activation. Unrelated dirty work is preserved. RAG freshness is not asserted.
+
 ## 2026-11-26 — Fixed unsolicited Claudito Mercury iteration ceilings
 
 **Problem and source:** Six Claudito router stages imposed 60, 15, 15, 60, 10 and 15 iterations, and the shared cognition bridge substituted 10 when its caller supplied no limit. This contradicted Trey's explicit-limit-only instruction and could end a review before its answer. The production bot and pending native-candle repair are outside this change.
