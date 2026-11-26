@@ -1,0 +1,257 @@
+{
+  "sourceBase": "c9f76706f497e56ebd93e0244a7d9b3acf39a55e",
+  "sourceSha256": {
+    "ogz-meta/cognition/mercury-bridge.js": "8c04fbd569c6399351e6291c1249cf12cbe67bc167c7967ec664f7aa46d89829",
+    "ogz-meta/slash-router.js": "308adb2c7f83b735b2ace29521c6a74c8276710f688e6d93902c45ac21a831ec"
+  },
+  "fixtureSha256": "763544592a84d72c0a2c112898363462e9611b1494771125cb2cf25632b625d9",
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-26/claudito-iteration-policy/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-26/claudito-iteration-policy/fixtures/observe.cjs --expect-repair",
+  "baseline": {
+    "sourceMode": "baseline",
+    "realProviderCalls": 0,
+    "boundary": "synthetic runAgentic response; actual six router handlers, bridge, parsers and manifest persistence",
+    "observations": [
+      {
+        "role": "architect",
+        "request": {
+          "role": "Architect",
+          "quiet": true,
+          "maxIterations": 60,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "entomologist",
+        "request": {
+          "role": "Entomologist",
+          "quiet": true,
+          "maxIterations": 15,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "exterminator",
+        "request": {
+          "role": "Exterminator",
+          "quiet": true,
+          "maxIterations": 15,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "fixer",
+        "request": {
+          "role": "Fixer",
+          "quiet": true,
+          "maxIterations": 60,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "critic",
+        "request": {
+          "role": "Critic",
+          "quiet": true,
+          "maxIterations": 10,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "forensics",
+        "request": {
+          "role": "Forensics",
+          "quiet": true,
+          "maxIterations": 15,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "bridge_default",
+        "request": {
+          "role": "Architect",
+          "quiet": true,
+          "maxIterations": 10,
+          "maxTokens": 7750
+        },
+        "success": true,
+        "plan": {
+          "summary": "Synthetic plan",
+          "files": [],
+          "ordering": [],
+          "verification": ""
+        }
+      },
+      {
+        "role": "explicit_operator_limit",
+        "request": {
+          "role": "Architect",
+          "quiet": true,
+          "maxIterations": 3,
+          "maxTokens": 7750
+        },
+        "success": true,
+        "plan": {
+          "summary": "Synthetic plan",
+          "files": [],
+          "ordering": [],
+          "verification": ""
+        }
+      }
+    ]
+  },
+  "candidate": {
+    "sourceMode": "candidate",
+    "realProviderCalls": 0,
+    "boundary": "synthetic runAgentic response; actual six router handlers, bridge, parsers and manifest persistence",
+    "observations": [
+      {
+        "role": "architect",
+        "request": {
+          "role": "Architect",
+          "quiet": true,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "entomologist",
+        "request": {
+          "role": "Entomologist",
+          "quiet": true,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "exterminator",
+        "request": {
+          "role": "Exterminator",
+          "quiet": true,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "fixer",
+        "request": {
+          "role": "Fixer",
+          "quiet": true,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "critic",
+        "request": {
+          "role": "Critic",
+          "quiet": true,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "forensics",
+        "request": {
+          "role": "Forensics",
+          "quiet": true,
+          "maxTokens": 7750
+        },
+        "state": "HALTED",
+        "failure": "Mercury returned no completed answer (error)",
+        "stopped": true
+      },
+      {
+        "role": "bridge_default",
+        "request": {
+          "role": "Architect",
+          "quiet": true,
+          "maxTokens": 7750
+        },
+        "success": true,
+        "plan": {
+          "summary": "Synthetic plan",
+          "files": [],
+          "ordering": [],
+          "verification": ""
+        }
+      },
+      {
+        "role": "explicit_operator_limit",
+        "request": {
+          "role": "Architect",
+          "quiet": true,
+          "maxIterations": 3,
+          "maxTokens": 7750
+        },
+        "success": true,
+        "plan": {
+          "summary": "Synthetic plan",
+          "files": [],
+          "ordering": [],
+          "verification": ""
+        }
+      }
+    ]
+  },
+  "logsSha256": {
+    "baseline": "5d2c39ebfd396d91f84d2968d673a2d01aad4a5b97978e43058fbc678c023776",
+    "candidate": "177ba9f96e1aeeea531de92a28f34ae77ced6e8775f7bf6f514c11882f77748a"
+  },
+  "limits": [
+    "runAgentic provider boundary is synthetic; no paid model call or actual long review",
+    "No bot, PM2, broker, configuration or runtime-state action",
+    "Existing whole-investigation exception retry is a separate repair",
+    "Pending Stop 2 candle source is not included or activated"
+  ],
+  "review": {
+    "status": "no_grounded_defect_found",
+    "reviewer": "independent aligned Codex subagent /root/claudito_candidate_review",
+    "sourceBase": "c9f76706f497e56ebd93e0244a7d9b3acf39a55e",
+    "verifiedAtUtc": "2026-11-26T17:32:44Z",
+    "isolatedVerificationExitCode": 0,
+    "alignmentCoverageCheckedByParent": true,
+    "findings": [],
+    "consumerEvidence": [
+      "trai_brain/mercury-bridge/ask.js:1004",
+      "trai_brain/mercury-bridge/react-loop.js:948",
+      "trai_brain/mercury-bridge/react-loop.js:1209",
+      "trai_brain/mercury-bridge/reviewer-panel.js:263",
+      "ogz-meta/manifest-schema.js:271",
+      "ogz-meta/pipeline.js:306"
+    ],
+    "inheritedReactLoopSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+    "limits": [
+      "No live provider or long-loop execution",
+      "Explicit limit exercised at bridge API; no new router CLI option",
+      "Separate prompt and retry repairs not assessed"
+    ]
+  }
+}

@@ -155,7 +155,6 @@ async function architect(manifest, params) {
     },
     outputFormat: 'structured_plan',
     options: {
-      maxIterations: 60,
       quiet: true,
       missionId: manifest.mission_id
     }
@@ -280,7 +279,6 @@ async function entomologist(manifest, params) {
     },
     outputFormat: 'structured_bugs',
     options: {
-      maxIterations: 15,
       quiet: true,
       missionId: manifest.mission_id
     }
@@ -885,7 +883,6 @@ async function exterminator(manifest, params) {
         },
         outputFormat: 'structured_proposals',
         options: {
-          maxIterations: 15,
           quiet: true,
           missionId: manifest.mission_id
         }
@@ -1268,7 +1265,6 @@ async function fixer(manifest, params) {
         },
         outputFormat: 'structured_edits',
         options: {
-          maxIterations: 60,
           quiet: true,
           missionId: manifest.mission_id
         }
@@ -1788,7 +1784,6 @@ async function critic(manifest, params) {
       target: { proposals, bugs },
       outputFormat: 'structured_critique',
       options: {
-        maxIterations: 10,
         quiet: true,
         missionId: manifest.mission_id
       }
@@ -1888,7 +1883,6 @@ async function forensics(manifest, params) {
       target: { proposals, files: targetFiles },
       outputFormat: 'structured_risks',
       options: {
-        maxIterations: 15,
         quiet: true,
         missionId: manifest.mission_id
       }
@@ -2918,7 +2912,7 @@ async function mercuryCritic(manifest, params) {
       timestamp: new Date().toISOString(),
     }
   });
-  console.log(`✅ Mercury-Critic: gate=clean — Mercury found nothing actionable (verdict body ${verdict.length} chars, ${iters}/60 iters)`);
+  console.log(`Mercury-Critic: gate=clean — Mercury found nothing actionable (verdict body ${verdict.length} chars, ${iters} iterations)`);
   return manifest;
 }
 

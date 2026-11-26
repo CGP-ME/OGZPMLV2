@@ -1,3 +1,15 @@
+## 2026-11-26 — Fixed unsolicited Claudito Mercury iteration ceilings
+
+**Problem and source:** Six Claudito router stages imposed 60, 15, 15, 60, 10 and 15 iterations, and the shared cognition bridge substituted 10 when its caller supplied no limit. This contradicted Trey's explicit-limit-only instruction and could end a review before its answer. The production bot and pending native-candle repair are outside this change.
+
+**Change:** Removed those six caller limits and the bridge's default. An explicitly supplied bridge limit is forwarded unchanged; 7750-token requests remain unchanged. Corrected the critic's hardcoded “/60” progress claim to report actual iterations. No new runtime guard, throw, fallback or provider setting was added.
+
+**Actual verification:** The isolated baseline captured all six imposed limits. The candidate exercised the real six router handlers, bridge, parsers and persisted manifests with a synthetic `runAgentic` boundary: every unrequested limit was absent, every incomplete response still persisted `HALTED`, successful synthetic output still parsed, and explicit limit 3 was preserved. Parent and independent reviewer each ran the candidate through `scripts/test-isolated.py`, exit 0; no Jest or paid model call. Source hashes, observations, exact command and scope are in [the behavior receipt](ogz-meta/inbox/codex/2026-11-26/claudito-iteration-policy/behavior-receipt.json).
+
+**Review and limits:** The independently aligned reviewer found no grounded defect in this behavior and traced omitted/explicit limits through `ask.js`, the loop and failure consumers. Its reading was verified from actual returned transcript content before review release. Loop enforcement was inspected, not exercised against a live provider; eventual completion and cost are not established. The inherited dirty loop was identified by hash and preserved. Whole-investigation retries and contradictory prompt instructions remain separate pending repairs; this is not a claim that Mercury or Stop 2 is complete.
+
+**Delivery and activation:** One logical tooling change for the current `codex/archive-legacy-env` branch. No PM2, broker, environment, position, journal or bot activation. Unrelated working changes and unstaged changelog entries are preserved. The RAG was not rebuilt and is not claimed current.
+
 ## 2026-11-26 — Make Mercury instruction reading mandatory for every subagent
 
 **Instruction and change.** Trey clarified that complete subagent alignment includes Mercury's instructions and their actual reading. The previous wording required the Mercury guide before a Mercury assignment, leaving other readers and reviewers without the same explicit requirement. The root bootstrap and full agent instructions now require every delegated agent to read the entire current `trai_brain/mercury-bridge/README.md` and current Mercury rules before task work. Confirmation includes neutral production-risk framing, one behavior at a time, reading the complete answer, independent evidence, canonical exclusions, failure diagnosis and the current token/iteration rules. The parent verifies reading coverage and actual request scope.
