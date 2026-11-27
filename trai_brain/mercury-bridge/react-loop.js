@@ -454,7 +454,7 @@ function matchClaimWindow(content, pattern) {
 }
 
 const REFERENCE_CLAIM_PATTERN = /\b(?:\d+\s+callers?|no callers?|zero call ?sites?|only caller|nothing (?:calls|imports|references|invokes)|never (?:called|invoked|imported|referenced|used)|imported by nothing|not (?:imported|referenced|called|invoked|used)\s+(?:by\s+)?(?:anything|anywhere)|un(?:used|wired|referenced)\b|dead code)\b/i;
-const REFERENCE_EVIDENCE_TOOLS = /^(?:serena_blast_radius|serena_property_refs|serena_method_callers|serena_class_fields|find_references|find_definition)$/;
+const REFERENCE_EVIDENCE_TOOLS = /^(?:serena_property_refs|serena_method_callers|serena_class_fields)$/;
 const EXHAUSTIVE_SEARCH_CLAIM_PATTERN = /\b(?:only (?:place|occurrence|match|file|caller)|no (?:production(?:-code)?|source|other|current repo|repo)[^.]{0,120}(?:contains|matches|calls|imports|references|invokes|uses|has|contains a)|no other (?:source )?files?|all other matches|none of (?:the|those|them)|zero matches|there are no)\b/i;
 const SEARCH_EVIDENCE_TOOLS = /^(?:search|grep|regex_grep)$/;
 
@@ -465,7 +465,8 @@ function matchUnsupportedReferenceClaim(content, history = []) {
     entry
     && entry.toolName
     && REFERENCE_EVIDENCE_TOOLS.test(entry.toolName)
-    && !(entry.toolResult && entry.toolResult.error)
+    && entry.toolResult
+    && !entry.toolResult.error
   ));
   return hasAstEvidence ? null : quote;
 }

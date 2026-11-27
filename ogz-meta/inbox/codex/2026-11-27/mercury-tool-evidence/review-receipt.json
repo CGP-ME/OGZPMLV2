@@ -1,0 +1,172 @@
+{
+  "date": "2026-11-27",
+  "scope": "Scope: Mercury reports whether evidence supports structural-reference claims in an engineering review. How does this fail or cost me money in production? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence for any reachable failure and consequence, and name unresolved evidence. Source pointers: mercury.config.json and trai_brain/mercury-bridge/react-loop.js, tool-adapter.js, doctrine-review.js. The source inventory identifies evidence; it is not a request to review unrelated behavior.",
+  "run_id": "2026-11-27T21-37-28-081Z-beaf763333fc",
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-27.jsonl:4",
+  "code_outcome": "no_break_found",
+  "termination": "answer_given",
+  "iterations": 15,
+  "selected_reviewers": [
+    "mercury"
+  ],
+  "review_ref": "308249e1099a04d67453d0d1a33bdc7cbbd72643",
+  "review_base_commit": "7a8965a2721fe3560506206b94b9742162e347ed",
+  "review_base_tree": "ec7aa94ef05922ceb7a02ae246d219e2e1f1778c",
+  "source_bundle": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-27/2026-11-27t21-36-27-417z-3300127-e0fd0b1766fd/current-change-evidence.txt",
+    "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-27/2026-11-27t21-36-27-417z-3300127-e0fd0b1766fd/current-change-evidence.txt:1",
+    "sha256": "7a51bd939034bc70d7180724a9e7224824e40f298a75a2bed14875f84195d7f4",
+    "bytes": 133421,
+    "lines": 1306,
+    "section_count": 5,
+    "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-11-27/2026-11-27t21-36-27-417z-3300127-e0fd0b1766fd/manifest.json",
+    "manifest_sha256": "3a8387daba9e96e4d33836cdd18d059b497f16007414af94fd3dcf7a567e0504",
+    "manifest_bytes": 8418
+  },
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "index_freshness": null,
+  "run_tokens": {
+    "input": 429175,
+    "uncached_input": 299047,
+    "cached_input": 130128,
+    "output": 15146,
+    "total": 444321,
+    "complete": true,
+    "attempts_with_usage": 16,
+    "total_attempts": 16
+  },
+  "local_cost_estimate": {
+    "amount": 0.03624494,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 16,
+    "total_attempts": 16,
+    "cost_absences": []
+  },
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "tools": [
+    {
+      "name": "find_references",
+      "calls": 4,
+      "succeeded": 4,
+      "failed": 0
+    },
+    {
+      "name": "git_diff",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "git_show",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 5,
+      "succeeded": 5,
+      "failed": 0
+    },
+    {
+      "name": "list_files",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 11,
+      "succeeded": 11,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    }
+  ],
+  "doctrine_diagnostics": {
+    "namedAbsences": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "namedBreaks": [],
+    "candidateSet": {
+      "examined": 5,
+      "total": 5
+    },
+    "candidateCoverage": {
+      "expectedTotal": 1,
+      "unresolved": [],
+      "complete": false,
+      "authorityReady": false,
+      "fourthShapeAdditions": [],
+      "fourthShapeAdditionCount": 0
+    },
+    "changedFileCount": 1,
+    "changedJsCount": 1,
+    "fourthShapeAdditionCount": 0,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "answer_quality_flags": [],
+  "answer_sha256": "06def43a7d9ff9b372f6c5a5fb72af13863c5776e4d29f5d0c1fb6ec5d886b16",
+  "full_answer_local": "ogz-meta/inbox/codex/2026-11-27/mercury-tool-evidence/private/answer.md",
+  "parent_verification": [
+    "Read the complete answer; the reviewer found no reachable defect in the scoped classifier change.",
+    "Verified the before/after tool allowlist and actual result requirement against baseline and candidate source.",
+    "Verified full JSON serialization carries the tool precision and uncertainty into context; the loop returns the original answer and records quality separately.",
+    "Verified run-ledger.js persists answer_quality and answer_quality_evidence; the inspected doctrine consumer does not block on unsupported_reference_claim.",
+    "Mercury did not execute the behavior fixture. The independent isolated before/after reproduction is the behavior evidence.",
+    "Mercury claimed the earlier instruction conflict was a known cause of wrong output. That causal claim is unsupported; the preceding changelog explicitly says causation is unproven.",
+    "Mercury called missed detection impossible while discussing new regressions. This does not prove absence of inherited false negatives; the check is only run-level parsed-tool presence.",
+    "Mercury said no execution receipt exists, but it was not supplied the isolated fixture receipt. Its lack of supplied execution evidence is not proof none exists."
+  ],
+  "delivery_limits": [
+    "This is one selected reviewer, not three-seat consensus. Coverage and whole-file-read diagnostics remain recorded.",
+    "The review uses the immutable source snapshot, not indexed RAG. No index freshness or rebuild is claimed.",
+    "No additional paid call or retry was launched to erase reporting imperfections.",
+    "This closes the demonstrated regex-versus-AST classification defect only. The disputed Stop 2 verdict and general model correctness remain unresolved."
+  ],
+  "review_source_manifest": {
+    "corpus_sha256": "9b22e4c3f2dca7e009e6a0d6b72a0dae280c80e2d673838fb93be300be7a497d",
+    "targets": [
+      {
+        "path": "trai_brain/mercury-bridge/react-loop.js",
+        "status": "current",
+        "source_ref": "308249e1099a04d67453d0d1a33bdc7cbbd72643",
+        "source_artifact_id": "artifact-0001-00d124bbf0973438",
+        "diff_artifact_id": "artifact-0002-e6fc0f91259fc052",
+        "source_total_lines": 1245,
+        "source_sha256": "00d124bbf097343878fd163b15f3ca817595393a67f5691f9e1326b1dfab9644",
+        "diff_sha256": "e6fc0f91259fc052ad00d105fa5076b36750c247f933d1a57e8101f5261e1b2c",
+        "unresolved": []
+      }
+    ],
+    "unresolved": []
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-27",
+  "question": "Scope: Mercury reports whether evidence supports structural-reference claims in an engineering review. How does this fail or cost me money in production? Examine the pinned candidate and relevant producers and consumers, cite current file:line evidence for any reachable failure and consequence, and name unresolved evidence. Source pointers: mercury.config.json and trai_brain/mercury-bridge/react-loop.js, tool-adapter.js, doctrine-review.js. The source inventory identifies evidence; it is not a request to review unrelated behavior.",
+  "review_ref": "308249e1099a04d67453d0d1a33bdc7cbbd72643",
+  "review_base": "7a8965a2721fe3560506206b94b9742162e347ed",
+  "max_tokens": 7750,
+  "reasoning_effort": "low",
+  "max_iterations": null,
+  "selected_reviewers": [
+    "mercury"
+  ],
+  "harness_sha256": {
+    "mercury.config.json": "220bf31139090e7b16012aaff6c40c617a8e39bd4a63c62941f62909344e964b",
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c",
+    "trai_brain/mercury-bridge/tool-adapter.js": "449a9273794ffcbac65f8583bff8203541d2018210c5f78dab81d2a024d1ba59",
+    "trai_brain/mercury-bridge/doctrine-review.js": "5034cb6955683e73eedc0f4fdec02eb02d4cfe0712ed66b7db5b094d66f51d44"
+  },
+  "harness_qualification": "Working harness contains the two preserved inherited receipt-format hunks in react-loop.js; the pinned candidate excludes them."
+}

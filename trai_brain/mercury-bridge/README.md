@@ -56,8 +56,15 @@ JavaScript structure and callers. These are different evidence sources.
 
 `ask.js` defaults to the agentic loop. Its tools include literal/regex search,
 file reads, indexed chunk reads, Git reads, Serena dependency/AST inspection, and
-policy-bounded web lookup. `find_definition` and `find_references` are regex-backed
-and report uncertainty; they must not be described as AST proof. There is no
+policy-bounded web lookup. `find_definition`, `find_references` and
+`serena_blast_radius` are regex-backed and report uncertainty. Their matches,
+counts and risk labels are investigation leads, not AST proof. They can include
+comments or strings and miss dynamic references. `serena_method_callers`,
+`serena_property_refs` and `serena_class_fields` parse JavaScript structure;
+their results still require relevant source verification and attention to scope,
+parser limitations and truncation. The existing `unsupported_reference_claim`
+warning checks for parsed-tool evidence in a run. It does not establish that a
+particular claim is supported, change the answer or force a verdict. There is no
 arbitrary shell or proof-command tool in the model's tool schema.
 
 `--single-shot` uses retrieved passages in one model call without repository

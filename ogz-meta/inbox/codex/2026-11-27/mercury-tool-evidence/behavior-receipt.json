@@ -1,0 +1,172 @@
+{
+  "date": "2026-11-27",
+  "scope": "Classification of Mercury regex search results versus parsed structural evidence",
+  "baseline_commit": "7a8965a2721fe3560506206b94b9742162e347ed",
+  "isolation": "python3 scripts/test-isolated.py; disposable source snapshot, synthetic repository and provider answers; no host runtime, credentials or network",
+  "before": {
+    "mode": "before",
+    "observations": [
+      {
+        "tool": "find_definition",
+        "source": "find_definition_regex",
+        "precision": "regex",
+        "matches": 1,
+        "answerQuality": {
+          "flags": [],
+          "evidence": [],
+          "ok": true
+        }
+      },
+      {
+        "tool": "find_references",
+        "source": "find_references_regex",
+        "precision": "regex",
+        "matches": 4,
+        "answerQuality": {
+          "flags": [],
+          "evidence": [],
+          "ok": true
+        }
+      },
+      {
+        "tool": "serena_blast_radius",
+        "source": "serena_blast_radius",
+        "precision": null,
+        "matches": 1,
+        "answerQuality": {
+          "flags": [],
+          "evidence": [],
+          "ok": true
+        }
+      },
+      {
+        "tool": "serena_method_callers",
+        "source": "serena_method_callers",
+        "precision": null,
+        "matches": 1,
+        "answerQuality": {
+          "flags": [],
+          "evidence": [],
+          "ok": true
+        }
+      }
+    ],
+    "failedAstFlagged": [
+      "unsupported_reference_claim"
+    ],
+    "returnedAnswerUnchanged": true,
+    "loopFlags": [],
+    "providerCalls": 2,
+    "iterationLimit": null,
+    "files": {
+      "mercury.config.json": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f",
+      "trai_brain/mercury-bridge/react-loop.js": "d11acfd75f5b2005d870f284474a052257f09f388faffa87df733ee4f57a979d",
+      "trai_brain/mercury-bridge/tool-adapter.js": "cf90ef1db013c5e5c179c8c67d4f63cb7f589f700de969bc804f1638800c69ac"
+    },
+    "limitations": "Synthetic source and provider answers through real tools and loop; no live model or trading proof."
+  },
+  "after": {
+    "mode": "after",
+    "observations": [
+      {
+        "tool": "find_definition",
+        "source": "find_definition_regex",
+        "precision": "regex",
+        "matches": 1,
+        "answerQuality": {
+          "flags": [
+            "unsupported_reference_claim"
+          ],
+          "evidence": [
+            {
+              "flag": "unsupported_reference_claim",
+              "evidence": "VERDICT: cannot_verify WHY THIS VERDICT: caller.js:2 defines execute, but it is unused. MISSING EVIDENCE: Call-site ownership remains unknown."
+            }
+          ],
+          "ok": false
+        }
+      },
+      {
+        "tool": "find_references",
+        "source": "find_references_regex",
+        "precision": "regex",
+        "matches": 4,
+        "answerQuality": {
+          "flags": [
+            "unsupported_reference_claim"
+          ],
+          "evidence": [
+            {
+              "flag": "unsupported_reference_claim",
+              "evidence": "VERDICT: cannot_verify WHY THIS VERDICT: caller.js:2 defines execute, but it is unused. MISSING EVIDENCE: Call-site ownership remains unknown."
+            }
+          ],
+          "ok": false
+        }
+      },
+      {
+        "tool": "serena_blast_radius",
+        "source": "serena_blast_radius",
+        "precision": "regex",
+        "matches": 1,
+        "answerQuality": {
+          "flags": [
+            "unsupported_reference_claim"
+          ],
+          "evidence": [
+            {
+              "flag": "unsupported_reference_claim",
+              "evidence": "VERDICT: cannot_verify WHY THIS VERDICT: caller.js:2 defines execute, but it is unused. MISSING EVIDENCE: Call-site ownership remains unknown."
+            }
+          ],
+          "ok": false
+        }
+      },
+      {
+        "tool": "serena_method_callers",
+        "source": "serena_method_callers",
+        "precision": null,
+        "matches": 1,
+        "answerQuality": {
+          "flags": [],
+          "evidence": [],
+          "ok": true
+        }
+      }
+    ],
+    "failedAstFlagged": [
+      "unsupported_reference_claim"
+    ],
+    "absentAstFlagged": [
+      "unsupported_reference_claim"
+    ],
+    "returnedAnswerUnchanged": true,
+    "loopFlags": [
+      "unsupported_reference_claim"
+    ],
+    "providerCalls": 2,
+    "iterationLimit": null,
+    "files": {
+      "mercury.config.json": "220bf31139090e7b16012aaff6c40c617a8e39bd4a63c62941f62909344e964b",
+      "trai_brain/mercury-bridge/react-loop.js": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c",
+      "trai_brain/mercury-bridge/tool-adapter.js": "449a9273794ffcbac65f8583bff8203541d2018210c5f78dab81d2a024d1ba59"
+    },
+    "limitations": "Synthetic source and provider answers through real tools and loop; no live model or trading proof."
+  },
+  "fixture": "ogz-meta/inbox/codex/2026-11-27/mercury-tool-evidence/fixtures/observe.cjs",
+  "fixture_sha256": "4b05d417a33d246a89841dea73f4f2a23bfe488bf3dc391a4093a2185e2034f9",
+  "verification_details": [
+    "Real regex definition/reference/dependency tools and real parsed method-caller tool examined the same synthetic source.",
+    "A commented require was counted by the dependency text scanner. The parsed method-caller scan excluded comments and strings.",
+    "Before the change all three regex tools suppressed the existing unsupported_reference_claim diagnostic. Afterward all three retain that warning.",
+    "The actual loop returned the synthetic answer unchanged after two stubbed provider calls, retained all tools and had no iteration limit.",
+    "Failed parsed-tool output is flagged before and after. The after probe additionally checked absent parsed-tool output.",
+    "The launcher reports ripgrep unavailable in isolation; these fixture tools completed using their actual code paths. No general grep availability is claimed."
+  ],
+  "limits": [
+    "The diagnostic checks parsed-tool presence, not whether every individual conclusion is supported. It neither verifies semantic truth nor guarantees model correctness.",
+    "No live model answer, bot behavior or RAG freshness was proved by this synthetic probe.",
+    "Working-harness verification includes two preserved inherited react-loop receipt-format hunks. They are excluded from the staged candidate and do not affect the unbounded fixture branch.",
+    "No new warning mechanism, answer suppression, bot gate, trading change, token setting or retry was introduced."
+  ]
+}
