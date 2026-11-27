@@ -1,0 +1,26 @@
+{
+  "query": "Scope: the native-feed watchdog's decision to quarantine a symbol after candle silence. Source candidate tree 5d395615eab5d6f2f4f772048da7afd826708c98 against commit 3d5fff8561cc3962c33848689423eba93507445c. How does this fail or cost me money in production?\n\nInvestigate the relevant producers, consumers and alternatives independently. For a finding, give a reachable trigger, consequence and current file:line evidence; name evidence gaps. A defect is not a required outcome.\n\nOperator policy context: Trey said \"right if its not getting valid data then no\" and, while discussing a second entry stream, \"if this isnt an easy fix we just flatten for now and when everything is done we can come back and add this in\". The second entry stream remains deferred. The existing dataFeed.staleDataMaxAgeMs and maxDataSilenceMs are 120000. Assess this one behavior against that recorded contract.\n",
+  "candidateTree": "5d395615eab5d6f2f4f772048da7afd826708c98",
+  "baseCommit": "3d5fff8561cc3962c33848689423eba93507445c",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "maxTokens": 7750,
+  "sourceSha256": {
+    "run-empire-v2.js": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35",
+    "core/CandleProcessor.js": "e6e85b18f3ea2346de4670f1ccf284a465a2b935db550dc664f497f756173253"
+  },
+  "inheritedHarnessSha256": {
+    "trai_brain/mercury-bridge/react-loop.js": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63"
+  },
+  "dispatchReason": "One controlled trial of a per-response budget reminder after inspecting the failed provider response and official shared reasoning/output token semantics. Same source, question, 7750-token limit and low reasoning; no iteration ceiling or automatic replay.",
+  "priorEvidence": "ogz-meta/inbox/codex/2026-11-25/native-silence-confirmation/behavior-receipt.json",
+  "noFreshRagClaim": true,
+  "recordedAtUtc": "2026-11-27T14:55:16.139891+00:00",
+  "baselineReviewReceipt": "ogz-meta/inbox/codex/2026-11-26/native-silence-review/review-receipt.json",
+  "harnessSha256": {
+    "trai_brain/mercury-bridge/react-loop.js": "d11acfd75f5b2005d870f284474a052257f09f388faffa87df733ee4f57a979d"
+  },
+  "change": "Neutral system reminder of actual per-response allowance, shared reasoning/output consumption, truncation and continued evidence gathering on later tool turns.",
+  "independentReview": "Pending; this experiment is not code-delivery approval."
+}

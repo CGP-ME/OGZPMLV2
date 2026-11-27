@@ -1,0 +1,27 @@
+{
+  "query": "Scope: the native-feed watchdog's decision to quarantine a symbol after candle silence. Source candidate tree 5d395615eab5d6f2f4f772048da7afd826708c98 against commit 3d5fff8561cc3962c33848689423eba93507445c. How does this fail or cost me money in production?\n\nInvestigate the relevant producers, consumers and alternatives independently. For a finding, give a reachable trigger, consequence and current file:line evidence; name evidence gaps. A defect is not a required outcome.\n\nOperator policy context: Trey said \"right if its not getting valid data then no\" and, while discussing a second entry stream, \"if this isnt an easy fix we just flatten for now and when everything is done we can come back and add this in\". The second entry stream remains deferred. The existing dataFeed.staleDataMaxAgeMs and maxDataSilenceMs are 120000. Assess this one behavior against that recorded contract.\n",
+  "candidateTree": "5d395615eab5d6f2f4f772048da7afd826708c98",
+  "baseCommit": "3d5fff8561cc3962c33848689423eba93507445c",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "sourceSha256": {
+    "run-empire-v2.js": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35",
+    "core/CandleProcessor.js": "e6e85b18f3ea2346de4670f1ccf284a465a2b935db550dc664f497f756173253"
+  },
+  "harnessSha256": {
+    "trai_brain/mercury-bridge/react-loop.js": "d11acfd75f5b2005d870f284474a052257f09f388faffa87df733ee4f57a979d"
+  },
+  "status": "not_authorized_not_run",
+  "maxTokens": 24576,
+  "reasoningEffort": "low",
+  "maxIterations": null,
+  "configFilesChanged": false,
+  "purpose": "One diagnostic review of the same pinned behavior with only the per-response completion budget changed to the official Mercury 3 low-effort default. The dynamic reminder will describe that value.",
+  "authorityNeeded": "AGENTS.md:154 and ogz-meta/AGENTS.md:254 require 7750; Trey must authorize this specific exception before dispatch.",
+  "source": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion",
+  "limits": [
+    "Higher allowance does not guarantee completion or correctness.",
+    "No automatic replay and no permanent configuration change."
+  ]
+}

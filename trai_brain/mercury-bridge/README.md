@@ -146,6 +146,14 @@ The CLI and hook checks cannot mechanically prove that a question is focused or
 unbiased. The dispatching agent must inspect both its visible question and added
 context. Review completion and source/evidence checks remain required.
 
+The agentic prompt names the effective allowance for each API response. Mercury 3
+shares that allowance between reasoning and returned output, including tool calls;
+it can exhaust the allowance before returning either. The reminder asks it to
+reserve output space and continue necessary evidence gathering on later tool turns.
+It adds no investigation-step ceiling and does not raise the configured 7,750-token
+limit. This is guidance, not reliable token self-metering: a provider `length`
+termination still leaves the review incomplete and requires receipt inspection.
+
 Claudito's spec-driven review uses the approved mission issue as its behavior
 scope. Write that issue as one neutral, observable behavior; do not use the
 implementer's diagnosis, proposed fix or a work summary as the question. The

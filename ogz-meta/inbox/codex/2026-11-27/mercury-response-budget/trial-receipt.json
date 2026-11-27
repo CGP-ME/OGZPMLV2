@@ -1,0 +1,692 @@
+{
+  "runId": "2026-11-27T14-57-08-549Z-21d1f89aecda",
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-27.jsonl:1",
+  "outcome": "review_incomplete",
+  "termination": "error",
+  "codeVerdict": null,
+  "sourceScope": {
+    "source": "explicit_change_paths",
+    "paths": [
+      "core/CandleProcessor.js",
+      "run-empire-v2.js"
+    ],
+    "tree": "5d395615eab5d6f2f4f772048da7afd826708c98",
+    "baseTree": "2ece65111ec224259eedda421744c073ed0cfb58",
+    "manifest": "ogz-meta/cognition-history/mercury-runs/2026-11-27T14-55-17-134Z-3247752-a854ea93acc6/source-3uDopG.json",
+    "manifestSha256": "f759458cd2bfe14c442c3333b85557e9d019d4fe728a45f22f988df4022f91b8"
+  },
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "retrieval": {
+    "method": "source_snapshot",
+    "embedding": {
+      "status": "not_requested",
+      "error": null
+    }
+  },
+  "indexFreshness": null,
+  "runUsage": {
+    "input": 1051307,
+    "uncached_input": 795306,
+    "cached_input": 256001,
+    "output": 30517,
+    "total": 1081824,
+    "complete": true,
+    "attempts_with_usage": 27,
+    "total_attempts": 27
+  },
+  "estimatedRunCost": {
+    "amount": 0.0926727,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 27,
+    "total_attempts": 27,
+    "cost_absences": []
+  },
+  "toolSummary": [
+    {
+      "name": "find_definition",
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "succeeded": 21,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "succeeded": 14,
+      "failed": 0
+    },
+    {
+      "name": "read_review_receipt",
+      "succeeded": 2,
+      "failed": 0
+    }
+  ],
+  "responses": [
+    {
+      "call": 1,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "read_review_receipt",
+        "read_review_receipt"
+      ],
+      "usage": {
+        "prompt_tokens": 10097,
+        "completion_tokens": 335,
+        "total_tokens": 10432,
+        "prompt_tokens_details": {
+          "cached_tokens": 9
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 107
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-1.raw",
+      "rawSha256": "cd186742f53359c15ef9d369121ade1f2c550d8a1d6034a7408ba5aea96b0016"
+    },
+    {
+      "call": 2,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 13666,
+        "completion_tokens": 174,
+        "total_tokens": 13840,
+        "prompt_tokens_details": {
+          "cached_tokens": 9763
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 52
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-2.raw",
+      "rawSha256": "7dd8706a3587c45c436412472b2e23f40343ac12bb99873a4a9be8c555689166"
+    },
+    {
+      "call": 3,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": true,
+      "toolNames": [
+        "open_file",
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 14682,
+        "completion_tokens": 176,
+        "total_tokens": 14858,
+        "prompt_tokens_details": {
+          "cached_tokens": 9960
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 4
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-3.raw",
+      "rawSha256": "ee8ca94e104e4c6dfb90748f8aca45513151612aef44df65080aea079acec260"
+    },
+    {
+      "call": 4,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 17661,
+        "completion_tokens": 107,
+        "total_tokens": 17768,
+        "prompt_tokens_details": {
+          "cached_tokens": 9551
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 25
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-4.raw",
+      "rawSha256": "5f2ad451c75830b09cbc37a370c17c45ff25742ff460477e82d8e8587b70ad35"
+    },
+    {
+      "call": 5,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file",
+        "find_definition"
+      ],
+      "usage": {
+        "prompt_tokens": 19988,
+        "completion_tokens": 343,
+        "total_tokens": 20331,
+        "prompt_tokens_details": {
+          "cached_tokens": 9745
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 201
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-5.raw",
+      "rawSha256": "3ec6984dfd0e533220e0e45d08d8a5d3ada54db7a5c061f868d13c5d631d5aad"
+    },
+    {
+      "call": 6,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 21352,
+        "completion_tokens": 109,
+        "total_tokens": 21461,
+        "prompt_tokens_details": {
+          "cached_tokens": 9665
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 38
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-6.raw",
+      "rawSha256": "69fdf9bc3c4bfac336cd954e3030a9e17364d6052c6f961088c9c453bd058dfe"
+    },
+    {
+      "call": 7,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 22114,
+        "completion_tokens": 88,
+        "total_tokens": 22202,
+        "prompt_tokens_details": {
+          "cached_tokens": 10018
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 4
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-7.raw",
+      "rawSha256": "9c92d01f9176d11e542a0ef0f91d6fe8e4c5e53688def90c29c6166c6fc206fd"
+    },
+    {
+      "call": 8,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": true,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 24711,
+        "completion_tokens": 6182,
+        "total_tokens": 30893,
+        "prompt_tokens_details": {
+          "cached_tokens": 9974
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 6049
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-8.raw",
+      "rawSha256": "3c7affca356ac502035527ebd17bfdbce2a471f2d94efd66d65c24d7809f211a"
+    },
+    {
+      "call": 9,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 31070,
+        "completion_tokens": 80,
+        "total_tokens": 31150,
+        "prompt_tokens_details": {
+          "cached_tokens": 9751
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-9.raw",
+      "rawSha256": "39a634ce09e08d583c9ce9facea5f1b8a3d7d7851f86fb7ab8f30b292e415445"
+    },
+    {
+      "call": 10,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 32880,
+        "completion_tokens": 739,
+        "total_tokens": 33619,
+        "prompt_tokens_details": {
+          "cached_tokens": 9680
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 661
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-10.raw",
+      "rawSha256": "27e479cb068b8b72c836751b902385c05d8ded779303c127d981726fa41e886a"
+    },
+    {
+      "call": 11,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 35783,
+        "completion_tokens": 4272,
+        "total_tokens": 40055,
+        "prompt_tokens_details": {
+          "cached_tokens": 9906
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 4135
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-11.raw",
+      "rawSha256": "2043274c1401713b06b4b6e61963893b88804ccdcd97b11b42248da179d0d5c6"
+    },
+    {
+      "call": 12,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 40983,
+        "completion_tokens": 575,
+        "total_tokens": 41558,
+        "prompt_tokens_details": {
+          "cached_tokens": 9880
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 431
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-12.raw",
+      "rawSha256": "014ce580b7ee173d89564de29df649a191cffd962e0c9d6db504e68b75f797f5"
+    },
+    {
+      "call": 13,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 43105,
+        "completion_tokens": 238,
+        "total_tokens": 43343,
+        "prompt_tokens_details": {
+          "cached_tokens": 10295
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 155
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-13.raw",
+      "rawSha256": "099e2efb64eb8d8d87b3c0419fe93c478a7eb40d05d4147112473283cc52016d"
+    },
+    {
+      "call": 14,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": true,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 45906,
+        "completion_tokens": 4106,
+        "total_tokens": 50012,
+        "prompt_tokens_details": {
+          "cached_tokens": 10418
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 3947
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-14.raw",
+      "rawSha256": "c37894156375fa11cd5a1c861b624feabb0a12648302c84ee6fd645de0bb6a74"
+    },
+    {
+      "call": 15,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 50902,
+        "completion_tokens": 212,
+        "total_tokens": 51114,
+        "prompt_tokens_details": {
+          "cached_tokens": 10448
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 95
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-15.raw",
+      "rawSha256": "30275c88daf1440ffca9cd9b9fb2fc8ddcc05f14d4adf24bc355fb8bbdf658c8"
+    },
+    {
+      "call": 16,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 50124,
+        "completion_tokens": 377,
+        "total_tokens": 50501,
+        "prompt_tokens_details": {
+          "cached_tokens": 11637
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 263
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-16.raw",
+      "rawSha256": "ccfe0ae63580f91d04614a031d8f9a44af3be51c47631923c7cfe414873bc242"
+    },
+    {
+      "call": 17,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 51093,
+        "completion_tokens": 148,
+        "total_tokens": 51241,
+        "prompt_tokens_details": {
+          "cached_tokens": 11915
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 69
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-17.raw",
+      "rawSha256": "3345332ee8aac56078342a99a7afa2d46a9665a49bd9145d5e13a693f2093f3f"
+    },
+    {
+      "call": 18,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": true,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 51778,
+        "completion_tokens": 1914,
+        "total_tokens": 53692,
+        "prompt_tokens_details": {
+          "cached_tokens": 10435
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1774
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-18.raw",
+      "rawSha256": "58fba0c4ee33249a36c99595bd674ff6d4f4e43c9d3cd1b3f2a48a316f7f81a4"
+    },
+    {
+      "call": 19,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 54885,
+        "completion_tokens": 111,
+        "total_tokens": 54996,
+        "prompt_tokens_details": {
+          "cached_tokens": 10529
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 27
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-19.raw",
+      "rawSha256": "b5fa00f1dd27c3411a4f8a2a0b4cdc3ac2d930261b00fc83bb498c0f4cadb614"
+    },
+    {
+      "call": 20,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 54798,
+        "completion_tokens": 201,
+        "total_tokens": 54999,
+        "prompt_tokens_details": {
+          "cached_tokens": 10060
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 78
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-20.raw",
+      "rawSha256": "4b3fc8084f2e52a2d49cd7e255bf989dc2382907ffcfee8abd3fe7c7e480f216"
+    },
+    {
+      "call": 21,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 57511,
+        "completion_tokens": 89,
+        "total_tokens": 57600,
+        "prompt_tokens_details": {
+          "cached_tokens": 10411
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 4
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-21.raw",
+      "rawSha256": "ffc5f42135856d5812f3b4461827a712cebedfb3f09db275e3879ea7e346ee8c"
+    },
+    {
+      "call": 22,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 58548,
+        "completion_tokens": 381,
+        "total_tokens": 58929,
+        "prompt_tokens_details": {
+          "cached_tokens": 10373
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 297
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-22.raw",
+      "rawSha256": "79a548a9c8e9b0e90fe907a46aa08b09cb56348cdd6c89fb945f41a1b7ddea2e"
+    },
+    {
+      "call": 23,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 60484,
+        "completion_tokens": 176,
+        "total_tokens": 60660,
+        "prompt_tokens_details": {
+          "cached_tokens": 10465
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 91
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-23.raw",
+      "rawSha256": "f4a2b0f7a93fa22c44dc2010876baabaf4d7a4b51e013c04f26eb43ce7a1ccb9"
+    },
+    {
+      "call": 24,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": true,
+      "toolNames": [
+        "grep",
+        "grep"
+      ],
+      "usage": {
+        "prompt_tokens": 59669,
+        "completion_tokens": 1799,
+        "total_tokens": 61468,
+        "prompt_tokens_details": {
+          "cached_tokens": 10296
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1659
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-24.raw",
+      "rawSha256": "920369acb12884649df50b55a71681ee4f398b134360c570e17b80f6c4a94ebe"
+    },
+    {
+      "call": 25,
+      "model": "mercury-3",
+      "finishReason": "tool_calls",
+      "contentPresent": false,
+      "toolNames": [
+        "open_file"
+      ],
+      "usage": {
+        "prompt_tokens": 62601,
+        "completion_tokens": 87,
+        "total_tokens": 62688,
+        "prompt_tokens_details": {
+          "cached_tokens": 10407
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 3
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-25.raw",
+      "rawSha256": "34e4ff609986adb9bfc9e47f7e6932e880a83eb62943ba70177c764f5e881244"
+    },
+    {
+      "call": 26,
+      "model": "mercury-3",
+      "finishReason": "length",
+      "contentPresent": false,
+      "toolNames": [],
+      "usage": {
+        "prompt_tokens": 63689,
+        "completion_tokens": 7496,
+        "total_tokens": 71185,
+        "prompt_tokens_details": {
+          "cached_tokens": 10410
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 7496
+        }
+      },
+      "rawPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t14-55-17-134z-3247752-a854ea93acc6/mercury_independent_source-26.raw",
+      "rawSha256": "5f552de245c7edfbe812bf9e8d11e5b7da772071c8104f9d039e45869d5a6824"
+    }
+  ],
+  "requestRecord": "trial-request.json",
+  "interpretation": [
+    "The reminder did not prevent the observed failure: response 26 used 7496 reported completion tokens, all reasoning, returned no content or tool call, and ended with length.",
+    "All 38 tool calls succeeded. A zero-result definition lookup remained visible and was followed by grep and exact source reads.",
+    "The prior run failed on response 4; this run reached response 26. These are separate stochastic investigations, not proof the reminder improved reliability.",
+    "The cap remains 7750 and reasoning effort low. No iteration limit, automatic replay, cap increase, clean verdict, bot edit or runtime activation followed this trial.",
+    "Snapshot manifest hash matches the earlier trial; engineering tools used captured source without embeddings or indexed retrieval.",
+    "Cumulative input across repeated calls was 1051307 tokens; this is not one request or unique source volume. The accounting estimate is not an invoice.",
+    "The shared reasoning/output allowance is established by current API documentation and provider usage; why the provider stopped at 7496 rather than exactly 7750 is not established."
+  ],
+  "providerDocumentation": {
+    "chat": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion",
+    "reasoning": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts",
+    "windDown": "https://docs.inceptionlabs.ai/support/wind-down"
+  },
+  "remaining": [
+    "Mercury must still deliver a supported verdict for the pending Stop 2 change.",
+    "One proposed 24576-token diagnostic exception needs Trey approval under AGENTS.md:154; it has not run.",
+    "The provider notice gives December 28 2026 as the service end; no migration is authorized or implemented here."
+  ],
+  "configurationHistory": {
+    "tokenBudgetOrigin": "e2b1d0e39",
+    "tokenBudgetOriginDateUtc": "2026-06-09",
+    "modelMigrationCommit": "8d8bc9a4248646a24c29f8f52c50559ef26b590e",
+    "modelMigrationDateUtc": "2026-11-10",
+    "observed": "The Mercury 2 to Mercury 3 migration selected low reasoning and retained both 7750-token settings. It raised the input request byte allowance from 98304 to 983040.",
+    "limitation": "History establishes inherited policy and source identity. It does not prove a larger budget will finish this review or the cause of any earlier invoice."
+  }
+}

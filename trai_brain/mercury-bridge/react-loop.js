@@ -901,6 +901,15 @@ async function runReactLoop(params) {
     role: 'system',
     content: attackMode ? `${systemPrompt}\n\n${ATTACK_SYSTEM_PROMPT}` : systemPrompt,
   }];
+  let responseTokenLimit = maxTokens == null ? client.maxTokens : maxTokens;
+  if (client.minimumTokens > 0 && responseTokenLimit < client.minimumTokens) {
+    responseTokenLimit = client.minimumTokens;
+  }
+  // Keep the per-response allowance in the fixed prompt across evidence compaction.
+  messages.push({
+    role: 'system',
+    content: `RESPONSE TOKEN BUDGET: This API response has a ${responseTokenLimit}-token allowance shared by internal reasoning, tool-call arguments and visible output. The provider can truncate the response at that limit, including before any tool call or answer is returned. Keep each reasoning step focused and reserve room to emit the next evidence-gathering tool call or a concise, supported final answer. This allowance resets on each API call; it is not an investigation-step limit. Use further tool turns for evidence still needed. Do not skip evidence, invent findings, or infer a clean verdict to fit the allowance; report unresolved evidence honestly.`,
+  });
   if (noTools) {
     messages.push({
       role: 'system',

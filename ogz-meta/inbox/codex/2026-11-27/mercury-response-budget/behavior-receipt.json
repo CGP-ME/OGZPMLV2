@@ -1,0 +1,117 @@
+{
+  "realProviderCalls": 0,
+  "boundary": "Actual Mercury config resolver, ReAct loop, provider request serializer and explicit continuation; synthetic HTTP responses and tool evidence.",
+  "sourceSha256": "d11acfd75f5b2005d870f284474a052257f09f388faffa87df733ee4f57a979d",
+  "reminder": "RESPONSE TOKEN BUDGET: This API response has a 7750-token allowance shared by internal reasoning, tool-call arguments and visible output. The provider can truncate the response at that limit, including before any tool call or answer is returned. Keep each reasoning step focused and reserve room to emit the next evidence-gathering tool call or a concise, supported final answer. This allowance resets on each API call; it is not an investigation-step limit. Use further tool turns for evidence still needed. Do not skip evidence, invent findings, or infer a clean verdict to fit the allowance; report unresolved evidence honestly.",
+  "observedRequests": [
+    {
+      "calls": 2,
+      "maxTokens": 7750,
+      "reasoningEffort": "low",
+      "termination": "answer_given",
+      "iterationLimit": null
+    },
+    {
+      "calls": 1,
+      "maxTokens": 1750,
+      "reasoningEffort": "low",
+      "termination": "answer_given",
+      "iterationLimit": null
+    },
+    {
+      "calls": 1,
+      "maxTokens": 400,
+      "reasoningEffort": "low",
+      "termination": "answer_given",
+      "iterationLimit": null
+    },
+    {
+      "calls": 1,
+      "maxTokens": 7750,
+      "reasoningEffort": "low",
+      "termination": "error",
+      "iterationLimit": null
+    }
+  ],
+  "continuation": {
+    "archivedExchanges": 1,
+    "reminderPreserved": true,
+    "requestBytes": 13612,
+    "requestLimitBytes": 16000
+  },
+  "reasoningStatePreserved": true,
+  "truncationRemainsIncomplete": true,
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-27/mercury-response-budget/fixtures/observe.cjs --fixture ogz-meta/inbox/codex/2026-11-26/mercury-focused-request/fixtures/mercury-ignore.json -- node ogz-meta/inbox/codex/2026-11-27/mercury-response-budget/fixtures/observe.cjs",
+  "exitCode": 0,
+  "initialFixtureIssue": "The first launcher invocation omitted the policy JSON fixture and stopped on module resolution. Supplying that explicit non-secret fixture fixed the probe invocation; source unchanged.",
+  "limits": [
+    "Synthetic responses verify request wiring, not model obedience or production behavior.",
+    "No host credentials, network, PM2, real state or trading runtime available inside isolation."
+  ],
+  "exactCommitCandidate": {
+    "realProviderCalls": 0,
+    "boundary": "Actual Mercury config resolver, ReAct loop, provider request serializer and explicit continuation; synthetic HTTP responses and tool evidence.",
+    "sourceSha256": "9c405b83bebc6866b2d0e806f83df1f344aa1e6a4aaa27f6927078f59b87b4c4",
+    "reminder": "RESPONSE TOKEN BUDGET: This API response has a 7750-token allowance shared by internal reasoning, tool-call arguments and visible output. The provider can truncate the response at that limit, including before any tool call or answer is returned. Keep each reasoning step focused and reserve room to emit the next evidence-gathering tool call or a concise, supported final answer. This allowance resets on each API call; it is not an investigation-step limit. Use further tool turns for evidence still needed. Do not skip evidence, invent findings, or infer a clean verdict to fit the allowance; report unresolved evidence honestly.",
+    "observedRequests": [
+      {
+        "calls": 2,
+        "maxTokens": 7750,
+        "reasoningEffort": "low",
+        "termination": "answer_given",
+        "iterationLimit": null
+      },
+      {
+        "calls": 1,
+        "maxTokens": 1750,
+        "reasoningEffort": "low",
+        "termination": "answer_given",
+        "iterationLimit": null
+      },
+      {
+        "calls": 1,
+        "maxTokens": 400,
+        "reasoningEffort": "low",
+        "termination": "answer_given",
+        "iterationLimit": null
+      },
+      {
+        "calls": 1,
+        "maxTokens": 7750,
+        "reasoningEffort": "low",
+        "termination": "error",
+        "iterationLimit": null
+      }
+    ],
+    "continuation": {
+      "archivedExchanges": 1,
+      "reminderPreserved": true,
+      "requestBytes": 13612,
+      "requestLimitBytes": 16000
+    },
+    "reasoningStatePreserved": true,
+    "truncationRemainsIncomplete": true,
+    "exitCode": 0,
+    "construction": "HEAD react-loop.js plus only the new reminder. Installed inside disposable snapshot by an explicitly supplied fixture; host source and inherited edits untouched.",
+    "fixturePreparationIssue": "An overly broad anchor-count assertion stopped source-fixture generation initially; corrected to the unique system-message anchor before the successful run."
+  },
+  "independentReview": {
+    "agent": "/root/mercury_budget_review",
+    "model": "inherited parent model",
+    "outcome": "no_break_found",
+    "scope": "The new reminder and README paragraph only; no model-reliability or Stop 2 approval.",
+    "alignment": "Parent checked actual transcript line coverage for required current docs and refreshed complete Mercury guide/config/rules/exclusions before releasing task.",
+    "examined": [
+      "Actual request limit matches reminder, including existing minimum clamp.",
+      "Reminder remains in fixed prompt through continuation compaction and its byte accounting.",
+      "No iteration ceiling or clean verdict is introduced by truncation.",
+      "Tool history and provider reasoning state survive the next request."
+    ],
+    "verification": "Independently ran the exact isolated fixture once on working source, exit 0; matched parent observations.",
+    "limitations": [
+      "No paid call or live-bot verification by reviewer.",
+      "Inherited loop edits were excluded from review scope.",
+      "Actual provider obedience is not established by synthetic responses."
+    ]
+  }
+}
