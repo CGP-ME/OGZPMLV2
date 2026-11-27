@@ -1,0 +1,15 @@
+{
+  "question": "Trey asks why you keep returning incorrect information. For your completed review below, what verifiable explanation, if any, accounts for inaccuracies or unsupported conclusions in your answer?",
+  "originalRunId": "2026-11-27T20-30-12-525Z-22a6e1756cdb",
+  "promptSha256": "a87a16dd7f93c9c4e48e2f6bbcf0423469bb822c50a83c2ff8bf7953ef858019",
+  "promptBytes": 23992,
+  "promptLines": 129,
+  "sourceTree": "5d395615eab5d6f2f4f772048da7afd826708c98",
+  "maxTokens": 7750,
+  "maxIterations": null,
+  "reviewers": [
+    "mercury"
+  ],
+  "rawPrompt": "private/question.txt",
+  "scope": "One answer-quality diagnostic authorized by Trey; no configuration or bot edits."
+}

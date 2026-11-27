@@ -1,0 +1,238 @@
+{
+  "runId": "2026-11-27T20-45-47-889Z-09bf0bd38dea",
+  "recordedAtUtc": "2026-11-27T20:47:54.982343+00:00",
+  "ledger": "ogz-meta/cognition-history/mercury-runs/2026-11-27.jsonl:3",
+  "purpose": "Trey requested that Mercury explain its inaccurate information. One diagnostic about its prior completed answer; no bot review approval.",
+  "questionRecord": "request.json",
+  "fullAnswerPrivate": "private/answer.md",
+  "answerSha256": "cf27c588ca86b9cdf21264041a3ad050f1814e6d994c3e38d12a9b9d2ec1e239",
+  "providerAnswerComplete": true,
+  "iterations": 5,
+  "tools": [
+    {
+      "name": "git_diff",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "git_show",
+      "calls": 7,
+      "succeeded": 7,
+      "failed": 0
+    },
+    {
+      "name": "grep",
+      "calls": 2,
+      "succeeded": 2,
+      "failed": 0
+    }
+  ],
+  "providerReceipts": [
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t20-45-07-368z-3290422-2a70801de151/mercury_independent-1.raw",
+      "sha256": "bfbb793ac29b1282fa44b92e06f5603dc01947ebd9ba56afcc8b05b41cfc307a",
+      "attempt": 1,
+      "retry": 0,
+      "model": "mercury-3",
+      "termination": "tool_calls",
+      "tokens": {
+        "input": 15256,
+        "uncached_input": 15247,
+        "cached_input": 9,
+        "output": 1960,
+        "total": 17216
+      }
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t20-45-07-368z-3290422-2a70801de151/mercury_independent-2.raw",
+      "sha256": "c3d11b253f80476c2a4f3579afa21d26814f962c65f7b1a753ba0ec55f3ee823",
+      "attempt": 2,
+      "retry": 0,
+      "model": "mercury-3",
+      "termination": "tool_calls",
+      "tokens": {
+        "input": 20974,
+        "uncached_input": 5564,
+        "cached_input": 15410,
+        "output": 529,
+        "total": 21503
+      }
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t20-45-07-368z-3290422-2a70801de151/mercury_independent-3.raw",
+      "sha256": "92ffbf9f39804a51cdfde1e29b0359007600dc5cd3ad0e008656ccb86194317f",
+      "attempt": 3,
+      "retry": 0,
+      "model": "mercury-3",
+      "termination": "tool_calls",
+      "tokens": {
+        "input": 23842,
+        "uncached_input": 1917,
+        "cached_input": 21925,
+        "output": 2361,
+        "total": 26203
+      }
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t20-45-07-368z-3290422-2a70801de151/mercury_independent-4.raw",
+      "sha256": "d4cb6e7a6b8b55b34603c2321ec90dee589bb65221967f21e81acb552832fba0",
+      "attempt": 4,
+      "retry": 0,
+      "model": "mercury-3",
+      "termination": "tool_calls",
+      "tokens": {
+        "input": 27092,
+        "uncached_input": 1827,
+        "cached_input": 25265,
+        "output": 2250,
+        "total": 29342
+      }
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-27/2026-11-27t20-45-07-368z-3290422-2a70801de151/mercury_independent-5.raw",
+      "sha256": "ff9607e36fb347f3167aa8ecd3608936ed9c6d066c4f34328d0e1bc1aaef35b6",
+      "attempt": 5,
+      "retry": 0,
+      "model": "mercury-3",
+      "termination": "stop",
+      "tokens": {
+        "input": 31089,
+        "uncached_input": 796,
+        "cached_input": 30293,
+        "output": 4499,
+        "total": 35588
+      }
+    }
+  ],
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury"
+    ]
+  },
+  "retrieval": {
+    "requested_method": "hybrid",
+    "method": "hybrid",
+    "embedding": {
+      "status": "available",
+      "provider": "ollama",
+      "model": "nomic-embed-text",
+      "index_id": "[REDACTED]",
+      "dimensions": 768,
+      "deadline_ms": 120000,
+      "elapsed_ms": 6913,
+      "error": null
+    },
+    "index": {
+      "status": "unavailable",
+      "observed_at": "2026-11-27T20:45:16.928Z",
+      "publication_id": null,
+      "indexed_at": null,
+      "index_head_sha": null,
+      "age_ms": null,
+      "files_walked": null,
+      "chunks": 11740,
+      "error": "publication_metadata_absent; reindex required for attested freshness"
+    },
+    "chunks_retrieved": 8,
+    "trace_memory": {
+      "status": "no_match",
+      "error": null
+    },
+    "trace_capture": {
+      "captured": false,
+      "reason": "manual_capture_not_requested"
+    }
+  },
+  "indexFreshness": {
+    "status": "unavailable",
+    "observed_at": "2026-11-27T20:45:16.928Z",
+    "publication_id": null,
+    "indexed_at": null,
+    "index_head_sha": null,
+    "age_ms": null,
+    "files_walked": null,
+    "chunks": 11740,
+    "error": "publication_metadata_absent; reindex required for attested freshness"
+  },
+  "runCostEstimate": {
+    "amount": 0.00777431,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 6,
+    "total_attempts": 6,
+    "cost_absences": []
+  },
+  "runTokens": {
+    "input": 130780,
+    "uncached_input": 37878,
+    "cached_input": 92902,
+    "output": 11601,
+    "total": 142381,
+    "complete": true,
+    "attempts_with_usage": 6,
+    "total_attempts": 6
+  },
+  "modelReportedDecision": {
+    "verdict": "no_break_found",
+    "majorityOutcome": "no_break_found",
+    "majorityRequired": 1,
+    "selectedCount": 1,
+    "tally": {
+      "found_break": 0,
+      "no_break_found": 1,
+      "cannot_verify": 0,
+      "absent": 0
+    },
+    "votes": [
+      {
+        "reviewer": "mercury",
+        "status": "succeeded",
+        "outcome": "no_break_found",
+        "rawVerdict": "no_break_found",
+        "answerSha256": "cf27c588ca86b9cdf21264041a3ad050f1814e6d994c3e38d12a9b9d2ec1e239",
+        "absence": null
+      }
+    ],
+    "reviewComplete": true,
+    "agreement": "unanimous",
+    "dissent": [],
+    "basis": "equal peer votes on code outcome; raw evidence and dissent retained"
+  },
+  "mercuryExplanation": {
+    "summary": "Mercury defended the factual accuracy of its prior citations. It called the found_break classification a disclosed policy judgment and identified no verifiable cause of inaccurate information.",
+    "explanationEstablished": false,
+    "reason": "Citation accuracy does not by itself establish the claimed healthy-feed failure under the original policy and full control flow."
+  },
+  "parentVerification": {
+    "scope": "Read the complete answer and checked cited immutable source and original tool-delivery records; this is not another panel vote.",
+    "confirmedMechanics": [
+      "run-empire-v2.js:2862-2873 selects frames after native silence exceeds the frame window.",
+      "run-empire-v2.js:3129-3135 skips the verification/quarantine path when there are no silent frames.",
+      "run-empire-v2.js:2896-2898 and 3150-3153 exclude native delivery that resumes during verification.",
+      "run-empire-v2.js:3147-3161 treats expired native data plus unavailable verification as unsupported trading input and quarantines the symbol.",
+      "run-empire-v2.js:1733-1758 closes only when a current symbol price exists; otherwise the position remains recorded with failure evidence."
+    ],
+    "unresolvedConclusion": "Neither the initial answer nor this self-review establishes that the stated policy is violated by a healthy, timely native feed. The self-review again does not reconcile the claim with the preceding silence and resumed-delivery guards.",
+    "readCoverageMismatch": "The original answer reports reading run-empire-v2.js:1678-1900; its open_file delivery receipt records only 1678-1860 for that request. The self-review did not address this mismatch.",
+    "toolSemanticsConflict": "mercury.config.json:265-266 groups find_definition/find_references with structural proof and suggests find_references can prove absence; tool-adapter.js:524-557 identifies both as regex searches with limited precision. This conflict exists in current source; causation of these answers is unproven.",
+    "generalizationLimit": "One self-review does not diagnose all prior inaccurate answers, model internals, prompt corruption or a token-budget cause."
+  },
+  "preservation": {
+    "inheritedTrackedFilesUnchanged": 22,
+    "configUnchanged": true,
+    "sourceEdits": false,
+    "pm2Activation": false,
+    "additionalPaidDispatch": false,
+    "ragRebuild": false,
+    "rawPrivateEvidencePublished": false
+  }
+}
