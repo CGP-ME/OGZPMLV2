@@ -1,0 +1,65 @@
+{
+  "query": "Scope: the native-feed watchdog's decision to quarantine a symbol after candle silence. Source candidate tree 5d395615eab5d6f2f4f772048da7afd826708c98 against commit 3d5fff8561cc3962c33848689423eba93507445c. How does this fail or cost me money in production?\n\nInvestigate the relevant producers, consumers and alternatives independently. For a finding, give a reachable trigger, consequence and current file:line evidence; name evidence gaps. A defect is not a required outcome.\n\nOperator policy context: Trey said \"right if its not getting valid data then no\" and, while discussing a second entry stream, \"if this isnt an easy fix we just flatten for now and when everything is done we can come back and add this in\". The second entry stream remains deferred. The existing dataFeed.staleDataMaxAgeMs and maxDataSilenceMs are 120000. Assess this one behavior against that recorded contract.\n",
+  "candidateTree": "5d395615eab5d6f2f4f772048da7afd826708c98",
+  "baseCommit": "3d5fff8561cc3962c33848689423eba93507445c",
+  "selectedReviewers": [
+    "mercury"
+  ],
+  "sourceSha256": {
+    "run-empire-v2.js": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35",
+    "core/CandleProcessor.js": "e6e85b18f3ea2346de4670f1ccf284a465a2b935db550dc664f497f756173253"
+  },
+  "harnessSha256": {
+    "trai_brain/mercury-bridge/react-loop.js": "d11acfd75f5b2005d870f284474a052257f09f388faffa87df733ee4f57a979d",
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/explicit-continuation.js": "fc3a6e133ec9a630e85d2813ae5a6edce88a08f2bf8b65365fff457e5bc52ce5",
+    "trai_brain/mercury-bridge/llm-client.js": "a1a99ea7414de6f2de9c6ac072617baf199178d56e9cc25639282cf3d2144d63",
+    "trai_brain/mercury-bridge/tool-adapter.js": "cf90ef1db013c5e5c179c8c67d4f63cb7f589f700de969bc804f1638800c69ac",
+    "core/persistent_llm_client.js": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+    "mercury.config.json": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f"
+  },
+  "status": "authorized",
+  "maxTokens": 24576,
+  "reasoningEffort": "low",
+  "maxIterations": null,
+  "configFilesChanged": false,
+  "purpose": "One diagnostic review of the same pinned behavior with only the per-response completion budget changed to the official Mercury 3 low-effort default. The dynamic reminder will describe that value.",
+  "source": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion",
+  "limits": [
+    "Higher allowance does not guarantee completion or correctness.",
+    "No automatic replay and no permanent configuration change."
+  ],
+  "authorizedBy": "Trey: Approve this one budget trial",
+  "authorizationQuestionId": "call_c5670fe5966947b799f15ee2bc5813a2:0",
+  "recordedAtUtc": "2026-11-27T20:27:20.498599+00:00",
+  "baselineReceipt": "trial-receipt.json",
+  "head": "afd727c0d1d582a9d43b0440cf28bff9ee58f87d",
+  "selectedConfig": {
+    "environmentVariable": "MERCURY_CONFIG_FILE",
+    "path": "ogz-meta/inbox/codex/2026-11-27/mercury-response-budget/private/budget-24576.config.json",
+    "sha256": "8d9e7fb33e1c6a1b4120c00491bd80692b221f6225cbb07575280fb2b32911ee",
+    "canonicalPath": "mercury.config.json",
+    "canonicalSha256": "6644d0dd3142cc1bfac0bd50a515501ff74956ace859233fd992da8e9041889f",
+    "changes": [
+      {
+        "path": "llm.clientMaxTokens",
+        "before": 7750,
+        "after": 24576
+      },
+      {
+        "path": "agentic.maxTokens",
+        "before": 7750,
+        "after": 24576
+      }
+    ],
+    "scope": "Explicit temporary selection for this child process only; no permanent config file or environment mutation."
+  },
+  "preflight": {
+    "exitCode": 1,
+    "error": "--max-tokens must match mercury.config.json value 7750",
+    "providerCalls": 0,
+    "evidence": "ask.js:1008 validates before retrieval/provider dispatch; ledger remains one entry.",
+    "resolution": "Select a temporary config using the existing MERCURY_CONFIG_FILE option so CLI and config agree with the approved one-run allowance."
+  },
+  "readyAtUtc": "2026-11-27T20:28:15.779437+00:00"
+}
