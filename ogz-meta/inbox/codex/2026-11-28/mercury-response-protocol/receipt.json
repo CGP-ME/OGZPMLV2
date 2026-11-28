@@ -1,0 +1,75 @@
+{
+  "capturedAt": "2026-11-28T01:26:22.653999+00:00",
+  "scope": "Read-only investigation of the unusable Mercury response; no runtime or provider configuration repair is claimed.",
+  "runId": "2026-11-28T00-52-17-899Z-2b64eba779f4",
+  "providerResponse": {
+    "responseId": "chatcmpl-9d139e13-77af-4837-bc1c-a7f9c5cfe3ee",
+    "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t00-51-34-475z-3329237-8a3e4eb64ab3/mercury_independent_source-10.raw",
+    "sha256": "908de5005c366c30f46d58ebf73c000e67fe27651b412a78c12fe426eee349c3",
+    "finishReason": "stop",
+    "structuredToolCalls": null,
+    "contentContainsInternalToolMarkup": true,
+    "usage": {
+      "prompt_tokens": 38931,
+      "completion_tokens": 1636,
+      "total_tokens": 40567,
+      "prompt_tokens_details": {
+        "cached_tokens": 11076
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 1478
+      }
+    }
+  },
+  "precedingResponses": {
+    "count": 9,
+    "structuredToolCalls": 19,
+    "uniqueToolCallIds": 19,
+    "allArgumentsValidJson": true,
+    "largestArgumentsCharacters": 141,
+    "archivedExchanges": 0,
+    "toolWindowsMarkedTruncated": 0,
+    "ordinaryContentEndsWithStrayLessThanCharacter": [
+      7,
+      9
+    ]
+  },
+  "requestEvidence": {
+    "internalEnvelopeSha256": "2ad97e4261d6f54367471535cd35251652c8549657a917eddb035950c14db879",
+    "internalEnvelopeBytes": 115146,
+    "hashScope": "Serialized {messages,tools,options}, not the final serialized HTTP body.",
+    "outgoingHttpBodyRetained": false,
+    "limitation": "The actual outgoing body cannot be reconstructed exactly from this receipt alone. No immediate client protocol defect was proven."
+  },
+  "checkedMechanisms": [
+    "Native function schemas remain available with tool_choice auto.",
+    "History appends assistant calls and matching role=tool/tool_call_id results.",
+    "All 19 preceding call IDs appear in the final prepared tool-window receipt.",
+    "Arguments remain below the compaction threshold and opaque reasoning_details are preserved.",
+    "The returned markup names declared tools, but the raw response does not contain native tool_calls.",
+    "Null tool_calls alone is permitted by auto; the returned markup is neither an executable native call nor a completed review.",
+    "The final response stopped below the configured 7750-token allowance; this run does not demonstrate final-response token exhaustion."
+  ],
+  "conclusion": "Provider-origin malformed content is proven; whether request construction, prompt/context sensitivity or provider generation caused it remains unverified. The review remains incomplete. The existing gate did not treat it as approval.",
+  "nextDiagnostic": "The isolated substituted-transport observation is complete and found no current serialization mismatch. A further justified live diagnostic would need to retain exact outgoing JSON with its raw response; this work did not replay the paid watchdog review.",
+  "review": "A fully aligned independent read-only agent checked the source and protocol observations. No helper, provider call, replay or source edit was performed in this diagnostic.",
+  "sourceHashes": {
+    "core/persistent_llm_client.js": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+    "trai_brain/mercury-bridge/react-loop.js": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c",
+    "trai_brain/mercury-bridge/explicit-continuation.js": "fc3a6e133ec9a630e85d2813ae5a6edce88a08f2bf8b65365fff457e5bc52ce5",
+    "trai_brain/mercury-bridge/evidence-ingestion.js": "3f33e1d264baff528e4c364a230134f5915ce7ce92d17929969e2235a8285348",
+    "trai_brain/mercury-bridge/tool-adapter.js": "449a9273794ffcbac65f8583bff8203541d2018210c5f78dab81d2a024d1ba59"
+  },
+  "officialReferences": {
+    "toolUse": "https://docs.inceptionlabs.ai/capabilities/tool-use",
+    "providerNotice": "https://docs.inceptionlabs.ai/support/wind-down"
+  },
+  "providerNotice": {
+    "verifiedOn": "2026-11-28",
+    "availableThrough": "2026-12-28",
+    "afterDate": "Mercury API requests stop being served and the Inception platform/data are no longer accessible.",
+    "relationToIncident": "No causal connection to this malformed response is established.",
+    "scope": "A provider transition is separate work; this investigation does not switch providers or alter bot configuration."
+  },
+  "serializationObservation": "serialization-receipt.json"
+}
