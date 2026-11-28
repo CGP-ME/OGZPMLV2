@@ -224,6 +224,13 @@ class IndicatorEngine {
     const retained = [...this._previousCandleChunk, ...this._currentCandleChunk];
     const retainedIndex = retained.findIndex(candidate => _t(candidate) === candleTime);
     if (retainedIndex !== -1) {
+      const previous = retained[retainedIndex];
+      // History hydration republishes existing bars. Replay only when an input
+      // used by the indicators changed; identical history cannot change them.
+      if (_o(previous) === _o(c) && _h(previous) === _h(c) && _l(previous) === _l(c)
+        && _c(previous) === _c(c) && _v(previous) === _v(c)) {
+        return this.getSnapshot();
+      }
       retained[retainedIndex] = c;
       this._replayRetainedCandles(retained);
       return this.getSnapshot();

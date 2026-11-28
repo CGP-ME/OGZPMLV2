@@ -1,0 +1,57 @@
+{
+  "sourceIdentity": {
+    "core/indicators/IndicatorEngine.js": "80b9d5e4c36ef6bb2f93eeb9a71ed9756e400a12175de463a0eee9913295ebe3",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-28/history-replay-cost/fixtures/observe.cjs -- node ogz-meta/inbox/codex/2026-11-28/history-replay-cost/fixtures/observe.cjs",
+  "exitCode": 0,
+  "recordedExecutionSession": 96246,
+  "observations": {
+    "seedCandles": 800,
+    "seedApplications": 800,
+    "seedElapsedMs": 1496.0421150000002,
+    "configuredMaxCandles": 2000,
+    "configuredMaxSeriesPoints": 400,
+    "duplicateHistoricalUpdates": [
+      {
+        "index": 740,
+        "candleApplications": 800,
+        "synchronousMs": 1206.3427029999998,
+        "timerDelayMs": 1207.283343
+      },
+      {
+        "index": 741,
+        "candleApplications": 800,
+        "synchronousMs": 1239.2657290000002,
+        "timerDelayMs": 1239.6781139999998
+      },
+      {
+        "index": 742,
+        "candleApplications": 800,
+        "synchronousMs": 1294.0574899999992,
+        "timerDelayMs": 1294.2375389999997
+      }
+    ],
+    "allDuplicateIndicatorValuesUnchanged": true,
+    "readyTimerCouldRunDuringUpdate": false,
+    "genuineCorrection": {
+      "candleApplications": 800,
+      "synchronousMs": 1260.5887059999995,
+      "latestCandlePreserved": true
+    }
+  },
+  "sourcePath": {
+    "producer": "run-empire-v2.js:1893-1923 republishes each returned history bar synchronously",
+    "consumer": "core/CandleProcessor.js:465-490 updates indicator engines for an existing bar",
+    "replay": "core/indicators/IndicatorEngine.js:224-229 replays retained history whenever a historical timestamp matches, without checking whether indicator input changed"
+  },
+  "limits": [
+    "Synthetic isolated input, not an instrumented live CPU profile.",
+    "The observed module hash matches the recorded running activation; this alone does not establish the entire live slowdown cause.",
+    "No production edits, PM2 operations or live state writes.",
+    "Only one engine measured; producer has additional consumers.",
+    "Timing depends on host load and is descriptive, not a pass threshold."
+  ]
+}

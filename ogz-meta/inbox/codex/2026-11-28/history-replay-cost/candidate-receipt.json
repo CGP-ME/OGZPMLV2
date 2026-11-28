@@ -1,0 +1,78 @@
+{
+  "attempts": [
+    {
+      "session": 89616,
+      "exitCode": 1,
+      "fixtureSha256": "41ae7fc951f0acbce910d516bc4f2706e4e048aa481ecdb2effb354a524ddf02",
+      "result": "Observer compared render packet wall-clock timestamps as if they were indicator values. No production failure identified. Exclude that serialization timestamp along with raw updatedAt, retaining all candle timestamps and computed values."
+    },
+    {
+      "session": 83001,
+      "exitCode": 0,
+      "fixtureSha256": "0264e345949597b837ff16bf6080aae2ec549c6c96b238f028916c42ff9d207e",
+      "result": "All observed semantic comparisons and no-recalculation assertions passed."
+    }
+  ],
+  "capturedAt": "2026-11-28T02:14:25.008771+00:00",
+  "reviewBase": "a0f613297097e70095835baad299f85e4be4f3be",
+  "reviewTree": "065a147202aeb05399c9dec83c0be01a3b93a14e",
+  "sourceHashes": {
+    "core/indicators/IndicatorEngine.js": "1d144ca06465809b222295d2fa7239f85442fbbdced854f9b2e4c57106392bf9",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-28/history-replay-cost/fixtures/verify.cjs -- node ogz-meta/inbox/codex/2026-11-28/history-replay-cost/fixtures/verify.cjs",
+  "fixtureSha256": "0264e345949597b837ff16bf6080aae2ec549c6c96b238f028916c42ff9d207e",
+  "seedCandles": 800,
+  "duplicateRefresh": [
+    {
+      "index": 740,
+      "candleApplications": 0,
+      "synchronousMs": 1.0126070000001164,
+      "timerDelayMs": 7.883992000000035,
+      "allValuesPreserved": true
+    },
+    {
+      "index": 741,
+      "candleApplications": 0,
+      "synchronousMs": 2.0658599999999296,
+      "timerDelayMs": 4.545767999999953,
+      "allValuesPreserved": true
+    },
+    {
+      "index": 742,
+      "candleApplications": 0,
+      "synchronousMs": 0.14506299999993644,
+      "timerDelayMs": 2.1101430000001073,
+      "allValuesPreserved": true
+    }
+  ],
+  "genuineCorrection": {
+    "candleApplications": 800,
+    "matchesFreshCalculation": true,
+    "indicatorsChanged": true
+  },
+  "volumeOnlyCorrection": {
+    "candleApplications": 800,
+    "matchesFreshCalculation": true
+  },
+  "missingCandleInsertionMatchesFreshCalculation": true,
+  "forwardAndLatestRevision": {
+    "candleApplicationsForRevision": 1,
+    "matchesFreshCalculation": true
+  },
+  "settingsChange": {
+    "before": 14,
+    "after": 15,
+    "matchesFreshCalculation": true
+  },
+  "limitations": [
+    "Synthetic isolated input; measured times are descriptive, not live CPU measurements or pass thresholds.",
+    "Compared indicator DTO values, raw state and chart output to chronological calculation; only wall-clock timestamps excluded.",
+    "Real corrections still require full replay. This change addresses unchanged historical bars only.",
+    "No live broker calls, credentials, positions, runtime writes or real liquidation proof.",
+    "The helper used the existing working ConfigLoader and canonical config bytes, separately qualified by hashes above; they are inherited work outside this atomic change."
+  ]
+}
