@@ -1,0 +1,37 @@
+{
+  "sourceReference": "aade4a6abca84e98d95a0c3262668c80685658c3",
+  "sourceHashes": {
+    "run-empire-v2.js": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35",
+    "core/SessionRouter.js": "06b732ad3ca24ef6274c03f847de1413edd355fa478e1933aa3cd3bd60634644",
+    "brokers/AlpacaAdapter.js": "87f773804050212565aec95bb55baef33e936d5cd939fb535f9288c621cc1e68"
+  },
+  "blocked": {
+    "pendingWatchdogOperations": 1,
+    "positionRequests": 1,
+    "firstRequestSignalAborted": true,
+    "secondTickStartedAnotherPass": false,
+    "nvdaExpiredFrames": [
+      "1m"
+    ],
+    "nvdaHalted": false,
+    "nvdaEvidenceCount": 0
+  },
+  "released": {
+    "nvdaHalted": true,
+    "pendingWatchdogOperations": 0,
+    "nvdaEvidenceCount": 1
+  },
+  "limits": [
+    "Actual extracted watchdog/hydration/recovery methods and actual SessionRouter snapshot consumer; controlled pending getPositions promise substitutes the external broker.",
+    "Synthetic clock advances and explicit abort exercise ownership, not elapsed wall-clock timeout or a real broker outage.",
+    "This is an inherited unresolved deadline gap; no source repair or live failure frequency is established."
+  ],
+  "fixtureSha256": "9d0512346485acedb5c653e1ec3ec19face20d99c75f8b00d5308af5d3787c37",
+  "verification": {
+    "exitCode": 0,
+    "isolation": "scripts/test-isolated.py, explicit fixture plus pinned source capsule",
+    "sourceCapsule": "ogz-meta/inbox/codex/2026-11-28/native-silence-decision/private/fixtures/candidate-sources.json",
+    "review": "../native-silence-decision/astra-review-final.md",
+    "status": "Confirmed inherited defect; unrepaired."
+  }
+}
