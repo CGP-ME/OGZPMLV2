@@ -1,0 +1,186 @@
+{
+  "startedAt": "2026-11-28T02:37:20.136Z",
+  "endpoint": "wss://www.ogzprime.com/ws",
+  "commands": [
+    {
+      "type": "auth"
+    },
+    {
+      "type": "identify"
+    },
+    {
+      "type": "get_settings"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "5m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "15m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1d",
+      "limit": 60
+    }
+  ],
+  "counts": {
+    "auth_success": 1,
+    "state_update": 4,
+    "broker_status": 61,
+    "price": 670,
+    "ticker_price": 159,
+    "cvd_update": 59,
+    "depth_update": 1013,
+    "market_internals": 259,
+    "trace_event": 2718,
+    "settings_result": 1,
+    "historical_candles": 7,
+    "divergence": 24,
+    "journal_snapshot": 3,
+    "pattern_analysis": 1,
+    "narrator_event": 1,
+    "signal_analysis": 1,
+    "bot_thinking": 2,
+    "golden_setup_state": 1,
+    "bot_state": 1
+  },
+  "nativeFrames": {
+    "BTC-USD 1m": 73,
+    "BTC-USD 5m": 73,
+    "BTC-USD 15m": 73,
+    "BTC-USD 30m": 73,
+    "BTC-USD 1h": 73,
+    "BTC-USD 4h": 73,
+    "BTC-USD 1d": 73
+  },
+  "errors": [],
+  "settings": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "finishedAt": "2026-11-28T02:38:55.176Z",
+  "finishReason": "observation_window_complete",
+  "pending": [],
+  "histories": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "sentAt": 1795833440212,
+      "receivedAt": 1795833442651,
+      "durationMs": 2439,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "sentAt": 1795833442651,
+      "receivedAt": 1795833443440,
+      "durationMs": 789,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "sentAt": 1795833443440,
+      "receivedAt": 1795833444443,
+      "durationMs": 1003,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795833444443,
+      "receivedAt": 1795833445431,
+      "durationMs": 988,
+      "count": 0,
+      "error": "Broker returned no historical candles"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795833445431,
+      "receivedAt": 1795833446433,
+      "durationMs": 1002,
+      "count": 0,
+      "error": "Broker returned no historical candles"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795833446433,
+      "receivedAt": 1795833447437,
+      "durationMs": 1004,
+      "count": 0,
+      "error": "Broker returned no historical candles"
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795833447437,
+      "receivedAt": 1795833448433,
+      "durationMs": 996,
+      "count": 0,
+      "error": "Broker returned no historical candles"
+    }
+  ],
+  "historicalFailureCount": 4,
+  "configFingerprintMatchesActivatedBot": true,
+  "limitations": [
+    "Authenticated public socket observation, not browser rendering or broker-fill proof.",
+    "Four historical responses explicitly failed; live native updates continued in all seven frames.",
+    "Historical provider rejections are preserved as failures, not counted as empty successful history.",
+    "The runner logs the Kraken rate-limit reason but returns a generic history error; rate-limit cause is not established by this observation."
+  ],
+  "privateCaptureSha256": "b8740aa56ff5e6ad5aedd1889d743bad8b154b0fe38985a99ff6e0fb6ccdb9a2"
+}

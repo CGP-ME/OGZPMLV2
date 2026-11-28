@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-11-28T02:40:25.504705+00:00",
+  "botStderr": [
+    "[StateManager] dashboard WebSocket closed; state_update broadcasts stopped",
+    "[Kraken REST] Failed to fetch OHLC: OHLC error: EGeneral:Too many requests",
+    "[WARNING] No historical candles returned for 30m",
+    "[Kraken REST] Failed to fetch OHLC: OHLC error: EGeneral:Too many requests",
+    "[WARNING] No historical candles returned for 1h",
+    "[Kraken REST] Failed to fetch OHLC: OHLC error: EGeneral:Too many requests",
+    "[WARNING] No historical candles returned for 4h",
+    "[Kraken REST] Failed to fetch OHLC: OHLC error: EGeneral:Too many requests",
+    "[WARNING] No historical candles returned for 1d"
+  ],
+  "otherProcessStderrBytes": {
+    "ogz-stripe-pm_err_log_path.log": 0,
+    "ogz-supervisor-pm_err_log_path.log": 0,
+    "ogz-websocket-pm_err_log_path.log": 0
+  },
+  "conclusion": "Four post-boot dashboard-history responses failed following Kraken EGeneral:Too many requests. Live native intake, saved position and boot hydration remained available. The account cancellation repair changes private reads, not the OHLC request pacing. No causal diagnosis of the provider restriction is claimed.",
+  "sourcePaths": [
+    "kraken_adapter_simple.js:333-408",
+    "run-empire-v2.js:2521-2551"
+  ],
+  "providerGuidance": {
+    "url": "https://support.kraken.com/gb/articles/206548367-what-are-the-api-rate-limits-",
+    "checkedAt": "2026-11-28",
+    "summary": "Public OHLC requests are limited by IP/pair; guidance says one request per second or less, and continuing requests during restrictions may prolong them."
+  },
+  "limitations": [
+    "Raw outgoing provider timestamps and all processes sharing this public IP were not captured. No claim of a new regression or of rate-limit absence is made."
+  ]
+}

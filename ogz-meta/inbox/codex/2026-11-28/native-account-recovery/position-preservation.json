@@ -1,0 +1,25 @@
+{
+  "capturedAt": "2026-11-28T02:40:25.316822+00:00",
+  "beforeCount": 1,
+  "afterCount": 1,
+  "sameTradeIdentifiers": true,
+  "comparisons": [
+    {
+      "sameTradeIdentifier": true,
+      "symbol": "BTC-USD",
+      "direction": "short",
+      "changedFields": [
+        "lowestPrice",
+        "maxFavorableExcursionPercent",
+        "maxProfitPercent"
+      ]
+    }
+  ],
+  "duplicateActiveSymbols": [],
+  "haltsUnchanged": true,
+  "closedTradeCountBefore": 1225,
+  "closedTradeCountAfter": 1225,
+  "limitations": [
+    "State comparison, not a fill/fee-policy audit. Price-excursion changes can occur during ordinary paper monitoring."
+  ]
+}

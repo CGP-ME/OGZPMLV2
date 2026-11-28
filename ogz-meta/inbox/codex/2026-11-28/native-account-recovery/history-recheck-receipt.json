@@ -1,0 +1,136 @@
+{
+  "startedAt": "2026-11-28T02:40:45.055Z",
+  "endpoint": "wss://www.ogzprime.com/ws",
+  "commands": [
+    {
+      "type": "auth"
+    },
+    {
+      "type": "identify"
+    },
+    {
+      "type": "get_settings"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1d",
+      "limit": 60
+    }
+  ],
+  "counts": {
+    "auth_success": 1,
+    "state_update": 2,
+    "bot_thinking": 3,
+    "broker_status": 19,
+    "settings_result": 1,
+    "depth_update": 281,
+    "price": 219,
+    "ticker_price": 51,
+    "historical_candles": 4,
+    "market_internals": 69,
+    "cvd_update": 17,
+    "trace_event": 897,
+    "divergence": 8,
+    "journal_snapshot": 1,
+    "pattern_analysis": 1,
+    "narrator_event": 1,
+    "signal_analysis": 1,
+    "golden_setup_state": 1,
+    "bot_state": 1
+  },
+  "nativeFrames": {
+    "BTC-USD 1m": 24,
+    "BTC-USD 5m": 24,
+    "BTC-USD 15m": 24,
+    "BTC-USD 30m": 24,
+    "BTC-USD 1h": 24,
+    "BTC-USD 4h": 24,
+    "BTC-USD 1d": 24
+  },
+  "errors": [],
+  "settings": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "finishedAt": "2026-11-28T02:41:10.098Z",
+  "finishReason": "observation_window_complete",
+  "pending": [],
+  "histories": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795833645131,
+      "receivedAt": 1795833645282,
+      "durationMs": 151,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795833647283,
+      "receivedAt": 1795833647424,
+      "durationMs": 141,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795833649425,
+      "receivedAt": 1795833649530,
+      "durationMs": 105,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795833651530,
+      "receivedAt": 1795833651639,
+      "durationMs": 109,
+      "count": 60,
+      "error": null
+    }
+  ],
+  "historicalFailureCount": 0,
+  "observerRequestPolicy": "One manual follow-up of only the four failed frames, after several minutes without this observer requesting history, with 2000ms between completed requests. Production settings unchanged.",
+  "privateCaptureSha256": "1b9f8856ff377878f15f7e5678b4946bc182077b1860421a8f8b3b15f64e293f",
+  "limitations": [
+    "All four later requests succeeded; that establishes recovered availability, not the cause of the preceding restriction.",
+    "Original failure receipt retained; no claim of repaired pacing, a provider guarantee or browser rendering."
+  ]
+}

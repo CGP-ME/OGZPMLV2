@@ -1,0 +1,18 @@
+{
+  "startedAt": "2026-11-28T02:37:03.742222+00:00",
+  "finishedAt": "2026-11-28T02:37:04.823658+00:00",
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-prime-v2",
+    "--update-env"
+  ],
+  "exitCode": 0,
+  "sourceHead": "add56782ebb77158ecd08989883d82ae3afbecc7",
+  "confirmedRemote": "add56782ebb77158ecd08989883d82ae3afbecc7",
+  "environmentSource": "config/internals.json deployment.pm2.launchEnvironment plus services.supervisor.pm2Home",
+  "review": "clean selected Astra review under explicit user exception",
+  "preservation": "No saved state, position, journal, halt, config or history file was changed by the activation command."
+}

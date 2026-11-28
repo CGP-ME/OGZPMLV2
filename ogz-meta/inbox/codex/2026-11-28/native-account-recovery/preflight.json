@@ -1,0 +1,337 @@
+{
+  "capturedAt": "2026-11-28T02:36:48.533762+00:00",
+  "branch": "codex/archive-legacy-env",
+  "sourceHead": "add56782ebb77158ecd08989883d82ae3afbecc7",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restarts": 3,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "canonicalKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "startedAt": 1795285977878
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restarts": 5,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "canonicalKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "startedAt": 1795307302189
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restarts": 3,
+      "profile": null,
+      "canonicalLaunchEnvironmentMatches": true,
+      "canonicalKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME"
+      ],
+      "startedAt": 1795285977962
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 3357499,
+      "status": "online",
+      "restarts": 14,
+      "profile": "paper",
+      "canonicalLaunchEnvironmentMatches": true,
+      "canonicalKeys": [
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "NODE_ENV",
+        "PATH",
+        "PM2_HOME",
+        "PROFILE"
+      ],
+      "startedAt": 1795832299960
+    }
+  ],
+  "sourceManifest": [
+    {
+      "path": "TierFeatureFlags.js",
+      "sha256": "273c3be752a94d47244596c8b0cc0961d291c53a3390d305813abb81d01f3d55"
+    },
+    {
+      "path": "brokers/AlpacaAdapter.js",
+      "sha256": "59509d4e8cc3c80729c90d6716d4d07ce5703dfd3c6d5dc0fafa27a8a61f33e3"
+    },
+    {
+      "path": "brokers/IBrokerAdapter.js",
+      "sha256": "ee21c31e3f6a11915ad9a5430fe0b906f4f09bff4dad6f4a46a07783e2cae0cb"
+    },
+    {
+      "path": "brokers/KrakenIBrokerAdapter.js",
+      "sha256": "89332ee621cab2c73e5033f41c770796f5e802e9237257e74b44c497b8d1ead8"
+    },
+    {
+      "path": "config/internals.json",
+      "sha256": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f"
+    },
+    {
+      "path": "core/BacktestRunner.js",
+      "sha256": "251a095951d2b2fe686df147461d2dcc14d52b1b0b11178e5c71f2b8d2fc9d0e"
+    },
+    {
+      "path": "core/CandleProcessor.js",
+      "sha256": "ee750ecee3ea9bffea57687ba3470a9c9b336b4677c2fc7ffda0cab39f88ddd9"
+    },
+    {
+      "path": "core/CandleStore.js",
+      "sha256": "4dfcd6b8af14c02f2f7c95e5967f5d6bd327f751b86a1b1c42923ec65e7cdfe0"
+    },
+    {
+      "path": "core/CryptoMarketFeed.js",
+      "sha256": "62cf9a4840c9ea8519c752ac09bd6854aba0b4887c5bb336cec50194dd74b489"
+    },
+    {
+      "path": "core/DashboardBroadcaster.js",
+      "sha256": "bb3c6543e1de4a156617e65bf86b6dcce8d23b1f3fefe5f2d642592076542b0b"
+    },
+    {
+      "path": "core/EnhancedPatternRecognition.js",
+      "sha256": "750cbb3a7b40056a949d70ead9249af65d5566c1b0751179eeccbd940e2c862e"
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "sha256": "57b49b897f638786ef2745c59db642ae4cf2c2622a49eec134da4f4687ce0dcf"
+    },
+    {
+      "path": "core/FibonacciDetector.js",
+      "sha256": "c8973ba0b14ae27a1e7dca771b6189d72bf01cca5b28d5a1a4d42d98e4330330"
+    },
+    {
+      "path": "core/OptimizedIndicators.js",
+      "sha256": "4d267fd3fc955b05e42732e02f679bb34cbfe91627b0078dcf784c5058df7c76"
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "sha256": "dbb04abbff6ed43171087791ae34a2623547a31d095f88d70fbf92da55ced8a1"
+    },
+    {
+      "path": "core/PerformanceAnalyzer.js",
+      "sha256": "c7c39eca75304124e1f9f197d0cd885759115dc7b3ade45c1ba0c5a5b8214ab2"
+    },
+    {
+      "path": "core/ReplayClosedCandleBoundary.js",
+      "sha256": "dae0b940c1f11321326472449cdb78fa2271ea00e8af5dea0e9943d8d292657e"
+    },
+    {
+      "path": "core/SessionRouter.js",
+      "sha256": "75c6285df4c9db67f41589d3f3e1da6ee7c6a4e73caa19256d029141a6c8f563"
+    },
+    {
+      "path": "core/StateManager.js",
+      "sha256": "fd0d1aa72f3916557b042b5caf6d23b31d6ddc85296621342757e958f7db4710"
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "sha256": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b"
+    },
+    {
+      "path": "core/SymbolTradingContext.js",
+      "sha256": "b51a97564d335c1d1687f58de52abeadf80603ecc93def6f9d4792c7c73e117f"
+    },
+    {
+      "path": "core/TRAIDecisionModule.js",
+      "sha256": "b0f50bb1a43f353ce8608812815a24dc5a35f335bf69a08500b508b32209d701"
+    },
+    {
+      "path": "core/TradeJournalBridge.js",
+      "sha256": "cbbb02e37d70cf1e55cff2a7b7b1323780c39c508b9b408d97ae71ac5654a752"
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "sha256": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81"
+    },
+    {
+      "path": "core/UnifiedPatternMemory.js",
+      "sha256": "25129ac09fbf3f1e1c98e6d805cd6d2a8dce6e7165bb4eb0967bb58e9b15d712"
+    },
+    {
+      "path": "core/WebSocketManager.js",
+      "sha256": "318df3b733589c19862a36edd4e19189120e780e88ae8b8b8fe1a8777df7e98b"
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3"
+    },
+    {
+      "path": "core/indicators/IndicatorEngine.js",
+      "sha256": "1d144ca06465809b222295d2fa7239f85442fbbdced854f9b2e4c57106392bf9"
+    },
+    {
+      "path": "core/persistent_llm_client.js",
+      "sha256": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039"
+    },
+    {
+      "path": "core/trai_core.js",
+      "sha256": "29d7f4df3e0380fd6875a8e8b26c6f0cce443a62692e62e9c749e768ab92e810"
+    },
+    {
+      "path": "ecosystem.config.js",
+      "sha256": "26a2a68118ea16c2e3c06b75b51c3aed1fe89fc56fcb0912e5095fea9716b555"
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "sha256": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84"
+    },
+    {
+      "path": "foundation/IBrokerAdapter.js",
+      "sha256": "6823e26424624ca856e503630c5326793e43d6b4fbdf20587aec96b65e83f617"
+    },
+    {
+      "path": "kraken_adapter_simple.js",
+      "sha256": "69b04505f57da2450cbd6be0515e86ab2d02c01c48e0ca8083788fa86765af3e"
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "sha256": "3f94f405ea7ac48cdf8084a13f5dad4547bd8f2e1f85eaa87c905bf50ceebba2"
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "sha256": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3"
+    },
+    {
+      "path": "modules/MultiTimeframeAdapter.js",
+      "sha256": "18fb966ad5e34782e24e7bc86e9b020f5a7cc647f2937ef57ec6c54a00f36e0a"
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "sha256": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1"
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "sha256": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f"
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "sha256": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367"
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "sha256": "0589e47ab9239a90e396a0764794ff1590e33ab6dbbbe146ebaacf7083874159"
+    },
+    {
+      "path": "public/js/chart.js",
+      "sha256": "b68f05a6242f73f414b1122091e5be2215f677b64af7fa23194597ce46f93b36"
+    },
+    {
+      "path": "public/js/core.js",
+      "sha256": "0470d22842d84762d4c117d8484f817dbd9819d5a6f4e9bbe515570a66942c90"
+    },
+    {
+      "path": "public/js/indicators.js",
+      "sha256": "0a6fbda2e5597ea36c35c61a58e9f10a35a25dddf43e93cf3a007dc45c357e1f"
+    },
+    {
+      "path": "public/js/panels/chart-panel.js",
+      "sha256": "9fdef0b1418f0713af349dad2b8b5cda9bbd927ff521e1f4e6463809134a3ae6"
+    },
+    {
+      "path": "public/js/panels/edge-analytics-panel.js",
+      "sha256": "5a72ee8a817539fbeace18eb61d480f4b494352beaff58d495951b3b6e2e9ee2"
+    },
+    {
+      "path": "public/js/panels/edge-analytics.js",
+      "sha256": "64b92db0f958ed406a70e5926aa268261899bc9c845b64139a332145148b3837"
+    },
+    {
+      "path": "public/js/websocket.js",
+      "sha256": "349c9be860e77dd503cf29dd1f88a393428dc52d43b8e1aa06cd25584bcdf532"
+    },
+    {
+      "path": "public/stripe-checkout.js",
+      "sha256": "262a7b9a515f51539b71f13c6f53dfbcc102121800b591ac5641e199519203ef"
+    },
+    {
+      "path": "public/unified-dashboard-v2.html",
+      "sha256": "44ca3bb384237163220cdca0b92d6d4bd1082c571b260ded73c0e8be4e9c4f2f"
+    },
+    {
+      "path": "public/unified-dashboard.html",
+      "sha256": "9e81c19183d0d0b01464768f1abb5c78f61ac7945920ed2a1eaacbdcfbc3fcd4"
+    },
+    {
+      "path": "run-empire-v2.js",
+      "sha256": "dd45d7e7fd23d4d0eb8f2fac1be4314c980ba680c64e375f43d288b3dac070f6"
+    },
+    {
+      "path": "scripts/supervisor-daemon.js",
+      "sha256": "4da0a416174ab0aa9e4ef496215a4980db04cc5c82f91ab2a469e20e4cf4048c"
+    },
+    {
+      "path": "server/dashboard-market-scope.js",
+      "sha256": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c"
+    },
+    {
+      "path": "server/dashboard-stock-stream-config.js",
+      "sha256": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533"
+    },
+    {
+      "path": "server/stock-data-adapter.js",
+      "sha256": "e35b6de160938660a8288daa6c5b675955fe37a7284195953341aac2029e13a6"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c"
+    }
+  ],
+  "unexplainedSourceDrift": [],
+  "documentedSourceChangesSinceActivation": [
+    "run-empire-v2.js",
+    "core/SessionRouter.js",
+    "brokers/AlpacaAdapter.js",
+    "brokers/KrakenIBrokerAdapter.js",
+    "kraken_adapter_simple.js",
+    "foundation/IBrokerAdapter.js",
+    "brokers/IBrokerAdapter.js"
+  ],
+  "activePositionCount": 1,
+  "closedTradeCount": 1225,
+  "pauseReason": null,
+  "symbolHaltCount": 1,
+  "transitionState": "TARGET_ACTIVATED",
+  "freezeNewEntries": false,
+  "activeSession": "crypto",
+  "configurationFiles": {
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "authorizedTargets": [
+    "ogz-prime-v2"
+  ],
+  "userApproval": "Standing Stop 2 restart approval; latest specific exception: you can clear it if you get a clean astra review.",
+  "reviewCondition": "Activation requires the completed clean selected Astra review and confirmed push first.",
+  "preservation": "Saved positions, halts, transition state, journals, credentials and history are observed, not modified by preflight."
+}
