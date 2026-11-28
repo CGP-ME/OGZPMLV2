@@ -1,0 +1,270 @@
+{
+  "recordedAt": "2026-11-28T07:57:47.928448+00:00",
+  "sourceHead": "50de8d4a039860b9f6de612af5d8d925313858fe",
+  "branch": "codex/archive-legacy-env",
+  "method": "Read-only analysis of fixed complete JSONL prefixes using Python standard library. No application imports, tests, provider calls, orders or restarts. Rows include exit-only observations; execute is an instruction status, not fill evidence.",
+  "latestActivationTimestamp": "2026-11-28T02:37:04.772Z",
+  "sourceFiles": [
+    {
+      "path": "logs/decisions/autopsy_2026-11-27.jsonl",
+      "completePrefixBytes": 14187620,
+      "completePrefixSha256": "ead976942417e28ac67b6fd9d4809a88dd6c6aa653d569eee4eb0c6bf6ec27b6",
+      "completeRows": 3048
+    },
+    {
+      "path": "logs/decisions/autopsy_2026-11-28.jsonl",
+      "completePrefixBytes": 5224026,
+      "completePrefixSha256": "5ffa064fc389f773b58ae54fc8aa01331f77a5e1c10b3e387ae66131d4fc1115",
+      "completeRows": 1671
+    }
+  ],
+  "workingSourceManifest": [
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "sha256": "cbf5ddf339a08530e0a9cee50dfafe2ab9389e9ef9ac31cae9c47c26f80a1d7b"
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "sha256": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81"
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f"
+    },
+    {
+      "path": "config/internals.json",
+      "sha256": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+    },
+    {
+      "path": "ogz-meta/inbox/trey/2026-09-03/OGZ-WALK-SPEC-2026-09-03-TREY-VERBATIM.md",
+      "sha256": "ddbd44d0b5cc4590e0de29b8da5de55b860f6f5f8070346b4d8d7866baac9465"
+    }
+  ],
+  "activationManifestComparison": {
+    "path": "ogz-meta/inbox/codex/2026-11-28/native-account-recovery/preflight.json",
+    "comparedPaths": 58,
+    "drift": []
+  },
+  "processObservation": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "pmUptime": 1795285977878
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "pmUptime": 1795307302189
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "pmUptime": 1795285977962
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 3364704,
+      "status": "online",
+      "pmUptime": 1795833424772
+    }
+  ],
+  "windows": {
+    "allObserved": {
+      "counts": {
+        "rows": 4719,
+        "rowsWithCandidates": 438,
+        "candidates": 894,
+        "holdCandidateRows": 0,
+        "baseConfidenceLabelMismatchCandidates": 505,
+        "winnerScoreTieRows": 0,
+        "winnerNotHighestScoreRows": 0,
+        "publicTieDifferentScoreRows": 0
+      },
+      "sourceCounts": {
+        "trading_loop": 1754,
+        "exit_only": 2965
+      },
+      "candidateStrategies": {
+        "EMASMACrossover": 438,
+        "CandlePattern": 214,
+        "DonchianBreakout": 26,
+        "OGZTPO": 16,
+        "MADynamicSR": 50,
+        "RSI": 4,
+        "NoWickImbalance": 3,
+        "EMATrendRetest": 26,
+        "TimeSeriesMomentum": 3,
+        "PropSafeEMAPullback": 91,
+        "OpeningRangeBreakout": 6,
+        "BreakRetest": 7,
+        "SmartMoneySweep": 10
+      },
+      "winnerStrategies": {
+        "EMASMACrossover": 352,
+        "CandlePattern": 56,
+        "EMATrendRetest": 8,
+        "OGZTPO": 1,
+        "MADynamicSR": 1,
+        "PropSafeEMAPullback": 15,
+        "BreakRetest": 2,
+        "SmartMoneySweep": 3
+      },
+      "timeframes": {
+        "15m": 170,
+        "1h": 1238,
+        "4h": 12,
+        "1m": 1717,
+        "5m": 1582
+      },
+      "symbols": {
+        "BTC-USD": 1875,
+        "RIOT": 903,
+        "MARA": 896,
+        "TSLA": 221,
+        "COIN": 571,
+        "NVDA": 253
+      },
+      "statuses": {
+        "skip": 4581,
+        "execute": 138
+      },
+      "decisionActions": {
+        "HOLD": 4581,
+        "BUY": 71,
+        "SELL": 18,
+        "SELL_SHORT": 37,
+        "COVER": 12
+      },
+      "configurationFingerprints": {
+        "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4": 4719
+      },
+      "executionModes": {
+        "paper": 4719
+      },
+      "firstTimestamp": "2026-11-27T00:01:22.521Z",
+      "lastTimestamp": "2026-11-28T07:55:00.888Z",
+      "examples": {
+        "baseConfidenceLabelMismatch": {
+          "path": "logs/decisions/autopsy_2026-11-27.jsonl",
+          "line": 2,
+          "rowSha256": "289a41d5eca06d7b752bb06e4ac0593a72e79ec7fe7c825e96b710e09583323f",
+          "timestamp": "2026-11-27T00:01:22.591Z",
+          "traceId": "candle_1795737682321_9rd08u",
+          "symbol": "BTC-USD",
+          "timeframe": "1h",
+          "source": "trading_loop",
+          "status": "skip",
+          "winner": "EMASMACrossover",
+          "candidates": [
+            {
+              "name": "EMASMACrossover",
+              "direction": "long",
+              "reportedBaseConfidence": 0.765,
+              "actualBaseConfidence": 0.9,
+              "selectionScore": 0.765
+            }
+          ]
+        }
+      }
+    },
+    "sinceLatestActivation": {
+      "counts": {
+        "rows": 1459,
+        "rowsWithCandidates": 6,
+        "candidates": 11,
+        "holdCandidateRows": 0,
+        "baseConfidenceLabelMismatchCandidates": 6,
+        "winnerScoreTieRows": 0,
+        "winnerNotHighestScoreRows": 0,
+        "publicTieDifferentScoreRows": 0
+      },
+      "sourceCounts": {
+        "exit_only": 1050,
+        "trading_loop": 409
+      },
+      "candidateStrategies": {
+        "CandlePattern": 5,
+        "EMASMACrossover": 6
+      },
+      "winnerStrategies": {
+        "CandlePattern": 2,
+        "EMASMACrossover": 4
+      },
+      "timeframes": {
+        "1h": 1055,
+        "1m": 318,
+        "5m": 64,
+        "15m": 21,
+        "4h": 1
+      },
+      "symbols": {
+        "BTC-USD": 1459
+      },
+      "statuses": {
+        "skip": 1458,
+        "execute": 1
+      },
+      "decisionActions": {
+        "HOLD": 1458,
+        "COVER": 1
+      },
+      "configurationFingerprints": {
+        "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4": 1459
+      },
+      "executionModes": {
+        "paper": 1459
+      },
+      "firstTimestamp": "2026-11-28T02:37:36.394Z",
+      "lastTimestamp": "2026-11-28T07:55:00.888Z",
+      "examples": {
+        "baseConfidenceLabelMismatch": {
+          "path": "logs/decisions/autopsy_2026-11-28.jsonl",
+          "line": 333,
+          "rowSha256": "a049d40c07696376466dfe70e88d249e3f43ed2655bde0b1857255e5316c5176",
+          "timestamp": "2026-11-28T03:00:00.739Z",
+          "traceId": "candle_1795834800239_5a3m89",
+          "symbol": "BTC-USD",
+          "timeframe": "1h",
+          "source": "trading_loop",
+          "status": "skip",
+          "winner": "CandlePattern",
+          "candidates": [
+            {
+              "name": "CandlePattern",
+              "direction": "long",
+              "reportedBaseConfidence": 0.8005640899938018,
+              "actualBaseConfidence": 0.8005640899938018,
+              "selectionScore": 0.8005640899938018
+            },
+            {
+              "name": "EMASMACrossover",
+              "direction": "short",
+              "reportedBaseConfidence": 0.7819999999999999,
+              "actualBaseConfidence": 0.8,
+              "selectionScore": 0.7819999999999999
+            }
+          ]
+        }
+      }
+    }
+  },
+  "limits": [
+    "Only existing paper decision records were inspected; these counts do not demonstrate fills or strategy profitability.",
+    "No tied winner or candidate with recorded direction hold occurred in this sample. Final HOLD/skip decisions can and do contain directional candidates; source paths for unobserved tie/hold-direction cases are not claimed as incidents.",
+    "The broad sample includes earlier process activations. The second window begins at the latest documented activation.",
+    "Not every registered strategy produced a candidate; non-occurrence is not proof that a strategy is broken.",
+    "No policy definition for confluence, confidence tie or potential upside was invented."
+  ],
+  "hashConventions": {
+    "completePrefixSha256": "Original file bytes through completePrefixBytes, including each line terminator.",
+    "rowSha256": "Original JSON row bytes excluding its line terminator."
+  },
+  "countDefinitions": {
+    "holdCandidateRows": "Rows containing any strategySignals item whose direction is exactly hold; not the final decision.action HOLD count.",
+    "winnerScoreTieRows": "Rows with one attributed winner and another candidate with exactly equal selectionScore.final.",
+    "baseConfidenceLabelMismatchCandidates": "Candidate appearances where outer baseConfidence differs from decisionAttribution.baseConfidence."
+  }
+}
