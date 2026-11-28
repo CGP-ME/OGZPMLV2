@@ -1,0 +1,18 @@
+{
+  "startedAt": "2026-11-28T01:58:54.404235+00:00",
+  "finishedAt": "2026-11-28T01:58:56.902987+00:00",
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-prime-v2",
+    "--update-env"
+  ],
+  "exitCode": 0,
+  "localCommit": "954de41bbb2c828ec5b6175e717d927af240571e",
+  "confirmedRemoteCommit": "954de41bbb2c828ec5b6175e717d927af240571e",
+  "review": "delivery-review.json",
+  "profile": "paper",
+  "preservation": "No state, position, halt, journal or history files were cleared. PM2 restarted only the approved bot with canonical launch environment."
+}

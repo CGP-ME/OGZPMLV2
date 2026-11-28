@@ -1,0 +1,53 @@
+{
+  "observedAt": "2026-11-28T02:02:39.356964+00:00",
+  "journalPathProvenance": {
+    "file": "config/internals.json",
+    "path": "paths.journalDataDir",
+    "runnerConsumer": "run-empire-v2.js:1377",
+    "scopedPathConstruction": "core/TradeJournalBridge.js:29"
+  },
+  "positions": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "direction": "short",
+      "executionMode": "paper",
+      "marketDataBrokerId": "kraken",
+      "executionRoute": "simulated",
+      "entryPrice": 60104.5327,
+      "sizeUsd": 128.61012368983097,
+      "entryOrderQuantity": 0.002139774122057702,
+      "entryOrderQuantityUnit": "base",
+      "entryFee": 0,
+      "entryTimestamp": 1795831200816,
+      "activeRowsForSymbol": 1,
+      "journalEntriesForOrderInObservedTail": 1,
+      "stateJournalFieldMatches": {
+        "symbol": true,
+        "timeframe": true,
+        "brokerId": true,
+        "accountId": true,
+        "assetClass": true,
+        "executionMode": true,
+        "entryPrice": true,
+        "sizeUsd": true,
+        "entryFee": true
+      },
+      "journalTailSha256": "27565944cc934cff9673236c29d89ef133a01458f74ae2db7288bddeb941d281",
+      "journalBytesObserved": 1032140,
+      "journalTailOffset": 1969026,
+      "accountIdentityPublished": false
+    }
+  ],
+  "sameSymbolDuplicateActiveRows": false,
+  "remainingHalts": [
+    {
+      "symbol": "COIN",
+      "code": "native_feed_unavailable"
+    }
+  ],
+  "limitations": [
+    "This is one actual paper entry persisted after activation, not a real broker fill or validation of all strategy/sizing/exit policies.",
+    "Journal matching is limited to the observed tail, whose byte offset is recorded. Account and order identifiers are retained only in private state evidence."
+  ]
+}

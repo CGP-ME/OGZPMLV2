@@ -1,0 +1,185 @@
+{
+  "startedAt": "2026-11-28T01:59:19.826Z",
+  "endpoint": "wss://www.ogzprime.com/ws",
+  "commands": [
+    {
+      "type": "auth"
+    },
+    {
+      "type": "identify"
+    },
+    {
+      "type": "get_settings"
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "5m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "15m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "30m",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "4h",
+      "limit": 60
+    },
+    {
+      "type": "request_historical",
+      "asset": "BTC-USD",
+      "timeframe": "1d",
+      "limit": 60
+    }
+  ],
+  "counts": {
+    "auth_success": 1,
+    "state_update": 5,
+    "broker_status": 65,
+    "settings_result": 1,
+    "trace_event": 3881,
+    "price": 949,
+    "divergence": 24,
+    "cvd_update": 78,
+    "ticker_price": 221,
+    "depth_update": 1039,
+    "historical_candles": 7,
+    "market_internals": 259,
+    "journal_snapshot": 3,
+    "bot_state": 1,
+    "pattern_analysis": 4,
+    "narrator_event": 7,
+    "signal_analysis": 4,
+    "bot_thinking": 8,
+    "golden_setup_state": 4,
+    "gate_event": 1,
+    "trade": 1
+  },
+  "nativeFrames": {
+    "BTC-USD 1m": 104,
+    "BTC-USD 5m": 104,
+    "BTC-USD 15m": 104,
+    "BTC-USD 30m": 104,
+    "BTC-USD 1h": 104,
+    "BTC-USD 4h": 104,
+    "BTC-USD 1d": 104
+  },
+  "errors": [],
+  "settings": {
+    "configuration": {
+      "fingerprint": "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4",
+      "role": "bot",
+      "settings": 24,
+      "internals": 15,
+      "settingsHash": "8734da58002082f3d13d00f32b46276b0b169f72760f3dd4b41dbe471a1274c4",
+      "internalsHash": "a771765614e9e72355783da936203316ebe1ac7b9237e59dd2e6aca10f7f7d22"
+    },
+    "profile": "paper",
+    "fieldCount": 1397,
+    "unavailableInputs": [],
+    "nonCanonicalSources": []
+  },
+  "finishedAt": "2026-11-28T02:00:54.859Z",
+  "finishReason": "observation_window_complete",
+  "pending": [],
+  "histories": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "requestedLimit": 60,
+      "sentAt": 1795831159904,
+      "receivedAt": 1795831160046,
+      "durationMs": 142,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "requestedLimit": 60,
+      "sentAt": 1795831160046,
+      "receivedAt": 1795831161139,
+      "durationMs": 1093,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "requestedLimit": 60,
+      "sentAt": 1795831161139,
+      "receivedAt": 1795831162097,
+      "durationMs": 958,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "requestedLimit": 60,
+      "sentAt": 1795831162097,
+      "receivedAt": 1795831163102,
+      "durationMs": 1005,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "requestedLimit": 60,
+      "sentAt": 1795831163102,
+      "receivedAt": 1795831164099,
+      "durationMs": 997,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "requestedLimit": 60,
+      "sentAt": 1795831164099,
+      "receivedAt": 1795831165106,
+      "durationMs": 1007,
+      "count": 60,
+      "error": null
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "requestedLimit": 60,
+      "sentAt": 1795831165106,
+      "receivedAt": 1795831166101,
+      "durationMs": 995,
+      "count": 60,
+      "error": null
+    }
+  ],
+  "rawWireSha256": "84b61bfd9cf60e95d0609651379feb5e07ebc0aa64539a09fa2841b34c71f536",
+  "source": "Authorized read-only authenticated WebSocket observation; no order commands.",
+  "limitations": [
+    "Authenticated message delivery is observed; browser rendering was not visually inspected.",
+    "This window exercises normal Kraken paper traffic, not every broker, symbol or outage condition."
+  ]
+}
