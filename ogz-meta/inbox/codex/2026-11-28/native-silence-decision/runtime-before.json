@@ -1,0 +1,84 @@
+{
+  "observedAt": "2026-11-28T01:03:05.943671+00:00",
+  "sourceHead": "7d6da528199c9b9a005150ea2aba977a277a8041",
+  "lastRecordedActivationHead": "00954a36bfc04b01f929807082983d15e0f0b35d",
+  "sourceChangesSinceActivation": [
+    {
+      "path": "core/CandleProcessor.js",
+      "activatedSha256": "76a36c198ffc850542d48946e0cfc785d15f0955bfa9b3faa0c4630b93aa2b37",
+      "currentSha256": "e6e85b18f3ea2346de4670f1ccf284a465a2b935db550dc664f497f756173253"
+    },
+    {
+      "path": "run-empire-v2.js",
+      "activatedSha256": "ac2d83efa4cbe0c7677dc0abeb443a9b3a63550cb9d402d825ef2ed076eb285f",
+      "currentSha256": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "activatedSha256": "9ae6eb9a0678f231de353bf5f138a736f680afb768c8af9cfe2c38a0dc550c63",
+      "currentSha256": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c"
+    }
+  ],
+  "canonicalConfigurationUnchanged": true,
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restartCount": 3,
+      "cpuSamplePercent": 0.2
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restartCount": 5,
+      "cpuSamplePercent": 4.9
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restartCount": 3,
+      "cpuSamplePercent": 0.3
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 2749836,
+      "status": "online",
+      "restartCount": 12,
+      "cpuSamplePercent": 101.4
+    }
+  ],
+  "savedState": {
+    "activeTrades": 0,
+    "closedTrades": 1225,
+    "quarantinedTrades": 0,
+    "pauseReason": null,
+    "lastUpdate": 1795826751892,
+    "symbolEntryHalts": {
+      "BTC-USD": {
+        "code": "native_feed_unavailable",
+        "source": "native_feed_watchdog",
+        "reason": "Candle data unavailable for BTC-USD @ 1m: native data unavailable beyond configured cadence: 1m, 5m",
+        "haltedAt": 1795826751891,
+        "timeframe": "1m",
+        "brokerId": "kraken"
+      },
+      "COIN": {
+        "code": "native_feed_unavailable",
+        "source": "native_feed_watchdog",
+        "reason": "Candle data unavailable for COIN @ 1m: native data unavailable beyond configured cadence: 1m",
+        "haltedAt": 1795800795040,
+        "timeframe": "1m",
+        "brokerId": "alpaca"
+      }
+    }
+  },
+  "limits": [
+    "Read-only snapshot, not acceptance of the pending candidate.",
+    "All four processes online; saved BTC and COIN halts mean this is not proof of trading readiness.",
+    "High CPU and long hydration observed; cause is being investigated separately.",
+    "Account identifiers, credentials and private state contents omitted."
+  ]
+}

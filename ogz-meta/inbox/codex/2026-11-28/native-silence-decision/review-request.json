@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-28",
+  "question": "Scope: the native-feed watchdog's decision to quarantine a symbol after candle silence. How does this fail or cost me money in production? Investigate the relevant producers, consumers and alternatives in the pinned source. For a finding, identify a reachable trigger, consequence and file:line evidence; name unresolved evidence. A defect is not required.\n\nOperator instructions, verbatim: \"right if its not getting valid data then no but we should add that if the bot doesnt have it or the broker blips\"; \"yeah that would be my worry that it reads both streams and then starts opening duplicated trades and stuff but im thinking right now if this isnt an easy fix we just flatten for now and when everything is done we can come back and add this in\". The current repair does not add a second entry stream. The existing staleDataMaxAgeMs and maxDataSilenceMs are 120000.\n\nHost observations from an isolated run of the exact candidate's runner methods, CandleProcessor and StateManager, with synthetic broker replies/time and no starting positions:\n- Complete quiet range, with no newer mature provider bar: NVDA halted=false, TSLA halted=false; native marker unchanged.\n- Fresh native input while the fixture REST method would throw: NVDA halted=false, TSLA halted=false; watchdog range requests=0.\n- Expired NVDA native input and a REST throw or cancellation: NVDA halted=true, TSLA halted=false, globalPause=false; status=unverified, confirmed=false.\n- Timely NVDA native delivery during a REST request that then throws: NVDA halted=false, TSLA halted=false; the REST failure remains in the trace.\n- Native resumption during another frame's request: NVDA halted=false.\n- Sustained transport disconnection: both affected symbols halted, globalPause=false; a brief unhealthy sample did not halt.\nThese are observed fixture outputs, not real broker execution or a reviewer conclusion. The fixture starts flat and does not prove order fills. Baseline on the same quiet input halted NVDA. Source hashes and complete observations are retained locally in the host receipt; do not claim to have opened an excluded inbox file.\n\nSource pointers: run-empire-v2.js:_getSilentNativeFrames, _inspectNativeSilence, startLivenessWatchdog and _quarantineCandleDataSymbol; core/CandleProcessor.js:handleMarketData. These locate evidence, not restrict your investigation.\n",
+  "candidateTree": "aade4a6abca84e98d95a0c3262668c80685658c3",
+  "baselineCommit": "7d6da528199c9b9a005150ea2aba977a277a8041",
+  "selectedForThisDispatch": [
+    "mercury"
+  ],
+  "independentPeer": "Parent is separately completing alignment refresh before releasing a read-only independent peer; no peer answers in this question.",
+  "maxTokens": 7750,
+  "reasoningEffort": "low",
+  "maxIterations": null,
+  "sourceSha256": {
+    "run-empire-v2.js": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35",
+    "core/CandleProcessor.js": "e6e85b18f3ea2346de4670f1ccf284a465a2b935db550dc664f497f756173253"
+  },
+  "harnessSha256": {
+    "mercury.config.json": "220bf31139090e7b16012aaff6c40c617a8e39bd4a63c62941f62909344e964b",
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/react-loop.js": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c",
+    "trai_brain/mercury-bridge/tool-adapter.js": "449a9273794ffcbac65f8583bff8203541d2018210c5f78dab81d2a024d1ba59"
+  },
+  "harnessQualification": "The two inherited react-loop receipt-format hunks remain in the executing harness and are excluded from the candidate.",
+  "reasonForNewDispatch": "Prior source review and self-diagnostic have been read and checked; this run adds exact staged-source execution evidence for previously disputed input conditions after the evidence-classification repair. It is not an automatic replay."
+}

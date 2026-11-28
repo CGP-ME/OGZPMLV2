@@ -1,0 +1,298 @@
+{
+  "date": "2026-11-28",
+  "scope": "Native candle-silence quarantine decision and its required input conditions",
+  "source": {
+    "candidate": "aade4a6abca84e98d95a0c3262668c80685658c3",
+    "base": "7d6da528199c9b9a005150ea2aba977a277a8041",
+    "capsulePaths": [
+      "config/internals.json",
+      "config/settings.json",
+      "core/CandleProcessor.js",
+      "core/ExitContractManager.js",
+      "core/OrderExecutor.js",
+      "core/StateManager.js",
+      "core/StrategyOrchestrator.js",
+      "core/TradingLoop.js",
+      "core/dto/DecisionLedgerSchema.js",
+      "foundation/ConfigLoader.js",
+      "modules/DonchianBreakout.js",
+      "modules/EMATrendRetest.js",
+      "modules/PropSafeEMAPullback.js",
+      "modules/RSI2MeanReversion.js",
+      "modules/TimeSeriesMomentum.js",
+      "ogzprime-ssl-server.js",
+      "run-empire-v2.js",
+      "test/mercury-astra-challenger.test.js",
+      "test/session-router-fail-safe.test.js",
+      "test/trade-replay-capture-contract.test.js",
+      "trai_brain/mercury-bridge/react-loop.js"
+    ]
+  },
+  "fixture": "ogz-meta/inbox/codex/2026-11-28/native-silence-decision/fixtures/observe.cjs",
+  "fixtureSha256": "d347704bd7637214888c155158ca4208ab0b6bf27a72feadfd476b5e884af826",
+  "sourceCapsules": {
+    "baseline": {
+      "path": "ogz-meta/inbox/codex/2026-11-28/native-silence-decision/private/fixtures/baseline-sources.json",
+      "sha256": "f0e7a737c2ddd6500a14fc0b9f69cab60c306490fe0d91b20c5af1a23dd81000"
+    },
+    "candidate": {
+      "path": "ogz-meta/inbox/codex/2026-11-28/native-silence-decision/private/fixtures/candidate-sources.json",
+      "sha256": "2509ede108f38bdab9921b712a4aed22114552493c94b2f12079dfe23434b382"
+    }
+  },
+  "isolation": "Both commands used python3 scripts/test-isolated.py. Before any trading-module import the fixture restored all 21 modified tracked JavaScript/JSON files from the named Git tree inside the disposable snapshot. No host runtime, secrets, state or network were available.",
+  "exits": {
+    "baseline": 0,
+    "candidate": 0
+  },
+  "baseline": {
+    "sourceReference": "7d6da528199c9b9a005150ea2aba977a277a8041",
+    "runnerSha256": "ac2d83efa4cbe0c7677dc0abeb443a9b3a63550cb9d402d825ef2ed076eb285f",
+    "observations": {
+      "quiet": {
+        "nvdaHalted": true,
+        "tslaHalted": false,
+        "globalPause": false,
+        "nativeUnchanged": true,
+        "evidence": []
+      }
+    }
+  },
+  "candidate": {
+    "sourceReference": "aade4a6abca84e98d95a0c3262668c80685658c3",
+    "runnerSha256": "6251492908394648a82b650deea9678c427114af9e4e8a08bc364a6f0c52fb35",
+    "observations": {
+      "quiet": {
+        "nvdaHalted": false,
+        "tslaHalted": false,
+        "globalPause": false,
+        "nativeUnchanged": true,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "verified_quiet",
+            "missedCandleStarts": [],
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "freshWhileRestUnavailable": {
+        "nvdaHalted": false,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [],
+        "watchdogRangeRequestCount": 0
+      },
+      "expiredRestThrow": {
+        "nvdaHalted": true,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "unverified",
+            "reason": "history_request_failed",
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "expiredRestCancelled": {
+        "nvdaHalted": true,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "unverified",
+            "reason": "history_request_failed",
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "resumedWhileRestFails": {
+        "nvdaHalted": false,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "unverified",
+            "reason": "history_request_failed",
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "missed": {
+        "nvdaHalted": true,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": true,
+            "status": "native_delivery_missing",
+            "missedCandleStarts": [
+              1795544340000
+            ],
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "delayedOnly": {
+        "nvdaHalted": true,
+        "tslaHalted": false,
+        "globalPause": false,
+        "oldClock": 1795544520000,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": true,
+            "status": "native_delivery_missing",
+            "missedCandleStarts": [
+              1795544520000
+            ],
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "unknown": {
+        "nvdaHalted": true,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "unverified",
+            "reason": "provider_request_failed",
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "blip": {
+        "nvdaHalted": false,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "verified_quiet",
+            "missedCandleStarts": [],
+            "transportStatus": "UNHEALTHY"
+          }
+        ]
+      },
+      "disconnected": {
+        "nvdaHalted": true,
+        "tslaHalted": true,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "verified_quiet",
+            "missedCandleStarts": [],
+            "transportStatus": "UNHEALTHY"
+          },
+          {
+            "timeframe": "1m",
+            "confirmed": true,
+            "status": "connection_unavailable",
+            "symbol": "TSLA",
+            "transportStatus": "UNHEALTHY"
+          },
+          {
+            "timeframe": "1m",
+            "confirmed": true,
+            "status": "connection_unavailable",
+            "symbol": "NVDA",
+            "transportStatus": "UNHEALTHY"
+          }
+        ]
+      },
+      "resumedDuringRequest": {
+        "nvdaHalted": false,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "native_resumed",
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "resumedDuringOtherFrame": {
+        "nvdaHalted": false,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": [
+          {
+            "timeframe": "1m",
+            "symbol": "NVDA",
+            "confirmed": true,
+            "status": "native_delivery_missing",
+            "missedCandleStarts": [
+              1795545960000
+            ],
+            "transportStatus": "HEALTHY"
+          },
+          {
+            "timeframe": "5m",
+            "symbol": "NVDA",
+            "confirmed": false,
+            "status": "native_resumed",
+            "transportStatus": "HEALTHY"
+          }
+        ]
+      },
+      "retiredDuringRequest": {
+        "nvdaHalted": false,
+        "tslaHalted": false,
+        "globalPause": false,
+        "evidence": []
+      },
+      "sameClockBatch": {
+        "expectedStart": 1795545900000,
+        "evidence": [],
+        "native": {
+          "eventTimeMs": 1795546349001,
+          "candleStartTimeMs": 1795545900000,
+          "receivedAt": 1795546350001,
+          "source": "alpaca_rest_refresh_trigger",
+          "brokerId": "alpaca",
+          "accountId": "fixture-account",
+          "sessionRouterEpoch": 2
+        }
+      }
+    }
+  },
+  "initialFixtureCorrection": "The first added fresh-data assertion counted range requests made during fixture seed ingress, not only the watchdog check. Saved its failure, then measured the watchdog request delta; no production source changed.",
+  "operatorInstructions": [
+    "right if its not getting valid data then no but we should add that if the bot doesnt have it or the broker blips",
+    "yeah that would be my worry that it reads both streams and then starts opening duplicated trades and stuff but im thinking right now if this isnt an easy fix we just flatten for now and when everything is done we can come back and add this in"
+  ],
+  "limits": [
+    "Real extracted runner methods, CandleProcessor, symbol state and serialized queue with synthetic provider replies and time.",
+    "The fixture starts flat. It proves quarantine/continuation decisions and scope, not live execution prices or a broker flatten.",
+    "The existing fixture has related recovery assertions; this run does not establish complete Stop 2 runtime acceptance.",
+    "REST data here is evidence, not a second entry stream; native liveness must be renewed by native ingress.",
+    "No bot source was newly edited during this adjudication; the two staged files are the prior authorized pending repair."
+  ]
+}

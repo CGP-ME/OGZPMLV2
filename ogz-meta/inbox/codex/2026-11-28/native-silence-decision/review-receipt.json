@@ -1,0 +1,91 @@
+{
+  "scope": "Native-feed watchdog quarantine decision after candle silence; review not complete",
+  "candidateTree": "aade4a6abca84e98d95a0c3262668c80685658c3",
+  "baselineTree": "78a8a73079f6164d461cb6f6f2da9076a56ce402",
+  "mercury": {
+    "runId": "2026-11-28T00-52-17-899Z-2b64eba779f4",
+    "verdict": "review_incomplete",
+    "transportTermination": "answer_given",
+    "selected": [
+      "mercury"
+    ],
+    "responseCount": 10,
+    "responseStatus": 200,
+    "model": "mercury-3",
+    "finishReason": "stop",
+    "toolCalls": null,
+    "contentContainsInternalToolMarkup": true,
+    "completeVerdictPresent": false,
+    "rawResponse": {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t00-51-34-475z-3329237-8a3e4eb64ab3/mercury_independent_source-10.raw",
+      "sha256": "908de5005c366c30f46d58ebf73c000e67fe27651b412a78c12fe426eee349c3",
+      "bytes": 1508,
+      "mode": "0600"
+    },
+    "lastResponseUsage": {
+      "prompt_tokens": 38931,
+      "completion_tokens": 1636,
+      "total_tokens": 40567,
+      "prompt_tokens_details": {
+        "cached_tokens": 11076
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 1478
+      }
+    },
+    "requestHash": "2ad97e4261d6f54367471535cd35251652c8549657a917eddb035950c14db879",
+    "requestBytes": 115146,
+    "archivedExchanges": 0,
+    "maxTokens": 7750,
+    "maxIterations": null,
+    "totalUsageIncludingDecide": {
+      "input": 256860,
+      "uncached_input": 161319,
+      "cached_input": 95541,
+      "output": 11690,
+      "total": 268550,
+      "complete": true,
+      "attempts_with_usage": 11,
+      "total_attempts": 11
+    },
+    "estimatedCostIncludingDecide": {
+      "amount": 0.02103275,
+      "currency": "USD",
+      "complete": true,
+      "priced_attempts": 11,
+      "total_attempts": 11,
+      "cost_absences": []
+    },
+    "noAutomaticWholeReviewReplay": true
+  },
+  "requestInspection": {
+    "source": "core/persistent_llm_client.js:491-560; trai_brain/mercury-bridge/react-loop.js:969-1026,1060-1110",
+    "observedContract": "The client sends native tools, max_tokens and tool_choice=auto. Tool results are returned as role=tool with tool_call_id. The first nine responses contained provider tool_calls. No exchanges were archived in this run. The final provider JSON itself contained internal tool markup in content and null tool_calls.",
+    "documentation": "https://docs.inceptionlabs.ai/capabilities/tool-use",
+    "limits": "The ledger preserves a request hash and byte count, not the complete final HTTP request body. Source inspection and prior successful tool turns do not prove that every prompt/context influence is correct. No claim that all prior Mercury errors share this cause.",
+    "localConclusion": "This final response did not follow the documented function-call representation and was not a review. Do not execute its markup as tools or convert the missing verdict into approval. No production harness change is justified by this observation alone."
+  },
+  "independentReview": {
+    "reviewer": "/root/mercury_budget_review",
+    "modelIdentity": "Existing collaboration reviewer; no separate provider identity attestation asserted",
+    "verdict": "no_break_found",
+    "candidateTree": "aade4a6abca84e98d95a0c3262668c80685658c3",
+    "fullAlignmentParentVerified": true,
+    "readPriorReviewerAnswers": false,
+    "executedHelpersOrPaidCalls": false,
+    "report": "independent-review.md"
+  },
+  "panelStatus": {
+    "complete": false,
+    "mercuryVote": "absent",
+    "independentReviewerOutcome": "no_break_found",
+    "consensusClaimed": false,
+    "note": "The collaboration review is separately recorded; it does not impersonate or complete the Mercury API seat."
+  },
+  "deliveryStatus": {
+    "productionCommit": null,
+    "productionPush": null,
+    "runtimeActivation": null,
+    "gate": "Production delivery still requires a completed Mercury review or an explicit operator exception."
+  }
+}
