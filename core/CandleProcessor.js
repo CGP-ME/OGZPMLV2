@@ -1086,12 +1086,20 @@ class CandleProcessor {
     // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
     const acceptedAsNew = this.processNewCandle(candle, { traceId, source: 'handleMarketData' });
 
+    const previousNative = frameCtx.lastNativeData;
+    const sameNativeOwner = previousNative?.sessionRouterEpoch === wrappedInput?.sessionRouterEpoch
+      && previousNative?.brokerId === candle.brokerId && previousNative?.accountId === candle.accountId;
     if (!isBacktesting && sourceEventStatus === 'on_time'
-        && (!frameCtx.lastNativeData
-          || frameCtx.lastNativeData.sessionRouterEpoch !== wrappedInput.sessionRouterEpoch
-          || sourceEventTimeMs > frameCtx.lastNativeData.eventTimeMs)) {
+        && (!sameNativeOwner || sourceEventTimeMs > previousNative.eventTimeMs
+          || candle.t >= previousNative.candleStartTimeMs)) {
       frameCtx.lastNativeData = {
-        eventTimeMs: sourceEventTimeMs,
+        eventTimeMs: sameNativeOwner ? Math.max(sourceEventTimeMs, previousNative.eventTimeMs) : sourceEventTimeMs,
+        // One native refresh may deliver several bars with the same event clock.
+        candleStartTimeMs: sameNativeOwner ? Math.max(candle.t, previousNative.candleStartTimeMs) : candle.t,
+        // Preserve what native ingress actually delivered, independently of REST cache updates.
+        candle: !sameNativeOwner || candle.t >= previousNative.candleStartTimeMs
+          ? { t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v }
+          : previousNative.candle,
         receivedAt: now,
         source: sourceEventKind,
         brokerId: candle.brokerId,

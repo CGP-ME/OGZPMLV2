@@ -1,0 +1,65 @@
+{
+  "scope": "Native candle-silence quarantine correction only",
+  "baseCommit": "5ef5fc77dc8044469e27fe6f00da1d88c449fc22",
+  "reviewedSourceTree": "0c38877a6613eb7241251e7975511a804aedd8e7",
+  "sourceFiles": {
+    "run-empire-v2.js": "76307dcb117fe43a576b2a7b5f49dda16c5488c523dc3a1291a52f5fc5148a25",
+    "core/CandleProcessor.js": "ee750ecee3ea9bffea57687ba3470a9c9b336b4677c2fc7ffda0cab39f88ddd9"
+  },
+  "authorization": {
+    "userText": "you can clear it if you get a clean astra review",
+    "condition": "Completed clean selected Astra review before commit, push and activation. Mercury remains incomplete.",
+    "runtime": "Standing Stop 2 paper restart authorization; this activation is limited to ogz-prime-v2 with canonical ecosystem environment."
+  },
+  "mercury": {
+    "runId": "2026-11-28T00-52-17-899Z-2b64eba779f4",
+    "outcome": "review_incomplete",
+    "exception": "Explicit operator substitution with a clean Astra review for this correction",
+    "receipt": "review-receipt.json",
+    "requestHashQualification": "The historical request hash covers an internal messages/tools/options envelope, not the exact final HTTP body."
+  },
+  "astra": {
+    "agent": "/root/astra_native_review",
+    "selectedModel": "gpt-6-astra",
+    "selectedReasoningEffort": "max",
+    "fullAlignmentParentVerified": true,
+    "sourceOutcome": "no_break_found",
+    "reports": [
+      {
+        "path": "astra-review-initial.md",
+        "candidateTree": "3fab084bf501ad44bd2237c3b791cc50a77a66bc",
+        "outcome": "found_break",
+        "finding": "Missed native anchor revision classified as quiet.",
+        "sha256": "da55a1db72e2be5abf91cd377b301d3885d7a9e4958ea1151a6adb3aca2824c2"
+      },
+      {
+        "path": "astra-review-followup.md",
+        "candidateTree": "a2b97b371e9d7c8ce01a39d974dd790c9814fd22",
+        "outcome": "found_break",
+        "finding": "Anchor comparison omitted the existing forming-candle lateness boundary.",
+        "sha256": "6f5f5ecaefd48c7c4f4c3e42353551d2670e9f8ac72754128380f3974b58034f"
+      }
+    ],
+    "blocking": false,
+    "finalReport": {
+      "path": "astra-review-final.md",
+      "sha256": "32995f4d53cc48ee7e0533a00e260828cab78fde22df2042516f6afb279da0af"
+    },
+    "findingsResolved": [
+      "Native anchor revisions are compared against preserved native OHLCV.",
+      "Anchor revisions respect the same existing lateness boundary as later candles."
+    ]
+  },
+  "behaviorReceipt": "anchor-revision-receipt.json",
+  "patch": "candidate-reviewed.patch",
+  "panel": {
+    "mercuryVote": "absent",
+    "consensusClaimed": false,
+    "note": "Operator-authorized single Astra substitution, not completed Mercury approval or a multi-model consensus."
+  },
+  "remainingStop2Limits": [
+    "Inherited private broker-account requests can keep one watchdog pass pending and delay another symbol.",
+    "Repeated unchanged history replays indicators synchronously.",
+    "Live native-feed activation and saved state receipts are separate from source review; a controlled live outage/fill has not been injected."
+  ]
+}

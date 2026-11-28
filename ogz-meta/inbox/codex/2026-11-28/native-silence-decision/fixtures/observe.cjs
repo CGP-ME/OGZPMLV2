@@ -83,6 +83,7 @@ const broker = {
       }
       if (mode === 'error') return { candles: [], coverage: { ...range, complete: false, reason: 'provider_request_failed' } };
       const anchor = bar(timeframe, range.start + intervals[timeframe]);
+      if (mode === 'revised_anchor') { anchor.c = 100.5; anchor.v = 1050; }
       const rows = [anchor];
       if (mode === 'missed') rows.push(bar(timeframe, Math.floor(range.end / intervals[timeframe]) * intervals[timeframe]));
       if (recovering && (!recovering.frame || recovering.frame === timeframe)) { const action = recovering; recovering = null; action(); }
@@ -98,6 +99,9 @@ const broker = {
     }
     if (pendingRequest) await pendingRequest;
     if (mode === 'error') throw new Error('fixture provider unavailable');
+    if (mode === 'revised_anchor' && symbol === 'NVDA' && timeframe === '1m') {
+      return [{ ...anchors.get(symbol + ':' + timeframe), c: 100.5, v: 1050 }];
+    }
     const end = Math.floor(now / intervals[timeframe]) * intervals[timeframe];
     const candle = mode === 'sparse' && anchors.has(symbol + ':' + timeframe) ? anchors.get(symbol + ':' + timeframe) : bar(timeframe, end + (mode === 'forming' ? intervals[timeframe] : 0));
     if (mode === 'missing_volume') delete candle.v;
@@ -169,6 +173,92 @@ function result() {
     evidence: traces.filter(t => t.event === 'NATIVE_FEED_EVIDENCE') };
 }
 async function main() {
+  if (process.argv.includes('--observe-forming-grace')) {
+    for (const elapsed of [151000, 181000]) {
+      now = Math.ceil(now / 60000) * 60000;
+      const start = now;
+      clear();
+      for (const symbol of ['TSLA', 'NVDA']) for (const tf of frames) ingress(symbol, tf);
+      bot.candleProcessor.handleMarketData({ ...bot.getCandleScopeEnvelope({ timeframe: '1m' }),
+        symbol: 'NVDA', sessionRouterEpoch: router.activeCallbackEpoch, data: bar('1m', start + 60000),
+        sourceEventTime: start, sourceEventKind: 'kraken_candle_update', traceId: createTraceId('fixture_forming') });
+      anchors.set('NVDA:1m', { ...contexts.get('NVDA:1m').priceHistory.at(-1) });
+      now = start + elapsed;
+      for (const tf of frames) ingress('TSLA', tf);
+      for (const tf of frames.filter(tf => tf !== '1m')) ingress('NVDA', tf);
+      mode = 'revised_anchor';
+      assert.ok(bot._getSilentNativeFrames('NVDA').some(frame => frame.timeframe === '1m'));
+      await check();
+      const observation = { ...result(), elapsedMs: elapsed, candleEndMs: start + 60000,
+        permittedLatenessMs: resolvedConfig.config.dataFeed.staleDataMaxAgeMs };
+      const shouldHalt = !process.argv.includes('--expect-forming-grace') || elapsed === 181000;
+      assert.equal(observation.nvdaHalted, shouldHalt);
+      assert.equal(observation.tslaHalted, false);
+      assert.equal(observation.globalPause, false);
+      if (elapsed === 151000) {
+        now = start + 165000;
+        bot.candleProcessor.handleMarketData({ ...bot.getCandleScopeEnvelope({ timeframe: '1m' }),
+          symbol: 'NVDA', sessionRouterEpoch: router.activeCallbackEpoch,
+          data: { ...anchors.get('NVDA:1m'), c: 100.5, v: 1050 }, sourceEventTime: start + 55000,
+          sourceEventKind: 'kraken_candle_update', traceId: createTraceId('fixture_forming_revision') });
+        observation.deliveredRevision = { eventTimeMs: contexts.get('NVDA:1m').lastNativeData.eventTimeMs,
+          close: contexts.get('NVDA:1m').lastNativeData.candle.c, observedAt: now };
+        assert.equal(observation.deliveredRevision.eventTimeMs, start + 55000);
+        assert.equal(observation.deliveredRevision.close, 100.5);
+      }
+      observations[String(elapsed)] = observation;
+    }
+    process.stdout.write(JSON.stringify({ sourceReference, sourceSha256: crypto.createHash('sha256').update(source).digest('hex'),
+      observations, limits: ['Controlled forming-candle timestamps exercise actual native-ingress/watchdog consumers. The fixture broker is synthetic; the Kraken network adapter is not executed.'] }, null, 2) + '\n');
+    return;
+  }
+  if (process.argv.includes('--observe-anchor-revision')) {
+    for (const scenario of ['missedRevision', 'restCacheAlreadyRevised', 'nativeRevisionSameClock']) {
+      if (scenario === 'nativeRevisionSameClock') {
+        clear();
+        for (const symbol of ['TSLA', 'NVDA']) for (const tf of frames) {
+          ingress(symbol, tf);
+          anchors.set(symbol + ':' + tf, { ...contexts.get(symbol + ':' + tf).priceHistory.at(-1) });
+        }
+        const context = contexts.get('NVDA:1m');
+        const eventTime = context.lastNativeData.eventTimeMs;
+        bot.candleProcessor.handleMarketData({ ...bot.getCandleScopeEnvelope({ timeframe: '1m' }),
+          symbol: 'NVDA', sessionRouterEpoch: router.activeCallbackEpoch,
+          data: { ...context.priceHistory.at(-1), c: 100.5, v: 1050 },
+          sourceEventTime: eventTime, sourceEventKind: 'fixture_native_revision', traceId: createTraceId('fixture_revision') });
+        assert.equal(context.lastNativeData.eventTimeMs, eventTime);
+        if (process.argv.includes('--expect-anchor-repair')) assert.equal(context.lastNativeData.candle.c, 100.5);
+        now += 180000;
+        for (const tf of frames) ingress('TSLA', tf);
+        for (const tf of frames.filter(tf => tf !== '1m')) ingress('NVDA', tf);
+      } else {
+        seed();
+        if (scenario === 'restCacheAlreadyRevised') {
+          bot.candleProcessor.processNewCandle({ ...contexts.get('NVDA:1m').priceHistory.at(-1), c: 100.5, v: 1050 },
+            { traceId: createTraceId('fixture_rest_revision'), source: 'boot_rest_hydration' });
+        }
+      }
+      mode = 'revised_anchor';
+      const nativeBefore = JSON.stringify(contexts.get('NVDA:1m').lastNativeData);
+      const historyBefore = contexts.get('NVDA:1m').priceHistory.map(c => ({ t: c.t, c: c.c, v: c.v }));
+      await check();
+      observations[scenario] = { ...result(), historyBefore,
+        historyAfter: contexts.get('NVDA:1m').priceHistory.map(c => ({ t: c.t, c: c.c, v: c.v })),
+        nativeUnchanged: nativeBefore === JSON.stringify(contexts.get('NVDA:1m').lastNativeData),
+        providerAnchorClose: 100.5, providerAnchorVolume: 1050 };
+      assert.equal(observations[scenario].nvdaHalted,
+        process.argv.includes('--expect-anchor-repair') && scenario !== 'nativeRevisionSameClock');
+      assert.equal(observations[scenario].tslaHalted, false);
+      assert.equal(observations[scenario].globalPause, false);
+      assert.equal(observations[scenario].nativeUnchanged, true);
+      const evidence = observations[scenario].evidence.find(trace => trace.symbol === 'NVDA').fields;
+      const expectedRevision = process.argv.includes('--expect-anchor-repair') && scenario !== 'nativeRevisionSameClock';
+      assert.equal(evidence.status, expectedRevision ? 'native_revision_missing' : 'verified_quiet');
+      assert.equal(evidence.confirmed, expectedRevision);
+    }
+    process.stdout.write(JSON.stringify({ sourceReference, sourceSha256: crypto.createHash('sha256').update(source).digest('hex'), observations }, null, 2) + '\n');
+    return;
+  }
   seed(); mode = 'sparse'; const nativeBefore = JSON.stringify(contexts.get('NVDA:1m').lastNativeData);
   await check(); observations.quiet = result();
   observations.quiet.nativeUnchanged = nativeBefore === JSON.stringify(contexts.get('NVDA:1m').lastNativeData);

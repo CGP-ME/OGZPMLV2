@@ -1,0 +1,151 @@
+diff --git a/core/CandleProcessor.js b/core/CandleProcessor.js
+index 282563a2..59074f92 100644
+--- a/core/CandleProcessor.js
++++ b/core/CandleProcessor.js
+@@ -1086,12 +1086,20 @@ class CandleProcessor {
+     // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
+     const acceptedAsNew = this.processNewCandle(candle, { traceId, source: 'handleMarketData' });
+ 
++    const previousNative = frameCtx.lastNativeData;
++    const sameNativeOwner = previousNative?.sessionRouterEpoch === wrappedInput?.sessionRouterEpoch
++      && previousNative?.brokerId === candle.brokerId && previousNative?.accountId === candle.accountId;
+     if (!isBacktesting && sourceEventStatus === 'on_time'
+-        && (!frameCtx.lastNativeData
+-          || frameCtx.lastNativeData.sessionRouterEpoch !== wrappedInput.sessionRouterEpoch
+-          || sourceEventTimeMs > frameCtx.lastNativeData.eventTimeMs)) {
++        && (!sameNativeOwner || sourceEventTimeMs > previousNative.eventTimeMs
++          || candle.t >= previousNative.candleStartTimeMs)) {
+       frameCtx.lastNativeData = {
+-        eventTimeMs: sourceEventTimeMs,
++        eventTimeMs: sameNativeOwner ? Math.max(sourceEventTimeMs, previousNative.eventTimeMs) : sourceEventTimeMs,
++        // One native refresh may deliver several bars with the same event clock.
++        candleStartTimeMs: sameNativeOwner ? Math.max(candle.t, previousNative.candleStartTimeMs) : candle.t,
++        // Preserve what native ingress actually delivered, independently of REST cache updates.
++        candle: !sameNativeOwner || candle.t >= previousNative.candleStartTimeMs
++          ? { t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v }
++          : previousNative.candle,
+         receivedAt: now,
+         source: sourceEventKind,
+         brokerId: candle.brokerId,
+diff --git a/run-empire-v2.js b/run-empire-v2.js
+index fd9336f3..d70d1fe7 100644
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -2874,6 +2874,51 @@ class OGZPrimeV14Bot {
+     });
+   }
+ 
++  async _inspectNativeSilence(symbol, timeframe, broker, signal) {
++    const context = this.getSymbolTimeframeContext(symbol, timeframe);
++    const native = context.lastNativeData;
++    const scope = this.getCandleScopeEnvelope({ timeframe });
++    const currentOwner = native?.sessionRouterEpoch === this.sessionRouter.activeCallbackEpoch
++      && native?.brokerId === scope.brokerId && native?.accountId === scope.accountId;
++    const anchorCandle = currentOwner ? native.candle
++      : context.priceHistory.findLast(candle => candle.etime <= this.livenessWatchdogStartedAt);
++    const anchor = anchorCandle?.t;
++    // Do not convict a delivery while its normal native lateness window is open.
++    const range = { start: anchor, end: Date.now() - this.config.dataFeed.staleDataMaxAgeMs };
++    const evidence = { symbol, timeframe, range, confirmed: false };
++    if (!Number.isSafeInteger(anchor)) return { ...evidence, status: 'unverified', reason: 'native_anchor_unavailable' };
++    let result;
++    try {
++      result = await broker.getCandles(symbol, timeframe, this.config.dataFeed.livenessBackfillLimit, range, { signal });
++    } catch (error) {
++      return { ...evidence, status: 'unverified', reason: 'history_request_failed', error: error.message };
++    }
++    if (signal.aborted) return { ...evidence, status: 'unverified', reason: 'history_request_cancelled' };
++    // Delivery that resumes during the query retires this suspicion. REST never
++    // advances the native clock or becomes a second entry stream.
++    if (context.lastNativeData !== native) return { ...evidence, status: 'native_resumed' };
++    const coverage = result?.coverage;
++    evidence.coverage = coverage;
++    if (coverage?.start !== range.start || coverage?.end !== range.end || coverage.complete !== true) {
++      return { ...evidence, status: 'unverified', reason: coverage?.reason || 'history_coverage_unavailable' };
++    }
++    const timeframeMs = this.candleAggregator.getIntervalMs(timeframe);
++    const candles = Array.isArray(result.candles)
++      ? result.candles.map(candle => this._normalizeHydrationCandle(candle, symbol, timeframe, timeframeMs)) : [];
++    if (!candles.length || candles.some(candle => !candle) || !candles.some(candle => candle.t === anchor)) {
++      return { ...evidence, status: 'unverified', reason: 'history_anchor_or_candles_invalid' };
++    }
++    const brokerAnchor = candles.find(candle => candle.t === anchor);
++    const anchorRevised = brokerAnchor.etime < range.end
++      && ['o', 'h', 'l', 'c', 'v'].some(field => brokerAnchor[field] !== anchorCandle[field]);
++    const missed = candles.filter(candle => candle.t > anchor && candle.etime < range.end
++      && candle.etime > this.livenessWatchdogStartedAt);
++    return { ...evidence, status: missed.length ? 'native_delivery_missing'
++      : anchorRevised ? 'native_revision_missing' : 'verified_quiet',
++      confirmed: missed.length > 0 || anchorRevised, missedCandleStarts: missed.map(candle => candle.t),
++      revisedCandleStarts: anchorRevised ? [anchor] : [] };
++  }
++
+   async _recoverDataFeedPauseIfFresh(symbol, timeframe) {
+     if (!stateManager.isPaused()) return;
+     if (typeof stateManager.resumeTradingIfPausedBy !== 'function') return;
+@@ -3048,12 +3093,14 @@ class OGZPrimeV14Bot {
+     this.livenessWatchdogStartedAt = Date.now();
+     this.livenessEpoch = this.sessionRouter.activeCallbackEpoch;
+     this.livenessQuietUntil = null;
++    this.livenessDisconnectedSince = null;
+ 
+     this.livenessCheckInterval = setInterval(() => {
+       // The existing watchdog owns retries; keep at most one recovery pass active.
+       if ([...this._runtimeOperations.values()].includes('liveness_check')) return;
+       this._trackRuntimeOperation('liveness_check', async () => {
+       if (this._isExpectedMarketQuiet()) {
++        this.livenessDisconnectedSince = null;
+         // Give the opening subscription its shortest native delivery window;
+         // a scheduled market closure is not a confirmed data outage.
+         this.livenessQuietUntil = Date.now() + this._activeTimeframeSilenceLimitMs(
+@@ -3068,10 +3115,15 @@ class OGZPrimeV14Bot {
+         this.livenessEpoch = this.sessionRouter.activeCallbackEpoch;
+         this.livenessWatchdogStartedAt = Date.now();
+         this.livenessQuietUntil = null;
++        this.livenessDisconnectedSince = null;
+       }
+       if (this.livenessQuietUntil !== null && Date.now() < this.livenessQuietUntil) return;
+       const broker = this.sessionRouter.activeBroker;
+       const epoch = this.sessionRouter.activeCallbackEpoch;
++      const health = broker.getHealth?.();
++      const disconnected = health?.status === 'UNHEALTHY' || health?.status === 'DEAD';
++      this.livenessDisconnectedSince = disconnected ? (this.livenessDisconnectedSince ?? Date.now()) : null;
++      const connectionLost = disconnected && Date.now() - this.livenessDisconnectedSince >= feed.maxDataSilenceMs;
+       const scopeIsCurrent = () => this.sessionRouter.activeBroker === broker
+         && this.sessionRouter.activeCallbackEpoch === epoch
+         && !this.sessionRouter.transitionInProgress && !this._shutdownRequested;
+@@ -3088,14 +3140,31 @@ class OGZPrimeV14Bot {
+           }
+           continue;
+         }
+-        const timeframe = silentFrames[0].timeframe;
++        const failures = [];
++        for (const frame of silentFrames) {
++          const native = this.getSymbolTimeframeContext(symbol, frame.timeframe).lastNativeData;
++          const evidence = connectionLost
++            ? { confirmed: true, status: 'connection_unavailable', disconnectedSince: this.livenessDisconnectedSince }
++            : await this._inspectNativeSilence(symbol, frame.timeframe, broker, signal);
++          if (!scopeIsCurrent()) return;
++          emitTrace(this, 'NATIVE_FEED_EVIDENCE', { ...this.getCandleScopeEnvelope({ timeframe: frame.timeframe }),
++            ...evidence, symbol, timeframe: frame.timeframe, transportStatus: health?.status ?? null });
++          if (evidence.status === 'unverified') console.error(`[WATCHDOG] ${symbol} ${frame.timeframe} silence cannot be verified: ${evidence.reason}`);
++          // Expired native input plus unavailable verification cannot support trading.
++          if (evidence.confirmed || evidence.status === 'unverified') failures.push({ frame: { ...frame, evidence }, native });
++        }
++        // Another frame's query can yield while this frame resumes delivery.
++        const unavailableFrames = failures.filter(({ frame, native }) => connectionLost
++          || this.getSymbolTimeframeContext(symbol, frame.timeframe).lastNativeData === native).map(item => item.frame);
++        if (!unavailableFrames.length) continue;
++        const timeframe = unavailableFrames[0].timeframe;
+         const scope = this._getRestRecoveryScopeEnvelope('native_feed_watchdog', symbol, timeframe, {
+           brokerId: broker.getBrokerName(), sessionRouterEpoch: epoch,
+           sessionRouterTransitionId: this.sessionRouter.activeOhlcTransitionId,
+         });
+         await this._quarantineCandleDataSymbol(symbol, timeframe,
+-          `native data unavailable beyond configured cadence: ${silentFrames.map(f => f.timeframe).join(', ')}`,
+-          scope, 'unavailable', { code: 'native_feed_unavailable', scopeIsCurrent, recoveryFrames: silentFrames, signal });
++          `native data unavailable: ${unavailableFrames.map(f => `${f.timeframe} ${f.evidence.status}`).join(', ')}`,
++          scope, 'unavailable', { code: 'native_feed_unavailable', scopeIsCurrent, recoveryFrames: unavailableFrames, signal });
+       }
+       if (scopeIsCurrent()) await this._recoverDataFeedPauseIfFresh(this.tradingPair, this.candleTimeframe);
+       }, { reportFailure: true });

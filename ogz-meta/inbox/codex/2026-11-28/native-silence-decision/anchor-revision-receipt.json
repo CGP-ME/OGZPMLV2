@@ -1,0 +1,843 @@
+{
+  "scope": "Native silence classification including revisions to the last observed candle",
+  "candidateTree": "0c38877a6613eb7241251e7975511a804aedd8e7",
+  "base": "5ef5fc77dc8044469e27fe6f00da1d88c449fc22",
+  "files": {
+    "run-empire-v2.js": "76307dcb117fe43a576b2a7b5f49dda16c5488c523dc3a1291a52f5fc5148a25",
+    "core/CandleProcessor.js": "ee750ecee3ea9bffea57687ba3470a9c9b336b4677c2fc7ffda0cab39f88ddd9"
+  },
+  "fixture": {
+    "path": "ogz-meta/inbox/codex/2026-11-28/native-silence-decision/fixtures/observe.cjs",
+    "sha256": "d487e47b773ce14e52dd2589573f3081cfdc5a9eefdaa44afeca8ee54aee40a8"
+  },
+  "isolation": "Both executions used scripts/test-isolated.py, with explicit fixture and pinned-source capsule. Every tracked dirty JS/JSON dependency was restored to its named candidate-tree bytes before module imports. No real credentials, state, PM2 or network were available.",
+  "runs": {
+    "anchorRevision": {
+      "sourceRef": "0c38877a6613eb7241251e7975511a804aedd8e7",
+      "runnerSha256": "76307dcb117fe43a576b2a7b5f49dda16c5488c523dc3a1291a52f5fc5148a25",
+      "rawObservationSha256": "b164bef99bd3b66152bb181eb62e4cd6c101c89e8f62e897673fc752fed9b98c",
+      "observations": {
+        "missedRevision": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "historyBefore": [
+            {
+              "t": 1795543380000,
+              "c": 101,
+              "v": 1000
+            }
+          ],
+          "historyAfter": [
+            {
+              "t": 1795543380000,
+              "c": 101,
+              "v": 1000
+            }
+          ],
+          "nativeUnchanged": true,
+          "providerAnchorClose": 100.5,
+          "providerAnchorVolume": 1050,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_revision_missing",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [
+                1795543380000
+              ],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543440000,
+            "candleStartTimeMs": 1795543380000,
+            "candle": {
+              "t": 1795543380000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543470000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "restCacheAlreadyRevised": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "historyBefore": [
+            {
+              "t": 1795543380000,
+              "c": 101,
+              "v": 1000
+            },
+            {
+              "t": 1795543560000,
+              "c": 100.5,
+              "v": 1050
+            }
+          ],
+          "historyAfter": [
+            {
+              "t": 1795543380000,
+              "c": 101,
+              "v": 1000
+            },
+            {
+              "t": 1795543560000,
+              "c": 100.5,
+              "v": 1050
+            }
+          ],
+          "nativeUnchanged": true,
+          "providerAnchorClose": 100.5,
+          "providerAnchorVolume": 1050,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_revision_missing",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [
+                1795543560000
+              ],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543620000,
+            "candleStartTimeMs": 1795543560000,
+            "candle": {
+              "t": 1795543560000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543650000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "nativeRevisionSameClock": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "historyBefore": [
+            {
+              "t": 1795543380000,
+              "c": 101,
+              "v": 1000
+            },
+            {
+              "t": 1795543560000,
+              "c": 100.5,
+              "v": 1050
+            },
+            {
+              "t": 1795543740000,
+              "c": 100.5,
+              "v": 1050
+            }
+          ],
+          "historyAfter": [
+            {
+              "t": 1795543380000,
+              "c": 101,
+              "v": 1000
+            },
+            {
+              "t": 1795543560000,
+              "c": 100.5,
+              "v": 1050
+            },
+            {
+              "t": 1795543740000,
+              "c": 100.5,
+              "v": 1050
+            }
+          ],
+          "nativeUnchanged": true,
+          "providerAnchorClose": 100.5,
+          "providerAnchorVolume": 1050,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "verified_quiet",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543800000,
+            "candleStartTimeMs": 1795543740000,
+            "candle": {
+              "t": 1795543740000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 100.5,
+              "v": 1050
+            },
+            "receivedAt": 1795543830000,
+            "source": "fixture_native_revision",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        }
+      },
+      "exitCode": 0
+    },
+    "existingOutageCases": {
+      "sourceRef": "0c38877a6613eb7241251e7975511a804aedd8e7",
+      "runnerSha256": "76307dcb117fe43a576b2a7b5f49dda16c5488c523dc3a1291a52f5fc5148a25",
+      "rawObservationSha256": "a17ae6e3a8ce188f6dca8316dfb21be58e296e360a5c5a4bf1f9514bc963405a",
+      "observations": {
+        "quiet": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "nativeUnchanged": true,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "verified_quiet",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543440000,
+            "candleStartTimeMs": 1795543380000,
+            "candle": {
+              "t": 1795543380000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543470000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "freshWhileRestUnavailable": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [],
+          "native": {
+            "eventTimeMs": 1795543800000,
+            "candleStartTimeMs": 1795543740000,
+            "candle": {
+              "t": 1795543740000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543830000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "expiredRestThrow": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "unverified",
+              "reason": "history_request_failed",
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543800000,
+            "candleStartTimeMs": 1795543740000,
+            "candle": {
+              "t": 1795543740000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543830000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "expiredRestCancelled": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "unverified",
+              "reason": "history_request_failed",
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543980000,
+            "candleStartTimeMs": 1795543920000,
+            "candle": {
+              "t": 1795543920000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795544010000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "resumedWhileRestFails": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "unverified",
+              "reason": "history_request_failed",
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795544340000,
+            "candleStartTimeMs": 1795544280000,
+            "candle": {
+              "t": 1795544280000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795544370000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "missed": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_delivery_missing",
+              "missedCandleStarts": [
+                1795544340000
+              ],
+              "revisedCandleStarts": [],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795544340000,
+            "candleStartTimeMs": 1795544280000,
+            "candle": {
+              "t": 1795544280000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795544370000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "delayedOnly": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_delivery_missing",
+              "missedCandleStarts": [
+                1795544520000
+              ],
+              "revisedCandleStarts": [],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795544520000,
+            "candleStartTimeMs": 1795544460000,
+            "candle": {
+              "t": 1795544460000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795544550000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "unknown": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "unverified",
+              "reason": "provider_request_failed",
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795544700000,
+            "candleStartTimeMs": 1795544640000,
+            "candle": {
+              "t": 1795544640000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795544730000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "blip": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "verified_quiet",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [],
+              "transportStatus": "UNHEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795544880000,
+            "candleStartTimeMs": 1795544820000,
+            "candle": {
+              "t": 1795544820000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795544910000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "disconnected": {
+          "nvdaHalted": true,
+          "tslaHalted": true,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "verified_quiet",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [],
+              "transportStatus": "UNHEALTHY"
+            },
+            {
+              "timeframe": "1m",
+              "confirmed": true,
+              "status": "connection_unavailable",
+              "symbol": "TSLA",
+              "transportStatus": "UNHEALTHY"
+            },
+            {
+              "timeframe": "1m",
+              "confirmed": true,
+              "status": "connection_unavailable",
+              "symbol": "NVDA",
+              "transportStatus": "UNHEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795544880000,
+            "candleStartTimeMs": 1795544820000,
+            "candle": {
+              "t": 1795544820000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795544910000,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "resumedDuringRequest": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "native_resumed",
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795545360001,
+            "candleStartTimeMs": 1795545300000,
+            "candle": {
+              "t": 1795545300000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795545390001,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "resumedDuringOtherFrame": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_delivery_missing",
+              "missedCandleStarts": [
+                1795545960000
+              ],
+              "revisedCandleStarts": [],
+              "transportStatus": "HEALTHY"
+            },
+            {
+              "timeframe": "5m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "native_resumed",
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795546140001,
+            "candleStartTimeMs": 1795546080000,
+            "candle": {
+              "t": 1795546080000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795546170001,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "retiredDuringRequest": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "evidence": [],
+          "native": {
+            "eventTimeMs": 1795546140001,
+            "candleStartTimeMs": 1795546080000,
+            "candle": {
+              "t": 1795546080000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795546170001,
+            "source": "fixture_native_event",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "sameClockBatch": {
+          "expectedStart": 1795545900000,
+          "evidence": [],
+          "native": {
+            "eventTimeMs": 1795546349001,
+            "candleStartTimeMs": 1795545900000,
+            "candle": {
+              "t": 1795545900000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795546350001,
+            "source": "alpaca_rest_refresh_trigger",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 2
+          }
+        }
+      },
+      "exitCode": 0
+    },
+    "formingGraceBefore": {
+      "sourceRef": "a2b97b371e9d7c8ce01a39d974dd790c9814fd22",
+      "runnerSha256": "3d928437cd4cc413edbb68ca5eb08315ae8a5771861c50d19459b11d84a61253",
+      "rawObservationSha256": "04a5a787311936bb076826cc87934e0e6cba82592d5c1b302285eb84116c7aae",
+      "observations": {
+        "151000": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "elapsedMs": 151000,
+          "candleEndMs": 1795543560000,
+          "permittedLatenessMs": 120000,
+          "deliveredRevision": {
+            "eventTimeMs": 1795543555000,
+            "close": 100.5,
+            "observedAt": 1795543665000
+          },
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_revision_missing",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [
+                1795543500000
+              ],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543500000,
+            "candleStartTimeMs": 1795543500000,
+            "candle": {
+              "t": 1795543500000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543500000,
+            "source": "kraken_candle_update",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "181000": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "elapsedMs": 181000,
+          "candleEndMs": 1795543740000,
+          "permittedLatenessMs": 120000,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_revision_missing",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [
+                1795543680000
+              ],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543680000,
+            "candleStartTimeMs": 1795543680000,
+            "candle": {
+              "t": 1795543680000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543680000,
+            "source": "kraken_candle_update",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        }
+      },
+      "exitCode": 0
+    },
+    "formingGraceAfter": {
+      "sourceRef": "0c38877a6613eb7241251e7975511a804aedd8e7",
+      "runnerSha256": "76307dcb117fe43a576b2a7b5f49dda16c5488c523dc3a1291a52f5fc5148a25",
+      "rawObservationSha256": "ad17fb546ca4216640fe9aaa0dc6e540f02f5d950720d4bcabf44b932b920b11",
+      "observations": {
+        "151000": {
+          "nvdaHalted": false,
+          "tslaHalted": false,
+          "globalPause": false,
+          "elapsedMs": 151000,
+          "candleEndMs": 1795543560000,
+          "permittedLatenessMs": 120000,
+          "deliveredRevision": {
+            "eventTimeMs": 1795543555000,
+            "close": 100.5,
+            "observedAt": 1795543665000
+          },
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": false,
+              "status": "verified_quiet",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543500000,
+            "candleStartTimeMs": 1795543500000,
+            "candle": {
+              "t": 1795543500000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543500000,
+            "source": "kraken_candle_update",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        },
+        "181000": {
+          "nvdaHalted": true,
+          "tslaHalted": false,
+          "globalPause": false,
+          "elapsedMs": 181000,
+          "candleEndMs": 1795543740000,
+          "permittedLatenessMs": 120000,
+          "evidence": [
+            {
+              "timeframe": "1m",
+              "symbol": "NVDA",
+              "confirmed": true,
+              "status": "native_revision_missing",
+              "missedCandleStarts": [],
+              "revisedCandleStarts": [
+                1795543680000
+              ],
+              "transportStatus": "HEALTHY"
+            }
+          ],
+          "native": {
+            "eventTimeMs": 1795543680000,
+            "candleStartTimeMs": 1795543680000,
+            "candle": {
+              "t": 1795543680000,
+              "o": 100,
+              "h": 102,
+              "l": 99,
+              "c": 101,
+              "v": 1000
+            },
+            "receivedAt": 1795543680000,
+            "source": "kraken_candle_update",
+            "brokerId": "alpaca",
+            "sessionRouterEpoch": 1
+          }
+        }
+      },
+      "exitCode": 0
+    }
+  },
+  "initialFinding": {
+    "candidateTree": "3fab084bf501ad44bd2237c3b791cc50a77a66bc",
+    "report": "astra-review-initial.md",
+    "reproduction": "Before repair, a complete broker response containing only the revised anchor returned verified_quiet, confirmed=false, NVDA unhalted and stored close101/volume1000 while broker close100.5/volume1050. This is a curated description of the observed isolated output; its initial terminal output was not saved as a standalone raw file.",
+    "helperSetupFailure": "First initial reproduction omitted explicit inclusion of the inbox fixture and stopped with MODULE_NOT_FOUND before trading imports; corrected fixture inclusion ran successfully."
+  },
+  "historicalReceipt": "behavior-receipt.json records the original baseline and pre-Astra candidate, with its then-current fixture hash. It does not describe these revised bytes.",
+  "limits": [
+    "Clock and broker responses are synthetic; actual extracted runner methods, CandleProcessor, StateManager, recovery and symbol queue execute.",
+    "The fixture starts flat: these observations prove decisions and symbol scope, not live fills or an actual broker flatten.",
+    "The revised native anchor is kept separately from REST cache contents. No REST evidence renews native delivery.",
+    "No live provider error or duplicate-order injection was performed. Stop 2 remains open.",
+    "The forming-candle cases exercise the actual native-ingress/watchdog consumers with controlled event timestamps; the Kraken network adapter is not executed."
+  ],
+  "secondFinding": {
+    "candidateTree": "a2b97b371e9d7c8ce01a39d974dd790c9814fd22",
+    "report": "astra-review-followup.md",
+    "problem": "The initial anchor comparison did not preserve the configured native lateness window for a Kraken-style forming candle.",
+    "change": "Apply the same broker-candle etime < range.end boundary already required of newer missing candles. No configured timings changed."
+  }
+}
