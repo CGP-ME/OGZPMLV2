@@ -1324,22 +1324,22 @@ class SessionRouter extends EventEmitter {
       .filter((order) => order.unsafe);
   }
 
-  async _fetchBrokerRestSnapshot(adapter, brokerId) {
+  async _fetchBrokerRestSnapshot(adapter, brokerId, options = {}) {
     const getPositions = this._requireBrokerMethod(adapter, brokerId, 'getPositions');
     const getOpenOrders = this._requireBrokerMethod(adapter, brokerId, 'getOpenOrders');
     const getBalance = this._requireBrokerMethod(adapter, brokerId, 'getBalance');
 
-    const positionsResult = await getPositions();
+    const positionsResult = await getPositions(options);
     if (!Array.isArray(positionsResult)) {
       throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getPositions() returned ${typeof positionsResult}, expected array`);
     }
 
-    const ordersResult = await getOpenOrders();
+    const ordersResult = await getOpenOrders(null, options);
     if (!Array.isArray(ordersResult)) {
       throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getOpenOrders() returned ${typeof ordersResult}, expected array`);
     }
 
-    const balanceResult = await getBalance();
+    const balanceResult = await getBalance(options);
     if (!balanceResult || typeof balanceResult !== 'object') {
       throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getBalance() returned ${typeof balanceResult}, expected object`);
     }

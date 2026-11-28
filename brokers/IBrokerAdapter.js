@@ -58,25 +58,29 @@ class IBrokerAdapter extends EventEmitter {
 
     /**
      * Get account balance
+     * @param {{signal?: AbortSignal}} options Owner cancellation, including queued HTTP reads
      * @returns {Promise<Object>} { currency: amount, ... }
      */
-    async getBalance() {
+    async getBalance(options = {}) {
         throw new Error('getBalance() must be implemented');
     }
 
     /**
      * Get open positions
+     * @param {{signal?: AbortSignal}} options Owner cancellation, including queued HTTP reads
      * @returns {Promise<Array>} [{ symbol, size, entryPrice, currentPrice, pnl }, ...]
      */
-    async getPositions() {
+    async getPositions(options = {}) {
         throw new Error('getPositions() must be implemented');
     }
 
     /**
      * Get open orders
+     * @param {string|null} symbol Optional filter when supported; null requests all orders
+     * @param {{signal?: AbortSignal}} options Owner cancellation, including queued HTTP reads
      * @returns {Promise<Array>} [{ orderId, symbol, type, side, price, amount, status }, ...]
      */
-    async getOpenOrders() {
+    async getOpenOrders(symbol = null, options = {}) {
         throw new Error('getOpenOrders() must be implemented');
     }
 

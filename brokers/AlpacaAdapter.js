@@ -402,12 +402,12 @@ class AlpacaAdapter extends IBrokerAdapter {
     // ACCOUNT INFO
     // =========================================================================
 
-    async getBalance() {
+    async getBalance({ signal } = {}) {
         this.accountId = null;
         this.accountIdSource = null;
         try {
             const response = await axios.get(`${this.baseUrl}/v2/account`, {
-                headers: this._authHeaders()
+                headers: this._authHeaders(), signal
             });
             const acct = response.data;
             const identity = this._captureAccountIdentity(acct);
@@ -430,10 +430,10 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
     }
 
-    async getPositions() {
+    async getPositions({ signal } = {}) {
         try {
             const response = await axios.get(`${this.baseUrl}/v2/positions`, {
-                headers: this._authHeaders()
+                headers: this._authHeaders(), signal
             });
             return response.data.map(pos => ({
                 symbol: pos.symbol,
@@ -454,10 +454,10 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
     }
 
-    async getOpenOrders() {
+    async getOpenOrders(_symbol = null, { signal } = {}) {
         try {
             const response = await axios.get(`${this.baseUrl}/v2/orders?status=open`, {
-                headers: this._authHeaders()
+                headers: this._authHeaders(), signal
             });
             return response.data.map(order => ({
                 orderId: order.id,

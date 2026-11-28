@@ -132,16 +132,16 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   // ACCOUNT INFO
   // =========================================================================
 
-  async getBalance() {
+  async getBalance(options = {}) {
     this.accountId = null;
     this.accountIdSource = null;
-    const accountInfo = await this.kraken.makePrivateRequest('/0/private/GetApiKeyInfo');
+    const accountInfo = await this.kraken.makePrivateRequest('/0/private/GetApiKeyInfo', {}, options);
     const iban = accountInfo && accountInfo.result ? accountInfo.result.iban : null;
     if (typeof iban === 'string' && iban.trim()) {
       this.accountId = iban;
       this.accountIdSource = 'broker:iban';
     }
-    return await this.kraken.getBalance();
+    return await this.kraken.getBalance(options);
   }
 
   getAccountIdentity() {
@@ -155,22 +155,22 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     };
   }
 
-  async getPositions() {
+  async getPositions(options = {}) {
     if (typeof this.kraken.getPositions === 'function') {
-      return await this.kraken.getPositions();
+      return await this.kraken.getPositions(options);
     }
     if (typeof this.kraken.getOpenPositions === 'function') {
-      return await this.kraken.getOpenPositions();
+      return await this.kraken.getOpenPositions(options);
     }
     throw new Error('[KrakenIBroker] Underlying adapter does not expose spot positions');
   }
 
-  async getOpenPositions() {
-    return await this.getPositions();
+  async getOpenPositions(options = {}) {
+    return await this.getPositions(options);
   }
 
-  async getOpenOrders() {
-    return await this.kraken.getOpenOrders();
+  async getOpenOrders(_symbol = null, options = {}) {
+    return await this.kraken.getOpenOrders(options);
   }
 
   // =========================================================================

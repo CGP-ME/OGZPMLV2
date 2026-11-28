@@ -195,26 +195,40 @@ class KrakenAdapterSimple {
   }
 
   // CHANGE 2025-12-13: Step 4 - Queue-based request handling (no recursion)
-  async makePrivateRequest(endpoint, data = {}) {
+  async makePrivateRequest(endpoint, data = {}, { signal } = {}) {
+    let cancelQueuedRequest;
     const pendingRequest = new Promise((resolve, reject) => {
-      // Add request to queue
-      this.requestQueue.push({
+      const request = {
         endpoint,
         data,
+        signal,
         resolve,
         reject,
         retries: 0,
         brokerRequestAttempted: false
-      });
+      };
+      cancelQueuedRequest = () => {
+        const index = this.requestQueue.indexOf(request);
+        // In-flight requests settle through Axios cancellation, after HTTP stops.
+        if (index === -1) return;
+        this.requestQueue.splice(index, 1);
+        const error = new axios.CanceledError('Kraken private request cancelled');
+        error.brokerRequestAttempted = request.brokerRequestAttempted === true;
+        error.unknownBrokerReceipt = error.brokerRequestAttempted;
+        reject(error);
+      };
+      this.requestQueue.push(request);
+      signal?.addEventListener('abort', cancelQueuedRequest, { once: true });
 
-      // Start queue processor if not running
-      this.startQueueProcessor();
+      if (signal?.aborted) cancelQueuedRequest();
+      else this.startQueueProcessor();
     });
     this.pendingPrivateRequests.add(pendingRequest);
-    pendingRequest.then(
-      () => this.pendingPrivateRequests.delete(pendingRequest),
-      () => this.pendingPrivateRequests.delete(pendingRequest)
-    );
+    const settled = () => {
+      signal?.removeEventListener('abort', cancelQueuedRequest);
+      this.pendingPrivateRequests.delete(pendingRequest);
+    };
+    pendingRequest.then(settled, settled);
     return pendingRequest;
   }
 
@@ -264,6 +278,7 @@ class KrakenAdapterSimple {
 
       const requestUrl = `${this.baseUrl}${request.endpoint}`;
       const requestOptions = {
+        signal: request.signal,
         headers: {
           'API-Key': this.apiKey,
           'API-Sign': signature,
@@ -282,7 +297,7 @@ class KrakenAdapterSimple {
       error.brokerRequestAttempted = request.brokerRequestAttempted === true;
       error.unknownBrokerReceipt = error.brokerRequestAttempted;
       // Handle 429 rate limit errors
-      if (error.response?.status === 429) {
+      if (error.response?.status === 429 && !request.signal?.aborted) {
         console.log(`[Kraken] RATE_LIMIT_429: Re-queuing request after ${this.rateLimitBackoff}ms`);
 
         // Put request back at front of queue
@@ -394,9 +409,9 @@ class KrakenAdapterSimple {
     }
   }
 
-  async getAccountBalance() {
+  async getAccountBalance(options = {}) {
     try {
-      const response = await this.makePrivateRequest('/0/private/Balance');
+      const response = await this.makePrivateRequest('/0/private/Balance', {}, options);
       if (response.error && response.error.length > 0) {
         throw new Error(`Balance error: ${response.error.join(', ')}`);
       }
@@ -407,10 +422,10 @@ class KrakenAdapterSimple {
     }
   }
 
-  async getPositions() {
+  async getPositions(options = {}) {
     // Kraken doesn't have a direct positions endpoint for spot trading
     // Use balance to determine holdings
-    const balance = await this.getAccountBalance();
+    const balance = await this.getAccountBalance(options);
     const positions = [];
     const fiatAssets = new Set(['ZUSD', 'USD', 'ZEUR', 'EUR', 'ZGBP', 'GBP', 'ZCAD', 'CAD', 'ZAUD', 'AUD', 'ZJPY', 'JPY', 'ZCHF', 'CHF']);
 
@@ -428,8 +443,8 @@ class KrakenAdapterSimple {
   }
 
   // Balance shape used by broker reconciliation callers.
-  async getBalance() {
-    const balances = await this.getAccountBalance();
+  async getBalance(options = {}) {
+    const balances = await this.getAccountBalance(options);
     let totalUSD = 0;
 
     // Calculate total balance in USD
@@ -448,15 +463,15 @@ class KrakenAdapterSimple {
   }
 
   // Alias for compatibility - KrakenAdapterSimple uses getPositions
-  async getOpenPositions() {
-    return await this.getPositions();
+  async getOpenPositions(options = {}) {
+    return await this.getPositions(options);
   }
 
   // Get open orders through Kraken private REST. SessionRouter reconciliation
   // treats this as broker truth before switching sessions.
-  async getOpenOrders() {
+  async getOpenOrders(options = {}) {
     try {
-      const response = await this.makePrivateRequest('/0/private/OpenOrders');
+      const response = await this.makePrivateRequest('/0/private/OpenOrders', {}, options);
       if (response.error && response.error.length > 0) {
         throw new Error(`OpenOrders error: ${response.error.join(', ')}`);
       }

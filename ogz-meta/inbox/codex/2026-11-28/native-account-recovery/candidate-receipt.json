@@ -1,0 +1,61 @@
+{
+  "reviewTree": "4d262eb6e20919fe1377059a391a382a92387d9c",
+  "reviewBase": "bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+  "attempts": [
+    {
+      "fixture": "fixtures/verify-recovery.cjs",
+      "fixtureSha256": "401e3cab062dec90ce9e4a67e58861bd2039f52ae653180ac40c45d92af13046",
+      "session": 59487,
+      "exitCode": 1,
+      "result": "Observer looked for reason on the trace envelope; TraceSpine stores that field under fields.reason. HTTP cancellation and later-symbol halt assertions had already passed. Correct the observer path, not production code."
+    },
+    {
+      "fixture": "fixtures/verify-recovery.cjs",
+      "fixtureSha256": "e496b6c8adceb4846acc5fa2f694c11f170bda7e0beea058f5221f1b90bdfeb7",
+      "session": 24416,
+      "exitCode": 0,
+      "result": "Actual hanging account HTTP closed; later expired symbol checked/halted; pending recovery retained; successful subsequent recovery released only its native-feed cause."
+    }
+  ],
+  "capturedAt": "2026-11-28T02:29:50.831082+00:00",
+  "sourceReference": "working-snapshot",
+  "sourceHashes": {
+    "run-empire-v2.js": "dd45d7e7fd23d4d0eb8f2fac1be4314c980ba680c64e375f43d288b3dac070f6",
+    "core/SessionRouter.js": "75c6285df4c9db67f41589d3f3e1da6ee7c6a4e73caa19256d029141a6c8f563",
+    "brokers/AlpacaAdapter.js": "59509d4e8cc3c80729c90d6716d4d07ce5703dfd3c6d5dc0fafa27a8a61f33e3",
+    "core/StateManager.js": "fd0d1aa72f3916557b042b5caf6d23b31d6ddc85296621342757e958f7db4710",
+    "core/CandleProcessor.js": "ee750ecee3ea9bffea57687ba3470a9c9b336b4677c2fc7ffda0cab39f88ddd9",
+    "core/TradingLoop.js": "d81174fcca57417b8ba981b2d623d84df4045e440dc8377a3f8c4b1c13421d81",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "fixtureSha256": "e496b6c8adceb4846acc5fa2f694c11f170bda7e0beea058f5221f1b90bdfeb7",
+  "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-28/native-account-recovery/fixtures/verify-recovery.cjs -- node ogz-meta/inbox/codex/2026-11-28/native-account-recovery/fixtures/verify-recovery.cjs",
+  "afterAbort": {
+    "nvdaExpiredFrames": [
+      "1m"
+    ],
+    "nvdaHalted": true,
+    "nvdaEvidenceCount": 1,
+    "tslaHaltRetained": true,
+    "tslaReconciliationUnavailable": true,
+    "pendingWatchdogOperations": 0,
+    "globalPause": false,
+    "hangingHttpResponseClosed": true,
+    "positionRequests": 1
+  },
+  "laterRecovery": {
+    "tslaOwnHaltCleared": true,
+    "nvdaOwnHaltRetained": true,
+    "positionRequests": 2
+  },
+  "limits": [
+    "Actual extracted runner methods, actual SessionRouter/Alpaca/Axios, synthetic candles and a local HTTP server inside helper isolation.",
+    "Cancellation closed the hanging HTTP response and produced a pending recovery alarm rather than fabricated account truth.",
+    "Explicit abort and synthetic clock, not a measured real broker timeout/frequency.",
+    "No real broker requests, production state or positions.",
+    "Inherited dirty StateManager/TradingLoop/ConfigLoader/config bytes used and explicitly hashed; no claim to execute the entire pinned Git tree."
+  ],
+  "transportReceipt": "transport-receipt.json"
+}

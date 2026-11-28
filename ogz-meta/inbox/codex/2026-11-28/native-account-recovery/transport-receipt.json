@@ -1,0 +1,165 @@
+{
+  "sourceHashes": {
+    "core/SessionRouter.js": "75c6285df4c9db67f41589d3f3e1da6ee7c6a4e73caa19256d029141a6c8f563",
+    "brokers/AlpacaAdapter.js": "59509d4e8cc3c80729c90d6716d4d07ce5703dfd3c6d5dc0fafa27a8a61f33e3",
+    "brokers/KrakenIBrokerAdapter.js": "89332ee621cab2c73e5033f41c770796f5e802e9237257e74b44c497b8d1ead8",
+    "kraken_adapter_simple.js": "69b04505f57da2450cbd6be0515e86ab2d02c01c48e0ca8083788fa86765af3e",
+    "foundation/IBrokerAdapter.js": "6823e26424624ca856e503630c5326793e43d6b4fbdf20587aec96b65e83f617",
+    "brokers/IBrokerAdapter.js": "ee21c31e3f6a11915ad9a5430fe0b906f4f09bff4dad6f4a46a07783e2cae0cb",
+    "foundation/ConfigLoader.js": "4c777679e4fc7071b05d4aad47fdfba09554e471b150ea001798d150e5d7cf84",
+    "config/settings.json": "8b14bc3e976a0881e2f1d092c3f0ea302722bb64ebf8b2260752450ea51a467f",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2"
+  },
+  "fixtureSha256": "87ea2f5d6d4727d6cdabf6e437ac6c8d5256deac8dc76cea9c3d47e7ca63b42e",
+  "axiosVersion": "1.13.6",
+  "cancelledSnapshots": [
+    {
+      "broker": "alpaca",
+      "stage": 1,
+      "requests": [
+        "/v2/positions"
+      ],
+      "rejected": true,
+      "errorCode": "broker_position_truth_unavailable",
+      "heldHttpClosed": true,
+      "furtherSnapshotRequests": 0,
+      "abortListenersRemaining": 0
+    },
+    {
+      "broker": "alpaca",
+      "stage": 2,
+      "requests": [
+        "/v2/positions",
+        "/v2/orders?status=open"
+      ],
+      "rejected": true,
+      "errorCode": "broker_open_orders_truth_unavailable",
+      "heldHttpClosed": true,
+      "furtherSnapshotRequests": 0,
+      "abortListenersRemaining": 0
+    },
+    {
+      "broker": "alpaca",
+      "stage": 3,
+      "requests": [
+        "/v2/positions",
+        "/v2/orders?status=open",
+        "/v2/account"
+      ],
+      "rejected": true,
+      "errorCode": "broker_balance_truth_unavailable",
+      "heldHttpClosed": true,
+      "furtherSnapshotRequests": 0,
+      "abortListenersRemaining": 0
+    },
+    {
+      "broker": "kraken",
+      "stage": 1,
+      "requests": [
+        "/0/private/Balance"
+      ],
+      "rejected": true,
+      "errorCode": "ERR_CANCELED",
+      "heldHttpClosed": true,
+      "furtherSnapshotRequests": 0,
+      "abortListenersRemaining": 0
+    },
+    {
+      "broker": "kraken",
+      "stage": 2,
+      "requests": [
+        "/0/private/Balance",
+        "/0/private/OpenOrders"
+      ],
+      "rejected": true,
+      "errorCode": "ERR_CANCELED",
+      "heldHttpClosed": true,
+      "furtherSnapshotRequests": 0,
+      "abortListenersRemaining": 0
+    },
+    {
+      "broker": "kraken",
+      "stage": 3,
+      "requests": [
+        "/0/private/Balance",
+        "/0/private/OpenOrders",
+        "/0/private/GetApiKeyInfo"
+      ],
+      "rejected": true,
+      "errorCode": "ERR_CANCELED",
+      "heldHttpClosed": true,
+      "furtherSnapshotRequests": 0,
+      "abortListenersRemaining": 0
+    },
+    {
+      "broker": "kraken",
+      "stage": 4,
+      "requests": [
+        "/0/private/Balance",
+        "/0/private/OpenOrders",
+        "/0/private/GetApiKeyInfo",
+        "/0/private/Balance"
+      ],
+      "rejected": true,
+      "errorCode": "ERR_CANCELED",
+      "heldHttpClosed": true,
+      "furtherSnapshotRequests": 0,
+      "abortListenersRemaining": 0
+    }
+  ],
+  "nominalSnapshots": [
+    {
+      "broker": "alpaca",
+      "requests": [
+        "/v2/positions",
+        "/v2/orders?status=open",
+        "/v2/account"
+      ],
+      "balance": 100000,
+      "identityConfirmed": true,
+      "balanceChecked": true
+    },
+    {
+      "broker": "kraken",
+      "requests": [
+        "/0/private/Balance",
+        "/0/private/OpenOrders",
+        "/0/private/GetApiKeyInfo",
+        "/0/private/Balance"
+      ],
+      "balance": 100000,
+      "identityConfirmed": true,
+      "balanceChecked": true
+    }
+  ],
+  "queuedCancellation": {
+    "alreadyAbortedRequestsSent": 0,
+    "waitingRequestsSent": 0,
+    "otherRequestCompleted": true,
+    "pendingRequests": 0,
+    "listeners": 0
+  },
+  "rateLimitCancellation": {
+    "requestsSent": 1,
+    "retryAfterAbort": false,
+    "pendingRequests": 0,
+    "listeners": 0,
+    "brokerRequestAttempted": true,
+    "unknownBrokerReceipt": true
+  },
+  "unsignalledWrite": {
+    "syntheticLocalOnly": true,
+    "requestAndReceiptPreserved": true
+  },
+  "limits": [
+    "Actual adapters, queue, SessionRouter snapshot and installed Axios against a synthetic local HTTP server inside helper isolation.",
+    "Cancellation is explicitly triggered after HTTP arrival or while queued, not a timed external broker outage.",
+    "Successful snapshots use synthetic empty orders/positions and explicit balance/identity; cancelled snapshots reject instead of manufacturing those values.",
+    "No production broker call, credentials, real order, live position or host state is used."
+  ],
+  "execution": {
+    "exitCode": 0,
+    "session": 69619,
+    "command": "python3 scripts/test-isolated.py --fixture ogz-meta/inbox/codex/2026-11-28/native-account-recovery/fixtures/verify-transport.cjs -- node ogz-meta/inbox/codex/2026-11-28/native-account-recovery/fixtures/verify-transport.cjs"
+  }
+}

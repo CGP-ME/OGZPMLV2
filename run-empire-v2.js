@@ -1764,7 +1764,7 @@ class OGZPrimeV14Bot {
     return failure;
   }
 
-  async _resolveCandleDataHalt(symbol, frames, broker, scopeIsCurrent, code) {
+  async _resolveCandleDataHalt(symbol, frames, broker, scopeIsCurrent, code, { signal } = {}) {
     const scope = frames[0].scopeEnvelope;
     const recovery = { ...scope, symbol, code, source: 'candle_data_recovery', status: 'pending',
       frames: frames.map(frame => frame.timeframe) };
@@ -1793,7 +1793,7 @@ class OGZPrimeV14Bot {
     }
     let snapshot;
     try {
-      snapshot = await this.sessionRouter._fetchBrokerRestSnapshot(broker, scope.brokerId);
+      snapshot = await this.sessionRouter._fetchBrokerRestSnapshot(broker, scope.brokerId, { signal });
     } catch (error) {
       return { ...recovery, reason: 'broker_reconciliation_unavailable', error: error.message };
     }
@@ -1958,7 +1958,7 @@ class OGZPrimeV14Bot {
       }
       for (const code of ['rest_hydration_unavailable', 'native_feed_unavailable']) {
         if (!stateManager.isSymbolHalted(symbol, code)) continue;
-        const recovery = await this._resolveCandleDataHalt(symbol, frames, broker, scopeIsCurrent, code);
+        const recovery = await this._resolveCandleDataHalt(symbol, frames, broker, scopeIsCurrent, code, { signal });
         if (recovery.status === 'recovered') receipt.recovered.push(recovery);
         else receipt.recoveryPending.push(recovery);
         const prefix = code === 'rest_hydration_unavailable' ? 'REST_HYDRATION' : 'NATIVE_FEED';
