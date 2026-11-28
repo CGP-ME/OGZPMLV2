@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "scope": "One-process request-capture preload for the existing Mercury HTTPS client and existing CLI. Diagnostic only.",
+  "head_at_receipt": "bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+  "guidance_refresh": "No differences from previously verified guidance at a0f613297097e70095835baad299f85e4be4f3be in root/full AGENTS, Mercury README, config, exclusions or rules.",
+  "authored_files": [
+    {
+      "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/request-capture-preload.cjs",
+      "sha256": "8e3a20696ba033511ccfe7b472c1fac546a5c97ebdf77322c2671cd0f2a36e5b",
+      "bytes": 5304,
+      "mode": "0o664"
+    },
+    {
+      "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/capture-http.cjs",
+      "sha256": "4232ed1b2e9138d03ea54906cf85961419c9505b940b9eeef3b02212780d5ba1",
+      "bytes": 14753,
+      "mode": "0o664"
+    },
+    {
+      "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/preload-attempt-1.log",
+      "sha256": "09e4b9f44045c5f6291526821f1223aaf499aa98f20ab5aef2582482a6eee98a",
+      "bytes": 3034,
+      "mode": "0o600"
+    }
+  ],
+  "reused_fixture_before_sha256": "b5103d72d505441ae4da450c489cc9d7bd8f925d56c8fae90194dc9ff4e4ba32",
+  "unchanged_policy_fixture": {
+    "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/mercury-ignore.json",
+    "sha256": "2e89700fcb42c5d81535ef39f249b68f143b8af8e576200ecf7b706fd40f124a"
+  },
+  "helper_attempts": [
+    {
+      "attempt": 1,
+      "command_argv": [
+        "python3",
+        "scripts/test-isolated.py",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/capture-http.cjs",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/request-capture-preload.cjs",
+        "--fixture",
+        "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/mercury-ignore.json",
+        "--",
+        "node",
+        "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/capture-http.cjs",
+        "--verify-request-capture"
+      ],
+      "exit_code": 0,
+      "log": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/preload-attempt-1.log",
+      "log_sha256": "09e4b9f44045c5f6291526821f1223aaf499aa98f20ab5aef2582482a6eee98a",
+      "setup_warning": "The sandbox PATH lacks rg. Tool execution was synthetic; no grep was attempted and no fallback was used."
+    }
+  ],
+  "observation": {
+    "synthetic": true,
+    "externalNetworkCalls": 0,
+    "realProviderCalls": 0,
+    "fixtureSha256": "4232ed1b2e9138d03ea54906cf85961419c9505b940b9eeef3b02212780d5ba1",
+    "preloadSha256": "8e3a20696ba033511ccfe7b472c1fac546a5c97ebdf77322c2671cd0f2a36e5b",
+    "sourceHashes": {
+      "core/persistent_llm_client.js": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+      "trai_brain/mercury-bridge/llm-client.js": "a1a99ea7414de6f2de9c6ac072617baf199178d56e9cc25639282cf3d2144d63",
+      "trai_brain/mercury-bridge/config.js": "a841f41ec893322d55fdaead1b61b16b8eb20bb7e54a375ec63dfda1b3d52ba7",
+      "trai_brain/mercury-bridge/react-loop.js": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c",
+      "trai_brain/mercury-bridge/explicit-continuation.js": "fc3a6e133ec9a630e85d2813ae5a6edce88a08f2bf8b65365fff457e5bc52ce5",
+      "trai_brain/mercury-bridge/evidence-ingestion.js": "3f33e1d264baff528e4c364a230134f5915ce7ce92d17929969e2235a8285348",
+      "trai_brain/mercury-bridge/tool-adapter.js": "449a9273794ffcbac65f8583bff8203541d2018210c5f78dab81d2a024d1ba59",
+      "mercury.config.json": "220bf31139090e7b16012aaff6c40c617a8e39bd4a63c62941f62909344e964b",
+      "mercury.ignore": "97eaefcb94ed065dcedfdfbdf4686728cdc42253a0cfe96ca7086e2f8e300840",
+      "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+      "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+      "trai_brain/mercury-bridge/run-ledger.js": "6af8d0517a7c0fa9a6508a0ee1213f3ae82326641f8ce02dc4bb645d51954f31"
+    },
+    "requests": [
+      {
+        "ordinal": 1,
+        "bytes": 22949,
+        "sha256": "dbf2cebafb6c5e4aa9d7d9c74a7222a4b4b3d1272a437ecc580533d277a210a3",
+        "rawResponseSha256": "9d3c9a750a1040aa91787f57ee04aee57e95e8b79e56fe124c54c24937238234"
+      },
+      {
+        "ordinal": 2,
+        "bytes": 24636,
+        "sha256": "962400c1ee978d2cab1116f018401d6b28366557ada56980e280acda654b97ae",
+        "rawResponseSha256": "b534642be811039762143a67a95d70d97d9f264ab36bed6b0e03976d40098692"
+      }
+    ],
+    "assertions": {
+      "actualClientBytesPreserved": true,
+      "nativeHistoryPreserved": true,
+      "existingRawAuditPreservedAndMatched": true,
+      "privateFiles0600": true,
+      "privateDirectories0700": true,
+      "noCredentialOrAuthorizationHeaderCaptured": true,
+      "noRequestBodiesPrinted": true
+    },
+    "limitations": [
+      "Synthetic transport only; no provider/TLS/server behavior exercised.",
+      "Capture records client write/end bytes, not proof of remote receipt.",
+      "No historical request10 reconstruction or Mercury review clearance."
+    ]
+  },
+  "mechanics": [
+    "The preload imports only Node built-ins and reads the nonsecret canonical mercury.config.json. It does not import the application before the CLI loads dotenv.",
+    "Only the exact configured Mercury HTTPS POST object-form request is captured. The original request receives unchanged arguments, options and callback; request.write/end receive their original arguments and return their original result.",
+    "Request bytes are saved as received by the diagnostic boundary, never parsed and reserialized by the preload. No headers are read or retained.",
+    "Private packet/request-capture-* directories are 0700. Exact request bodies and the metadata event journal are 0600. Request bodies are never printed by this preload or its new verification mode.",
+    "Response data is hashed in an additional listener; existing response consumers and createProviderAudit/writeRawProviderOutput continue. The response SHA, ordinal, PID and timestamps correlate the private request to its existing raw audit.",
+    "New capture directories and files use exclusive creation; existing packets and the prior serialization receipt remain preserved."
+  ],
+  "proposed_neutral_question": "What value does startLivenessWatchdog assign to broker in the pinned runner? Cite the assignment line.",
+  "curated_at": "2026-11-28T02:43:38.610387+00:00",
+  "original_observed_at": "2026-11-28T02:29:34.780229+00:00",
+  "provenance": {
+    "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-receipt.json",
+    "sha256": "61f6e869c6ef463cf1561e0f0db2843d70327d13bbacd7e8442b45a05bb650c5",
+    "bytes": 7781,
+    "mode": "0600"
+  },
+  "limits": [
+    "Only the current actual-client one-write/no-end-body path and synthetic response delivery were exercised. No claim is made for all Node overloads, TLS bytes, socket backpressure timing, or remote receipt.",
+    "Synchronous file writes and hashing add diagnostic overhead. Filesystem failures propagate visibly, as the existing audit writer does; there is no silent fallback capture.",
+    "If the process terminates or the response aborts, a missing request_end_called or response_ended record means incomplete capture, not an empty successful request or response.",
+    "The historical request10 body is still unavailable. This does not establish the cause of its inc_tool_call output or clear Mercury.",
+    "The original fixture raw-body display remains its preexisting synthetic-only mode; --verify-request-capture prints hashes and booleans without request bodies.",
+    "The original offline fixture observation made no live provider call or production/client/config/hook change. A later parent-authorized live source lookup is recorded separately in source-lookup-receipt.json.",
+    "This public-safe curation contains hashes, metadata, synthetic assertions and limitations only. It does not copy private request JSON, raw response contents, or private log contents."
+  ],
+  "subsequent_live_observation": {
+    "receipt": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/source-lookup-receipt.json",
+    "run_id": "2026-11-28T02-32-05-958Z-afae29cb0c7a",
+    "not_a_reliability_clearance": true
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-11-28T02:31:43.410530+00:00",
+  "question": "What value does startLivenessWatchdog assign to broker in the pinned runner? Cite the assignment line.",
+  "command": [
+    "node",
+    "--require",
+    "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/request-capture-preload.cjs",
+    "/opt/ogzprime/OGZPMLV2/trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+    "--review-base=bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+    "--change-path=run-empire-v2.js",
+    "What value does startLivenessWatchdog assign to broker in the pinned runner? Cite the assignment line."
+  ],
+  "sourceReference": "bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+  "sourceBase": "bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+  "purpose": "One neutral factual lookup to observe the actual native-tool exchange. Not a production review or a claim of repaired reliability.",
+  "tokenLimit": 7750,
+  "iterationLimit": null,
+  "sourceHashes": {
+    "core/persistent_llm_client.js": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+    "trai_brain/mercury-bridge/llm-client.js": "a1a99ea7414de6f2de9c6ac072617baf199178d56e9cc25639282cf3d2144d63",
+    "trai_brain/mercury-bridge/config.js": "a841f41ec893322d55fdaead1b61b16b8eb20bb7e54a375ec63dfda1b3d52ba7",
+    "trai_brain/mercury-bridge/react-loop.js": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c",
+    "trai_brain/mercury-bridge/explicit-continuation.js": "fc3a6e133ec9a630e85d2813ae5a6edce88a08f2bf8b65365fff457e5bc52ce5",
+    "trai_brain/mercury-bridge/evidence-ingestion.js": "3f33e1d264baff528e4c364a230134f5915ce7ce92d17929969e2235a8285348",
+    "trai_brain/mercury-bridge/tool-adapter.js": "449a9273794ffcbac65f8583bff8203541d2018210c5f78dab81d2a024d1ba59",
+    "mercury.config.json": "220bf31139090e7b16012aaff6c40c617a8e39bd4a63c62941f62909344e964b",
+    "mercury.ignore": "97eaefcb94ed065dcedfdfbdf4686728cdc42253a0cfe96ca7086e2f8e300840",
+    "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+    "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+    "trai_brain/mercury-bridge/run-ledger.js": "6af8d0517a7c0fa9a6508a0ee1213f3ae82326641f8ce02dc4bb645d51954f31"
+  },
+  "capturePreloadSha256": "8e3a20696ba033511ccfe7b472c1fac546a5c97ebdf77322c2671cd0f2a36e5b",
+  "status": "process_finished_read_answer_and_receipts_before_conclusion",
+  "finishedAt": "2026-11-28T02:32:12.759101+00:00",
+  "exitCode": 0
+}

@@ -10,6 +10,7 @@ const http = require('node:http');
 const { EventEmitter } = require('node:events');
 const root = process.cwd();
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+const verifyPreload = process.argv.includes('--verify-request-capture');
 const ignore = require('./mercury-ignore.json');
 assert.equal(hash(ignore.text), ignore.sha256);
 // Only the launcher's disposable filesystem receives this public policy.
@@ -45,6 +46,7 @@ const finalAssistant = {
 // JSON.stringify, req.write and response parsing remain active.
 https.request = (options, callback) => {
   const req = new EventEmitter();
+  req.once('response', callback);
   const writes = [];
   req.write = chunk => { writes.push(Buffer.from(chunk)); return true; };
   req.destroy = () => { req.destroyed = true; };
@@ -57,7 +59,7 @@ https.request = (options, callback) => {
       const res = new EventEmitter();
       res.statusCode = 200;
       res.headers = { 'content-type': 'application/json' };
-      callback(res);
+      req.emit('response', res);
       res.emit('data', Buffer.from(JSON.stringify({
         model: 'mercury-3',
         choices: [{ message: index === 0 ? nativeAssistant : finalAssistant,
@@ -73,6 +75,7 @@ https.request = (options, callback) => {
 http.request = () => { assert.fail('Unexpected HTTP transport'); };
 
 async function main() {
+  const preload = verifyPreload ? require('./request-capture-preload.cjs') : null;
   const config = require(path.join(root, 'trai_brain/mercury-bridge/config'));
   process.env[config.MERCURY_LLM_API_KEY_ENV] = syntheticCredential;
   const { createMercuryLlmClient } = require(path.join(root, 'trai_brain/mercury-bridge/llm-client'));
@@ -102,9 +105,13 @@ async function main() {
     originalQuery: question,
   });
   const client = createMercuryLlmClient({ systemPrompt: config.AGENTIC_SYSTEM_PROMPT });
+  const providerAudit = verifyPreload
+    ? require(path.join(root, 'trai_brain/mercury-bridge/ask')).createProviderAudit('synthetic_native_source', {
+      repoRoot: root, rawRunId: 'synthetic-request-capture',
+    }) : null;
   const result = await runReactLoop({
     client, toolAdapter, userQuery: question, explicitReviewContract: contract,
-    maxIterations: null, maxTokens: 7750,
+    maxIterations: null, maxTokens: 7750, providerAudit,
   });
   assert.equal(captures.length, 2);
   assert.equal(executions.length, 2);
@@ -170,6 +177,56 @@ async function main() {
     'trai_brain/mercury-bridge/tool-adapter.js',
     'mercury.config.json', 'mercury.ignore', 'config/internals.json',
   ];
+  if (verifyPreload) {
+    const events = fs.readFileSync(path.join(preload.directory, 'events.jsonl'), 'utf8')
+      .trim().split('\n').map(line => JSON.parse(line));
+    assert.equal(fs.statSync(preload.directory).mode & 0o777, 0o700);
+    assert.equal(fs.statSync(path.dirname(preload.directory)).mode & 0o777, 0o700);
+    assert.equal(events.filter(entry => entry.event === 'request_started').length, captures.length);
+    assert.equal(providerAudit.attempts.length, captures.length);
+    for (const [index, capture] of captures.entries()) {
+      const ordinal = index + 1;
+      const saved = events.find(entry => entry.event === 'request_end_called' && entry.ordinal === ordinal);
+      assert.ok(saved);
+      const body = fs.readFileSync(path.join(preload.directory, saved.body_file));
+      assert.deepEqual(body, capture.wire);
+      assert.equal(saved.body_sha256, hash(capture.wire));
+      assert.equal(saved.body_bytes, capture.wire.length);
+      const response = events.find(entry => entry.event === 'response_ended' && entry.ordinal === ordinal);
+      const rawReceipt = providerAudit.attempts[index].raw_output;
+      assert.ok(response);
+      assert.equal(response.response_sha256, rawReceipt.sha256);
+      assert.equal(response.response_bytes, rawReceipt.bytes);
+      assert.equal(response.status_code, providerAudit.attempts[index].status_code);
+      assert.equal(hash(fs.readFileSync(path.join(root, rawReceipt.path))), response.response_sha256);
+      assert.equal(fs.statSync(path.join(root, rawReceipt.path)).mode & 0o777, 0o600);
+    }
+    for (const name of fs.readdirSync(preload.directory)) {
+      const file = path.join(preload.directory, name);
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+      const text = fs.readFileSync(file, 'utf8');
+      assert.equal(text.includes(syntheticCredential), false);
+      assert.equal(text.includes('Authorization'), false);
+    }
+    console.log('REQUEST_CAPTURE_OBSERVATION_JSON=' + JSON.stringify({
+      synthetic: true, externalNetworkCalls: 0, realProviderCalls: 0,
+      fixtureSha256: hash(fs.readFileSync(__filename)),
+      preloadSha256: hash(fs.readFileSync(path.join(__dirname, 'request-capture-preload.cjs'))),
+      sourceHashes: Object.fromEntries([...sourceFiles, 'trai_brain/mercury-bridge/ask.js',
+        'trai_brain/mercury-bridge/run-ledger.js'].map(file => [file, hash(fs.readFileSync(path.join(root, file)))])),
+      requests: captures.map((capture, index) => ({ ordinal: index + 1,
+        bytes: capture.wire.length, sha256: hash(capture.wire),
+        rawResponseSha256: providerAudit.attempts[index].raw_output.sha256 })),
+      assertions: { actualClientBytesPreserved: true, nativeHistoryPreserved: true,
+        existingRawAuditPreservedAndMatched: true, privateFiles0600: true,
+        privateDirectories0700: true, noCredentialOrAuthorizationHeaderCaptured: true,
+        noRequestBodiesPrinted: true },
+      limitations: ['Synthetic transport only; no provider/TLS/server behavior exercised.',
+        'Capture records client write/end bytes, not proof of remote receipt.',
+        'No historical request10 reconstruction or Mercury review clearance.'],
+    }));
+    return;
+  }
   console.log('SERIALIZATION_OBSERVATION_JSON=' + JSON.stringify({
     synthetic: true, externalNetworkCalls: 0, realProviderCalls: 0,
     boundary: 'Real config resolver, tool schema builder, ReAct native history, explicit continuation, PersistentLLMClient and HTTPS JSON writer; substituted https.request response stream and tool execution.',

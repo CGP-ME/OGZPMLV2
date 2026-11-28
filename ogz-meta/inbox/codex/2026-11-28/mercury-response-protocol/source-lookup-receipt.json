@@ -1,0 +1,498 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-11-28T02:43:38.610387+00:00",
+  "scope": "One parent-authorized factual source lookup through the existing Mercury CLI with private outgoing HTTP capture. This receipt is offline observation, not a production review or reliability clearance.",
+  "outcome": "factual_assignment_verified_and_native_protocol_observed_without_malformed_calls_in_this_run",
+  "run_id": "2026-11-28T02-32-05-958Z-afae29cb0c7a",
+  "started_at": "2026-11-28T02:31:44.015Z",
+  "recorded_at": "2026-11-28T02:32:05.958Z",
+  "cli_finished_at": "2026-11-28T02:32:12.759101+00:00",
+  "exit_code": 0,
+  "question": "What value does startLivenessWatchdog assign to broker in the pinned runner? Cite the assignment line.",
+  "invocation": [
+    "node",
+    "--require",
+    "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/fixtures/request-capture-preload.cjs",
+    "/opt/ogzprime/OGZPMLV2/trai_brain/mercury-bridge/ask.js",
+    "--agentic",
+    "--reviewers=mercury",
+    "--max-tokens=7750",
+    "--review-ref=bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+    "--review-base=bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+    "--change-path=run-empire-v2.js",
+    "What value does startLivenessWatchdog assign to broker in the pinned runner? Cite the assignment line."
+  ],
+  "dispatch_metadata": {
+    "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/source-lookup-request.json",
+    "sha256": "7397f832f1e718d4dcb1fe4eb011d6921814a15a46b2582a7422ded03455e3b8",
+    "bytes": 2649,
+    "mode": "0664"
+  },
+  "source": {
+    "reference": "bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+    "base": "bfc1adc0f2d48ca9842d73c6c6d8b8851a7d8de8",
+    "tree": "a99f981c2e1f32ae67f65a8f7c1efb121c19c321",
+    "base_tree": "a99f981c2e1f32ae67f65a8f7c1efb121c19c321",
+    "paths": [
+      "run-empire-v2.js"
+    ],
+    "manifest": {
+      "path": "ogz-meta/cognition-history/mercury-runs/2026-11-28T02-31-44-015Z-3361968-644de25493f5/source-caqj07.json",
+      "sha256": "a620a90ccd1ea8f59e510f4ee59808933dbf13600105c2ad47d390a4f18c4662",
+      "bytes": 1445349,
+      "mode": "0600"
+    },
+    "manifest_files": 730,
+    "pinned_assignment": {
+      "path": "run-empire-v2.js",
+      "function_line": 3091,
+      "assignment_line": 3121,
+      "text": "const broker = this.sessionRouter.activeBroker;",
+      "file_sha256": "76307dcb117fe43a576b2a7b5f49dda16c5488c523dc3a1291a52f5fc5148a25",
+      "file_bytes": 190443
+    },
+    "harness_source_hashes_at_dispatch": {
+      "core/persistent_llm_client.js": "fe775717cd69489036a244d890d5c50ec5daf2d27f75a2b8f228234a9e5b6039",
+      "trai_brain/mercury-bridge/llm-client.js": "a1a99ea7414de6f2de9c6ac072617baf199178d56e9cc25639282cf3d2144d63",
+      "trai_brain/mercury-bridge/config.js": "a841f41ec893322d55fdaead1b61b16b8eb20bb7e54a375ec63dfda1b3d52ba7",
+      "trai_brain/mercury-bridge/react-loop.js": "0fb51b9cb23057b099008b11928bd4380f72ae8f930b43548ebd4f71badd630c",
+      "trai_brain/mercury-bridge/explicit-continuation.js": "fc3a6e133ec9a630e85d2813ae5a6edce88a08f2bf8b65365fff457e5bc52ce5",
+      "trai_brain/mercury-bridge/evidence-ingestion.js": "3f33e1d264baff528e4c364a230134f5915ce7ce92d17929969e2235a8285348",
+      "trai_brain/mercury-bridge/tool-adapter.js": "449a9273794ffcbac65f8583bff8203541d2018210c5f78dab81d2a024d1ba59",
+      "mercury.config.json": "220bf31139090e7b16012aaff6c40c617a8e39bd4a63c62941f62909344e964b",
+      "mercury.ignore": "97eaefcb94ed065dcedfdfbdf4686728cdc42253a0cfe96ca7086e2f8e300840",
+      "config/internals.json": "7191a5e895f0426dc4ed7109bd52216fe5605f1e5df1577a2adeb73d7fcc70e2",
+      "trai_brain/mercury-bridge/ask.js": "7ff34207fcbb00a93e87e68801b54d0db55e4ba5295757e6771adb1c68624202",
+      "trai_brain/mercury-bridge/run-ledger.js": "6af8d0517a7c0fa9a6508a0ee1213f3ae82326641f8ce02dc4bb645d51954f31"
+    },
+    "head_at_receipt": "6b8d7b2dea126a22bc996477b28deb955dce831f",
+    "head_note": "Parent advanced the shared branch after the lookup; this verification uses git show of the explicitly pinned lookup reference, not current working source."
+  },
+  "answer": {
+    "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/source-lookup-answer.md",
+    "sha256": "724b4376f67ea1b5ef632dbc82eb6d521718b6b4943cab8fedb30cb53bf19938",
+    "bytes": 4249,
+    "complete_visible_content": true,
+    "exact_match_in_private_cli_log": true,
+    "reported_verdict": "no_break_found",
+    "verified_literal_answer": "const broker = this.sessionRouter.activeBroker; at run-empire-v2.js:3121",
+    "interpretation_limit": "The model interpreted pinned runner as a pinned broker; the diagnostic intended the Git-pinned runner. The literal assignment is independently verified. Additional claims about transition correctness or general broker ownership are not cleared by this lookup."
+  },
+  "protocol": {
+    "captured_chat_requests": 8,
+    "native_tool_calls": 12,
+    "native_tool_results": 12,
+    "all_http_200": true,
+    "settings": {
+      "reasoning_effort": "low",
+      "model": "mercury-3",
+      "max_tokens": 7750,
+      "tool_choice": "auto",
+      "temperature": 0.8
+    },
+    "tool_schema_count": 18,
+    "tool_schemas_unchanged": true,
+    "assistant_objects_exactly_preserved": true,
+    "prior_tool_results_exactly_preserved": true,
+    "tool_result_ids_complete_and_matched": true,
+    "unique_tool_call_ids": true,
+    "called_functions_declared_and_arguments_json_objects_with_required_fields_and_types": true,
+    "request_hashes_match_capture_events": true,
+    "response_hashes_match_capture_events_and_existing_audit": true,
+    "literal_inc_tool_call_in_visible_responses": false,
+    "final_finish_reason": "stop",
+    "final_native_tool_calls": 0,
+    "malformed_calls_or_history_found": [],
+    "capture_preload_sha256": "8e3a20696ba033511ccfe7b472c1fac546a5c97ebdf77322c2671cd0f2a36e5b",
+    "capture_events": {
+      "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/events.jsonl",
+      "sha256": "427d9d80b1c28118f282b626601bf4fa05d1661cd66cf8eeba2c18d8baa6c242",
+      "bytes": 4823,
+      "mode": "0600"
+    },
+    "capture_directory_mode": "0700",
+    "private_cli_log": {
+      "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/live-source-lookup.log",
+      "sha256": "1031de59459aaba4648cf86500ff169a1ce8ab2c4ee9a4f4fe10c4e53ea954e0",
+      "bytes": 17127,
+      "mode": "0600"
+    },
+    "captures": [
+      {
+        "ordinal": 1,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0001.request.json",
+          "sha256": "663e8ac20db3592d0e3c4bfeccaa6eca65aa8f689d34bfcda287e22311e8fc0c",
+          "bytes": 37936,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-1.raw",
+          "sha256": "4f7b9eb25f319a03cdbcf9ce4d82d38988d3c91af0205869e2e95beaab0cee6a",
+          "bytes": 937,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "tool_calls",
+        "tool_names": [
+          "grep",
+          "grep"
+        ],
+        "response_content_characters": 0,
+        "tokens": {
+          "input": 8873,
+          "uncached_input": 8864,
+          "cached_input": 9,
+          "output": 122,
+          "total": 8995
+        }
+      },
+      {
+        "ordinal": 2,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0002.request.json",
+          "sha256": "64c1bc5a46ed8a2c4a04213ff294f8433355f0502f6fd68fc1cfab4c131a347e",
+          "bytes": 40237,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-2.raw",
+          "sha256": "5c36a1cff8a7e1d763a98ac2a018f764587818d5d8a3aab7b3d94a108d3f9e77",
+          "bytes": 833,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "tool_calls",
+        "tool_names": [
+          "open_file"
+        ],
+        "response_content_characters": 0,
+        "tokens": {
+          "input": 9383,
+          "uncached_input": 1039,
+          "cached_input": 8344,
+          "output": 107,
+          "total": 9490
+        }
+      },
+      {
+        "ordinal": 3,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0003.request.json",
+          "sha256": "27f51c4327c74eafb392ed028c963ee179096a60582854542fb4c25ef0ef3592",
+          "bytes": 43628,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-3.raw",
+          "sha256": "6f4e81910308b2bae1fd13b256efbb6970bd342f88f76e4af65698ee22b797f3",
+          "bytes": 1004,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "tool_calls",
+        "tool_names": [
+          "grep",
+          "open_file"
+        ],
+        "response_content_characters": 0,
+        "tokens": {
+          "input": 10606,
+          "uncached_input": 2051,
+          "cached_input": 8555,
+          "output": 227,
+          "total": 10833
+        }
+      },
+      {
+        "ordinal": 4,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0004.request.json",
+          "sha256": "5e51f4a68d2db9a365b0c65d31bea7a416296422260201701cc377842865dadd",
+          "bytes": 50709,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-4.raw",
+          "sha256": "dbe84af203e0259117747234896e9b9c5b60f19f2b6f741a9ba3d63ac10c072e",
+          "bytes": 990,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "tool_calls",
+        "tool_names": [
+          "grep",
+          "grep"
+        ],
+        "response_content_characters": 0,
+        "tokens": {
+          "input": 12628,
+          "uncached_input": 3830,
+          "cached_input": 8798,
+          "output": 361,
+          "total": 12989
+        }
+      },
+      {
+        "ordinal": 5,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0005.request.json",
+          "sha256": "a81a07d2a858691bdf9a732853a7989351eec919dfce3957f69e115e047f1127",
+          "bytes": 54774,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-5.raw",
+          "sha256": "2c436e58b0c0675cc00861ab792c064967a31607338186fdc2c751e97e97f28f",
+          "bytes": 1006,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "tool_calls",
+        "tool_names": [
+          "open_file",
+          "regex_grep"
+        ],
+        "response_content_characters": 0,
+        "tokens": {
+          "input": 14117,
+          "uncached_input": 5233,
+          "cached_input": 8884,
+          "output": 558,
+          "total": 14675
+        }
+      },
+      {
+        "ordinal": 6,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0006.request.json",
+          "sha256": "6b96c4726130821920ec771d24edb2d15baac057cf3bcfbf85872a33c70d9ba6",
+          "bytes": 59396,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-6.raw",
+          "sha256": "8bcf8beb2580d1909830abe1b99face4802361c0b4cd590abcf6ca863d5289ee",
+          "bytes": 957,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "tool_calls",
+        "tool_names": [
+          "grep",
+          "grep"
+        ],
+        "response_content_characters": 0,
+        "tokens": {
+          "input": 15386,
+          "uncached_input": 6792,
+          "cached_input": 8594,
+          "output": 367,
+          "total": 15753
+        }
+      },
+      {
+        "ordinal": 7,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0007.request.json",
+          "sha256": "dd166fb79a98e47bd61d4ab36144c3d51f66457ea29a9404090bf1a66a906257",
+          "bytes": 73184,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-7.raw",
+          "sha256": "baf2bbf839797355e8c72d1d32984d39f85e7107c66be67e2b4757cfcd895379",
+          "bytes": 841,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "tool_calls",
+        "tool_names": [
+          "open_file"
+        ],
+        "response_content_characters": 0,
+        "tokens": {
+          "input": 19656,
+          "uncached_input": 10834,
+          "cached_input": 8822,
+          "output": 625,
+          "total": 20281
+        }
+      },
+      {
+        "ordinal": 8,
+        "request": {
+          "path": "ogz-meta/inbox/codex/2026-11-28/mercury-response-protocol/private/request-capture-onVZec/0008.request.json",
+          "sha256": "1575e6713efaa414905e2a85b6a3b333d8380e711ae137f269e20a5f72a4b53b",
+          "bytes": 75031,
+          "mode": "0600"
+        },
+        "response": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_independent_source-8.raw",
+          "sha256": "6784953bb7d6e05b9962c7c4ee959fc9f22580ca52a5df4abcd795d02b667397",
+          "bytes": 4962,
+          "mode": "0600"
+        },
+        "http_status": 200,
+        "finish_reason": "stop",
+        "tool_names": [],
+        "response_content_characters": 4233,
+        "tokens": {
+          "input": 20815,
+          "uncached_input": 11954,
+          "cached_input": 8861,
+          "output": 1291,
+          "total": 22106
+        }
+      }
+    ]
+  },
+  "usage": {
+    "chat_provider_attempts": 8,
+    "existing_decide_advisory_attempts": 1,
+    "total_provider_attempts": 9,
+    "chat_tokens": {
+      "input": 111464,
+      "uncached_input": 50597,
+      "cached_input": 60867,
+      "output": 3658,
+      "total": 115122,
+      "complete": true,
+      "attempts_with_usage": 8,
+      "total_attempts": 8
+    },
+    "decide_tokens": {
+      "input": 2441,
+      "uncached_input": 2441,
+      "cached_input": 0,
+      "output": 2,
+      "total": 2443
+    },
+    "total_tokens": {
+      "input": 113905,
+      "uncached_input": 53038,
+      "cached_input": 60867,
+      "output": 3660,
+      "total": 117565,
+      "complete": true,
+      "attempts_with_usage": 9,
+      "total_attempts": 9
+    },
+    "chat_local_cost": {
+      "amount": 0.00694867,
+      "currency": "USD",
+      "complete": true,
+      "priced_attempts": 8,
+      "total_attempts": 8,
+      "cost_absences": []
+    },
+    "decide_local_cost": {
+      "amount": 4.882e-05,
+      "currency": "USD",
+      "pricing_source": "https://docs.inceptionlabs.ai/get-started/models — launch pricing verified 2026-11-10; estimate, not provider-reported billing"
+    },
+    "total_local_cost": {
+      "amount": 0.00699749,
+      "currency": "USD",
+      "complete": true,
+      "priced_attempts": 9,
+      "total_attempts": 9,
+      "cost_absences": []
+    },
+    "pricing_source": "https://docs.inceptionlabs.ai/get-started/models — launch pricing verified 2026-11-10; estimate, not provider-reported billing",
+    "cost_is_provider_invoice": false,
+    "decide_scope": "Existing mercury-decide advisory ran automatically. Its outgoing endpoint was not captured by the chat-completions-only preload; usage and response identity come from the existing run ledger/raw audit.",
+    "decide_raw_output": {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-11-28/2026-11-28t02-31-44-015z-3361968-644de25493f5/mercury_decide_advisory-1.raw",
+      "sha256": "570dba1f352df447550ced20e3807b630074b7acadbd762674d92285ee6af18b",
+      "bytes": 642,
+      "mode": "0600"
+    }
+  },
+  "coverage_and_limits": {
+    "tools": [
+      {
+        "name": "grep",
+        "calls": 7,
+        "succeeded": 7,
+        "failed": 0
+      },
+      {
+        "name": "open_file",
+        "calls": 4,
+        "succeeded": 4,
+        "failed": 0
+      },
+      {
+        "name": "regex_grep",
+        "calls": 1,
+        "succeeded": 1,
+        "failed": 0
+      }
+    ],
+    "tool_result_truncations": [
+      {
+        "name": "grep",
+        "iteration": 6,
+        "args": {
+          "query": "sessionRouter",
+          "file_pattern": "run-empire-v2.js"
+        },
+        "result_truncated": true,
+        "delivery_truncated": false
+      },
+      {
+        "name": "grep",
+        "iteration": 6,
+        "args": {
+          "query": "activeBroker"
+        },
+        "result_truncated": true,
+        "delivery_truncated": false
+      }
+    ],
+    "reported_terminal_coverage_flags": [
+      "coverage_insufficient",
+      "coverage_unresolved",
+      "whole_file_read_absent",
+      "inherited_section_incomplete"
+    ],
+    "reported_panel_diagnostics": {
+      "qualifyingSeats": 1,
+      "verdictLabelsMatch": false,
+      "evidenceChecksPassed": true,
+      "identitiesAttested": true,
+      "identitiesIndependent": true,
+      "issues": [
+        "insufficient_qualifying_seats"
+      ],
+      "sharedVerdictLabel": null
+    },
+    "interpretation": "The assignment was present in an untruncated source read and independently verified. Whole-file/AST/panel coverage flags are retained, not waived; this factual diagnostic is not a clean code review. No trading helper, live fill, broker or PM2 behavior was tested.",
+    "limits": [
+      "One successful small lookup cannot establish general Mercury review reliability or diagnose the earlier response10 failure.",
+      "The earlier failed run outgoing request10 was not captured and cannot be reconstructed exactly from this run.",
+      "Exact bytes at request.write/end and matching response hashes establish this local observation; they do not expose provider-side serialization or reasoning.",
+      "Native assistant fields, including opaque provider metadata, were compared for exact preservation without disclosing private reasoning data.",
+      "No client, prompt, tool schema, token allowance, iteration ceiling or policy gate was changed for this lookup.",
+      "The run used pinned source_snapshot retrieval. It does not test semantic RAG or embedding behavior."
+    ]
+  },
+  "ledger_evidence": {
+    "path": "ogz-meta/cognition-history/mercury-runs/2026-11-28.jsonl",
+    "line": 2,
+    "line_sha256_excluding_newline": "bfe7513da0a45ee911be0c0763125e9ec2b1ab3f795266d96c11ac9fa7e7f7ba"
+  },
+  "recording_actions": {
+    "production_edits": false,
+    "provider_calls_by_subagent": 0,
+    "staging": false,
+    "commits": false,
+    "runtime_operations": false,
+    "public_outputs": [
+      "source-lookup-receipt.json",
+      "source-lookup-answer.md",
+      "request-capture-receipt.json"
+    ]
+  }
+}
