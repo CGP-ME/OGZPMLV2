@@ -1,0 +1,143 @@
+{
+  "observedAt": "2026-11-28T02:19:33.100577+00:00",
+  "activatedHead": "a793c86d80d80dba38be2fee81e7d8a20553157a",
+  "processes": [
+    {
+      "name": "ogz-supervisor",
+      "pid": 2158697,
+      "status": "online",
+      "restartDelta": 0,
+      "pidChanged": false,
+      "canonicalEnvironmentMatches": true,
+      "profile": null,
+      "alternateDotenvPathPresent": false
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 2218954,
+      "status": "online",
+      "restartDelta": 0,
+      "pidChanged": false,
+      "canonicalEnvironmentMatches": true,
+      "profile": null,
+      "alternateDotenvPathPresent": false
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 2158705,
+      "status": "online",
+      "restartDelta": 0,
+      "pidChanged": false,
+      "canonicalEnvironmentMatches": true,
+      "profile": null,
+      "alternateDotenvPathPresent": false
+    },
+    {
+      "name": "ogz-prime-v2",
+      "pid": 3357499,
+      "status": "online",
+      "restartDelta": 1,
+      "pidChanged": true,
+      "canonicalEnvironmentMatches": true,
+      "profile": "paper",
+      "alternateDotenvPathPresent": false
+    }
+  ],
+  "sourceManifestChecked": 58,
+  "sourceDrift": [],
+  "configurationFilesUnchanged": true,
+  "inheritedSourceQualification": "All manifest paths compared against the preflight; pre-existing dirty dependencies remain recorded separately.",
+  "positionsBefore": 1,
+  "positionsAfter": 1,
+  "closedTradeCountBefore": 1225,
+  "closedTradeCountAfter": 1225,
+  "pauseReason": null,
+  "symbolHaltCount": 1,
+  "transition": {
+    "state": "TARGET_ACTIVATED",
+    "freezeNewEntries": false,
+    "activeSession": "crypto"
+  },
+  "watchdogStarted": true,
+  "symbolHaltCountBefore": 1,
+  "nativeFeedEvidence": [],
+  "liveCandleCounts": [
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "15m",
+      "status": "on_time",
+      "count": 30
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1d",
+      "status": "on_time",
+      "count": 30
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1h",
+      "status": "on_time",
+      "count": 30
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "1m",
+      "status": "on_time",
+      "count": 30
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "30m",
+      "status": "on_time",
+      "count": 30
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "4h",
+      "status": "on_time",
+      "count": 30
+    },
+    {
+      "symbol": "BTC-USD",
+      "timeframe": "5m",
+      "status": "on_time",
+      "count": 30
+    }
+  ],
+  "producerConsumerMismatchCount": 0,
+  "traceCounts": {
+    "CANDLE_INGRESS": 210,
+    "CANDLE_NORMALIZED": 210,
+    "LAST_PRICE_INFLUENCE": 217,
+    "CANDLE_PROCESSOR_RECEIVED": 210,
+    "CANDLE_ACCEPTED": 630,
+    "CANDLE_OBSERVATION_ONLY": 60,
+    "BOOT_REST_HYDRATION_CANDLE": 420,
+    "REST_HYDRATION_COMPLETE": 1,
+    "EXIT_ONLY_START": 3,
+    "DECISION_AUTOPSY": 4,
+    "TRADING_CYCLE_TRIGGER": 1,
+    "ANALYSIS_START": 1,
+    "STRATEGY_DECISION": 1,
+    "DECISION_SKIP": 1,
+    "NATIVE_FEED_EVIDENCE": 0
+  },
+  "configSourceReceiptCount": 1,
+  "configFingerprints": [
+    "99fe2ac60d6cdebe891843b5c4899528ec036bc1c7cbe08333df29c6b27e94f4"
+  ],
+  "historyPreserved": {
+    "data/candle-history.json": {
+      "exists": true,
+      "bytesBefore": 43406,
+      "bytesAfter": 43406
+    }
+  },
+  "limitations": [
+    "Normal paper traffic after activation; no live fault injection or real broker order.",
+    "The isolated receipt establishes identical-history and corrected-history indicator behavior; no live CPU instrumentation or fault injection.",
+    "Normal traffic alone does not reproduce the old synchronous duplicate-history stall or close Stop 2.",
+    "Private reconciliation deadlines and live fill accounting remain separate open work."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "startedAt": "2026-11-28T02:18:18.998837+00:00",
+  "finishedAt": "2026-11-28T02:18:20.010727+00:00",
+  "command": [
+    "pm2",
+    "restart",
+    "ecosystem.config.js",
+    "--only",
+    "ogz-prime-v2",
+    "--update-env"
+  ],
+  "exitCode": 0,
+  "localCommit": "a793c86d80d80dba38be2fee81e7d8a20553157a",
+  "confirmedRemoteCommit": "a793c86d80d80dba38be2fee81e7d8a20553157a",
+  "review": "astra-review.md",
+  "profile": "paper",
+  "preservation": "Canonical ecosystem launch environment; only bot restarted. Saved position, halts, state, journals and history not cleared."
+}

@@ -1,0 +1,23 @@
+{
+  "positions": [
+    {
+      "symbol": "BTC-USD",
+      "retainedSameTradeId": true,
+      "changedEntryFields": []
+    }
+  ],
+  "duplicateActiveSymbols": [],
+  "unchangedExistingHaltRecords": true,
+  "changedPositionFields": [
+    {
+      "symbol": "BTC-USD",
+      "fields": [
+        "lowestPrice",
+        "maxAdverseExcursionPercent",
+        "maxFavorableExcursionPercent",
+        "maxProfitPercent"
+      ]
+    }
+  ],
+  "interpretation": "Only observed price-excursion tracking fields changed. All entry fields, position quantity/notional, fees, identity, exit contract and remaining quantity matched before/after."
+}
